@@ -1,4 +1,5 @@
 mod commands;
+mod tray;
 use commands::rclone::RcloneState;
 use tauri::Manager;
 
@@ -18,6 +19,10 @@ pub fn run() {
             commands::rclone::get_rclone_port,
             commands::rclone::is_rclone_running,
         ])
+        .setup(|app| {
+            tray::setup_tray(app)?;
+            Ok(())
+        })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {
                 let state = window.state::<RcloneState>();
