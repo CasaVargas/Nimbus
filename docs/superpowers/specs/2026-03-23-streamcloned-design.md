@@ -32,7 +32,7 @@ Ship lean (v1: core file operations), make it gorgeous, then layer on power feat
 |-------|--------|-----------|
 | Runtime | Tauri v2 | Cross-platform native shell, Rust backend, small binary |
 | Frontend | React 19 + TypeScript 5.x | Industry standard, massive ecosystem |
-| Bundler | Vite 7 | Fast builds, HMR, modern defaults |
+| Bundler | Vite 6 | Fast builds, HMR, modern defaults |
 | Styling | Tailwind CSS v4 | Utility-first, no CSS bloat |
 | UI Components | shadcn/ui | Copy-paste ownership, no dependency lock-in |
 | Client State | Zustand | Minimal, fast, TypeScript-native |
@@ -158,11 +158,111 @@ streamcloned/
 3. All subsequent operations go through the HTTP API
 4. App quit → Rust sends SIGTERM to daemon process, waits, then SIGKILL if needed
 
+### Daemon Port Handling
+
+Default port is 5572. On startup, Rust checks if the port is available:
+- If free → bind to it
+- If occupied → try ports 5573–5580
+- Store the active port in the app store so the frontend connects to the right one
+- Display the active port in Settings for transparency
+
 ### Authentication
 
 For v1, the daemon runs on localhost with no auth (`--rc-no-auth`). This is safe because:
 - Bound to 127.0.0.1 only (not exposed to network)
 - Same security model as Rclone UI and rclone's own web GUI
+
+---
+
+## Rclone API Surface
+
+The rclone RC (Remote Control) API is HTTP/JSON on `localhost:<port>`. All calls are POST with JSON body.
+
+### Endpoints Used by Feature
+
+| Feature | Endpoint | Purpose |
+|---------|----------|---------|
+| Health check | `rc/noop` | Verify daemon is alive |
+| Remote list | `config/listremotes` | Get all configured remotes |
+| Remote info | `config/dump` | Get all remote configs with parameters |
+| Provider list | `config/providers` | List available cloud providers |
+| Create remote | `config/create` | Create a new remote (simple) |
+| Interactive config | `config/create` → `config/update` | Multi-step OAuth/interactive setup |
+| Update remote | `config/update` | Modify remote parameters |
+| Delete remote | `config/delete` | Remove a remote |
+| List directory | `operations/list` | List files/folders at path (`fs`, `remote`, `opt.recurse`) |
+| File info | `operations/stat` | Get single file metadata |
+| Mkdir | `operations/mkdir` | Create directory |
+| Delete file | `operations/deletefile` | Delete a single file |
+| Purge dir | `operations/purge` | Delete directory and all contents |
+| Move/rename | `operations/movefile` | Move or rename a file |
+| Copy file | `operations/copyfile` | Copy a single file |
+| Copy tree | `sync/copy` | Copy directory tree src → dest |
+| Sync tree | `sync/sync` | Sync directory tree (deletes extra files in dest) |
+| Mount | `mount/mount` | Mount remote as local filesystem |
+| Unmount | `mount/unmount` | Unmount a mounted remote |
+| List mounts | `mount/listmounts` | Get all active mounts |
+| Job status | `job/status` | Get status of a running async job |
+| Job list | `job/list` | List all running jobs |
+| Job stop | `job/stop` | Cancel a running job |
+| Core stats | `core/stats` | Transfer speed, bytes, errors, current files |
+| Core bwlimit | `core/bwlimit` | Get/set bandwidth limit |
+| About remote | `operations/about` | Get storage space info for a remote |
+
+### Response Types
+
+TypeScript types will be hand-written in `src/lib/rclone/types.ts`, modeled from rclone's RC API documentation. Rclone does not publish an OpenAPI spec, so we define our own interfaces based on observed responses. The `rclone-sdk` npm package may be used as a reference but we own our types.
+
+---
+
+## Remote Configuration Flow
+
+Rclone's remote setup is often multi-step and interactive (OAuth flows, conditional fields). The RC API models this as a state machine:
+
+### Simple Remotes (S3, FTP, SFTP, local)
+
+1. Call `config/create` with `name`, `type`, and `parameters`
+2. Remote is immediately usable
+
+### OAuth Remotes (Google Drive, Dropbox, OneDrive, etc.)
+
+1. Call `config/create` with `name`, `type`, and `parameters`
+2. Response may include `State` indicating more input is needed
+3. If OAuth is required, rclone opens a browser for the OAuth flow
+4. The app polls or waits for the OAuth callback to complete
+5. Call `config/update` with the auth token/state to finalize
+
+### UI Implementation
+
+- **Provider picker screen** → select provider type
+- **Config form** → dynamically rendered from provider's parameter schema (from `config/providers`)
+- **OAuth step** → show "Waiting for authorization..." with a "Open Browser" button and a cancel option
+- **Completion** → success toast, redirect to home screen
+- **Error** → inline error message with retry option
+
+The config form fields are rendered dynamically based on the provider's `Options` array from `config/providers`, which includes field names, types, defaults, help text, and whether they're required or advanced.
+
+---
+
+## Error Handling Strategy
+
+### Error Categories
+
+| Category | Example | User-Facing Behavior |
+|----------|---------|---------------------|
+| Daemon unavailable | Daemon crashed, port conflict | Banner: "Connection lost. Reconnecting..." with auto-retry (exponential backoff, max 30s). After 3 failures, show "Rclone is not responding" with Restart/Settings buttons |
+| API error | Invalid path, permission denied | Toast notification with error message from rclone. Non-destructive — user can retry |
+| Network error | Cloud provider unreachable, timeout | Toast: "Could not reach [provider]. Check your connection." Retry button on the failed operation |
+| Auth error | OAuth token expired, invalid credentials | Modal: "Re-authorize [remote name]?" with button to re-run OAuth flow |
+| File operation error | File not found, conflict, quota exceeded | Inline error on the specific file/transfer row. Does not block other operations |
+| Mount failure | FUSE not installed, mount point busy | Toast with specific guidance: "Install macFUSE to enable mounting" or "Mount point /Volumes/x is already in use" |
+
+### Principles
+
+- **Never silent failures.** Every error surfaces to the user.
+- **Granular, not global.** One failed file doesn't kill the whole transfer. One failed mount doesn't block the app.
+- **Actionable messages.** Every error tells the user what to do next (retry, re-auth, check settings).
+- **Auto-retry for transient errors.** Network timeouts and daemon reconnection use exponential backoff. File operation errors do not auto-retry.
 
 ---
 
@@ -213,10 +313,10 @@ The home screen is a grid of remote cards.
 - Create folder: Inline rename after creation
 - Delete: Selected items → confirmation → `operations/deletefile` or `operations/purge`
 - Rename: Inline edit → `operations/movefile`
-- Download: Selected files → native save dialog → copy to local path
-- Upload: Drag-and-drop or button → `operations/copyfile` from local
+- Download: Selected files → Tauri native save dialog (returns local path) → `operations/copyfile` from remote to local path via rclone (rclone treats local filesystem as a remote)
+- Upload: Tauri open dialog or drag-and-drop (Tauri provides dropped file paths) → `operations/copyfile` from local path to remote via rclone
 - Preview: Click file → side panel with image/text/media preview
-- Search: Filter current directory listing (client-side for v1)
+- Search: Client-side filter of current directory listing only (not recursive). Search bar is labeled "Filter this folder" to set correct expectations. Recursive search is a v2 feature.
 
 **View modes:**
 - List: Compact rows with columns (name, size, date)
@@ -249,10 +349,10 @@ The home screen is a grid of remote cards.
 - Each entry: operation type icon, source → dest, progress, action buttons
 
 **Controls:**
-- Pause/resume individual transfers (`job/stop` / `job/start` — implementation may use rclone's bandwidth throttle)
-- Cancel: Stop and clean up (`job/stop`)
-- Clear completed: Remove finished entries from the list
-- Retry failed: Re-queue a failed transfer
+- Cancel: Stop a running job via `job/stop`. Cancelled jobs move to the "completed" section with a "cancelled" status.
+- Retry failed: Re-queue a failed or cancelled transfer by re-issuing the original API call with the same parameters.
+- Clear completed: Remove finished/failed/cancelled entries from the list.
+- **No pause/resume in v1.** Rclone's RC API does not support true pause/resume for async jobs. `job/stop` is terminal — the job cannot be restarted. Bandwidth throttling (`core/bwlimit` set to 0) simulates a pause but has global scope (affects all transfers). True per-job pause is a v2 goal that may require Rust-side transfer orchestration.
 
 **Persistence:**
 - Transfer history saved to Zustand persisted store
@@ -275,6 +375,12 @@ The home screen is a grid of remote cards.
 - macOS: FUSE (macFUSE or FUSE-T) — detect and prompt for install if missing
 - Windows: WinFsp — detect and prompt
 - Linux: FUSE3 — typically available
+
+**Auto-mount failure handling:**
+- On startup, auto-mount attempts run sequentially
+- If a mount fails: log the error, show a toast notification ("Failed to mount [name]: [reason]"), continue with remaining mounts
+- Failed auto-mounts are marked with an error badge in the mount list
+- Common failures and their messages: FUSE not installed → "Install macFUSE/WinFsp to enable mounting"; credentials expired → "Re-authorize [remote] to mount"; mount point busy → "Mount point is already in use"
 
 **System tray integration:**
 - Mounted remotes shown in tray menu
