@@ -72,6 +72,7 @@ export function MountItem({ config, isActive }: MountItemProps) {
         variant="ghost"
         size="sm"
         onClick={() => removeConfig(config.mountPoint)}
+        disabled={isActive}
       >
         Remove
       </Button>

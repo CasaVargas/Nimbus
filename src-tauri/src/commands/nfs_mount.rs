@@ -9,6 +9,46 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 use tauri::State;
 
+fn validate_mount_point(mount_point: &str) -> Result<(), String> {
+    let path = std::path::Path::new(mount_point);
+
+    // Must be absolute
+    if !path.is_absolute() {
+        return Err("Mount point must be an absolute path".to_string());
+    }
+
+    // Must not contain .. components
+    for component in path.components() {
+        if let std::path::Component::ParentDir = component {
+            return Err("Mount point must not contain '..' components".to_string());
+        }
+    }
+
+    // Must be under user's home directory
+    if let Some(home) = dirs::home_dir() {
+        if !path.starts_with(&home) {
+            return Err(format!(
+                "Mount point must be under your home directory ({})",
+                home.display()
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_remote(remote: &str) -> Result<(), String> {
+    // Remote should match pattern: alphanumeric/hyphens/underscores, optionally ending with ':'
+    let name = remote.trim_end_matches(':');
+    if name.is_empty() {
+        return Err("Remote name cannot be empty".to_string());
+    }
+    if !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == ' ') {
+        return Err("Remote name contains invalid characters".to_string());
+    }
+    Ok(())
+}
+
 pub struct MountEntry {
     pub remote: String,
     pub mount_point: String,
@@ -88,13 +128,28 @@ pub async fn spawn_nfs_server(remote: &str, port: u16, read_only: bool) -> Resul
     let mut child = Command::new("rclone")
         .args(&args)
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to start rclone serve nfs: {}", e))?;
 
     let start = Instant::now();
     let timeout = Duration::from_secs(10);
     while start.elapsed() < timeout {
+        // Check if child exited early (startup failure)
+        if let Ok(Some(status)) = child.try_wait() {
+            let stderr = child.stderr.take()
+                .map(|mut s| {
+                    let mut buf = String::new();
+                    use std::io::Read;
+                    let _ = s.read_to_string(&mut buf);
+                    buf
+                })
+                .unwrap_or_default();
+            return Err(format!(
+                "rclone serve nfs exited with {}: {}",
+                status, stderr.trim()
+            ));
+        }
         if TcpListener::bind(("127.0.0.1", port)).is_err() {
             return Ok(child);
         }
@@ -134,16 +189,35 @@ fn mount_nfs_share(port: u16, mount_point: &str) -> Result<(), String> {
 }
 
 fn unmount_nfs_share(mount_point: &str) -> Result<(), String> {
-    let output = Command::new("umount")
+    let mut child = Command::new("umount")
         .arg(mount_point)
-        .output()
+        .spawn()
         .map_err(|e| format!("Failed to run umount: {}", e))?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("umount failed: {}", stderr.trim()));
+    let start = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                if status.success() {
+                    return Ok(());
+                }
+                return Err(format!("umount failed with exit code: {}", status));
+            }
+            Ok(None) => {
+                if start.elapsed() > Duration::from_secs(5) {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    // Try force unmount
+                    let _ = Command::new("diskutil")
+                        .args(["unmount", "force", mount_point])
+                        .output();
+                    return Err(format!("umount timed out for {}, forced", mount_point));
+                }
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            Err(e) => return Err(format!("Failed to check umount status: {}", e)),
+        }
     }
-    Ok(())
 }
 
 #[derive(Serialize, Clone)]
@@ -160,7 +234,17 @@ pub async fn nfs_mount(
     mount_point: String,
     read_only: bool,
 ) -> Result<(), String> {
+    validate_mount_point(&mount_point)?;
+    validate_remote(&remote)?;
+
     validate_rclone_nfs_support()?;
+
+    {
+        let mounts = state.mounts.lock().unwrap();
+        if mounts.contains_key(&mount_point) {
+            return Err(format!("Mount point {} is already active", mount_point));
+        }
+    }
 
     let port = {
         let mounts = state.mounts.lock().unwrap();
