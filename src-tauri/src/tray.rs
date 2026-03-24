@@ -4,6 +4,9 @@ use tauri::{
     Manager,
 };
 
+use crate::commands::nfs_mount::{cleanup_all_mounts, NfsMountState};
+use crate::commands::rclone::RcloneState;
+
 pub fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let show = MenuItem::with_id(app, "show", "Open StreamCloned", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
@@ -21,6 +24,15 @@ pub fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             "quit" => {
+                let nfs_state: tauri::State<NfsMountState> = app.state();
+                cleanup_all_mounts(nfs_state.inner());
+
+                let rclone_state: tauri::State<RcloneState> = app.state();
+                if let Some(mut child) = rclone_state.child.lock().unwrap().take() {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                }
+
                 app.exit(0);
             }
             _ => {}
