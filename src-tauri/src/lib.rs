@@ -1,7 +1,7 @@
 mod commands;
 mod tray;
 use commands::rclone::RcloneState;
-use tauri::Manager;
+use tauri::{Manager, State};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -25,11 +25,14 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {
-                let state = window.state::<RcloneState>();
-                let child = state.child.lock().unwrap().take();
-                if let Some(child) = child {
+                let state: State<RcloneState> = window.state();
+                let mut guard = state.child.lock().unwrap();
+                if let Some(ref mut child) = *guard {
                     let _ = child.kill();
+                    let _ = child.wait();
                 }
+                *guard = None;
+                drop(guard);
             }
         })
         .run(tauri::generate_context!())

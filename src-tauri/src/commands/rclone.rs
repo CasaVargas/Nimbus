@@ -1,13 +1,12 @@
 use std::net::TcpListener;
+use std::process::{Child, Command};
 use std::sync::Mutex;
 use tauri::State;
-use tauri_plugin_shell::process::CommandChild;
-use tauri_plugin_shell::ShellExt;
 
 pub struct RcloneState {
     pub port: Mutex<u16>,
     pub running: Mutex<bool>,
-    pub child: Mutex<Option<CommandChild>>,
+    pub child: Mutex<Option<Child>>,
 }
 
 impl Default for RcloneState {
@@ -31,7 +30,6 @@ fn find_available_port(start: u16) -> Option<u16> {
 
 #[tauri::command]
 pub async fn start_rclone(
-    app: tauri::AppHandle,
     state: State<'_, RcloneState>,
 ) -> Result<u16, String> {
     // If already running, return the current port
@@ -41,14 +39,13 @@ pub async fn start_rclone(
 
     let port = find_available_port(5572).ok_or("No available port in range 5572-5580")?;
 
-    let shell = app.shell();
-    let (mut _rx, child) = shell
-        .command("rclone")
+    let child = Command::new("rclone")
         .args([
             "rcd",
             "--rc-no-auth",
             "--rc-addr",
             &format!("127.0.0.1:{}", port),
+            "--rc-allow-origin=*",
         ])
         .spawn()
         .map_err(|e| format!("Failed to start rclone: {}", e))?;
@@ -62,8 +59,9 @@ pub async fn start_rclone(
 
 #[tauri::command]
 pub fn stop_rclone(state: State<'_, RcloneState>) -> Result<(), String> {
-    if let Some(child) = state.child.lock().unwrap().take() {
+    if let Some(mut child) = state.child.lock().unwrap().take() {
         let _ = child.kill();
+        let _ = child.wait();
     }
     *state.running.lock().unwrap() = false;
     Ok(())
