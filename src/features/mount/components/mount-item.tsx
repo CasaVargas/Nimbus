@@ -19,12 +19,13 @@ export function MountItem({ config, isActive }: MountItemProps) {
 
   function handleToggleMount() {
     if (isActive) {
-      unmountMutation.mutate(config.mountPoint);
+      unmountMutation.mutate({ mountPoint: config.mountPoint, backend: config.backend });
     } else {
       mountMutation.mutate({
         fs: config.remote,
         mountPoint: config.mountPoint,
         vfsOpt: config.vfsMode === "read-only" ? { readOnly: true } : undefined,
+        backend: config.backend,
       });
     }
   }

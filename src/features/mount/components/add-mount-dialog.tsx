@@ -1,6 +1,7 @@
+import { homeDir } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/plugin-dialog";
 import { FolderOpenIcon, PlusIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getDefaultMountBackend } from "@/lib/platform";
 import { useRemotes } from "@/features/remotes/hooks/use-remotes";
 import { useMountStore, type VfsMode } from "@/stores/mount-store";
 
@@ -29,9 +31,24 @@ export function AddMountDialog() {
   const [remote, setRemote] = useState("");
   const [mountPoint, setMountPoint] = useState("");
   const [vfsMode, setVfsMode] = useState<VfsMode>("read-only");
+  const [homePath, setHomePath] = useState("");
 
+  const backend = getDefaultMountBackend();
   const { data: remotes } = useRemotes();
   const addConfig = useMountStore((s) => s.addConfig);
+
+  useEffect(() => {
+    if (backend === "nfs") {
+      homeDir().then((p) => setHomePath(p)).catch(() => {});
+    }
+  }, [backend]);
+
+  useEffect(() => {
+    if (backend === "nfs" && homePath && remote) {
+      const remoteName = remote.replace(/:$/, "");
+      setMountPoint(`${homePath}CloudDrives/${remoteName}`);
+    }
+  }, [backend, homePath, remote]);
 
   async function handleBrowse() {
     const selected = await open({ directory: true, multiple: false });
@@ -48,6 +65,7 @@ export function AddMountDialog() {
       mountPoint,
       vfsMode,
       autoMount: false,
+      backend,
     });
 
     setRemote("");
