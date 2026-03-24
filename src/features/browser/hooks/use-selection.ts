@@ -17,9 +17,7 @@ export function useSelection(names: string[]) {
           const endIdx = names.indexOf(name);
           if (startIdx !== -1 && endIdx !== -1) {
             const [from, to] =
-              startIdx < endIdx
-                ? [startIdx, endIdx]
-                : [endIdx, startIdx];
+              startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
             for (let i = from; i <= to; i++) {
               next.add(names[i]);
             }

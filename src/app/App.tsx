@@ -1,9 +1,9 @@
 import { Outlet } from "react-router-dom";
-import { Providers } from "./providers";
-import { Sidebar } from "@/components/sidebar";
-import { ConnectionBanner } from "@/components/connection-banner";
 import { Toaster } from "sonner";
+import { ConnectionBanner } from "@/components/connection-banner";
+import { Sidebar } from "@/components/sidebar";
 import { useDaemon } from "../hooks/use-daemon";
+import { Providers } from "./providers";
 
 export default function App() {
   const { status, error, retry } = useDaemon();

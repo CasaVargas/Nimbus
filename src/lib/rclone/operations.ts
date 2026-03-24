@@ -1,14 +1,14 @@
 import { rclone } from "./client";
 import type {
-  ListResponse,
-  StatResponse,
   AboutResponse,
   FileItem,
+  ListResponse,
+  StatResponse,
 } from "./types";
 
 export async function listFiles(
   fs: string,
-  remote: string
+  remote: string,
 ): Promise<FileItem[]> {
   const res = await rclone.call<ListResponse>("operations/list", {
     fs,
@@ -41,7 +41,7 @@ export async function moveFile(
   srcFs: string,
   srcRemote: string,
   dstFs: string,
-  dstRemote: string
+  dstRemote: string,
 ): Promise<void> {
   await rclone.call("operations/movefile", {
     srcFs,
@@ -55,7 +55,7 @@ export async function copyFile(
   srcFs: string,
   srcRemote: string,
   dstFs: string,
-  dstRemote: string
+  dstRemote: string,
 ): Promise<void> {
   await rclone.call("operations/copyfile", {
     srcFs,

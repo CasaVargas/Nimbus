@@ -6,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAppStore, type Theme } from "@/stores/app-store";
+import { type Theme, useAppStore } from "@/stores/app-store";
 
 export function AppearanceSection() {
   const theme = useAppStore((s) => s.theme);

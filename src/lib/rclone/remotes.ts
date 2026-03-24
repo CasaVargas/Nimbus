@@ -1,7 +1,7 @@
 import { rclone } from "./client";
 import type {
-  ListRemotesResponse,
   ConfigDumpResponse,
+  ListRemotesResponse,
   ProvidersResponse,
 } from "./types";
 
@@ -21,14 +21,14 @@ export async function getProviders(): Promise<ProvidersResponse> {
 export async function createRemote(
   name: string,
   type: string,
-  parameters: Record<string, string>
+  parameters: Record<string, string>,
 ): Promise<void> {
   await rclone.call("config/create", { name, type, parameters });
 }
 
 export async function updateRemote(
   name: string,
-  parameters: Record<string, string>
+  parameters: Record<string, string>,
 ): Promise<void> {
   await rclone.call("config/update", { name, parameters });
 }

@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
 import { ExternalLinkIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const APP_VERSION = "0.1.0";
 const GITHUB_URL = "https://github.com/streamcloned/streamcloned";

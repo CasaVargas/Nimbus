@@ -21,9 +21,7 @@ export function PathBreadcrumb({
         onClick={() => onNavigate("")}
         className={cn(
           "flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium transition-colors hover:bg-muted",
-          segments.length === 0
-            ? "text-foreground"
-            : "text-muted-foreground",
+          segments.length === 0 ? "text-foreground" : "text-muted-foreground",
         )}
       >
         <Home className="size-3.5" />

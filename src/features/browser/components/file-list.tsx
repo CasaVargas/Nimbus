@@ -1,4 +1,4 @@
-import { Folder, File, ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronUp, File, Folder } from "lucide-react";
 import type { FileItem } from "@/lib/rclone/types";
 import { cn } from "@/lib/utils";
 

@@ -16,14 +16,8 @@ export interface Transfer {
 
 interface TransferState {
   transfers: Transfer[];
-  addTransfer: (
-    transfer: Omit<Transfer, "status" | "startedAt">,
-  ) => void;
-  completeTransfer: (
-    jobId: number,
-    success: boolean,
-    error?: string,
-  ) => void;
+  addTransfer: (transfer: Omit<Transfer, "status" | "startedAt">) => void;
+  completeTransfer: (jobId: number, success: boolean, error?: string) => void;
   cancelTransfer: (jobId: number) => void;
   removeTransfer: (jobId: number) => void;
   clearCompleted: () => void;

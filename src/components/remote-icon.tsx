@@ -1,10 +1,10 @@
 import {
   Cloud,
   Database,
-  Server,
   FolderOpen,
   HardDrive,
   type LucideProps,
+  Server,
 } from "lucide-react";
 
 const cloudTypes = new Set([
@@ -35,10 +35,7 @@ const serverTypes = new Set(["sftp", "ftp", "webdav", "http", "ssh"]);
 
 const localTypes = new Set(["local", "alias", "crypt", "union", "combine"]);
 
-export function RemoteIcon({
-  type,
-  ...props
-}: { type: string } & LucideProps) {
+export function RemoteIcon({ type, ...props }: { type: string } & LucideProps) {
   const normalized = type.toLowerCase();
 
   if (cloudTypes.has(normalized)) return <Cloud {...props} />;

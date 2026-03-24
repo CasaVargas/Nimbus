@@ -1,16 +1,14 @@
-import { NavLink } from "react-router-dom";
 import {
-  HardDrive,
-  FolderOpen,
-  Copy,
   ArrowUpDown,
+  Copy,
   Database,
-  Settings,
-  PanelLeftClose,
+  FolderOpen,
+  HardDrive,
   PanelLeft,
+  PanelLeftClose,
+  Settings,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useAppStore } from "@/stores/app-store";
+import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -18,6 +16,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import { useAppStore } from "@/stores/app-store";
 
 const navItems = [
   { to: "/", icon: HardDrive, label: "Remotes", end: true },

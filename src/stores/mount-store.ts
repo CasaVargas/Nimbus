@@ -35,9 +35,7 @@ export const useMountStore = create<MountState>()(
       toggleAutoMount: (mountPoint) =>
         set((state) => ({
           configs: state.configs.map((c) =>
-            c.mountPoint === mountPoint
-              ? { ...c, autoMount: !c.autoMount }
-              : c,
+            c.mountPoint === mountPoint ? { ...c, autoMount: !c.autoMount } : c,
           ),
         })),
     }),

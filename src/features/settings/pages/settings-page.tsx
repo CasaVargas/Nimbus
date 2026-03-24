@@ -1,9 +1,9 @@
 import { PageHeader } from "@/components/page-header";
 import { Separator } from "@/components/ui/separator";
+import { AboutSection } from "../components/about-section";
 import { AppearanceSection } from "../components/appearance-section";
 import { RcloneSection } from "../components/rclone-section";
 import { TransferSection } from "../components/transfer-section";
-import { AboutSection } from "../components/about-section";
 
 export default function SettingsPage() {
   return (

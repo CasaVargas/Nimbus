@@ -1,11 +1,11 @@
-import { useMemo } from "react";
 import { HardDriveIcon } from "lucide-react";
-import { PageHeader } from "@/components/page-header";
+import { useMemo } from "react";
 import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 import { useMountStore } from "@/stores/mount-store";
-import { useActiveMounts } from "../hooks/use-mounts";
-import { MountItem } from "../components/mount-item";
 import { AddMountDialog } from "../components/add-mount-dialog";
+import { MountItem } from "../components/mount-item";
+import { useActiveMounts } from "../hooks/use-mounts";
 
 export default function MountPage() {
   const configs = useMountStore((s) => s.configs);

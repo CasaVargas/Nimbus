@@ -5,7 +5,7 @@ export async function mountRemote(
   fs: string,
   mountPoint: string,
   mountOpt?: Record<string, unknown>,
-  vfsOpt?: Record<string, unknown>
+  vfsOpt?: Record<string, unknown>,
 ): Promise<void> {
   await rclone.call("mount/mount", {
     fs,

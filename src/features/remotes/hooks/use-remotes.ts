@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listRemotes, configDump, deleteRemote } from "@/lib/rclone/remotes";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { configDump, deleteRemote, listRemotes } from "@/lib/rclone/remotes";
 
 export interface RemoteEntry {
   name: string;

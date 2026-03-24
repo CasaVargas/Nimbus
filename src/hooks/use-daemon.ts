@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
-import { startRclone } from "../lib/tauri/rclone";
+import { useCallback, useEffect, useState } from "react";
 import { rclone } from "../lib/rclone/client";
+import { startRclone } from "../lib/tauri/rclone";
 import { useAppStore } from "../stores/app-store";
 
 type DaemonStatus = "connecting" | "connected" | "error";

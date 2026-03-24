@@ -24,8 +24,7 @@ export function MountItem({ config, isActive }: MountItemProps) {
       mountMutation.mutate({
         fs: config.remote,
         mountPoint: config.mountPoint,
-        vfsOpt:
-          config.vfsMode === "read-only" ? { readOnly: true } : undefined,
+        vfsOpt: config.vfsMode === "read-only" ? { readOnly: true } : undefined,
       });
     }
   }

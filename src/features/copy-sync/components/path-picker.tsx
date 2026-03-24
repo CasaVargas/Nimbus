@@ -30,7 +30,12 @@ export function PathPicker({
     <div className="space-y-2">
       <Label>{label}</Label>
       <div className="flex gap-2">
-        <Select value={remote} onValueChange={(v) => { if (v) onRemoteChange(v); }}>
+        <Select
+          value={remote}
+          onValueChange={(v) => {
+            if (v) onRemoteChange(v);
+          }}
+        >
           <SelectTrigger className="w-48">
             <SelectValue
               placeholder={isLoading ? "Loading..." : "Select remote"}

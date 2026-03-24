@@ -1,15 +1,12 @@
-import { useState, useMemo, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { HardDrive, Trash2, X } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { HardDrive, Trash2, X } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-
-import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 import { PathBreadcrumb } from "@/components/path-breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -18,17 +15,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-import { useFileList } from "../hooks/use-file-list";
-import { useSelection } from "../hooks/use-selection";
-import { useCreateFolder, useDeleteItems, useUploadFile } from "../hooks/use-file-operations";
-import {
-  BrowserToolbar,
-  type ViewMode,
-} from "../components/browser-toolbar";
-import { FileList, type SortField, type SortDir } from "../components/file-list";
-import { FileGrid } from "../components/file-grid";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { FileItem } from "@/lib/rclone/types";
+import { BrowserToolbar, type ViewMode } from "../components/browser-toolbar";
+import { FileGrid } from "../components/file-grid";
+import {
+  FileList,
+  type SortDir,
+  type SortField,
+} from "../components/file-list";
+import { useFileList } from "../hooks/use-file-list";
+import {
+  useCreateFolder,
+  useDeleteItems,
+  useUploadFile,
+} from "../hooks/use-file-operations";
+import { useSelection } from "../hooks/use-selection";
 
 export default function BrowserPage() {
   const { remote, "*": splat } = useParams();
@@ -57,9 +60,7 @@ export default function BrowserPage() {
     // Filter
     if (filter) {
       const lowerFilter = filter.toLowerCase();
-      result = result.filter((f) =>
-        f.Name.toLowerCase().includes(lowerFilter),
-      );
+      result = result.filter((f) => f.Name.toLowerCase().includes(lowerFilter));
     }
 
     // Sort: directories first, then by field
@@ -75,8 +76,7 @@ export default function BrowserPage() {
           cmp = a.Size - b.Size;
           break;
         case "modified":
-          cmp =
-            new Date(a.ModTime).getTime() - new Date(b.ModTime).getTime();
+          cmp = new Date(a.ModTime).getTime() - new Date(b.ModTime).getTime();
           break;
       }
 
@@ -90,7 +90,12 @@ export default function BrowserPage() {
     () => processedFiles.map((f) => f.Name),
     [processedFiles],
   );
-  const { selected, toggle, clear, selectAll: _selectAll } = useSelection(fileNames);
+  const {
+    selected,
+    toggle,
+    clear,
+    selectAll: _selectAll,
+  } = useSelection(fileNames);
 
   // Mutations
   const createFolder = useCreateFolder(remote ?? "", path);
@@ -125,9 +130,7 @@ export default function BrowserPage() {
   const handleNavigate = useCallback(
     (newPath: string) => {
       navigate(
-        newPath
-          ? `/browser/${remote}/${newPath}`
-          : `/browser/${remote}`,
+        newPath ? `/browser/${remote}/${newPath}` : `/browser/${remote}`,
       );
       clear();
       setFilter("");
@@ -169,7 +172,9 @@ export default function BrowserPage() {
         },
       });
     } catch (err) {
-      toast.error(`Dialog error: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(
+        `Dialog error: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }, [uploadFile]);
 
@@ -209,10 +214,7 @@ export default function BrowserPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <PageHeader
-        title="Browser"
-        description={`Browsing ${remote}`}
-      />
+      <PageHeader title="Browser" description={`Browsing ${remote}`} />
 
       <div className="flex flex-1 flex-col gap-4 p-6">
         <PathBreadcrumb

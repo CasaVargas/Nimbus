@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAppStore, type Theme } from "@/stores/app-store";
+import { type Theme, useAppStore } from "@/stores/app-store";
 
 function applyTheme(theme: Theme) {
   const root = document.documentElement;

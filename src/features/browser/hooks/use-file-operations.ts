@@ -37,7 +37,8 @@ export function useUploadFile(remote: string, path: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (localPath: string) => {
-      const fileName = localPath.split("/").pop() ?? localPath.split("\\").pop() ?? "file";
+      const fileName =
+        localPath.split("/").pop() ?? localPath.split("\\").pop() ?? "file";
       const remotePath = path ? `${path}/${fileName}` : fileName;
       return operations.copyFile("/", localPath, `${remote}:`, remotePath);
     },

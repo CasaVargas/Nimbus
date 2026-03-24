@@ -1,11 +1,5 @@
+import { Filter, FolderPlus, LayoutGrid, List, Upload } from "lucide-react";
 import { useState } from "react";
-import {
-  FolderPlus,
-  Upload,
-  List,
-  LayoutGrid,
-  Filter,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 

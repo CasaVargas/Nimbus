@@ -1,12 +1,12 @@
 import { rclone } from "./client";
-import type { StatsResponse, BwLimitResponse } from "./types";
+import type { BwLimitResponse, StatsResponse } from "./types";
 
 export async function getStats(group?: string): Promise<StatsResponse> {
   return rclone.call<StatsResponse>("core/stats", group ? { group } : {});
 }
 
 export async function setBandwidthLimit(
-  rate: string
+  rate: string,
 ): Promise<BwLimitResponse> {
   return rclone.call<BwLimitResponse>("core/bwlimit", { rate });
 }

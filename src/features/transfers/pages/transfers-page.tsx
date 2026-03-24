@@ -1,13 +1,13 @@
 import { ArrowDownUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { useTransferStore } from "@/stores/transfer-store";
 import { TransferItem } from "../components/transfer-item";
 import {
   useActiveTransfers,
-  useTransferStats,
   useCancelTransfer,
+  useTransferStats,
 } from "../hooks/use-transfers";
-import { useTransferStore } from "@/stores/transfer-store";
 
 function formatSpeed(bytesPerSec: number): string {
   if (bytesPerSec < 1024) return `${bytesPerSec} B/s`;
@@ -86,11 +86,7 @@ export default function TransfersPage() {
                 <TransferItem
                   key={t.jobId}
                   transfer={t}
-                  onCancel={
-                    t.status === "active"
-                      ? cancelTransfer
-                      : undefined
-                  }
+                  onCancel={t.status === "active" ? cancelTransfer : undefined}
                 />
               ))}
             </div>

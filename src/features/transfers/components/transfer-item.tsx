@@ -1,12 +1,12 @@
 import {
-  Loader2,
-  CheckCircle2,
-  XCircle,
+  ArrowRight,
   Ban,
+  CheckCircle2,
   Copy,
   FolderSync,
-  ArrowRight,
+  Loader2,
   Square,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Transfer } from "@/stores/transfer-store";

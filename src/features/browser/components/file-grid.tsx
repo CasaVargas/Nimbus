@@ -1,4 +1,4 @@
-import { Folder, File } from "lucide-react";
+import { File, Folder } from "lucide-react";
 import type { FileItem } from "@/lib/rclone/types";
 import { cn } from "@/lib/utils";
 
@@ -17,12 +17,7 @@ function formatSize(bytes: number): string {
   return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
-export function FileGrid({
-  items,
-  selected,
-  onSelect,
-  onOpen,
-}: FileGridProps) {
+export function FileGrid({ items, selected, onSelect, onOpen }: FileGridProps) {
   if (items.length === 0) {
     return (
       <div className="py-8 text-center text-sm text-muted-foreground">

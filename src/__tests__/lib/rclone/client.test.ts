@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RcloneClient } from "../../../lib/rclone/client";
 
 // Mock fetch globally
@@ -20,11 +20,14 @@ describe("RcloneClient", () => {
     });
 
     const result = await client.call("config/listremotes", {});
-    expect(mockFetch).toHaveBeenCalledWith("http://localhost:5572/config/listremotes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://localhost:5572/config/listremotes",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      },
+    );
     expect(result).toEqual({ remotes: ["gdrive:"] });
   });
 
@@ -32,7 +35,13 @@ describe("RcloneClient", () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
-      json: () => Promise.resolve({ error: "something broke", input: {}, path: "", status: 500 }),
+      json: () =>
+        Promise.resolve({
+          error: "something broke",
+          input: {},
+          path: "",
+          status: 500,
+        }),
     });
 
     await expect(client.call("rc/noop", {})).rejects.toThrow("something broke");

@@ -5,9 +5,7 @@ export default function OnboardingPage() {
     <div>
       <PageHeader title="Welcome to StreamCloned" />
       <div className="p-6">
-        <p className="text-muted-foreground">
-          Setup wizard coming soon.
-        </p>
+        <p className="text-muted-foreground">Setup wizard coming soon.</p>
       </div>
     </div>
   );

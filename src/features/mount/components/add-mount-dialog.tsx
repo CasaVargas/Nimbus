@@ -1,16 +1,17 @@
-import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { FolderOpenIcon, PlusIcon } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -22,7 +23,6 @@ import {
 } from "@/components/ui/select";
 import { useRemotes } from "@/features/remotes/hooks/use-remotes";
 import { useMountStore, type VfsMode } from "@/stores/mount-store";
-import { FolderOpenIcon, PlusIcon } from "lucide-react";
 
 export function AddMountDialog() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -108,7 +108,10 @@ export function AddMountDialog() {
 
           <div className="grid gap-2">
             <Label>VFS Mode</Label>
-            <Select value={vfsMode} onValueChange={(v) => setVfsMode(v as VfsMode)}>
+            <Select
+              value={vfsMode}
+              onValueChange={(v) => setVfsMode(v as VfsMode)}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>

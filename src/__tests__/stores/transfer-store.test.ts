@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { useTransferStore } from "../../stores/transfer-store";
 
 describe("transferStore", () => {
@@ -81,9 +81,24 @@ describe("transferStore", () => {
 
   it("clears completed transfers", () => {
     const store = useTransferStore.getState();
-    store.addTransfer({ jobId: 10, operation: "copy", srcFs: "a:", dstFs: "b:" });
-    store.addTransfer({ jobId: 11, operation: "sync", srcFs: "c:", dstFs: "d:" });
-    store.addTransfer({ jobId: 12, operation: "copy", srcFs: "e:", dstFs: "f:" });
+    store.addTransfer({
+      jobId: 10,
+      operation: "copy",
+      srcFs: "a:",
+      dstFs: "b:",
+    });
+    store.addTransfer({
+      jobId: 11,
+      operation: "sync",
+      srcFs: "c:",
+      dstFs: "d:",
+    });
+    store.addTransfer({
+      jobId: 12,
+      operation: "copy",
+      srcFs: "e:",
+      dstFs: "f:",
+    });
 
     useTransferStore.getState().completeTransfer(10, true);
     useTransferStore.getState().completeTransfer(12, false, "err");

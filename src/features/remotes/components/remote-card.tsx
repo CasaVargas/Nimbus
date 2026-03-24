@@ -1,20 +1,25 @@
+import {
+  ArrowLeftRight,
+  FolderOpen,
+  HardDriveUpload,
+  Trash2,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { FolderOpen, ArrowLeftRight, HardDriveUpload, Trash2 } from "lucide-react";
+import { RemoteIcon } from "@/components/remote-icon";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
+  CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
-  CardDescription,
-  CardAction,
-  CardFooter,
 } from "@/components/ui/card";
 import {
   Tooltip,
-  TooltipTrigger,
   TooltipContent,
+  TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { RemoteIcon } from "@/components/remote-icon";
 import type { RemoteEntry } from "../hooks/use-remotes";
 
 interface RemoteCardProps {
@@ -30,11 +35,16 @@ export function RemoteCard({ remote, onDelete }: RemoteCardProps) {
       <CardHeader>
         <div className="flex items-center gap-3">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-            <RemoteIcon type={remote.type} className="size-4 text-muted-foreground" />
+            <RemoteIcon
+              type={remote.type}
+              className="size-4 text-muted-foreground"
+            />
           </div>
           <div className="min-w-0">
             <CardTitle className="truncate">{remote.name}</CardTitle>
-            <CardDescription className="truncate">{remote.type}</CardDescription>
+            <CardDescription className="truncate">
+              {remote.type}
+            </CardDescription>
           </div>
         </div>
         <CardAction>
@@ -90,9 +100,7 @@ export function RemoteCard({ remote, onDelete }: RemoteCardProps) {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={() =>
-                  navigate(`/copy-sync?src=${remote.name}:`)
-                }
+                onClick={() => navigate(`/copy-sync?src=${remote.name}:`)}
               />
             }
           >

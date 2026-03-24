@@ -1,9 +1,9 @@
+import { AlertTriangle, ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowRight, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { PathPicker } from "../components/path-picker";
 import { useCopySync } from "../hooks/use-sync";
 
@@ -23,12 +23,8 @@ export default function CopySyncPage() {
 
   const copySync = useCopySync();
 
-  const srcFs = sourceRemote
-    ? `${sourceRemote}:${sourcePath}`
-    : "";
-  const dstFs = destRemote
-    ? `${destRemote}:${destPath}`
-    : "";
+  const srcFs = sourceRemote ? `${sourceRemote}:${sourcePath}` : "";
+  const dstFs = destRemote ? `${destRemote}:${destPath}` : "";
   const canStart = srcFs !== "" && dstFs !== "";
 
   function handleStart() {
@@ -39,9 +35,7 @@ export default function CopySyncPage() {
           if (dryRun) {
             toast.success("Dry run complete - no files were changed");
           } else {
-            toast.success(
-              `${operation === "copy" ? "Copy" : "Sync"} started`,
-            );
+            toast.success(`${operation === "copy" ? "Copy" : "Sync"} started`);
             navigate("/transfers");
           }
         },

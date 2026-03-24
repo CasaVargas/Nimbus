@@ -1,11 +1,11 @@
 import { createBrowserRouter } from "react-router-dom";
-import App from "./App";
-import RemotesPage from "@/features/remotes/pages/remotes-page";
 import BrowserPage from "@/features/browser/pages/browser-page";
 import CopySyncPage from "@/features/copy-sync/pages/copy-sync-page";
-import TransfersPage from "@/features/transfers/pages/transfers-page";
 import MountPage from "@/features/mount/pages/mount-page";
+import RemotesPage from "@/features/remotes/pages/remotes-page";
 import SettingsPage from "@/features/settings/pages/settings-page";
+import TransfersPage from "@/features/transfers/pages/transfers-page";
+import App from "./App";
 
 export const router = createBrowserRouter([
   {
