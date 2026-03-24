@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    tempscaffold_lib::run()
+    streamcloned_lib::run()
 }
