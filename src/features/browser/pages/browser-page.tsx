@@ -29,6 +29,7 @@ import { useFileList } from "../hooks/use-file-list";
 import {
   useCreateFolder,
   useDeleteItems,
+  useOpenFile,
   useUploadFile,
 } from "../hooks/use-file-operations";
 import { useSelection } from "../hooks/use-selection";
@@ -101,6 +102,7 @@ export default function BrowserPage() {
   const createFolder = useCreateFolder(remote ?? "", path);
   const deleteItems = useDeleteItems(remote ?? "", path);
   const uploadFile = useUploadFile(remote ?? "", path);
+  const openFile = useOpenFile(remote ?? "");
 
   // Handlers
   const handleSort = useCallback(
@@ -117,14 +119,22 @@ export default function BrowserPage() {
 
   const handleOpen = useCallback(
     (item: FileItem) => {
-      if (item.IsDir) {
+      if (item.IsDir || item.MimeType === "inode/directory") {
         const newPath = path ? `${path}/${item.Name}` : item.Name;
         navigate(`/browser/${remote}/${newPath}`);
         clear();
         setFilter("");
+      } else {
+        const remotePath = path ? `${path}/${item.Name}` : item.Name;
+        toast.promise(openFile.mutateAsync(remotePath), {
+          loading: `Opening ${item.Name}...`,
+          success: `Opened ${item.Name}`,
+          error: (err) =>
+            `Failed to open: ${err instanceof Error ? err.message : String(err)}`,
+        });
       }
     },
-    [path, remote, navigate, clear],
+    [path, remote, navigate, clear, openFile],
   );
 
   const handleNavigate = useCallback(

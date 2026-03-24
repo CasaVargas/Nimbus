@@ -1,3 +1,5 @@
+import { join, tempDir } from "@tauri-apps/api/path";
+import { openPath } from "@tauri-apps/plugin-opener";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as operations from "@/lib/rclone/operations";
 
@@ -64,6 +66,18 @@ export function useDownloadFile(remote: string) {
         "/",
         `${localPath}/${fileName}`,
       );
+    },
+  });
+}
+
+export function useOpenFile(remote: string) {
+  return useMutation({
+    mutationFn: async (remotePath: string) => {
+      const tmp = await tempDir();
+      const fileName = remotePath.split("/").pop() ?? "file";
+      const localPath = await join(tmp, fileName);
+      await operations.copyFile(`${remote}:`, remotePath, "/", localPath);
+      await openPath(localPath);
     },
   });
 }
