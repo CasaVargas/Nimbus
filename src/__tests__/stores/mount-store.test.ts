@@ -12,6 +12,7 @@ describe("mountStore", () => {
       mountPoint: "/mnt/gdrive",
       vfsMode: "read-only",
       autoMount: false,
+      backend: "fuse",
     });
 
     const configs = useMountStore.getState().configs;
@@ -28,12 +29,14 @@ describe("mountStore", () => {
       mountPoint: "/mnt/gdrive",
       vfsMode: "read-only",
       autoMount: false,
+      backend: "fuse",
     });
     useMountStore.getState().addConfig({
       remote: "s3:",
       mountPoint: "/mnt/s3",
       vfsMode: "read-write",
       autoMount: true,
+      backend: "fuse",
     });
 
     useMountStore.getState().removeConfig("/mnt/gdrive");
@@ -49,6 +52,7 @@ describe("mountStore", () => {
       mountPoint: "/mnt/gdrive",
       vfsMode: "read-only",
       autoMount: false,
+      backend: "fuse",
     });
 
     useMountStore.getState().toggleAutoMount("/mnt/gdrive");

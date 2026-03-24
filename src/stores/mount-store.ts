@@ -2,12 +2,14 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export type VfsMode = "read-only" | "read-write";
+export type MountBackend = "nfs" | "fuse" | "fileprovider";
 
 export interface MountConfig {
   remote: string;
   mountPoint: string;
   vfsMode: VfsMode;
   autoMount: boolean;
+  backend: MountBackend;
 }
 
 interface MountState {
@@ -39,6 +41,22 @@ export const useMountStore = create<MountState>()(
           ),
         })),
     }),
-    { name: "streamcloned-mounts" },
+    {
+      name: "streamcloned-mounts",
+      version: 1,
+      migrate: (persistedState, version) => {
+        if (version === 0) {
+          const state = persistedState as MountState;
+          return {
+            ...state,
+            configs: (state.configs ?? []).map((c) => ({
+              ...c,
+              backend: c.backend ?? "fuse",
+            })),
+          };
+        }
+        return persistedState as MountState;
+      },
+    },
   ),
 );
