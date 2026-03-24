@@ -1,16 +1,18 @@
-import { useState, useCallback } from "react";
-import { Plus, CloudOff, Loader2 } from "lucide-react";
-import { PageHeader } from "@/components/page-header";
+import { CloudOff, Loader2, Plus } from "lucide-react";
+import { useCallback, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { RemoteCard } from "../components/remote-card";
+import { AddRemoteDialog } from "../components/add-remote-dialog";
 import { DeleteRemoteDialog } from "../components/delete-remote-dialog";
-import { useRemotes, useDeleteRemote } from "../hooks/use-remotes";
+import { RemoteCard } from "../components/remote-card";
+import { useDeleteRemote, useRemotes } from "../hooks/use-remotes";
 
 export default function RemotesPage() {
   const { data: remotes, isLoading, isError, error } = useRemotes();
   const deleteMutation = useDeleteRemote();
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!deleteTarget) return;
@@ -25,7 +27,7 @@ export default function RemotesPage() {
         title="Remotes"
         description="Manage your cloud storage connections"
         actions={
-          <Button size="sm">
+          <Button size="sm" onClick={() => setShowAdd(true)}>
             <Plus className="size-4" data-icon="inline-start" />
             Add Remote
           </Button>
@@ -53,7 +55,7 @@ export default function RemotesPage() {
             title="No remotes configured"
             description="Add a remote to connect to cloud storage, SFTP servers, or local paths."
             action={
-              <Button size="sm">
+              <Button size="sm" onClick={() => setShowAdd(true)}>
                 <Plus className="size-4" data-icon="inline-start" />
                 Add Remote
               </Button>
@@ -83,6 +85,8 @@ export default function RemotesPage() {
         onConfirm={handleDeleteConfirm}
         isPending={deleteMutation.isPending}
       />
+
+      <AddRemoteDialog open={showAdd} onClose={() => setShowAdd(false)} />
     </div>
   );
 }
