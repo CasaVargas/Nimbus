@@ -2,11 +2,13 @@ import { Outlet } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ConnectionBanner } from "@/components/connection-banner";
 import { Sidebar } from "@/components/sidebar";
+import { useAutoMount } from "@/hooks/use-auto-mount";
 import { useDaemon } from "../hooks/use-daemon";
 import { Providers } from "./providers";
 
 export default function App() {
   const { status, error, retry } = useDaemon();
+  useAutoMount(status === "connected");
 
   return (
     <Providers>
