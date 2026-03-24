@@ -197,8 +197,8 @@ The rclone RC (Remote Control) API is HTTP/JSON on `localhost:<port>`. All calls
 | Purge dir | `operations/purge` | Delete directory and all contents |
 | Move/rename | `operations/movefile` | Move or rename a file |
 | Copy file | `operations/copyfile` | Copy a single file |
-| Copy tree | `sync/copy` | Copy directory tree src → dest |
-| Sync tree | `sync/sync` | Sync directory tree (deletes extra files in dest) |
+| Copy tree | `sync/copy` | Copy directory tree src → dest. Use `_async: true` to get job ID for tracking |
+| Sync tree | `sync/sync` | Sync directory tree (deletes extra in dest). Use `_async: true` for job ID |
 | Mount | `mount/mount` | Mount remote as local filesystem |
 | Unmount | `mount/unmount` | Unmount a mounted remote |
 | List mounts | `mount/listmounts` | Get all active mounts |
