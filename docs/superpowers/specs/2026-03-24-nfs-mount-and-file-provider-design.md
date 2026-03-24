@@ -68,7 +68,11 @@ Per-mount, the Rust layer will:
 
 **Privilege escalation strategy:**
 
-`mount_nfs` on macOS requires root. We avoid this by using the `NetFS` framework (`NetFSMountURLSync` / `NetFSMountURLAsync`), which is the same API that Finder uses to mount network volumes. It can mount `nfs://localhost:{port}/` URLs without requiring root for localhost connections. If NetFS is insufficient, fall back to `osascript -e 'do shell script "mount_nfs ..." with administrator privileges'` which shows a native macOS password dialog. Long-term (Phase 2), the File Provider Extension eliminates mounting entirely.
+`mount_nfs` on macOS requires root. Our primary strategy is the `NetFS` framework (`NetFSMountURLSync` / `NetFSMountURLAsync`), the same API Finder uses to mount network volumes. **Whether NetFS can mount `nfs://localhost:{port}/` without root is unverified and must be validated in a prototype spike before implementation begins.** If NetFS works without root for localhost NFS, it becomes the primary path. If not, fall back to `osascript -e 'do shell script "mount_nfs ..." with administrator privileges'` which shows a native macOS password dialog (acceptable UX for manual mounts, less ideal for auto-mount on startup). Long-term (Phase 2), the File Provider Extension eliminates mounting entirely.
+
+**FFI strategy for NetFS from Rust:** Use `std::process::Command` to invoke a small Swift CLI helper bundled with the app. The helper calls `NetFSMountURLSync` / `NetFSUnmountURLSync` and returns success/failure via exit code. This avoids complex `objc` crate FFI for a single framework call. The helper is a ~50-line Swift file compiled as part of the Tauri build.
+
+**Unmount strategy:** Mirror the mount strategy. If mounted via NetFS, unmount via `NetFSUnmountURLSync` (through the same Swift helper). If mounted via `osascript` privilege escalation, unmount via `osascript -e 'do shell script "umount {mountPoint}" with administrator privileges'`. The unmount path must match the mount path since privilege requirements are symmetric.
 
 **Mount command options** (when using `mount_nfs` fallback):
 
@@ -78,7 +82,7 @@ mount_nfs -o nfsvers=3,tcp,nolocks,soft,timeo=50,nobrowse,nosuid,nodev,noresvpor
 
 - `nfsvers=3,tcp` — rclone serves NFSv3; explicit to avoid NFSv4 negotiation delays
 - `nolocks` — rclone NFS server does not support NLM locking
-- `soft,timeo=50` — return errors after 5 seconds instead of hanging indefinitely if NFS server dies
+- `soft,timeo=50` — return errors after 5 seconds (timeo is in tenths of seconds) instead of hanging indefinitely if NFS server dies
 - `nobrowse` — prevent Spotlight indexing (toggleable per mount)
 - `nosuid,nodev` — security hardening
 - `noresvport` — use unprivileged source port, may allow mounting without root
@@ -121,10 +125,12 @@ On app start, iterate saved configs with `autoMount: true`, mount them in sequen
 
 **Tray app lifecycle:** When the user closes the main window but the system tray remains active, mounts stay alive. Mounts are only torn down on actual app termination (quit from tray menu or system shutdown). This matches user expectations — cloud drives should persist while the app is "running" in the tray.
 
+**Required change:** The existing `WindowEvent::Destroyed` handler in `src-tauri/src/lib.rs` currently kills the rclone daemon when the window closes. This must be changed to only kill rclone (and unmount NFS) on actual app termination, not window close — otherwise closing to tray would break all mounts.
+
 ### Error Handling & Edge Cases
 
 - **Port conflicts:** If a port is occupied, increment and retry (same pattern as existing rclone daemon port allocation in `rclone.rs`). Use a wider range (19049–19149) since users may have many remotes.
-- **Stale mounts:** On app start, run `mount | grep nfs | grep localhost` to detect leftover mounts at known mount points. Use a 5-second timeout on the check (stale NFS mounts can cause hangs). Run `umount` (or `diskutil unmount`) before re-mounting.
+- **Stale mounts:** On app start, run `mount | grep nfs | grep localhost` to detect leftover mounts at known mount points. The `mount` command itself reads kernel state and won't hang, but the subsequent `umount` / `diskutil unmount` call should have a 5-second timeout since unmounting a stale NFS mount can block.
 - **NFS server health (startup):** After spawning `rclone serve nfs`, probe the port before mounting. Timeout after 10 seconds with an error toast.
 - **NFS server health (ongoing):** Periodically check that the NFS server child process is still alive. If it crashes, proactively unmount the stale mount point and notify the user via toast. This prevents the common NFS failure mode where file access hangs indefinitely on a dead server.
 - **Permissions:** `~/CloudDrives/` directory created with user permissions. Mounting via NetFS framework avoids root for localhost NFS. If NetFS is unavailable, fall back to `osascript` privilege prompt.
@@ -132,7 +138,9 @@ On app start, iterate saved configs with `autoMount: true`, mount them in sequen
 - **Finder metadata:** Pass `nobrowse` mount flag to prevent Spotlight indexing and `.DS_Store` pollution on cloud remotes. Users who want Finder sidebar visibility can toggle this off per mount. Note: `nobrowse` also hides the volume from Finder sidebar — this is a deliberate default since Phase 2 File Provider is the proper Finder integration path.
 - **VFS caching:** Passed through to `rclone serve nfs` via `--vfs-cache-mode` flag. Maps directly from the existing vfsMode config (read-only uses `--read-only`, read-write uses `--vfs-cache-mode writes`).
 - **Local security:** NFS server binds to `localhost` only, but any local process can connect. This is acceptable for a single-user desktop app but documented as a known limitation.
-- **Entitlements:** macOS distribution requires `com.apple.security.network.client` and `com.apple.security.network.server` entitlements for localhost NFS communication. These must be added to the Tauri entitlements config.
+- **Entitlements:** macOS distribution requires `com.apple.security.network.client` and `com.apple.security.network.server` entitlements for localhost NFS communication. No entitlements files exist yet in `src-tauri/` — they must be created from scratch as part of Phase 1.
+- **Minimum rclone version:** `rclone serve nfs` requires rclone v1.62+ (when the NFS serve command was added, using the `go-nfs` library). On app startup, validate by running `rclone serve nfs --help` and show a clear error if the subcommand is unavailable, prompting the user to update rclone.
+- **Concurrent state:** The Rust mount manager must track multiple NFS server processes simultaneously (one per mount). Use a `Mutex<HashMap<String, MountState>>` keyed by mount point, not the single-process `Mutex<Option<Child>>` pattern used for the rclone daemon. Tauri commands are async and mount/unmount operations could race.
 
 ### Platform Strategy
 
