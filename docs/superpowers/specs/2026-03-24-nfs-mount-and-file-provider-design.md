@@ -52,7 +52,7 @@ Instead of calling rclone's `mount/mount` RC endpoint (which needs FUSE), the ap
 │ rclone │  │ macOS    │
 │ serve  │  │ mount_nfs│
 │ nfs    │  │ (native) │
-│ :2049+ │  │          │
+│:19049+ │  │          │
 └────────┘  └──────────┘
 ```
 
@@ -60,11 +60,28 @@ Instead of calling rclone's `mount/mount` RC endpoint (which needs FUSE), the ap
 
 Per-mount, the Rust layer will:
 
-- Allocate a localhost port (starting at 2049, incrementing per mount)
+- Allocate a localhost port (starting at 19049, incrementing per mount — must be above 1024 to avoid privileged port restrictions)
 - Spawn `rclone serve nfs {remote}: --addr localhost:{port} --vfs-cache-mode writes`
 - Wait for the NFS server to be ready (probe port, timeout after 10 seconds)
-- Execute `mount -t nfs -o locallocks,nobrowse,nosuid,nodev localhost:/ {mountPoint}`
+- Mount via macOS `NetFS` framework (`NetFSMountURLSync`) which can mount NFS shares without root privileges for localhost connections. Falls back to `osascript` privilege prompt if NetFS fails.
 - Store the child process handle for cleanup
+
+**Privilege escalation strategy:**
+
+`mount_nfs` on macOS requires root. We avoid this by using the `NetFS` framework (`NetFSMountURLSync` / `NetFSMountURLAsync`), which is the same API that Finder uses to mount network volumes. It can mount `nfs://localhost:{port}/` URLs without requiring root for localhost connections. If NetFS is insufficient, fall back to `osascript -e 'do shell script "mount_nfs ..." with administrator privileges'` which shows a native macOS password dialog. Long-term (Phase 2), the File Provider Extension eliminates mounting entirely.
+
+**Mount command options** (when using `mount_nfs` fallback):
+
+```
+mount_nfs -o nfsvers=3,tcp,nolocks,soft,timeo=50,nobrowse,nosuid,nodev,noresvport localhost:{port}:/ {mountPoint}
+```
+
+- `nfsvers=3,tcp` — rclone serves NFSv3; explicit to avoid NFSv4 negotiation delays
+- `nolocks` — rclone NFS server does not support NLM locking
+- `soft,timeo=50` — return errors after 5 seconds instead of hanging indefinitely if NFS server dies
+- `nobrowse` — prevent Spotlight indexing (toggleable per mount)
+- `nosuid,nodev` — security hardening
+- `noresvport` — use unprivileged source port, may allow mounting without root
 
 State tracked per mount:
 
@@ -92,7 +109,7 @@ Minimal — the mount manager UI stays almost the same:
 - **Platform detection** — on macOS, use the NFS approach. On Linux/Windows, keep using rclone's FUSE mount (FUSE3/WinFsp work fine)
 - **Status polling** switches from rclone `mount/listmounts` to querying the Rust mount manager's state
 
-The existing mount store (Zustand) stays unchanged — it already tracks remote, mountPoint, vfsMode, and autoMount.
+The existing mount store (Zustand) gets one new field: `backend: "nfs" | "fuse" | "fileprovider"` per config. This enables clean Phase 1 → Phase 2 migration. Default is `"nfs"` on macOS, `"fuse"` on Linux/Windows.
 
 ### Default Mount Points
 
@@ -102,15 +119,20 @@ The existing mount store (Zustand) stays unchanged — it already tracks remote,
 
 On app start, iterate saved configs with `autoMount: true`, mount them in sequence. On app quit, unmount all and kill NFS server processes.
 
+**Tray app lifecycle:** When the user closes the main window but the system tray remains active, mounts stay alive. Mounts are only torn down on actual app termination (quit from tray menu or system shutdown). This matches user expectations — cloud drives should persist while the app is "running" in the tray.
+
 ### Error Handling & Edge Cases
 
-- **Port conflicts:** If a port is occupied, increment and retry (same pattern as existing rclone daemon port allocation in `rclone.rs`)
-- **Stale mounts:** On app start, check if mount points are already mounted (leftover from a crash). Run `umount` before re-mounting.
-- **NFS server health:** After spawning `rclone serve nfs`, probe the port before calling `mount_nfs`. Timeout after 10 seconds with an error toast.
-- **Permissions:** `~/CloudDrives/` directory created with user permissions. No `sudo` needed for NFS localhost mounts on macOS.
+- **Port conflicts:** If a port is occupied, increment and retry (same pattern as existing rclone daemon port allocation in `rclone.rs`). Use a wider range (19049–19149) since users may have many remotes.
+- **Stale mounts:** On app start, run `mount | grep nfs | grep localhost` to detect leftover mounts at known mount points. Use a 5-second timeout on the check (stale NFS mounts can cause hangs). Run `umount` (or `diskutil unmount`) before re-mounting.
+- **NFS server health (startup):** After spawning `rclone serve nfs`, probe the port before mounting. Timeout after 10 seconds with an error toast.
+- **NFS server health (ongoing):** Periodically check that the NFS server child process is still alive. If it crashes, proactively unmount the stale mount point and notify the user via toast. This prevents the common NFS failure mode where file access hangs indefinitely on a dead server.
+- **Permissions:** `~/CloudDrives/` directory created with user permissions. Mounting via NetFS framework avoids root for localhost NFS. If NetFS is unavailable, fall back to `osascript` privilege prompt.
 - **App crash / force quit:** Mounts become stale. On next app start, detect and clean up before re-mounting auto-mount configs.
-- **Finder metadata:** Pass `nobrowse` mount flag to prevent Spotlight indexing and `.DS_Store` pollution on cloud remotes. Users who want Finder sidebar visibility can toggle this off per mount.
+- **Finder metadata:** Pass `nobrowse` mount flag to prevent Spotlight indexing and `.DS_Store` pollution on cloud remotes. Users who want Finder sidebar visibility can toggle this off per mount. Note: `nobrowse` also hides the volume from Finder sidebar — this is a deliberate default since Phase 2 File Provider is the proper Finder integration path.
 - **VFS caching:** Passed through to `rclone serve nfs` via `--vfs-cache-mode` flag. Maps directly from the existing vfsMode config (read-only uses `--read-only`, read-write uses `--vfs-cache-mode writes`).
+- **Local security:** NFS server binds to `localhost` only, but any local process can connect. This is acceptable for a single-user desktop app but documented as a known limitation.
+- **Entitlements:** macOS distribution requires `com.apple.security.network.client` and `com.apple.security.network.server` entitlements for localhost NFS communication. These must be added to the Tauri entitlements config.
 
 ### Platform Strategy
 
@@ -168,7 +190,7 @@ The File Provider Extension is a separate Swift target that ships inside the app
 - **Materialization** — when a user opens a file, the extension downloads it via rclone `operations/copyfile` to a local staging area
 - **Eviction** — Apple manages disk space automatically; the extension just deletes the local copy when told
 - **Uploads** — when a user saves a file, the extension pushes changes back via rclone `operations/copyfile` in reverse
-- **Shared state** — App Group container for the main app and extension to share rclone port, remote configs, auth state
+- **Shared state** — App Group container for the main app and extension to share rclone port, remote configs, auth state. The extension communicates directly with the rclone RC daemon via HTTP — no XPC needed for data operations. XPC is only used if the extension needs to signal the main app to start/restart the rclone daemon.
 
 ### What Makes This Hard
 
