@@ -24,6 +24,10 @@ pub fn run() {
             commands::nfs_mount::nfs_mount,
             commands::nfs_mount::nfs_unmount,
             commands::nfs_mount::nfs_list_mounts,
+            commands::file_provider::fp_sync_state,
+            commands::file_provider::fp_add_domain,
+            commands::file_provider::fp_remove_domain,
+            commands::file_provider::fp_is_supported,
         ])
         .setup(|app| {
             tray::setup_tray(app)?;
