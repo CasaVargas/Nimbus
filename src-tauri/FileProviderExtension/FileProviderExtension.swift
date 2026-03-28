@@ -1,12 +1,14 @@
 import FileProvider
+import ImageIO
 import os.log
+import UniformTypeIdentifiers
 
 let logger = Logger(subsystem: "com.nimbus.app.FileProvider", category: "extension")
 
 // @unchecked Sendable: domain and rclone are set at init and never mutated;
 // NSFileProviderReplicatedExtension callbacks are dispatched by the File Provider
 // daemon which owns the concurrency contract for this object.
-class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension, @unchecked Sendable {
+class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension, NSFileProviderThumbnailing, @unchecked Sendable {
 
     let domain: NSFileProviderDomain
     private let rclone: RcloneClient
@@ -156,5 +158,67 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension, @unche
             }
         }
         return Progress()
+    }
+
+    // MARK: - Thumbnails
+
+    func fetchThumbnails(for itemIdentifiers: [NSFileProviderItemIdentifier],
+                         requestedSize size: CGSize,
+                         perThumbnailCompletionHandler: @escaping (NSFileProviderItemIdentifier, Data?, Error?) -> Void,
+                         completionHandler: @escaping (Error?) -> Void) -> Progress {
+        let progress = Progress(totalUnitCount: Int64(itemIdentifiers.count))
+        nonisolated(unsafe) let perThumbnailCompletionHandler = perThumbnailCompletionHandler
+        nonisolated(unsafe) let completionHandler = completionHandler
+
+        Task {
+            for identifier in itemIdentifiers {
+                do {
+                    let item = try await rclone.fetchItem(identifier: identifier)
+
+                    // Only generate thumbnails for images
+                    guard !item.isFolder, item.contentType.conforms(to: .image) else {
+                        perThumbnailCompletionHandler(identifier, nil, nil)
+                        progress.completedUnitCount += 1
+                        continue
+                    }
+
+                    let fileURL = try await rclone.downloadFileToTemp(identifier: identifier)
+                    defer { try? FileManager.default.removeItem(at: fileURL) }
+
+                    // Generate thumbnail using ImageIO
+                    let options: [CFString: Any] = [
+                        kCGImageSourceThumbnailMaxPixelSize: max(size.width, size.height),
+                        kCGImageSourceCreateThumbnailFromImageAlways: true,
+                        kCGImageSourceCreateThumbnailWithTransform: true,
+                    ]
+
+                    guard let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil),
+                          let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+                        perThumbnailCompletionHandler(identifier, nil, nil)
+                        progress.completedUnitCount += 1
+                        continue
+                    }
+
+                    // Convert CGImage to JPEG data
+                    let mutableData = NSMutableData()
+                    guard let destination = CGImageDestinationCreateWithData(mutableData, UTType.jpeg.identifier as CFString, 1, nil) else {
+                        perThumbnailCompletionHandler(identifier, nil, nil)
+                        progress.completedUnitCount += 1
+                        continue
+                    }
+                    CGImageDestinationAddImage(destination, thumbnail, nil)
+                    CGImageDestinationFinalize(destination)
+
+                    perThumbnailCompletionHandler(identifier, mutableData as Data, nil)
+                } catch {
+                    logger.warning("Thumbnail generation failed for \(identifier.rawValue): \(error.localizedDescription)")
+                    perThumbnailCompletionHandler(identifier, nil, nil)
+                }
+                progress.completedUnitCount += 1
+            }
+            completionHandler(nil)
+        }
+
+        return progress
     }
 }
