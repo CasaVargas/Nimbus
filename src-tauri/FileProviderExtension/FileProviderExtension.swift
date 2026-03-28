@@ -3,7 +3,10 @@ import os.log
 
 let logger = Logger(subsystem: "com.nimbus.app.FileProvider", category: "extension")
 
-class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
+// @unchecked Sendable: domain and rclone are set at init and never mutated;
+// NSFileProviderReplicatedExtension callbacks are dispatched by the File Provider
+// daemon which owns the concurrency contract for this object.
+class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension, @unchecked Sendable {
 
     let domain: NSFileProviderDomain
     private let rclone: RcloneClient
@@ -29,6 +32,9 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         if identifier == .rootContainer {
             completionHandler(FileProviderItem.rootContainer(domain: domain), nil)
         } else {
+            // nonisolated(unsafe): completionHandler is an ObjC @escaping block;
+            // the File Provider daemon guarantees its lifetime across the async hop.
+            nonisolated(unsafe) let completionHandler = completionHandler
             Task {
                 do {
                     let item = try await rclone.fetchItem(identifier: identifier)
@@ -61,6 +67,8 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                        request: NSFileProviderRequest,
                        completionHandler: @escaping (URL?, NSFileProviderItem?, Error?) -> Void) -> Progress {
         let progress = Progress(totalUnitCount: 100)
+        // nonisolated(unsafe): ObjC completion handler lifetime is guaranteed by the daemon.
+        nonisolated(unsafe) let completionHandler = completionHandler
 
         Task {
             do {
@@ -85,6 +93,10 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     request: NSFileProviderRequest,
                     completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void) -> Progress {
         let progress = Progress(totalUnitCount: 100)
+        // nonisolated(unsafe): ObjC types (completion handler, item template)
+        // lifetime is guaranteed by the File Provider daemon across the async hop.
+        nonisolated(unsafe) let completionHandler = completionHandler
+        nonisolated(unsafe) let itemTemplate = itemTemplate
 
         Task {
             do {
@@ -108,6 +120,10 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     request: NSFileProviderRequest,
                     completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void) -> Progress {
         let progress = Progress(totalUnitCount: 100)
+        // nonisolated(unsafe): ObjC types (completion handler, item)
+        // lifetime is guaranteed by the File Provider daemon across the async hop.
+        nonisolated(unsafe) let completionHandler = completionHandler
+        nonisolated(unsafe) let item = item
 
         Task {
             do {
@@ -128,6 +144,8 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     options: NSFileProviderDeleteItemOptions = [],
                     request: NSFileProviderRequest,
                     completionHandler: @escaping (Error?) -> Void) -> Progress {
+        // nonisolated(unsafe): ObjC completion handler lifetime is guaranteed by the daemon.
+        nonisolated(unsafe) let completionHandler = completionHandler
         Task {
             do {
                 try await rclone.deleteItem(identifier: identifier)

@@ -1,7 +1,10 @@
 import FileProvider
 import os.log
 
-class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
+// @unchecked Sendable: all stored properties are set at init and never mutated;
+// NSFileProviderEnumerator is called from the File Provider daemon which manages
+// its own concurrency guarantees.
+class FileProviderEnumerator: NSObject, NSFileProviderEnumerator, @unchecked Sendable {
 
     private let containerIdentifier: NSFileProviderItemIdentifier
     private let rclone: RcloneClient
@@ -21,6 +24,9 @@ class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
     }
 
     func enumerateItems(for observer: NSFileProviderEnumerationObserver, startingAt page: NSFileProviderPage) {
+        // nonisolated(unsafe): NSFileProviderEnumerationObserver is an ObjC protocol;
+        // the File Provider daemon guarantees it remains valid for the duration of enumeration.
+        nonisolated(unsafe) let observer = observer
         Task {
             do {
                 let remotePath = self.remotePath(for: containerIdentifier)

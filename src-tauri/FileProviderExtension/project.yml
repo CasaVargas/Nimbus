@@ -1,0 +1,32 @@
+name: FileProviderExtension
+options:
+  deploymentTarget:
+    macOS: "13.0"
+  bundleIdPrefix: com.nimbus.app
+
+targets:
+  FileProviderExtension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: FileProviderExtension.swift
+      - path: FileProviderItem.swift
+      - path: FileProviderEnumerator.swift
+      - path: RcloneClient.swift
+      - path: SharedState.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nimbus.app.FileProvider
+        PRODUCT_NAME: FileProviderExtension
+        INFOPLIST_FILE: Info.plist
+        CODE_SIGN_ENTITLEMENTS: FileProviderExtension.entitlements
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 53MUTM55LC
+        SWIFT_VERSION: "6.0"
+        MACOSX_DEPLOYMENT_TARGET: "13.0"
+        SKIP_INSTALL: "YES"
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/../Frameworks"
+          - "@executable_path/../../../../Frameworks"
+    dependencies: []
