@@ -53,6 +53,18 @@ class RcloneClient {
         }
     }
 
+    /// Returns raw rclone list entries for snapshot comparison
+    func listDirectoryRaw(remotePath: String) async throws -> [[String: Any]] {
+        let params: [String: Any] = [
+            "fs": "\(remoteName):",
+            "remote": remotePath,
+            "opt": ["recurse": false, "noModTime": false]
+        ]
+
+        let result = try await rcCall(method: "operations/list", params: params)
+        return result["list"] as? [[String: Any]] ?? []
+    }
+
     // MARK: - Item Fetch
 
     func fetchItem(identifier: NSFileProviderItemIdentifier) async throws -> FileProviderItem {
@@ -94,7 +106,7 @@ class RcloneClient {
 
         // Stage in temporary directory
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("com.streamcloned.fileprovider", isDirectory: true)
+            .appendingPathComponent("com.nimbus.fileprovider", isDirectory: true)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let localURL = tempDir.appendingPathComponent(item.filename)
 
@@ -112,6 +124,34 @@ class RcloneClient {
         _ = try await rcCall(method: "operations/copyfile", params: params)
 
         return (localURL, item)
+    }
+
+    /// Download a file to temp directory, returning just the URL (for thumbnail generation)
+    func downloadFileToTemp(identifier: NSFileProviderItemIdentifier, maxSize: Int64 = 10_485_760) async throws -> URL {
+        let item = try await fetchItem(identifier: identifier)
+
+        // Skip files larger than maxSize
+        if item.fileSize > maxSize {
+            throw RcloneError.requestFailed("File too large for thumbnail: \(item.fileSize) bytes")
+        }
+
+        let remotePath = extractPath(from: identifier)
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("com.nimbus.fileprovider.thumbnails", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let localURL = tempDir.appendingPathComponent(item.filename)
+
+        try? FileManager.default.removeItem(at: localURL)
+
+        let params: [String: Any] = [
+            "srcFs": "\(remoteName):",
+            "srcRemote": remotePath,
+            "dstFs": "/",
+            "dstRemote": localURL.path,
+        ]
+
+        _ = try await rcCall(method: "operations/copyfile", params: params)
+        return localURL
     }
 
     // MARK: - Upload (Create/Modify)
@@ -205,10 +245,35 @@ class RcloneClient {
     // MARK: - RC HTTP Client
 
     private func rcCall(method: String, params: [String: Any]) async throws -> [String: Any] {
-        guard let port = sharedState.rclonePort else {
-            throw RcloneError.serverNotRunning
+        var lastError: Error = RcloneError.serverNotRunning
+        let maxRetries = 3
+        let delays: [UInt64] = [1_000_000_000, 2_000_000_000, 4_000_000_000] // 1s, 2s, 4s
+
+        for attempt in 0..<maxRetries {
+            // Re-read port on each attempt (main app may have restarted rclone)
+            guard let port = sharedState.rclonePort else {
+                lastError = RcloneError.serverNotRunning
+                if attempt < maxRetries - 1 {
+                    try await Task.sleep(nanoseconds: delays[attempt])
+                }
+                continue
+            }
+
+            do {
+                return try await performRcCall(port: port, method: method, params: params)
+            } catch {
+                lastError = error
+                logger.warning("rcCall attempt \(attempt + 1) failed: \(error.localizedDescription)")
+                if attempt < maxRetries - 1 {
+                    try await Task.sleep(nanoseconds: delays[attempt])
+                }
+            }
         }
 
+        throw lastError
+    }
+
+    private func performRcCall(port: UInt16, method: String, params: [String: Any]) async throws -> [String: Any] {
         let url = URL(string: "http://127.0.0.1:\(port)/\(method)")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
