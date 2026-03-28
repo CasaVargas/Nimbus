@@ -81,3 +81,23 @@ export function useOpenFile(remote: string) {
     },
   });
 }
+
+export function useRenameFile(remote: string, path: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      oldName,
+      newName,
+    }: {
+      oldName: string;
+      newName: string;
+    }) => {
+      const oldPath = path ? `${path}/${oldName}` : oldName;
+      const newPath = path ? `${path}/${newName}` : newName;
+      await operations.moveFile(`${remote}:`, oldPath, `${remote}:`, newPath);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["files", remote, path] });
+    },
+  });
+}
