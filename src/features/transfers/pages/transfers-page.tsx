@@ -1,4 +1,5 @@
 import { ArrowDownUp } from "lucide-react";
+import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { useTransferStore } from "@/stores/transfer-store";
@@ -6,6 +7,7 @@ import { TransferItem } from "../components/transfer-item";
 import {
   useActiveTransfers,
   useCancelTransfer,
+  usePerJobStats,
   useTransferStats,
 } from "../hooks/use-transfers";
 
@@ -25,6 +27,12 @@ export default function TransfersPage() {
   const clearCompleted = useTransferStore((s) => s.clearCompleted);
   const completedTransfers = transfers.filter((t) => t.status !== "active");
   const hasCompleted = completedTransfers.length > 0;
+
+  const activeJobIds = useMemo(
+    () => activeTransfers.map((t) => t.jobId),
+    [activeTransfers],
+  );
+  const perJobStats = usePerJobStats(activeJobIds);
 
   const speedDesc =
     activeTransfers.length > 0 && stats?.speed
@@ -69,6 +77,7 @@ export default function TransfersPage() {
                 <TransferItem
                   key={t.jobId}
                   transfer={t}
+                  stats={perJobStats.get(t.jobId)}
                   onCancel={cancelTransfer}
                 />
               ))}
@@ -83,11 +92,7 @@ export default function TransfersPage() {
             </h2>
             <div className="space-y-2">
               {completedTransfers.map((t) => (
-                <TransferItem
-                  key={t.jobId}
-                  transfer={t}
-                  onCancel={t.status === "active" ? cancelTransfer : undefined}
-                />
+                <TransferItem key={t.jobId} transfer={t} />
               ))}
             </div>
           </section>

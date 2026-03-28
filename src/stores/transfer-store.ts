@@ -77,6 +77,6 @@ export const useTransferStore = create<TransferState>()(
           transfers: state.transfers.filter((t) => t.status === "active"),
         })),
     }),
-    { name: "streamcloned-transfers" },
+    { name: "nimbus-transfers" },
   ),
 );

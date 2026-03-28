@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { jobStatus, stopJob } from "@/lib/rclone/jobs";
 import { getStats } from "@/lib/rclone/stats";
+import type { StatsResponse } from "@/lib/rclone/types";
 import { useTransferStore } from "@/stores/transfer-store";
 
 export function useActiveTransfers() {
@@ -52,6 +53,25 @@ export function useTransferStats() {
     queryFn: () => getStats(),
     enabled: hasActive,
     refetchInterval: 2000,
+  });
+}
+
+/** Per-job stats for each active transfer */
+export function usePerJobStats(activeJobIds: number[]) {
+  return useQueries({
+    queries: activeJobIds.map((jobId) => ({
+      queryKey: ["transfer-stats", jobId],
+      queryFn: () => getStats(`job/${jobId}`),
+      refetchInterval: 2000,
+      enabled: true,
+    })),
+    combine: (results) => {
+      const map = new Map<number, StatsResponse>();
+      results.forEach((r, i) => {
+        if (r.data) map.set(activeJobIds[i], r.data);
+      });
+      return map;
+    },
   });
 }
 
