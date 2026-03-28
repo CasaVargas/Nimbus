@@ -42,7 +42,7 @@ export const useMountStore = create<MountState>()(
         })),
     }),
     {
-      name: "streamcloned-mounts",
+      name: "nimbus-mounts",
       version: 1,
       migrate: (persistedState, version) => {
         if (version === 0) {

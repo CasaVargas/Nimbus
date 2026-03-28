@@ -2,7 +2,9 @@ import { homeDir } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/plugin-dialog";
 import { FolderOpenIcon, PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { fpAddDomain } from "@/lib/tauri/file-provider";
 import {
   Dialog,
   DialogClose,
@@ -63,8 +65,10 @@ export function AddMountDialog() {
     }
   }
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!remote || !mountPoint) return;
+
+    const remoteName = remote.endsWith(":") ? remote.slice(0, -1) : remote;
 
     addConfig({
       remote: remote.endsWith(":") ? remote : `${remote}:`,
@@ -73,6 +77,17 @@ export function AddMountDialog() {
       autoMount: false,
       backend,
     });
+
+    if (backend === "fileprovider") {
+      try {
+        await fpAddDomain(remoteName, mountPoint);
+        toast.success(`Registered ${mountPoint} in Finder`);
+      } catch (err) {
+        toast.error(
+          `Failed to register in Finder: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
 
     setRemote("");
     setMountPoint("");
