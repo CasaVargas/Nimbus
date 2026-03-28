@@ -29,6 +29,7 @@ pub fn run() {
             commands::file_provider::fp_remove_domain,
             commands::file_provider::fp_list_domains,
             commands::file_provider::fp_is_supported,
+            commands::file_provider::fp_cleanup_stale_domains,
         ])
         .setup(|app| {
             tray::setup_tray(app)?;

@@ -136,6 +136,30 @@ pub async fn fp_list_domains() -> Result<Vec<FileProviderDomainInfo>, String> {
 }
 
 #[tauri::command]
+pub async fn fp_cleanup_stale_domains(
+    active_remotes: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let domains = fp_list_domains().await?;
+    let mut removed = Vec::new();
+
+    for domain in &domains {
+        if !active_remotes.contains(&domain.identifier) {
+            match run_domain_manager(&["remove", &domain.identifier]) {
+                Ok(_) => {
+                    removed.push(domain.identifier.clone());
+                    log::info!("Cleaned up stale domain: {}", domain.identifier);
+                }
+                Err(e) => {
+                    log::warn!("Failed to remove stale domain {}: {}", domain.identifier, e);
+                }
+            }
+        }
+    }
+
+    Ok(removed)
+}
+
+#[tauri::command]
 pub fn fp_is_supported() -> bool {
     #[cfg(target_os = "macos")]
     {

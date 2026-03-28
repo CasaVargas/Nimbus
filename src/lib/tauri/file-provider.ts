@@ -24,3 +24,7 @@ export async function fpListDomains(): Promise<FileProviderDomainInfo[]> {
 export async function fpIsSupported(): Promise<boolean> {
   return invoke<boolean>("fp_is_supported");
 }
+
+export async function fpCleanupStaleDomains(activeRemotes: string[]): Promise<string[]> {
+  return invoke<string[]>("fp_cleanup_stale_domains", { activeRemotes });
+}
