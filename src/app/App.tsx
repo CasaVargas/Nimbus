@@ -4,6 +4,7 @@ import { ConnectionBanner } from "@/components/connection-banner";
 import { Sidebar } from "@/components/sidebar";
 import { useAutoMount } from "@/hooks/use-auto-mount";
 import { useFileProviderSync } from "@/hooks/use-file-provider-sync";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useRemotes } from "@/features/remotes/hooks/use-remotes";
 import { useDaemon } from "../hooks/use-daemon";
 import { Providers } from "./providers";
@@ -16,6 +17,7 @@ function AppShell() {
   const { data: remotesList } = useRemotes();
   const remoteNames = remotesList?.map((r) => r.name) ?? [];
   useFileProviderSync(status === "connected", remoteNames);
+  useKeyboardShortcuts();
 
   return (
     <div className="flex h-screen overflow-hidden">
