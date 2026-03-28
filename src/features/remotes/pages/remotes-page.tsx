@@ -5,13 +5,15 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { AddRemoteDialog } from "../components/add-remote-dialog";
 import { DeleteRemoteDialog } from "../components/delete-remote-dialog";
+import { EditRemoteDialog } from "../components/edit-remote-dialog";
 import { RemoteCard } from "../components/remote-card";
-import { useDeleteRemote, useRemotes } from "../hooks/use-remotes";
+import { useDeleteRemote, useRemotes, type RemoteEntry } from "../hooks/use-remotes";
 
 export default function RemotesPage() {
   const { data: remotes, isLoading, isError, error } = useRemotes();
   const deleteMutation = useDeleteRemote();
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<RemoteEntry | null>(null);
   const [showAdd, setShowAdd] = useState(false);
 
   const handleDeleteConfirm = useCallback(() => {
@@ -69,6 +71,7 @@ export default function RemotesPage() {
               <RemoteCard
                 key={remote.name}
                 remote={remote}
+                onEdit={setEditTarget}
                 onDelete={setDeleteTarget}
               />
             ))}
@@ -87,6 +90,11 @@ export default function RemotesPage() {
       />
 
       <AddRemoteDialog open={showAdd} onClose={() => setShowAdd(false)} />
+
+      <EditRemoteDialog
+        remote={editTarget}
+        onClose={() => setEditTarget(null)}
+      />
     </div>
   );
 }

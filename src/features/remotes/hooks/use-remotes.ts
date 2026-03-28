@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { configDump, deleteRemote, listRemotes } from "@/lib/rclone/remotes";
+import { configDump, deleteRemote, listRemotes, updateRemote } from "@/lib/rclone/remotes";
 
 export interface RemoteEntry {
   name: string;
@@ -25,6 +25,17 @@ export function useDeleteRemote() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (name: string) => deleteRemote(name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["remotes"] });
+    },
+  });
+}
+
+export function useUpdateRemote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, parameters }: { name: string; parameters: Record<string, string> }) =>
+      updateRemote(name, parameters),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["remotes"] });
     },

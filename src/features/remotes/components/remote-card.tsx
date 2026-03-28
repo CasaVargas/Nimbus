@@ -2,6 +2,7 @@ import {
   ArrowLeftRight,
   FolderOpen,
   HardDriveUpload,
+  Pencil,
   Trash2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -24,10 +25,11 @@ import type { RemoteEntry } from "../hooks/use-remotes";
 
 interface RemoteCardProps {
   remote: RemoteEntry;
+  onEdit: (remote: RemoteEntry) => void;
   onDelete: (name: string) => void;
 }
 
-export function RemoteCard({ remote, onDelete }: RemoteCardProps) {
+export function RemoteCard({ remote, onEdit, onDelete }: RemoteCardProps) {
   const navigate = useNavigate();
 
   return (
@@ -66,6 +68,20 @@ export function RemoteCard({ remote, onDelete }: RemoteCardProps) {
         </CardAction>
       </CardHeader>
       <CardFooter className="gap-1">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => onEdit(remote)}
+              />
+            }
+          >
+            <Pencil className="size-3.5" />
+          </TooltipTrigger>
+          <TooltipContent>Edit config</TooltipContent>
+        </Tooltip>
         <Tooltip>
           <TooltipTrigger
             render={
