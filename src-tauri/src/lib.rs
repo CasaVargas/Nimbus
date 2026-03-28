@@ -27,6 +27,7 @@ pub fn run() {
             commands::file_provider::fp_sync_state,
             commands::file_provider::fp_add_domain,
             commands::file_provider::fp_remove_domain,
+            commands::file_provider::fp_list_domains,
             commands::file_provider::fp_is_supported,
         ])
         .setup(|app| {

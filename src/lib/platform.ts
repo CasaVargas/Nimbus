@@ -18,6 +18,6 @@ export function getPlatform(): Platform {
   return cachedPlatform;
 }
 
-export function getDefaultMountBackend(): "nfs" | "fuse" {
+export function getDefaultMountBackend(): "nfs" | "fuse" | "fileprovider" {
   return getPlatform() === "macos" ? "nfs" : "fuse";
 }

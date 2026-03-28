@@ -37,6 +37,8 @@ export function AddMountDialog() {
   const { data: remotes } = useRemotes();
   const addConfig = useMountStore((s) => s.addConfig);
 
+  const isFileProvider = backend === "fileprovider";
+
   useEffect(() => {
     if (backend === "nfs") {
       homeDir().then((p) => setHomePath(p)).catch(() => {});
@@ -44,11 +46,15 @@ export function AddMountDialog() {
   }, [backend]);
 
   useEffect(() => {
-    if (backend === "nfs" && homePath && remote) {
+    if (isFileProvider && remote) {
       const remoteName = remote.replace(/:$/, "");
-      setMountPoint(`${homePath}CloudDrives/${remoteName}`);
+      setMountPoint(remoteName);
+    } else if (backend === "nfs" && homePath && remote) {
+      const remoteName = remote.replace(/:$/, "");
+      const base = homePath.endsWith("/") ? homePath : `${homePath}/`;
+      setMountPoint(`${base}CloudDrives/${remoteName}`);
     }
-  }, [backend, homePath, remote]);
+  }, [backend, isFileProvider, homePath, remote]);
 
   async function handleBrowse() {
     const selected = await open({ directory: true, multiple: false });
@@ -110,17 +116,19 @@ export function AddMountDialog() {
           </div>
 
           <div className="grid gap-2">
-            <Label>Mount Point</Label>
+            <Label>{isFileProvider ? "Display Name" : "Mount Point"}</Label>
             <div className="flex gap-2">
               <Input
                 value={mountPoint}
                 onChange={(e) => setMountPoint(e.target.value)}
-                placeholder="/mnt/remote"
+                placeholder={isFileProvider ? "Google Drive" : "/mnt/remote"}
                 className="flex-1 font-mono text-xs"
               />
-              <Button variant="outline" size="icon" onClick={handleBrowse}>
-                <FolderOpenIcon />
-              </Button>
+              {!isFileProvider && (
+                <Button variant="outline" size="icon" onClick={handleBrowse}>
+                  <FolderOpenIcon />
+                </Button>
+              )}
             </div>
           </div>
 

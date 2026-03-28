@@ -57,3 +57,19 @@ cp "$BUILD_DIR/FileProviderExtension" "$APPEX_DIR/Contents/MacOS/"
 cp "$EXT_DIR/Info.plist" "$APPEX_DIR/Contents/"
 
 echo "File Provider extension bundle created: $APPEX_DIR"
+
+# Build the domain manager CLI tool
+echo "Building domain manager CLI..."
+
+swiftc \
+    -target arm64-apple-macos12.0 \
+    -sdk "$(xcrun --show-sdk-path)" \
+    -framework Foundation \
+    -framework FileProvider \
+    -module-name DomainManager \
+    -parse-as-library \
+    -emit-executable \
+    -o "$BUILD_DIR/fp-domain-manager" \
+    "$EXT_DIR/DomainManager.swift"
+
+echo "Domain manager CLI built: $BUILD_DIR/fp-domain-manager"

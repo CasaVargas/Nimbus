@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::path::PathBuf;
 use std::process::Command;
 use tauri::State;
 
@@ -10,30 +11,51 @@ const APP_GROUP_ID: &str = "group.com.streamcloned.app";
 pub struct FileProviderDomainInfo {
     pub identifier: String,
     pub display_name: String,
-    pub enabled: bool,
 }
 
-/// Write shared state JSON to the App Group container so the File Provider extension
-/// can discover the rclone RC port and configured remotes.
-fn write_shared_state(rclone_port: u16, remotes: &[String]) -> Result<(), String> {
-    let container_path = get_app_group_container()?;
-    let state_path = format!("{}/fileprovider-state.json", container_path);
+/// Get the path to the fp-domain-manager CLI binary
+fn domain_manager_path() -> Result<PathBuf, String> {
+    // In dev: look in target/extension/
+    let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("extension")
+        .join("fp-domain-manager");
+    if dev_path.exists() {
+        return Ok(dev_path);
+    }
 
-    let state = serde_json::json!({
-        "rclonePort": rclone_port,
-        "remotes": remotes,
-        "updatedAt": chrono::Utc::now().to_rfc3339(),
-    });
+    // In production: look relative to the current executable
+    if let Ok(exe) = std::env::current_exe() {
+        let prod_path = exe.parent()
+            .map(|p| p.join("fp-domain-manager"));
+        if let Some(p) = prod_path {
+            if p.exists() {
+                return Ok(p);
+            }
+        }
+    }
 
-    std::fs::write(&state_path, serde_json::to_string_pretty(&state).unwrap())
-        .map_err(|e| format!("Failed to write shared state: {}", e))?;
+    Err("fp-domain-manager binary not found. Run build-extension.sh first.".to_string())
+}
 
-    Ok(())
+fn run_domain_manager(args: &[&str]) -> Result<String, String> {
+    let binary = domain_manager_path()?;
+    let output = Command::new(&binary)
+        .args(args)
+        .output()
+        .map_err(|e| format!("Failed to run fp-domain-manager: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    if !output.status.success() {
+        return Err(format!("fp-domain-manager failed: {}", stderr.trim()));
+    }
+
+    Ok(stdout)
 }
 
 fn get_app_group_container() -> Result<String, String> {
-    // On macOS, App Group containers are at:
-    // ~/Library/Group Containers/<group-id>/
     let home = dirs::home_dir().ok_or("Could not determine home directory")?;
     let container = home
         .join("Library")
@@ -52,7 +74,19 @@ pub async fn fp_sync_state(
     remotes: Vec<String>,
 ) -> Result<(), String> {
     let port = *rclone_state.port.lock().unwrap();
-    write_shared_state(port, &remotes)
+    let container_path = get_app_group_container()?;
+    let state_path = format!("{}/fileprovider-state.json", container_path);
+
+    let state = serde_json::json!({
+        "rclonePort": port,
+        "remotes": remotes,
+        "updatedAt": chrono::Utc::now().to_rfc3339(),
+    });
+
+    std::fs::write(&state_path, serde_json::to_string_pretty(&state).unwrap())
+        .map_err(|e| format!("Failed to write shared state: {}", e))?;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -60,11 +94,15 @@ pub async fn fp_add_domain(
     identifier: String,
     display_name: String,
 ) -> Result<(), String> {
-    // Use NSFileProviderManager via swift CLI helper
-    // For now, this is a placeholder — domain management requires calling
-    // Apple's FileProvider framework from Swift, which we'll do via a small
-    // Swift CLI tool built alongside the extension
-    log::info!("File Provider domain add requested: {} ({})", display_name, identifier);
+    // Validate identifier
+    if identifier.is_empty() {
+        return Err("Domain identifier cannot be empty".to_string());
+    }
+    if !identifier.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        return Err("Domain identifier contains invalid characters".to_string());
+    }
+
+    run_domain_manager(&["add", &identifier, &display_name])?;
     Ok(())
 }
 
@@ -72,13 +110,33 @@ pub async fn fp_add_domain(
 pub async fn fp_remove_domain(
     identifier: String,
 ) -> Result<(), String> {
-    log::info!("File Provider domain remove requested: {}", identifier);
+    run_domain_manager(&["remove", &identifier])?;
     Ok(())
 }
 
 #[tauri::command]
+pub async fn fp_list_domains() -> Result<Vec<FileProviderDomainInfo>, String> {
+    let output = run_domain_manager(&["list"])?;
+    let mut domains = Vec::new();
+
+    for line in output.lines() {
+        if line.starts_with("No File Provider") || line.is_empty() {
+            continue;
+        }
+        let parts: Vec<&str> = line.splitn(2, '\t').collect();
+        if parts.len() == 2 {
+            domains.push(FileProviderDomainInfo {
+                identifier: parts[0].to_string(),
+                display_name: parts[1].to_string(),
+            });
+        }
+    }
+
+    Ok(domains)
+}
+
+#[tauri::command]
 pub fn fp_is_supported() -> bool {
-    // File Provider is only supported on macOS 12+
     #[cfg(target_os = "macos")]
     {
         let output = Command::new("sw_vers")

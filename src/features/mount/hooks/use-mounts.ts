@@ -1,12 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listMounts, mountRemote, unmountRemote } from "@/lib/rclone/mount";
 import { nfsListMounts, nfsMount, nfsUnmount } from "@/lib/tauri/nfs-mount";
+import { fpAddDomain, fpListDomains, fpRemoveDomain, fpSyncState } from "@/lib/tauri/file-provider";
 import type { MountBackend } from "@/stores/mount-store";
 
 export function useActiveMounts(backend: MountBackend) {
   return useQuery({
     queryKey: ["mounts", backend],
     queryFn: async () => {
+      if (backend === "fileprovider") {
+        const domains = await fpListDomains();
+        return domains.map((d) => ({
+          Fs: d.identifier + ":",
+          MountPoint: d.display_name,
+          MountedOn: "Finder Sidebar",
+        }));
+      }
       if (backend === "nfs") {
         const mounts = await nfsListMounts();
         return mounts.map((m) => ({
@@ -24,9 +33,14 @@ export function useActiveMounts(backend: MountBackend) {
 export function useMountRemote() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ fs, mountPoint, vfsOpt, backend }: {
+    mutationFn: async ({ fs, mountPoint, vfsOpt, backend }: {
       fs: string; mountPoint: string; vfsOpt?: Record<string, unknown>; backend: MountBackend;
     }) => {
+      if (backend === "fileprovider") {
+        await fpAddDomain(fs.replace(/:$/, ""), mountPoint);
+        await fpSyncState([fs.replace(/:$/, "")]);
+        return;
+      }
       if (backend === "nfs") {
         return nfsMount(fs, mountPoint, vfsOpt?.readOnly === true);
       }
@@ -42,6 +56,7 @@ export function useUnmountRemote() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ mountPoint, backend }: { mountPoint: string; backend: MountBackend }) => {
+      if (backend === "fileprovider") return fpRemoveDomain(mountPoint);
       if (backend === "nfs") return nfsUnmount(mountPoint);
       return unmountRemote(mountPoint);
     },
