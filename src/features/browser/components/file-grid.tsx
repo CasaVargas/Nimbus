@@ -90,7 +90,7 @@ export function FileGrid({
               {item.IsDir ? "Folder" : formatSize(item.Size)}
             </span>
             {/* Hover actions overlay */}
-            <div className="absolute right-1 top-1 opacity-0 transition-opacity duration-150 group-hover/row:opacity-100">
+            <div className="absolute bottom-1 right-1 opacity-0 transition-opacity duration-150 group-hover/row:opacity-100">
               <FileActions
                 item={item}
                 onOpen={onOpen}

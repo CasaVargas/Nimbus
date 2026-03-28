@@ -88,13 +88,15 @@ export function FileContextMenu({
                     Download
                   </Menu.Item>
                 )}
-                <Menu.Item
-                  className={itemClass}
-                  onSelect={() => onRename(item)}
-                >
-                  <Pencil className="size-4" />
-                  Rename
-                </Menu.Item>
+                {!item.IsDir && (
+                  <Menu.Item
+                    className={itemClass}
+                    onSelect={() => onRename(item)}
+                  >
+                    <Pencil className="size-4" />
+                    Rename
+                  </Menu.Item>
+                )}
                 <Menu.Separator className="-mx-1 my-1 h-px bg-border" />
                 <Menu.Item
                   className={destructiveClass}

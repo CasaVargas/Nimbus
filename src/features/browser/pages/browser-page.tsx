@@ -171,6 +171,7 @@ export default function BrowserPage() {
         return;
       }
       // Perform the rename
+      setRenamingItem(null);
       toast.promise(
         renameFile.mutateAsync({ oldName: item.Name, newName }),
         {
@@ -180,7 +181,6 @@ export default function BrowserPage() {
             `Rename failed: ${err instanceof Error ? err.message : String(err)}`,
         },
       );
-      setRenamingItem(null);
     },
     [renameFile],
   );
