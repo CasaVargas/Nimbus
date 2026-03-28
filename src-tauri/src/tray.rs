@@ -8,7 +8,7 @@ use crate::commands::nfs_mount::{cleanup_all_mounts, NfsMountState};
 use crate::commands::rclone::RcloneState;
 
 pub fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let show = MenuItem::with_id(app, "show", "Open StreamCloned", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Open Nimbus", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &separator, &quit])?;
