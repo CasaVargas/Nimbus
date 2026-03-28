@@ -1,12 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-# Build the File Provider extension using swiftc
-# This script is called from the Tauri build process
+# Build the File Provider extension and domain manager CLI
+# Called as Tauri's beforeBuildCommand (after frontend build)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXT_DIR="$SCRIPT_DIR/FileProviderExtension"
 BUILD_DIR="$SCRIPT_DIR/target/extension"
+DERIVED_DATA="$SCRIPT_DIR/target/extension-build"
 
 # Only build on macOS
 if [[ "$(uname)" != "Darwin" ]]; then
@@ -14,55 +15,46 @@ if [[ "$(uname)" != "Darwin" ]]; then
     exit 0
 fi
 
-echo "Building File Provider extension..."
+# Determine build configuration
+CONFIGURATION="Debug"
+CODESIGN_IDENTITY="-"  # Ad-hoc for dev
+if [[ "${1:-}" == "--release" ]]; then
+    CONFIGURATION="Release"
+    CODESIGN_IDENTITY="Developer ID Application: Jonathan Vargas (53MUTM55LC)"
+fi
 
+echo "Building File Provider extension ($CONFIGURATION)..."
 mkdir -p "$BUILD_DIR"
 
-# Compile all Swift sources into the extension binary
-SWIFT_FILES=(
-    "$EXT_DIR/FileProviderExtension.swift"
-    "$EXT_DIR/FileProviderItem.swift"
-    "$EXT_DIR/FileProviderEnumerator.swift"
-    "$EXT_DIR/RcloneClient.swift"
-    "$EXT_DIR/SharedState.swift"
-)
+# Step 1: Generate Xcode project from project.yml
+echo "Generating Xcode project..."
+(cd "$EXT_DIR" && xcodegen generate --quiet)
 
-# Check if source files exist
-for f in "${SWIFT_FILES[@]}"; do
-    if [[ ! -f "$f" ]]; then
-        echo "ERROR: Missing source file: $f"
-        exit 1
-    fi
-done
+# Step 2: Build extension with xcodebuild
+echo "Building extension with xcodebuild..."
+xcodebuild \
+    -project "$EXT_DIR/FileProviderExtension.xcodeproj" \
+    -scheme FileProviderExtension \
+    -configuration "$CONFIGURATION" \
+    -derivedDataPath "$DERIVED_DATA" \
+    CODE_SIGN_IDENTITY="$CODESIGN_IDENTITY" \
+    -quiet
 
-swiftc \
-    -target arm64-apple-macos12.0 \
-    -sdk "$(xcrun --show-sdk-path)" \
-    -framework Foundation \
-    -framework FileProvider \
-    -framework UniformTypeIdentifiers \
-    -module-name FileProviderExtension \
-    -emit-library \
-    -o "$BUILD_DIR/FileProviderExtension" \
-    "${SWIFT_FILES[@]}"
+# Step 3: Copy the built .appex to our target directory
+APPEX_SRC=$(find "$DERIVED_DATA" -name "FileProviderExtension.appex" -type d | head -1)
+if [[ -z "$APPEX_SRC" ]]; then
+    echo "ERROR: FileProviderExtension.appex not found in build output"
+    exit 1
+fi
 
-echo "File Provider extension built: $BUILD_DIR/FileProviderExtension"
+rm -rf "$BUILD_DIR/FileProviderExtension.appex"
+cp -R "$APPEX_SRC" "$BUILD_DIR/"
+echo "Extension built: $BUILD_DIR/FileProviderExtension.appex"
 
-# Create the .appex bundle structure
-APPEX_DIR="$BUILD_DIR/FileProviderExtension.appex"
-rm -rf "$APPEX_DIR"
-mkdir -p "$APPEX_DIR/Contents/MacOS"
-
-cp "$BUILD_DIR/FileProviderExtension" "$APPEX_DIR/Contents/MacOS/"
-cp "$EXT_DIR/Info.plist" "$APPEX_DIR/Contents/"
-
-echo "File Provider extension bundle created: $APPEX_DIR"
-
-# Build the domain manager CLI tool
+# Step 4: Build domain manager CLI (standalone, not part of Xcode project)
 echo "Building domain manager CLI..."
-
 swiftc \
-    -target arm64-apple-macos12.0 \
+    -target arm64-apple-macos13.0 \
     -sdk "$(xcrun --show-sdk-path)" \
     -framework Foundation \
     -framework FileProvider \
@@ -72,4 +64,8 @@ swiftc \
     -o "$BUILD_DIR/fp-domain-manager" \
     "$EXT_DIR/DomainManager.swift"
 
+# Sign the domain manager
+codesign --force --sign "$CODESIGN_IDENTITY" "$BUILD_DIR/fp-domain-manager"
+
 echo "Domain manager CLI built: $BUILD_DIR/fp-domain-manager"
+echo "File Provider build complete."
