@@ -1,3 +1,4 @@
+import { downloadDir } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/plugin-dialog";
 import { HardDrive, Trash2, X } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
@@ -29,7 +30,9 @@ import { useFileList } from "../hooks/use-file-list";
 import {
   useCreateFolder,
   useDeleteItems,
+  useDownloadFile,
   useOpenFile,
+  useRenameFile,
   useUploadFile,
 } from "../hooks/use-file-operations";
 import { useSelection } from "../hooks/use-selection";
@@ -48,6 +51,9 @@ export default function BrowserPage() {
   // New folder dialog state
   const [folderDialogOpen, setFolderDialogOpen] = useState(false);
   const [folderName, setFolderName] = useState("");
+
+  // Rename state
+  const [renamingItem, setRenamingItem] = useState<string | null>(null);
 
   // Data
   const { data: files, isLoading } = useFileList(remote, path);
@@ -103,6 +109,8 @@ export default function BrowserPage() {
   const deleteItems = useDeleteItems(remote ?? "", path);
   const uploadFile = useUploadFile(remote ?? "", path);
   const openFile = useOpenFile(remote ?? "");
+  const downloadFile = useDownloadFile(remote ?? "");
+  const renameFile = useRenameFile(remote ?? "", path);
 
   // Handlers
   const handleSort = useCallback(
@@ -135,6 +143,65 @@ export default function BrowserPage() {
       }
     },
     [path, remote, navigate, clear, openFile],
+  );
+
+  const handleDownload = useCallback(
+    async (item: FileItem) => {
+      if (item.IsDir) return;
+      const remotePath = path ? `${path}/${item.Name}` : item.Name;
+      const dlDir = await downloadDir();
+      toast.promise(
+        downloadFile.mutateAsync({ remotePath, localPath: dlDir }),
+        {
+          loading: `Downloading ${item.Name}...`,
+          success: `Downloaded ${item.Name} to ~/Downloads`,
+          error: (err) =>
+            `Download failed: ${err instanceof Error ? err.message : String(err)}`,
+        },
+      );
+    },
+    [path, downloadFile],
+  );
+
+  const handleRename = useCallback(
+    (item: FileItem, newName: string) => {
+      // If newName is empty, enter rename mode
+      if (!newName) {
+        setRenamingItem(item.Name);
+        return;
+      }
+      // Perform the rename
+      toast.promise(
+        renameFile.mutateAsync({ oldName: item.Name, newName }),
+        {
+          loading: `Renaming ${item.Name}...`,
+          success: `Renamed to ${newName}`,
+          error: (err) =>
+            `Rename failed: ${err instanceof Error ? err.message : String(err)}`,
+        },
+      );
+      setRenamingItem(null);
+    },
+    [renameFile],
+  );
+
+  const handleRenameCancel = useCallback(() => {
+    setRenamingItem(null);
+  }, []);
+
+  const handleDeleteSingle = useCallback(
+    (item: FileItem) => {
+      deleteItems.mutate([{ name: item.Name, isDir: item.IsDir }], {
+        onSuccess: () => {
+          toast.success(`Deleted ${item.Name}`);
+          clear();
+        },
+        onError: (err) => {
+          toast.error(`Delete failed: ${err.message}`);
+        },
+      });
+    },
+    [deleteItems, clear],
   );
 
   const handleNavigate = useCallback(
@@ -205,6 +272,32 @@ export default function BrowserPage() {
     });
   }, [selected, files, deleteItems, clear]);
 
+  const handleDownloadSelected = useCallback(async () => {
+    if (selected.size === 0 || !files) return;
+    const dlDir = await downloadDir();
+    const fileItems = files.filter(
+      (f) => selected.has(f.Name) && !f.IsDir,
+    );
+    if (fileItems.length === 0) {
+      toast.error("No files selected (folders are skipped)");
+      return;
+    }
+    toast.promise(
+      Promise.all(
+        fileItems.map((f) => {
+          const remotePath = path ? `${path}/${f.Name}` : f.Name;
+          return downloadFile.mutateAsync({ remotePath, localPath: dlDir });
+        }),
+      ),
+      {
+        loading: `Downloading ${fileItems.length} file(s)...`,
+        success: `Downloaded ${fileItems.length} file(s) to ~/Downloads`,
+        error: (err) =>
+          `Download failed: ${err instanceof Error ? err.message : String(err)}`,
+      },
+    );
+  }, [selected, files, path, downloadFile]);
+
   // No remote selected
   if (!remote) {
     return (
@@ -252,9 +345,16 @@ export default function BrowserPage() {
             selected={selected}
             onSelect={toggle}
             onOpen={handleOpen}
+            onDownload={handleDownload}
+            onRename={handleRename}
+            onDelete={handleDeleteSingle}
+            onDeleteSelected={handleDelete}
+            onDownloadSelected={handleDownloadSelected}
             sortBy={sortBy}
             sortDir={sortDir}
             onSort={handleSort}
+            renamingItem={renamingItem}
+            onRenameCancel={handleRenameCancel}
           />
         ) : (
           <FileGrid
@@ -262,6 +362,13 @@ export default function BrowserPage() {
             selected={selected}
             onSelect={toggle}
             onOpen={handleOpen}
+            onDownload={handleDownload}
+            onRename={handleRename}
+            onDelete={handleDeleteSingle}
+            onDeleteSelected={handleDelete}
+            onDownloadSelected={handleDownloadSelected}
+            renamingItem={renamingItem}
+            onRenameCancel={handleRenameCancel}
           />
         )}
       </div>
