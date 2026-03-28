@@ -1,6 +1,9 @@
 import { ChevronDown, ChevronUp, File, Folder } from "lucide-react";
 import type { FileItem } from "@/lib/rclone/types";
 import { cn } from "@/lib/utils";
+import { FileActions } from "./file-actions";
+import { FileContextMenu } from "./file-context-menu";
+import { InlineRename } from "./inline-rename";
 
 export type SortField = "name" | "size" | "modified";
 export type SortDir = "asc" | "desc";
@@ -10,9 +13,16 @@ interface FileListProps {
   selected: Set<string>;
   onSelect: (name: string, event: React.MouseEvent) => void;
   onOpen: (item: FileItem) => void;
+  onDownload: (item: FileItem) => void;
+  onRename: (item: FileItem, newName: string) => void;
+  onDelete: (item: FileItem) => void;
+  onDeleteSelected: () => void;
+  onDownloadSelected: () => void;
   sortBy: SortField;
   sortDir: SortDir;
   onSort: (field: SortField) => void;
+  renamingItem: string | null;
+  onRenameCancel: () => void;
 }
 
 function formatSize(bytes: number): string {
@@ -59,9 +69,16 @@ export function FileList({
   selected,
   onSelect,
   onOpen,
+  onDownload,
+  onRename,
+  onDelete,
+  onDeleteSelected,
+  onDownloadSelected,
   sortBy,
   sortDir,
   onSort,
+  renamingItem,
+  onRenameCancel,
 }: FileListProps) {
   return (
     <div className="rounded-lg border">
@@ -96,31 +113,60 @@ export function FileList({
 
       {/* Rows */}
       {items.map((item) => (
-        <div
+        <FileContextMenu
           key={item.Name}
-          className={cn(
-            "grid cursor-pointer items-center gap-2 border-b px-3 py-1.5 text-sm last:border-b-0 hover:bg-muted/50",
-            selected.has(item.Name) && "bg-primary/10",
-          )}
-          style={{ gridTemplateColumns: "1fr 100px 180px" }}
-          onClick={(e) => onSelect(item.Name, e)}
-          onDoubleClick={() => onOpen(item)}
+          item={item}
+          isMultiSelect={selected.size > 1 && selected.has(item.Name)}
+          selectedCount={selected.size}
+          onOpen={onOpen}
+          onDownload={onDownload}
+          onRename={(i) => onRename(i, "")}
+          onDelete={onDelete}
+          onDeleteSelected={onDeleteSelected}
+          onDownloadSelected={onDownloadSelected}
         >
-          <div className="flex items-center gap-2 truncate">
-            {item.IsDir ? (
-              <Folder className="size-4 shrink-0 text-blue-500" />
-            ) : (
-              <File className="size-4 shrink-0 text-muted-foreground" />
+          <div
+            className={cn(
+              "group/row grid cursor-pointer items-center gap-2 border-b px-3 py-1.5 text-sm last:border-b-0 hover:bg-muted/50",
+              selected.has(item.Name) && "bg-primary/10",
             )}
-            <span className="truncate">{item.Name}</span>
+            style={{ gridTemplateColumns: "1fr 100px 180px" }}
+            onClick={(e) => onSelect(item.Name, e)}
+            onDoubleClick={() => onOpen(item)}
+          >
+            <div className="flex items-center gap-2 truncate">
+              {item.IsDir ? (
+                <Folder className="size-4 shrink-0 text-blue-500" />
+              ) : (
+                <File className="size-4 shrink-0 text-muted-foreground" />
+              )}
+              {renamingItem === item.Name ? (
+                <InlineRename
+                  name={item.Name}
+                  onConfirm={(newName) => onRename(item, newName)}
+                  onCancel={onRenameCancel}
+                />
+              ) : (
+                <span className="truncate">{item.Name}</span>
+              )}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">
+                {item.IsDir ? "--" : formatSize(item.Size)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">
+                {formatDate(item.ModTime)}
+              </span>
+              <FileActions
+                item={item}
+                onOpen={onOpen}
+                onDownload={onDownload}
+              />
+            </div>
           </div>
-          <span className="text-muted-foreground">
-            {item.IsDir ? "--" : formatSize(item.Size)}
-          </span>
-          <span className="text-muted-foreground">
-            {formatDate(item.ModTime)}
-          </span>
-        </div>
+        </FileContextMenu>
       ))}
 
       {items.length === 0 && (
