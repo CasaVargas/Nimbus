@@ -17,10 +17,12 @@ fi
 
 # Determine build configuration
 CONFIGURATION="Debug"
-CODESIGN_IDENTITY="-"  # Ad-hoc for dev
+CODESIGN_IDENTITY="Apple Development: Jonathan Vargas (4JQT5BXA8Q)"
+XCODE_SIGN_ARGS=()
 if [[ "${1:-}" == "--release" ]]; then
     CONFIGURATION="Release"
     CODESIGN_IDENTITY="Developer ID Application: Jonathan Vargas (53MUTM55LC)"
+    XCODE_SIGN_ARGS=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$CODESIGN_IDENTITY")
 fi
 
 echo "Building File Provider extension ($CONFIGURATION)..."
@@ -30,17 +32,19 @@ mkdir -p "$BUILD_DIR"
 echo "Generating Xcode project..."
 (cd "$EXT_DIR" && xcodegen generate --quiet)
 
-# Step 2: Build extension with xcodebuild
+# Step 2: Build extension with xcodebuild (allow codesign to fail — we re-sign after stripping xattrs)
 echo "Building extension with xcodebuild..."
 xcodebuild \
     -project "$EXT_DIR/FileProviderExtension.xcodeproj" \
     -scheme FileProviderExtension \
     -configuration "$CONFIGURATION" \
     -derivedDataPath "$DERIVED_DATA" \
-    CODE_SIGN_IDENTITY="$CODESIGN_IDENTITY" \
-    -quiet
+    -allowProvisioningUpdates \
+    ${XCODE_SIGN_ARGS[@]+"${XCODE_SIGN_ARGS[@]}"} \
+    -quiet \
+    || true
 
-# Step 3: Copy the built .appex to our target directory
+# Step 3: Find, strip xattrs, and re-sign the .appex
 APPEX_SRC=$(find "$DERIVED_DATA" -name "FileProviderExtension.appex" -type d | head -1)
 if [[ -z "$APPEX_SRC" ]]; then
     echo "ERROR: FileProviderExtension.appex not found in build output"
@@ -49,6 +53,16 @@ fi
 
 rm -rf "$BUILD_DIR/FileProviderExtension.appex"
 cp -R "$APPEX_SRC" "$BUILD_DIR/"
+
+# Strip extended attributes that prevent codesigning (macOS File Provider adds xattrs during build)
+echo "Stripping extended attributes..."
+xattr -cr "$BUILD_DIR/FileProviderExtension.appex"
+
+# Re-sign the extension
+echo "Signing extension..."
+ENTITLEMENTS="$EXT_DIR/FileProviderExtension.entitlements"
+codesign --force --deep --sign "$CODESIGN_IDENTITY" --entitlements "$ENTITLEMENTS" --timestamp=none --generate-entitlement-der "$BUILD_DIR/FileProviderExtension.appex"
+
 echo "Extension built: $BUILD_DIR/FileProviderExtension.appex"
 
 # Step 4: Build domain manager CLI (standalone, not part of Xcode project)
