@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleDisplayName</key>
-    <string>StreamCloned File Provider</string>
+    <string>Nimbus File Provider</string>
     <key>CFBundleIdentifier</key>
-    <string>com.streamcloned.app.FileProvider</string>
+    <string>com.nimbus.app.FileProvider</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleShortVersionString</key>
@@ -17,7 +17,7 @@
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionFileProviderDocumentGroup</key>
-        <string>group.com.streamcloned.app</string>
+        <string>group.com.nimbus.app</string>
         <key>NSExtensionPointIdentifier</key>
         <string>com.apple.fileprovider-nonui</string>
         <key>NSExtensionPrincipalClass</key>

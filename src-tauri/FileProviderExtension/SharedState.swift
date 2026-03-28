@@ -1,14 +1,14 @@
 import Foundation
 import os.log
 
-private let sharedStateLogger = Logger(subsystem: "com.streamcloned.app.FileProvider", category: "shared-state")
+private let sharedStateLogger = Logger(subsystem: "com.nimbus.app.FileProvider", category: "shared-state")
 
 /// Reads shared configuration from the App Group container.
 /// The main Tauri app writes a JSON file with rclone port and remote config.
 /// The File Provider extension reads it to connect to the daemon.
 class SharedState {
 
-    static let appGroupIdentifier = "group.com.streamcloned.app"
+    static let appGroupIdentifier = "group.com.nimbus.app"
     static let stateFileName = "fileprovider-state.json"
 
     /// Port the rclone RC daemon is listening on, or nil if not running

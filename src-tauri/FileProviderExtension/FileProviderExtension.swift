@@ -1,7 +1,7 @@
 import FileProvider
 import os.log
 
-let logger = Logger(subsystem: "com.streamcloned.app.FileProvider", category: "extension")
+let logger = Logger(subsystem: "com.nimbus.app.FileProvider", category: "extension")
 
 class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
