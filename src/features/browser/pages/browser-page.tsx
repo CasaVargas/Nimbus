@@ -6,6 +6,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { FileListSkeleton } from "@/components/skeleton";
 import { PathBreadcrumb } from "@/components/path-breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
@@ -336,9 +337,7 @@ export default function BrowserPage() {
         />
 
         {isLoading ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            Loading...
-          </div>
+          <FileListSkeleton />
         ) : viewMode === "list" ? (
           <FileList
             items={processedFiles}

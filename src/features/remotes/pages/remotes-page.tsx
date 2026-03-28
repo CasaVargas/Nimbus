@@ -1,7 +1,8 @@
-import { CloudOff, Loader2, Plus } from "lucide-react";
+import { CloudOff, Plus } from "lucide-react";
 import { useCallback, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { Skeleton } from "@/components/skeleton";
 import { Button } from "@/components/ui/button";
 import { AddRemoteDialog } from "../components/add-remote-dialog";
 import { DeleteRemoteDialog } from "../components/delete-remote-dialog";
@@ -38,8 +39,23 @@ export default function RemotesPage() {
 
       <div className="flex-1 p-6">
         {isLoading && (
-          <div className="flex flex-1 items-center justify-center py-16">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-xl border p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="size-9 rounded-lg" />
+                  <div className="space-y-1.5 flex-1">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <Skeleton className="size-8 rounded-md" />
+                  <Skeleton className="size-8 rounded-md" />
+                  <Skeleton className="size-8 rounded-md" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
