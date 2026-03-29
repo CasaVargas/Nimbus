@@ -10,7 +10,7 @@ export function AboutSection() {
       <div>
         <h3 className="text-sm font-medium">About</h3>
         <p className="text-xs text-muted-foreground">
-          StreamCloned v{APP_VERSION}
+          Nimbus v{APP_VERSION}
         </p>
       </div>
       <div className="flex items-center gap-4">

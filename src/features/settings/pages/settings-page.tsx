@@ -10,7 +10,7 @@ export default function SettingsPage() {
     <div>
       <PageHeader
         title="Settings"
-        description="Configure StreamCloned preferences"
+        description="Configure Nimbus preferences"
       />
       <div className="space-y-6 p-6">
         <AppearanceSection />

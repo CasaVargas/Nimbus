@@ -48,7 +48,7 @@ export function Sidebar() {
         >
           {!collapsed && (
             <span className="text-sm font-semibold tracking-tight">
-              StreamCloned
+              Nimbus
             </span>
           )}
           <Button
