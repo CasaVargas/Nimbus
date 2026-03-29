@@ -15,6 +15,7 @@
     "http:default",
     "notification:default",
     "opener:default",
+    "opener:allow-open-path",
     "os:default"
   ]
 }
