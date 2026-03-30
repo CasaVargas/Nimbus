@@ -23,6 +23,8 @@ if [[ -z "$APP_BUNDLE" ]]; then
     exit 0
 fi
 
+APP_NAME="$(basename "$APP_BUNDLE")"
+
 echo "Embedding File Provider extension into: $APP_BUNDLE"
 
 APPEX_SRC="$BUILD_DIR/FileProviderExtension.appex"
@@ -39,15 +41,24 @@ if [[ ! -f "$DOMAIN_MGR_SRC" ]]; then
     exit 1
 fi
 
+# Copy the .app to /tmp for signing — iCloud/File Provider adds xattrs to files
+# on synced drives that codesign rejects and that can't be permanently stripped.
+SIGN_DIR=$(mktemp -d -t nimbus-sign)
+trap 'rm -rf "$SIGN_DIR"' EXIT
+
+echo "Copying to temp directory for signing (avoids iCloud xattr interference)..."
+cp -R "$APP_BUNDLE" "$SIGN_DIR/"
+SIGN_BUNDLE="$SIGN_DIR/$APP_NAME"
+
 # Create PlugIns directory and copy the extension
-PLUGINS_DIR="$APP_BUNDLE/Contents/PlugIns"
+PLUGINS_DIR="$SIGN_BUNDLE/Contents/PlugIns"
 mkdir -p "$PLUGINS_DIR"
 rm -rf "$PLUGINS_DIR/FileProviderExtension.appex"
 cp -R "$APPEX_SRC" "$PLUGINS_DIR/"
 echo "Copied FileProviderExtension.appex to PlugIns/"
 
 # Copy domain manager into MacOS/
-cp "$DOMAIN_MGR_SRC" "$APP_BUNDLE/Contents/MacOS/"
+cp "$DOMAIN_MGR_SRC" "$SIGN_BUNDLE/Contents/MacOS/"
 echo "Copied fp-domain-manager to MacOS/"
 
 # Determine signing identity
@@ -56,16 +67,39 @@ if [[ "${1:-}" == "--release" ]]; then
     CODESIGN_IDENTITY="Developer ID Application: Jonathan Vargas (53MUTM55LC)"
 fi
 
-# Strip extended attributes that prevent codesigning
+# Strip any residual extended attributes
 echo "Stripping extended attributes..."
-xattr -cr "$APP_BUNDLE"
+xattr -cr "$SIGN_BUNDLE"
 
-# Re-sign the entire app bundle (required after adding nested bundles)
-echo "Re-signing app bundle..."
-codesign --force --deep --sign "$CODESIGN_IDENTITY" "$APP_BUNDLE"
+# Sign inner components first with their own entitlements, then the outer app.
+# --deep would re-sign the .appex without its entitlements, breaking Gatekeeper.
+ENTITLEMENTS_DIR="$TAURI_DIR/FileProviderExtension"
+
+echo "Signing extension..."
+codesign --force --sign "$CODESIGN_IDENTITY" \
+    --entitlements "$ENTITLEMENTS_DIR/FileProviderExtension.entitlements" \
+    "$PLUGINS_DIR/FileProviderExtension.appex"
+
+echo "Signing domain manager..."
+codesign --force --sign "$CODESIGN_IDENTITY" \
+    "$SIGN_BUNDLE/Contents/MacOS/fp-domain-manager"
+
+echo "Signing app bundle..."
+codesign --force --sign "$CODESIGN_IDENTITY" \
+    --entitlements "$TAURI_DIR/Entitlements.plist" \
+    "$SIGN_BUNDLE"
 
 # Verify
 echo "Verifying signature..."
-codesign --verify --deep --strict "$APP_BUNDLE" 2>&1 && echo "Signature valid." || echo "WARNING: Signature verification failed"
+codesign --verify --deep --strict "$SIGN_BUNDLE" 2>&1 && echo "Signature valid." || {
+    echo "ERROR: Signature verification failed"
+    exit 1
+}
+
+# Copy signed bundle back to original location
+echo "Copying signed bundle back..."
+rm -rf "$APP_BUNDLE"
+cp -R "$SIGN_BUNDLE" "$APP_BUNDLE"
 
 echo "Extension embedding complete."
+echo "Signed app: $APP_BUNDLE"
