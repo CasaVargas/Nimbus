@@ -47,7 +47,7 @@ class FileProviderItem: NSObject, NSFileProviderItem {
         if isFolder {
             return [.allowsReading, .allowsContentEnumerating, .allowsAddingSubItems, .allowsRenaming, .allowsDeleting]
         }
-        return [.allowsReading, .allowsWriting, .allowsRenaming, .allowsDeleting, .allowsEvicting]
+        return [.allowsReading, .allowsWriting, .allowsRenaming, .allowsDeleting]
     }
 
     var contentPolicy: NSFileProviderContentPolicy {
