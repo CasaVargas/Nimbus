@@ -56,6 +56,10 @@ if [[ "${1:-}" == "--release" ]]; then
     CODESIGN_IDENTITY="Developer ID Application: Jonathan Vargas (53MUTM55LC)"
 fi
 
+# Strip extended attributes that prevent codesigning
+echo "Stripping extended attributes..."
+xattr -cr "$APP_BUNDLE"
+
 # Re-sign the entire app bundle (required after adding nested bundles)
 echo "Re-signing app bundle..."
 codesign --force --deep --sign "$CODESIGN_IDENTITY" "$APP_BUNDLE"
