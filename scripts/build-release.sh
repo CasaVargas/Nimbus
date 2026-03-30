@@ -16,7 +16,8 @@ echo "=== Step 2/4: Building File Provider extension ==="
 (cd src-tauri && bash build-extension.sh --release)
 
 echo "=== Step 3/4: Building Tauri app ==="
-cargo tauri build
+# Build .app only — DMG must be created after extension embedding (step 4)
+cargo tauri build --bundles app
 
 echo "=== Step 4/4: Embedding extension into app bundle ==="
 bash src-tauri/scripts/embed-extension.sh --release
