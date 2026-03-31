@@ -1,14 +1,1 @@
-<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#fbbf24"/>
-      <stop offset="100%" stop-color="#d97706"/>
-    </linearGradient>
-  </defs>
-  <!-- Rounded square background -->
-  <rect rx="220" width="1024" height="1024" fill="url(#bg)"/>
-  <!-- Back cloud layer (subtle depth) -->
-  <path d="M370 670 C370 670 370 568 370 540 C370 454 418 400 504 400 C572 400 614 434 630 486 C648 468 674 460 700 468 C744 486 762 520 762 554 C762 598 736 618 700 618 L370 618 C336 618 306 594 306 558 C306 530 336 504 370 504 Z" fill="white" opacity="0.35"/>
-  <!-- Front cloud layer (main) -->
-  <path d="M284 690 C284 690 284 582 284 554 C284 452 352 388 460 388 C546 388 606 434 622 502 C640 484 674 476 702 486 C752 504 778 546 778 588 C778 638 744 666 702 666 L284 666 C240 666 206 634 206 590 C206 556 240 524 284 524 Z" fill="white" opacity="0.95"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs><linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#d97706"/></linearGradient></defs><rect width="1024" height="1024" fill="url(#bg)" rx="220"/><path fill="#fff" d="M370 670 C370 670 370 568 370 540 C370 454 418 400 504 400 C572 400 614 434 630 486 C648 468 674 460 700 468 C744 486 762 520 762 554 C762 598 736 618 700 618 L370 618 C336 618 306 594 306 558 C306 530 336 504 370 504 Z" opacity=".35"/><path fill="#fff" d="M284 690 C284 690 284 582 284 554 C284 452 352 388 460 388 C546 388 606 434 622 502 C640 484 674 476 702 486 C752 504 778 546 778 588 C778 638 744 666 702 666 L284 666 C240 666 206 634 206 590 C206 556 240 524 284 524 Z" opacity=".95"/></svg>
