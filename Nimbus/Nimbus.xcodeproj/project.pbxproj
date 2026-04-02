@@ -39,6 +39,7 @@
 		66686A62291C3FC31EFD0607 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF1ECD3038C0295EC2B40C77 /* OnboardingView.swift */; };
 		7186B43DDF9D7F839F82B6E6 /* FileProviderBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F4DF18D93B378AC2C60ABC /* FileProviderBridge.swift */; };
 		72176941173EF046F32623F4 /* Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E50D9C737FBBC708FF7A6F5 /* Extension.swift */; };
+		7B21C1EF6C00795220F62C64 /* StorageUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E2E1139EDDC520B6D6223F /* StorageUsageView.swift */; };
 		7E1811F8DF1E49EE390EB846 /* AddRemoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4BBDEBA281F41466C04A187 /* AddRemoteSheet.swift */; };
 		87CFD6A8899C1EA8058561D8 /* EditRemoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B919CAFBCBF7D878493B03F /* EditRemoteSheet.swift */; };
 		8BAC6FF1E3D21F04B898DA68 /* RcloneConfParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EFB6DB3EF366558FF0BAF07 /* RcloneConfParser.swift */; };
@@ -87,6 +88,7 @@
 		10777E1962C2F8AFC045DEB2 /* TransfersViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransfersViewModel.swift; sourceTree = "<group>"; };
 		10A3816E1EC55E5657611B64 /* CopySyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopySyncView.swift; sourceTree = "<group>"; };
 		122FC43D9B9925959BF766EE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		19E2E1139EDDC520B6D6223F /* StorageUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageUsageView.swift; sourceTree = "<group>"; };
 		23222C40A9098C836B111200 /* RemotesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemotesView.swift; sourceTree = "<group>"; };
 		2526A5E71E5C5ECDAD53597D /* ImportConfigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportConfigSheet.swift; sourceTree = "<group>"; };
 		2AA331A1A776F8D581FF01DF /* MountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountsView.swift; sourceTree = "<group>"; };
@@ -298,6 +300,7 @@
 				41F3DFFC42572098A760795D /* AppearanceSection.swift */,
 				673EAFA8BD6B60893A5DDFDE /* RcloneSection.swift */,
 				8557E940D1B7790FDD7F35AD /* SettingsView.swift */,
+				19E2E1139EDDC520B6D6223F /* StorageUsageView.swift */,
 				96D748F5B10AFEA969C88CE3 /* TransferSection.swift */,
 			);
 			path = Settings;
@@ -465,6 +468,7 @@
 				04EC499A7C0DF8F96188864B /* RemotesViewModel.swift in Sources */,
 				42AC237AAAA6C46413CF2BBB /* SettingsView.swift in Sources */,
 				25DA4AD53EF27768DC29591B /* Sidebar.swift in Sources */,
+				7B21C1EF6C00795220F62C64 /* StorageUsageView.swift in Sources */,
 				2ED849493F32B6988F73CA7C /* TransferRow.swift in Sources */,
 				457AAF26BB535EF79DC2B152 /* TransferSection.swift in Sources */,
 				13847A4076B6665A7D7772B5 /* TransferStore.swift in Sources */,

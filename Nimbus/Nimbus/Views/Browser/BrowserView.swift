@@ -174,6 +174,12 @@ struct BrowserView: View {
         case .bookmark:
             let label = file.name.isEmpty ? file.path : file.name
             bookmarkStore.addBookmark(remoteName: remoteName, path: file.path, label: label)
+        case .download:
+            // Will use NSFileProviderManager when wired up
+            break
+        case .evict:
+            // Will use NSFileProviderManager when wired up
+            break
         }
     }
 }
