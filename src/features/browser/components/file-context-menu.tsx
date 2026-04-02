@@ -1,6 +1,7 @@
 import { ContextMenu } from "@base-ui/react/context-menu";
 import { Menu } from "@base-ui/react/menu";
 import {
+  CloudOff,
   Download,
   ExternalLink,
   FolderHeart,
@@ -21,6 +22,8 @@ interface FileContextMenuProps {
   onDeleteSelected: () => void;
   onDownloadSelected: () => void;
   onBookmark?: (item: FileItem) => void;
+  onMaterialize?: (item: FileItem) => void;
+  onEvict?: (item: FileItem) => void;
   children: React.ReactNode;
 }
 
@@ -41,6 +44,8 @@ export function FileContextMenu({
   onDeleteSelected,
   onDownloadSelected,
   onBookmark,
+  onMaterialize,
+  onEvict,
   children,
 }: FileContextMenuProps) {
   return (
@@ -105,6 +110,27 @@ export function FileContextMenu({
                       Add to Bookmarks
                     </Menu.Item>
                   </>
+                )}
+                {!item.IsDir && (onMaterialize || onEvict) && (
+                  <Menu.Separator className="-mx-1 my-1 h-px bg-border" />
+                )}
+                {!item.IsDir && onMaterialize && (
+                  <Menu.Item
+                    className={itemClass}
+                    onSelect={() => onMaterialize(item)}
+                  >
+                    <Download className="size-4" />
+                    Download Now
+                  </Menu.Item>
+                )}
+                {!item.IsDir && onEvict && (
+                  <Menu.Item
+                    className={itemClass}
+                    onSelect={() => onEvict(item)}
+                  >
+                    <CloudOff className="size-4" />
+                    Remove Local Copy
+                  </Menu.Item>
                 )}
                 <Menu.Separator className="-mx-1 my-1 h-px bg-border" />
                 <Menu.Item
