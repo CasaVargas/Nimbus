@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    streamcloned_lib::run()
+    nimbus_lib::run()
 }

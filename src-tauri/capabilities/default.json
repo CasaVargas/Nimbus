@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default permissions for StreamCloned",
+  "description": "Default permissions for Nimbus",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -15,7 +15,6 @@
     "http:default",
     "notification:default",
     "opener:default",
-    "opener:allow-open-path",
     "os:default"
   ]
 }

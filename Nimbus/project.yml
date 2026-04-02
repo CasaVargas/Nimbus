@@ -1,0 +1,68 @@
+name: Nimbus
+options:
+  bundleIdPrefix: app.casavargas
+  deploymentTarget:
+    macOS: "15.0"
+  xcodeVersion: "16.0"
+  defaultConfig: Debug
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+
+packages:
+  RcloneKit:
+    path: ../RcloneKit
+
+targets:
+  Nimbus:
+    type: application
+    platform: macOS
+    sources:
+      - path: Nimbus
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - package: RcloneKit
+      - target: FileProviderExtension
+        embed: true
+        codeSign: true
+        buildPhase:
+          copyFiles:
+            destination: plugins
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.casavargas.nimbus
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        INFOPLIST_KEY_CFBundleDisplayName: Nimbus
+        CODE_SIGN_ENTITLEMENTS: Nimbus/Nimbus.entitlements
+        ENABLE_APP_SANDBOX: NO
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 53MUTM55LC
+
+  FileProviderExtension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: FileProviderExtension
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - package: RcloneKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.casavargas.nimbus.FileProvider
+        CODE_SIGN_ENTITLEMENTS: FileProviderExtension/FileProviderExtension.entitlements
+        ENABLE_APP_SANDBOX: YES
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 53MUTM55LC
+        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.fileprovider-nonui
+    info:
+      path: FileProviderExtension/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.fileprovider-nonui
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).FileProviderExtension

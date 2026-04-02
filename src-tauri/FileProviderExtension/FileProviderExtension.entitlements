@@ -8,7 +8,7 @@
     <true/>
     <key>com.apple.security.application-groups</key>
     <array>
-        <string>group.com.nimbus.app</string>
+        <string>group.com.streamcloned.app</string>
     </array>
 </dict>
 </plist>

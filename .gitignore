@@ -25,4 +25,5 @@ dist-ssr
 
 # Project specific
 .superpowers/
-src-tauri/FileProviderExtension/FileProviderExtension.xcodeproj/
+.build
+.swiftpm

@@ -4,9 +4,16 @@
 
 **Goal:** Replace macFUSE-dependent mounting on macOS with `rclone serve nfs` + native NFS mount, requiring zero third-party dependencies.
 
-**Architecture:** Each mount spawns a dedicated `rclone serve nfs` process on a localhost port, then mounts it via a bundled Swift CLI helper (NetFS framework) or `osascript` fallback. A Rust mount manager tracks all NFS server processes and mount state. The existing frontend mount UI routes to either NFS (macOS) or FUSE (Linux/Windows) based on platform detection.
+**Architecture:** Each mount spawns a dedicated `rclone serve nfs` process on a localhost port, then mounts it via `mount_nfs` (which works WITHOUT root when using `noresvport,port=P,mountport=P`). A Rust mount manager tracks all NFS server processes and mount state. The existing frontend mount UI routes to either NFS (macOS) or FUSE (Linux/Windows) based on platform detection.
 
-**Tech Stack:** Rust (Tauri 2 commands), Swift (NetFS helper CLI), TypeScript/React (frontend hooks/store updates)
+**Tech Stack:** Rust (Tauri 2 commands), TypeScript/React (frontend hooks/store updates)
+
+**Spike Results (Task 0 — COMPLETED):**
+- NetFSMountURLSync FAILS — expects portmapper on port 111 which rclone doesn't provide
+- `mount_nfs -o noresvport,port=P,mountport=P` WORKS WITHOUT ROOT on macOS Tahoe
+- `umount` WORKS WITHOUT ROOT
+- No Swift helper needed — direct `mount_nfs`/`umount` via `std::process::Command`
+- Tasks 0, 3 eliminated. Tasks 4, 14 simplified (no Swift helper, no build.rs changes, no resource bundling)
 
 **Spec:** `docs/superpowers/specs/2026-03-24-nfs-mount-and-file-provider-design.md`
 
@@ -18,9 +25,7 @@
 
 | File | Responsibility |
 |------|---------------|
-| `src-tauri/src/commands/nfs_mount.rs` | Rust NFS mount manager — spawn `rclone serve nfs`, mount/unmount via Swift helper, track state per mount, health monitoring |
-| `src-tauri/helpers/netfs-mount/main.swift` | Swift CLI helper — calls `NetFSMountURLSync` / `NetFSUnmountURLSync`, returns exit codes |
-| `src-tauri/helpers/netfs-mount/build.sh` | Build script for the Swift helper |
+| `src-tauri/src/commands/nfs_mount.rs` | Rust NFS mount manager — spawn `rclone serve nfs`, mount/unmount via `mount_nfs`/`umount`, track state per mount, health monitoring |
 | `src/lib/tauri/nfs-mount.ts` | TypeScript wrappers for new Tauri IPC commands (`nfs_mount`, `nfs_unmount`, `nfs_list_mounts`) |
 | `src-tauri/Entitlements.plist` | macOS entitlements for network client/server |
 
@@ -30,9 +35,8 @@
 |------|---------|
 | `src-tauri/src/commands/mod.rs` | Add `pub mod nfs_mount;` |
 | `src-tauri/src/lib.rs` | Register NFS commands, add `NfsMountState`, fix `WindowEvent::Destroyed` to not kill rclone on window close |
-| `src-tauri/build.rs` | Compile Swift helper during build on macOS |
 | `src-tauri/Cargo.toml` | Add `dirs` crate for home directory, `tauri-plugin-os` for platform detection |
-| `src-tauri/tauri.conf.json` | Add entitlements reference for macOS bundle, bundle Swift helper as resource |
+| `src-tauri/tauri.conf.json` | Add entitlements reference for macOS bundle |
 | `src-tauri/capabilities/default.json` | Add `path:default` and `os:default` permissions |
 | `src/stores/mount-store.ts` | Add `backend` field to `MountConfig` |
 | `src/features/mount/hooks/use-mounts.ts` | Platform-aware mount/unmount — NFS on macOS, FUSE on others |
@@ -1978,5 +1982,15 @@ Click "Unmount". Verify:
 - Verify the mount is automatically activated on startup
 
 - [ ] **Step 8: Document any issues found**
+
+Record any issues in a new file or as GitHub issues for follow-up.
+a mount config
+- Quit and relaunch the app
+- Verify the mount is automatically activated on startup
+
+- [ ] **Step 8: Document any issues found**
+
+Record any issues in a new file or as GitHub issues for follow-up.
+tep 8: Document any issues found**
 
 Record any issues in a new file or as GitHub issues for follow-up.

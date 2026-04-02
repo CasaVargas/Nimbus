@@ -10,14 +10,12 @@ interface AppState {
   rcloneBinaryPath: string;
   bandwidthLimit: string;
   concurrentTransfers: number;
-  onboarded: boolean;
   setTheme: (theme: Theme) => void;
   toggleSidebar: () => void;
   setRclonePort: (port: number) => void;
   setRcloneBinaryPath: (path: string) => void;
   setBandwidthLimit: (limit: string) => void;
   setConcurrentTransfers: (count: number) => void;
-  setOnboarded: (value: boolean) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -29,7 +27,6 @@ export const useAppStore = create<AppState>()(
       rcloneBinaryPath: "",
       bandwidthLimit: "",
       concurrentTransfers: 4,
-      onboarded: false,
       setTheme: (theme) => set({ theme }),
       toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -37,7 +34,6 @@ export const useAppStore = create<AppState>()(
       setRcloneBinaryPath: (path) => set({ rcloneBinaryPath: path }),
       setBandwidthLimit: (limit) => set({ bandwidthLimit: limit }),
       setConcurrentTransfers: (count) => set({ concurrentTransfers: count }),
-      setOnboarded: (value) => set({ onboarded: value }),
     }),
     { name: "nimbus-app" },
   ),

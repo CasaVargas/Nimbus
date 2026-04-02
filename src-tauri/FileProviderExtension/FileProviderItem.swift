@@ -50,10 +50,6 @@ class FileProviderItem: NSObject, NSFileProviderItem {
         return [.allowsReading, .allowsWriting, .allowsRenaming, .allowsDeleting]
     }
 
-    var contentPolicy: NSFileProviderContentPolicy {
-        .downloadLazily
-    }
-
     var itemVersion: NSFileProviderItemVersion { _version }
 
     var contentType: UTType {

@@ -164,16 +164,17 @@ pub async fn spawn_nfs_server(remote: &str, port: u16, read_only: bool) -> Resul
     ))
 }
 
-fn mount_nfs_share(port: u16, mount_point: &str) -> Result<(), String> {
+fn mount_nfs_share(port: u16, mount_point: &str, remote_name: &str) -> Result<(), String> {
     std::fs::create_dir_all(mount_point)
         .map_err(|e| format!("Failed to create mount point {}: {}", mount_point, e))?;
 
+    let volume_name = remote_name.trim_end_matches(':');
     let output = Command::new("mount_nfs")
         .args([
             "-o",
             &format!(
-                "nfsvers=3,tcp,nolocks,noresvport,soft,timeo=50,nobrowse,nosuid,nodev,port={},mountport={}",
-                port, port
+                "nfsvers=3,tcp,nolocks,noresvport,soft,timeo=50,nosuid,nodev,port={},mountport={},volname={}",
+                port, port, volume_name
             ),
             "localhost:/",
             mount_point,
@@ -256,7 +257,8 @@ pub async fn nfs_mount(
     let child = spawn_nfs_server(&remote, port, read_only).await?;
 
     let mp = mount_point.clone();
-    let mount_result = tokio::task::spawn_blocking(move || mount_nfs_share(port, &mp))
+    let rname = remote.clone();
+    let mount_result = tokio::task::spawn_blocking(move || mount_nfs_share(port, &mp, &rname))
         .await
         .map_err(|e| format!("Mount task panicked: {}", e))?;
 
