@@ -6,3 +6,5 @@ export * as remotes from "./remotes";
 export * as stats from "./stats";
 export * as sync from "./sync";
 export * from "./types";
+export { parseRcloneConf } from "./ini-parser";
+export type { ParsedRemote } from "./ini-parser";
