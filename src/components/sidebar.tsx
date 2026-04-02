@@ -2,13 +2,15 @@ import {
   ArrowUpDown,
   Copy,
   Database,
+  FolderHeart,
   FolderOpen,
   HardDrive,
   PanelLeft,
   PanelLeftClose,
   Settings,
+  X,
 } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -18,6 +20,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
+import { useBookmarkStore } from "@/stores/bookmark-store";
 
 const navItems = [
   { to: "/", icon: HardDrive, label: "Remotes", end: true },
@@ -31,6 +34,9 @@ const navItems = [
 export function Sidebar() {
   const collapsed = useAppStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
+  const bookmarks = useBookmarkStore((s) => s.bookmarks);
+  const removeBookmark = useBookmarkStore((s) => s.removeBookmark);
+  const navigate = useNavigate();
 
   return (
     <TooltipProvider delay={0}>
@@ -47,9 +53,7 @@ export function Sidebar() {
           )}
         >
           {!collapsed && (
-            <span className="text-sm font-semibold tracking-tight">
-              Nimbus
-            </span>
+            <span className="text-sm font-semibold tracking-tight">Nimbus</span>
           )}
           <Button
             variant="ghost"
@@ -94,6 +98,64 @@ export function Sidebar() {
               )}
             </Tooltip>
           ))}
+
+          {bookmarks.length > 0 && (
+            <div className="mt-2 border-t pt-2">
+              {!collapsed && (
+                <span className="px-3 py-1 text-xs font-medium text-muted-foreground">
+                  Bookmarks
+                </span>
+              )}
+              {[...bookmarks]
+                .sort((a, b) => a.order - b.order)
+                .map((bookmark) => (
+                  <Tooltip key={bookmark.id}>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate(
+                              `/browser?remote=${encodeURIComponent(bookmark.remoteName)}&path=${encodeURIComponent(bookmark.path)}`,
+                            )
+                          }
+                          className={cn(
+                            "group flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                            "hover:bg-accent hover:text-accent-foreground",
+                            "text-muted-foreground",
+                            collapsed && "justify-center px-0",
+                          )}
+                        />
+                      }
+                    >
+                      <FolderHeart className="h-4 w-4 shrink-0" />
+                      {!collapsed && (
+                        <>
+                          <span className="flex-1 truncate text-left">
+                            {bookmark.label}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeBookmark(bookmark.id);
+                            }}
+                            className="invisible ml-auto h-4 w-4 shrink-0 rounded group-hover:visible hover:text-foreground"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </TooltipTrigger>
+                    {collapsed && (
+                      <TooltipContent side="right">
+                        {bookmark.label} — {bookmark.remoteName}:{bookmark.path}
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                ))}
+            </div>
+          )}
         </nav>
       </aside>
     </TooltipProvider>

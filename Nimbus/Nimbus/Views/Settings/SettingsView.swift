@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum SettingsTab: Hashable {
-    case appearance, transfers, rclone, about
+    case appearance, transfers, rclone, storage, about
 }
 
 struct SettingsView: View {
@@ -20,6 +20,10 @@ struct SettingsView: View {
             RcloneSection()
                 .tag(SettingsTab.rclone)
                 .tabItem { Label("Rclone", systemImage: "terminal") }
+
+            StorageUsageView()
+                .tag(SettingsTab.storage)
+                .tabItem { Label("Storage", systemImage: "internaldrive") }
 
             AboutSection()
                 .tag(SettingsTab.about)

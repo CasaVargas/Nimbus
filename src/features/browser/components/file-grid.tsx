@@ -15,6 +15,7 @@ interface FileGridProps {
   onDelete: (item: FileItem) => void;
   onDeleteSelected: () => void;
   onDownloadSelected: () => void;
+  onBookmark?: (item: FileItem) => void;
   renamingItem: string | null;
   onRenameCancel: () => void;
 }
@@ -37,6 +38,7 @@ export function FileGrid({
   onDelete,
   onDeleteSelected,
   onDownloadSelected,
+  onBookmark,
   renamingItem,
   onRenameCancel,
 }: FileGridProps) {
@@ -62,6 +64,7 @@ export function FileGrid({
           onDelete={onDelete}
           onDeleteSelected={onDeleteSelected}
           onDownloadSelected={onDownloadSelected}
+          onBookmark={onBookmark}
         >
           <div
             className={cn(

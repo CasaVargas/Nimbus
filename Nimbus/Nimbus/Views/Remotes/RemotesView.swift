@@ -7,6 +7,7 @@ struct RemotesView: View {
     var onBrowse: ((String) -> Void)?
     @State private var viewModel: RemotesViewModel?
     @State private var showAddRemote = false
+    @State private var showImportConfig = false
     @State private var editingRemote: Remote?
     @State private var deletingRemote: Remote?
 
@@ -21,6 +22,12 @@ struct RemotesView: View {
                     // Only allow adding remotes once the daemon is reachable
                     .disabled(daemon.status != .connected)
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Import Config", systemImage: "square.and.arrow.down") {
+                        showImportConfig = true
+                    }
+                    .disabled(daemon.status != .connected)
+                }
             }
             .task(id: daemon.status) {
                 guard daemon.status == .connected else { return }
@@ -31,6 +38,11 @@ struct RemotesView: View {
             }
             .sheet(isPresented: $showAddRemote) {
                 AddRemoteSheet(onComplete: {
+                    Task { await viewModel?.loadRemotes() }
+                })
+            }
+            .sheet(isPresented: $showImportConfig) {
+                ImportConfigSheet(onComplete: {
                     Task { await viewModel?.loadRemotes() }
                 })
             }

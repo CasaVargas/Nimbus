@@ -4,6 +4,7 @@ import RcloneKit
 struct BrowserView: View {
     let remoteName: String
     @Environment(RcloneDaemon.self) private var daemon
+    @Environment(BookmarkStore.self) private var bookmarkStore
     @State private var viewModel: BrowserViewModel?
 
     var body: some View {
@@ -170,6 +171,15 @@ struct BrowserView: View {
             viewModel.renameText = file.name
         case .delete:
             Task { try? await viewModel.deleteItems(paths: [file.path]) }
+        case .bookmark:
+            let label = file.name.isEmpty ? file.path : file.name
+            bookmarkStore.addBookmark(remoteName: remoteName, path: file.path, label: label)
+        case .download:
+            // Will use NSFileProviderManager when wired up
+            break
+        case .evict:
+            // Will use NSFileProviderManager when wired up
+            break
         }
     }
 }

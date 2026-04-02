@@ -29,7 +29,7 @@ final class FileProviderItem: NSObject, NSFileProviderItem {
         } else {
             self.contentType = UTType(filenameExtension: (file.name as NSString).pathExtension) ?? .data
             self.documentSize = NSNumber(value: file.size)
-            self.capabilities = [.allowsReading, .allowsWriting, .allowsRenaming, .allowsDeleting]
+            self.capabilities = [.allowsReading, .allowsWriting, .allowsRenaming, .allowsDeleting, .allowsEvicting]
         }
 
         let versionData: Data

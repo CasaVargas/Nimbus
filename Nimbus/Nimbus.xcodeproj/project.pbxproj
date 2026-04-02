@@ -13,6 +13,7 @@
 		0C2B7B9D75C57619FD4A9B04 /* AboutSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC4F8A4196F233DFDE0DE17E /* AboutSection.swift */; };
 		13847A4076B6665A7D7772B5 /* TransferStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DD44EF54342043F83BC0D1B /* TransferStore.swift */; };
 		1D3E03BCC64A52A469FF1729 /* RcloneKit in Frameworks */ = {isa = PBXBuildFile; productRef = DCD4DDB2F588D5DB4E9F558F /* RcloneKit */; };
+		1E76CD4C21611640D4791BBF /* BookmarkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D2921088EDC82F0A95AEEAB /* BookmarkStore.swift */; };
 		21E72894D5B09900044349EC /* PathPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2CE0C83256B3E94C72DD283 /* PathPicker.swift */; };
 		2353A87935A69F0AEDB61EB5 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6FD1A3D6100AC0DBDCF1315 /* AppDelegate.swift */; };
 		24737E3DFC915CD276DE3A46 /* AddMountSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBA7B6CB016DCE782B5443EA /* AddMountSheet.swift */; };
@@ -38,8 +39,11 @@
 		66686A62291C3FC31EFD0607 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF1ECD3038C0295EC2B40C77 /* OnboardingView.swift */; };
 		7186B43DDF9D7F839F82B6E6 /* FileProviderBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F4DF18D93B378AC2C60ABC /* FileProviderBridge.swift */; };
 		72176941173EF046F32623F4 /* Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E50D9C737FBBC708FF7A6F5 /* Extension.swift */; };
+		7B21C1EF6C00795220F62C64 /* StorageUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E2E1139EDDC520B6D6223F /* StorageUsageView.swift */; };
 		7E1811F8DF1E49EE390EB846 /* AddRemoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4BBDEBA281F41466C04A187 /* AddRemoteSheet.swift */; };
 		87CFD6A8899C1EA8058561D8 /* EditRemoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B919CAFBCBF7D878493B03F /* EditRemoteSheet.swift */; };
+		8BAC6FF1E3D21F04B898DA68 /* RcloneConfParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EFB6DB3EF366558FF0BAF07 /* RcloneConfParser.swift */; };
+		912BAC08F7745480EA5992B8 /* ImportConfigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2526A5E71E5C5ECDAD53597D /* ImportConfigSheet.swift */; };
 		A0711627A70DE50CB302CBA1 /* TransfersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D6672817A705472989CD40D /* TransfersView.swift */; };
 		A913C369B67982D50F7AD437 /* AppearanceSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41F3DFFC42572098A760795D /* AppearanceSection.swift */; };
 		A979C070DA92EC52E67B28C8 /* RcloneKit in Frameworks */ = {isa = PBXBuildFile; productRef = E038A2CCB7EA233033D5CFCD /* RcloneKit */; };
@@ -84,7 +88,9 @@
 		10777E1962C2F8AFC045DEB2 /* TransfersViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransfersViewModel.swift; sourceTree = "<group>"; };
 		10A3816E1EC55E5657611B64 /* CopySyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopySyncView.swift; sourceTree = "<group>"; };
 		122FC43D9B9925959BF766EE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		19E2E1139EDDC520B6D6223F /* StorageUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageUsageView.swift; sourceTree = "<group>"; };
 		23222C40A9098C836B111200 /* RemotesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemotesView.swift; sourceTree = "<group>"; };
+		2526A5E71E5C5ECDAD53597D /* ImportConfigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportConfigSheet.swift; sourceTree = "<group>"; };
 		2AA331A1A776F8D581FF01DF /* MountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountsView.swift; sourceTree = "<group>"; };
 		357AE42AD3448C6FC4B5DF2F /* FileProviderExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FileProviderExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		36F4DF18D93B378AC2C60ABC /* FileProviderBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileProviderBridge.swift; sourceTree = "<group>"; };
@@ -94,6 +100,8 @@
 		5322BA5BF672E9A04097F109 /* MountConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountConfiguration.swift; sourceTree = "<group>"; };
 		56DDC44A90929A9518155E77 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		673EAFA8BD6B60893A5DDFDE /* RcloneSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RcloneSection.swift; sourceTree = "<group>"; };
+		6EFB6DB3EF366558FF0BAF07 /* RcloneConfParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RcloneConfParser.swift; sourceTree = "<group>"; };
+		7D2921088EDC82F0A95AEEAB /* BookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkStore.swift; sourceTree = "<group>"; };
 		7FCB9AC026693A5F56888FA5 /* CopySyncViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopySyncViewModel.swift; sourceTree = "<group>"; };
 		84E656540BFE413CDECD552F /* BrowserViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserViewModel.swift; sourceTree = "<group>"; };
 		8557E940D1B7790FDD7F35AD /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -164,6 +172,7 @@
 				B4BBDEBA281F41466C04A187 /* AddRemoteSheet.swift */,
 				9514C974E975323DC538A60E /* ConfigForm.swift */,
 				8B919CAFBCBF7D878493B03F /* EditRemoteSheet.swift */,
+				2526A5E71E5C5ECDAD53597D /* ImportConfigSheet.swift */,
 				AF03C7B12F8D38C3F6E47381 /* RemoteRow.swift */,
 				23222C40A9098C836B111200 /* RemotesView.swift */,
 			);
@@ -232,6 +241,14 @@
 			);
 			sourceTree = "<group>";
 		};
+		62F3EC9BC97E012DDADD31CD /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				6EFB6DB3EF366558FF0BAF07 /* RcloneConfParser.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
 		8FE45C2A6DEAD2EC22034E9A /* Onboarding */ = {
 			isa = PBXGroup;
 			children = (
@@ -253,6 +270,7 @@
 			isa = PBXGroup;
 			children = (
 				56DDC44A90929A9518155E77 /* AppSettings.swift */,
+				7D2921088EDC82F0A95AEEAB /* BookmarkStore.swift */,
 				5322BA5BF672E9A04097F109 /* MountConfiguration.swift */,
 				0DD44EF54342043F83BC0D1B /* TransferStore.swift */,
 			);
@@ -268,6 +286,7 @@
 				F9A419551C6F4187C05A07F7 /* NimbusApp.swift */,
 				1FF4988CF1B4A081D623B211 /* Services */,
 				A05C4DDB7BACE64CA517F47A /* State */,
+				62F3EC9BC97E012DDADD31CD /* Utilities */,
 				EC6802A05E255E963FA820E4 /* ViewModels */,
 				38FBAD24DD9436D260C19745 /* Views */,
 			);
@@ -281,6 +300,7 @@
 				41F3DFFC42572098A760795D /* AppearanceSection.swift */,
 				673EAFA8BD6B60893A5DDFDE /* RcloneSection.swift */,
 				8557E940D1B7790FDD7F35AD /* SettingsView.swift */,
+				19E2E1139EDDC520B6D6223F /* StorageUsageView.swift */,
 				96D748F5B10AFEA969C88CE3 /* TransferSection.swift */,
 			);
 			path = Settings;
@@ -418,6 +438,7 @@
 				2353A87935A69F0AEDB61EB5 /* AppDelegate.swift in Sources */,
 				BFF22B953FB079BC7AE62130 /* AppSettings.swift in Sources */,
 				A913C369B67982D50F7AD437 /* AppearanceSection.swift in Sources */,
+				1E76CD4C21611640D4791BBF /* BookmarkStore.swift in Sources */,
 				5C406B453B1A1567E325AEF5 /* BrowserToolbar.swift in Sources */,
 				0547DBC2DAD79ADF6180EC83 /* BrowserView.swift in Sources */,
 				51928D9ADBCC0691B3771981 /* BrowserViewModel.swift in Sources */,
@@ -430,6 +451,7 @@
 				DCF3A7B53E448200A6780F13 /* FileGrid.swift in Sources */,
 				7186B43DDF9D7F839F82B6E6 /* FileProviderBridge.swift in Sources */,
 				ADCDC4391F85BAB27DAB12D2 /* FileTable.swift in Sources */,
+				912BAC08F7745480EA5992B8 /* ImportConfigSheet.swift in Sources */,
 				53185BE42E73B300337515B4 /* MountConfiguration.swift in Sources */,
 				374E003E00317D2F7CE9D15F /* MountManager.swift in Sources */,
 				D717CF81D7DB9C05536E61BB /* MountRow.swift in Sources */,
@@ -438,6 +460,7 @@
 				278E2D760830C431C685CF0B /* NimbusApp.swift in Sources */,
 				66686A62291C3FC31EFD0607 /* OnboardingView.swift in Sources */,
 				21E72894D5B09900044349EC /* PathPicker.swift in Sources */,
+				8BAC6FF1E3D21F04B898DA68 /* RcloneConfParser.swift in Sources */,
 				4B8F27C6E2737CE62B78A053 /* RcloneDaemon.swift in Sources */,
 				5C6F84624EFBB6A31240C868 /* RcloneSection.swift in Sources */,
 				600793D2A53300711E5B23B4 /* RemoteRow.swift in Sources */,
@@ -445,6 +468,7 @@
 				04EC499A7C0DF8F96188864B /* RemotesViewModel.swift in Sources */,
 				42AC237AAAA6C46413CF2BBB /* SettingsView.swift in Sources */,
 				25DA4AD53EF27768DC29591B /* Sidebar.swift in Sources */,
+				7B21C1EF6C00795220F62C64 /* StorageUsageView.swift in Sources */,
 				2ED849493F32B6988F73CA7C /* TransferRow.swift in Sources */,
 				457AAF26BB535EF79DC2B152 /* TransferSection.swift in Sources */,
 				13847A4076B6665A7D7772B5 /* TransferStore.swift in Sources */,

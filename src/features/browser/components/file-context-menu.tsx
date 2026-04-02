@@ -1,6 +1,13 @@
 import { ContextMenu } from "@base-ui/react/context-menu";
 import { Menu } from "@base-ui/react/menu";
-import { Download, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import {
+  CloudOff,
+  Download,
+  ExternalLink,
+  FolderHeart,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import type { FileItem } from "@/lib/rclone/types";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +21,9 @@ interface FileContextMenuProps {
   onDelete: (item: FileItem) => void;
   onDeleteSelected: () => void;
   onDownloadSelected: () => void;
+  onBookmark?: (item: FileItem) => void;
+  onMaterialize?: (item: FileItem) => void;
+  onEvict?: (item: FileItem) => void;
   children: React.ReactNode;
 }
 
@@ -33,18 +43,16 @@ export function FileContextMenu({
   onDelete,
   onDeleteSelected,
   onDownloadSelected,
+  onBookmark,
+  onMaterialize,
+  onEvict,
   children,
 }: FileContextMenuProps) {
   return (
     <ContextMenu.Root>
-      <ContextMenu.Trigger className="contents">
-        {children}
-      </ContextMenu.Trigger>
+      <ContextMenu.Trigger className="contents">{children}</ContextMenu.Trigger>
       <Menu.Portal>
-        <Menu.Positioner
-          className="isolate z-50 outline-none"
-          sideOffset={4}
-        >
+        <Menu.Positioner className="isolate z-50 outline-none" sideOffset={4}>
           <Menu.Popup
             className={cn(
               "min-w-40 origin-(--transform-origin) rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10",
@@ -54,10 +62,7 @@ export function FileContextMenu({
           >
             {isMultiSelect ? (
               <>
-                <Menu.Item
-                  className={itemClass}
-                  onSelect={onDownloadSelected}
-                >
+                <Menu.Item className={itemClass} onSelect={onDownloadSelected}>
                   <Download className="size-4" />
                   Download {selectedCount} items
                 </Menu.Item>
@@ -72,10 +77,7 @@ export function FileContextMenu({
               </>
             ) : (
               <>
-                <Menu.Item
-                  className={itemClass}
-                  onSelect={() => onOpen(item)}
-                >
+                <Menu.Item className={itemClass} onSelect={() => onOpen(item)}>
                   <ExternalLink className="size-4" />
                   Open
                 </Menu.Item>
@@ -95,6 +97,39 @@ export function FileContextMenu({
                   >
                     <Pencil className="size-4" />
                     Rename
+                  </Menu.Item>
+                )}
+                {item.IsDir && onBookmark && (
+                  <>
+                    <Menu.Separator className="-mx-1 my-1 h-px bg-border" />
+                    <Menu.Item
+                      className={itemClass}
+                      onSelect={() => onBookmark(item)}
+                    >
+                      <FolderHeart className="size-4" />
+                      Add to Bookmarks
+                    </Menu.Item>
+                  </>
+                )}
+                {!item.IsDir && (onMaterialize || onEvict) && (
+                  <Menu.Separator className="-mx-1 my-1 h-px bg-border" />
+                )}
+                {!item.IsDir && onMaterialize && (
+                  <Menu.Item
+                    className={itemClass}
+                    onSelect={() => onMaterialize(item)}
+                  >
+                    <Download className="size-4" />
+                    Download Now
+                  </Menu.Item>
+                )}
+                {!item.IsDir && onEvict && (
+                  <Menu.Item
+                    className={itemClass}
+                    onSelect={() => onEvict(item)}
+                  >
+                    <CloudOff className="size-4" />
+                    Remove Local Copy
                   </Menu.Item>
                 )}
                 <Menu.Separator className="-mx-1 my-1 h-px bg-border" />

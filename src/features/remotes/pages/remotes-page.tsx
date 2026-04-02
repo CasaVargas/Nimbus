@@ -1,4 +1,4 @@
-import { CloudOff, Plus } from "lucide-react";
+import { CloudOff, Plus, Upload } from "lucide-react";
 import { useCallback, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
@@ -7,8 +7,13 @@ import { Button } from "@/components/ui/button";
 import { AddRemoteDialog } from "../components/add-remote-dialog";
 import { DeleteRemoteDialog } from "../components/delete-remote-dialog";
 import { EditRemoteDialog } from "../components/edit-remote-dialog";
+import { ImportConfigDialog } from "../components/import-config-dialog";
 import { RemoteCard } from "../components/remote-card";
-import { useDeleteRemote, useRemotes, type RemoteEntry } from "../hooks/use-remotes";
+import {
+  type RemoteEntry,
+  useDeleteRemote,
+  useRemotes,
+} from "../hooks/use-remotes";
 
 export default function RemotesPage() {
   const { data: remotes, isLoading, isError, error } = useRemotes();
@@ -16,6 +21,7 @@ export default function RemotesPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<RemoteEntry | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!deleteTarget) return;
@@ -30,10 +36,20 @@ export default function RemotesPage() {
         title="Remotes"
         description="Manage your cloud storage connections"
         actions={
-          <Button size="sm" onClick={() => setShowAdd(true)}>
-            <Plus className="size-4" data-icon="inline-start" />
-            Add Remote
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowImport(true)}
+            >
+              <Upload className="size-4" data-icon="inline-start" />
+              Import Config
+            </Button>
+            <Button size="sm" onClick={() => setShowAdd(true)}>
+              <Plus className="size-4" data-icon="inline-start" />
+              Add Remote
+            </Button>
+          </div>
         }
       />
 
@@ -106,6 +122,8 @@ export default function RemotesPage() {
       />
 
       <AddRemoteDialog open={showAdd} onClose={() => setShowAdd(false)} />
+
+      <ImportConfigDialog open={showImport} onOpenChange={setShowImport} />
 
       <EditRemoteDialog
         remote={editTarget}
