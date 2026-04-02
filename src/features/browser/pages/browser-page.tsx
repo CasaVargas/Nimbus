@@ -6,8 +6,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
-import { FileListSkeleton } from "@/components/skeleton";
 import { PathBreadcrumb } from "@/components/path-breadcrumb";
+import { FileListSkeleton } from "@/components/skeleton";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { FileItem } from "@/lib/rclone/types";
+import { useBookmarkStore } from "@/stores/bookmark-store";
 import { BrowserToolbar, type ViewMode } from "../components/browser-toolbar";
 import { FileGrid } from "../components/file-grid";
 import {
@@ -173,15 +174,12 @@ export default function BrowserPage() {
       }
       // Perform the rename
       setRenamingItem(null);
-      toast.promise(
-        renameFile.mutateAsync({ oldName: item.Name, newName }),
-        {
-          loading: `Renaming ${item.Name}...`,
-          success: `Renamed to ${newName}`,
-          error: (err) =>
-            `Rename failed: ${err instanceof Error ? err.message : String(err)}`,
-        },
-      );
+      toast.promise(renameFile.mutateAsync({ oldName: item.Name, newName }), {
+        loading: `Renaming ${item.Name}...`,
+        success: `Renamed to ${newName}`,
+        error: (err) =>
+          `Rename failed: ${err instanceof Error ? err.message : String(err)}`,
+      });
     },
     [renameFile],
   );
@@ -276,9 +274,7 @@ export default function BrowserPage() {
   const handleDownloadSelected = useCallback(async () => {
     if (selected.size === 0 || !files) return;
     const dlDir = await downloadDir();
-    const fileItems = files.filter(
-      (f) => selected.has(f.Name) && !f.IsDir,
-    );
+    const fileItems = files.filter((f) => selected.has(f.Name) && !f.IsDir);
     if (fileItems.length === 0) {
       toast.error("No files selected (folders are skipped)");
       return;
@@ -298,6 +294,16 @@ export default function BrowserPage() {
       },
     );
   }, [selected, files, path, downloadFile]);
+
+  const addBookmark = useBookmarkStore((s) => s.addBookmark);
+  const handleBookmark = useCallback(
+    (item: FileItem) => {
+      const fullPath = path ? `${path}/${item.Name}` : item.Name;
+      addBookmark(remote!, fullPath, item.Name);
+      toast.success(`Bookmarked ${item.Name}`);
+    },
+    [remote, path, addBookmark],
+  );
 
   // No remote selected
   if (!remote) {
@@ -349,6 +355,7 @@ export default function BrowserPage() {
             onDelete={handleDeleteSingle}
             onDeleteSelected={handleDelete}
             onDownloadSelected={handleDownloadSelected}
+            onBookmark={handleBookmark}
             sortBy={sortBy}
             sortDir={sortDir}
             onSort={handleSort}
@@ -366,6 +373,7 @@ export default function BrowserPage() {
             onDelete={handleDeleteSingle}
             onDeleteSelected={handleDelete}
             onDownloadSelected={handleDownloadSelected}
+            onBookmark={handleBookmark}
             renamingItem={renamingItem}
             onRenameCancel={handleRenameCancel}
           />

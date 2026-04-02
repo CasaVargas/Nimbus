@@ -18,6 +18,7 @@ interface FileListProps {
   onDelete: (item: FileItem) => void;
   onDeleteSelected: () => void;
   onDownloadSelected: () => void;
+  onBookmark?: (item: FileItem) => void;
   sortBy: SortField;
   sortDir: SortDir;
   onSort: (field: SortField) => void;
@@ -74,6 +75,7 @@ export function FileList({
   onDelete,
   onDeleteSelected,
   onDownloadSelected,
+  onBookmark,
   sortBy,
   sortDir,
   onSort,
@@ -124,6 +126,7 @@ export function FileList({
           onDelete={onDelete}
           onDeleteSelected={onDeleteSelected}
           onDownloadSelected={onDownloadSelected}
+          onBookmark={onBookmark}
         >
           <div
             className={cn(
