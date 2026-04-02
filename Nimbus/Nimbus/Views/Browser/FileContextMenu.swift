@@ -5,6 +5,7 @@ enum FileAction {
     case open
     case rename
     case delete
+    case bookmark
 }
 
 struct FileContextMenu: View {
@@ -13,6 +14,13 @@ struct FileContextMenu: View {
 
     var body: some View {
         Button("Open") { onAction(.open) }
+        if file.isDir {
+            Button {
+                onAction(.bookmark)
+            } label: {
+                Label("Add to Bookmarks", systemImage: "folder.badge.star")
+            }
+        }
         Divider()
         Button("Rename") { onAction(.rename) }
         Divider()

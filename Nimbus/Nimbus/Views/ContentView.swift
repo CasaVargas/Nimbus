@@ -16,8 +16,11 @@ struct ContentView: View {
             OnboardingView()
         } else {
             NavigationSplitView {
-                Sidebar(selection: $selection)
-                    .frame(minWidth: 180)
+                Sidebar(selection: $selection, onBookmarkSelected: { remote, path in
+                    selection = .remotes
+                    navigationPath.append(BrowserDestination(remoteName: remote))
+                })
+                .frame(minWidth: 180)
             } detail: {
                 NavigationStack(path: $navigationPath) {
                     detailView
