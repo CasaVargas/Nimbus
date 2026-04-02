@@ -5,7 +5,7 @@
     <key>CFBundleDisplayName</key>
     <string>Nimbus File Provider</string>
     <key>CFBundleIdentifier</key>
-    <string>com.nimbus.app.FileProvider</string>
+    <string>app.casavargas.nimbus.FileProvider</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleShortVersionString</key>
@@ -17,7 +17,7 @@
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionFileProviderDocumentGroup</key>
-        <string>group.com.nimbus.app</string>
+        <string>group.app.casavargas.nimbus</string>
         <key>NSExtensionPointIdentifier</key>
         <string>com.apple.fileprovider-nonui</string>
         <key>NSExtensionPrincipalClass</key>

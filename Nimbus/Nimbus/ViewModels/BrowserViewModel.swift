@@ -26,6 +26,11 @@ final class BrowserViewModel {
     var sortAscending: Bool = true
     var selection: Set<String> = []
 
+    var showNewFolderDialog = false
+    var newFolderName = ""
+    var renamingFile: FileItem?
+    var renameText = ""
+
     private(set) var pathHistory: [String] = [""]
     private(set) var historyIndex: Int = 0
 

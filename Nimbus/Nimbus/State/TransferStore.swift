@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import RcloneKit
+import os
 
 enum TransferOperation: String {
     case copy, sync
@@ -28,6 +29,7 @@ struct Transfer: Identifiable {
 final class TransferStore {
     private(set) var transfers: [Transfer] = []
     private var pollingTask: Task<Void, Never>?
+    private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "transfer-store")
 
     var activeTransfers: [Transfer] {
         transfers.filter {
@@ -88,10 +90,10 @@ final class TransferStore {
     }
 
     func startPolling(client: RcloneClient) {
-        pollingTask = Task { [weak self] in
+        pollingTask = Task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
-                await self?.pollActiveJobs(client: client)
+                await self.pollActiveJobs(client: client)
             }
         }
     }
@@ -113,7 +115,9 @@ final class TransferStore {
                     }
                 }
             } catch {
-                // Transient error — keep polling
+                // Job may have been cleaned up by rclone — expected for old jobs.
+                // Transient errors will cause retries on the next poll cycle.
+                logger.debug("Job \(transfer.id) status poll failed (may be cleaned up): \(error)")
             }
         }
     }

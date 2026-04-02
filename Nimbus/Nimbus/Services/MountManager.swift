@@ -19,6 +19,7 @@ final class MountManager {
     private var healthTask: Task<Void, Never>?
 
     private static let nfsPortRange = 19049...19149
+    private static let nfsHost = "localhost"
 
     func mount(remote: String, mountPoint: String, readOnly: Bool) async throws {
         try validateMountPoint(mountPoint)
@@ -35,7 +36,7 @@ final class MountManager {
 
         let nfsProcess = Process()
         nfsProcess.executableURL = URL(fileURLWithPath: "/usr/local/bin/rclone")
-        var args = ["serve", "nfs", remote, "--addr", "localhost:\(nfsPort)"]
+        var args = ["serve", "nfs", remote, "--addr", "\(Self.nfsHost):\(nfsPort)"]
         if readOnly {
             args.append("--read-only")
         } else {
@@ -48,7 +49,7 @@ final class MountManager {
         try nfsProcess.run()
         logger.info("Spawned NFS server for \(remote) on port \(nfsPort)")
 
-        let ready = await waitForServerReady(port: nfsPort, timeout: 10.0)
+        let ready = await Self.waitForServerReady(port: nfsPort, timeout: 10.0)
         if !ready {
             nfsProcess.terminate()
             throw MountError.serverStartTimeout
@@ -58,7 +59,7 @@ final class MountManager {
         mountProcess.executableURL = URL(fileURLWithPath: "/sbin/mount_nfs")
         mountProcess.arguments = [
             "-o", "nfsvers=3,tcp,nolocks,noresvport,soft,timeo=50,nobrowse,nosuid,nodev,port=\(nfsPort),mountport=\(nfsPort)",
-            "localhost:/",
+            "\(Self.nfsHost):/",
             mountPoint,
         ]
 
@@ -121,10 +122,10 @@ final class MountManager {
     }
 
     func startHealthMonitor() {
-        healthTask = Task { [weak self] in
+        healthTask = Task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(10))
-                await self?.checkHealth()
+                self.checkHealth()
             }
         }
     }
@@ -152,7 +153,7 @@ final class MountManager {
 
             for line in output.split(separator: "\n") {
                 let lineStr = String(line)
-                if lineStr.contains("localhost") && lineStr.contains("nfs") {
+                if lineStr.contains(Self.nfsHost) && lineStr.contains("nfs") {
                     if let onRange = lineStr.range(of: " on "),
                        let parenRange = lineStr.range(of: " (", range: onRange.upperBound..<lineStr.endIndex) {
                         let mountPoint = String(lineStr[onRange.upperBound..<parenRange.lowerBound])
@@ -228,33 +229,41 @@ final class MountManager {
         return nil
     }
 
-    private func waitForServerReady(port: Int, timeout: TimeInterval) async -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            let socketFD = socket(AF_INET, SOCK_STREAM, 0)
-            guard socketFD >= 0 else {
-                try? await Task.sleep(for: .milliseconds(200))
-                continue
-            }
-            defer { close(socketFD) }
+    /// Waits for NFS server to accept connections, using exponential backoff.
+    nonisolated private static func waitForServerReady(port: Int, timeout: TimeInterval) async -> Bool {
+        await Task.detached(priority: .userInitiated) {
+            let deadline = Date().addingTimeInterval(timeout)
+            var delay: UInt64 = 50_000_000 // 50ms in nanoseconds
+            let maxDelay: UInt64 = 1_000_000_000 // 1 second cap
 
-            var addr = sockaddr_in()
-            addr.sin_family = sa_family_t(AF_INET)
-            addr.sin_port = in_port_t(port).bigEndian
-            addr.sin_addr.s_addr = inet_addr("127.0.0.1")
-
-            let result = withUnsafePointer(to: &addr) {
-                $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                    connect(socketFD, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            while Date() < deadline {
+                let socketFD = socket(AF_INET, SOCK_STREAM, 0)
+                guard socketFD >= 0 else {
+                    try? await Task.sleep(nanoseconds: delay)
+                    delay = min(delay + delay / 2, maxDelay)
+                    continue
                 }
-            }
+                defer { close(socketFD) }
 
-            if result == 0 {
-                return true
+                var addr = sockaddr_in()
+                addr.sin_family = sa_family_t(AF_INET)
+                addr.sin_port = in_port_t(port).bigEndian
+                addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+
+                let result = withUnsafePointer(to: &addr) {
+                    $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                        connect(socketFD, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+                    }
+                }
+
+                if result == 0 {
+                    return true
+                }
+                try? await Task.sleep(nanoseconds: delay)
+                delay = min(delay + delay / 2, maxDelay)
             }
-            try? await Task.sleep(for: .milliseconds(200))
-        }
-        return false
+            return false
+        }.value
     }
 
     private func waitForProcess(_ process: Process, timeout: TimeInterval) async -> Bool {

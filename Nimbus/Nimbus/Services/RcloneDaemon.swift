@@ -36,7 +36,7 @@ final class RcloneDaemon {
             return
         }
         port = availablePort
-        await client.updatePort(availablePort)
+        client.updatePort(availablePort)
 
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: binaryPath)
@@ -93,17 +93,18 @@ final class RcloneDaemon {
         await start(binaryPath: binaryPath)
     }
 
-    private static func findAvailablePort(in range: ClosedRange<Int>) async -> Int? {
-        for port in range {
-            let available = await isPortAvailable(port)
-            if available {
-                return port
+    nonisolated private static func findAvailablePort(in range: ClosedRange<Int>) async -> Int? {
+        await Task.detached(priority: .userInitiated) {
+            for port in range {
+                if Self.isPortAvailable(port) {
+                    return port
+                }
             }
-        }
-        return nil
+            return nil
+        }.value
     }
 
-    private static func isPortAvailable(_ port: Int) async -> Bool {
+    nonisolated private static func isPortAvailable(_ port: Int) -> Bool {
         let socketFD = socket(AF_INET, SOCK_STREAM, 0)
         guard socketFD >= 0 else { return false }
         defer { close(socketFD) }

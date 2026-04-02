@@ -5,10 +5,6 @@ struct BrowserView: View {
     let remoteName: String
     @Environment(RcloneDaemon.self) private var daemon
     @State private var viewModel: BrowserViewModel?
-    @State private var showNewFolder = false
-    @State private var newFolderName = ""
-    @State private var renamingFile: FileItem?
-    @State private var renameText = ""
 
     var body: some View {
         Group {
@@ -73,7 +69,7 @@ struct BrowserView: View {
                     canGoForward: viewModel.canGoForward,
                     onBack: { Task { await viewModel.goBack() } },
                     onForward: { Task { await viewModel.goForward() } },
-                    onNewFolder: { showNewFolder = true },
+                    onNewFolder: { viewModel.showNewFolderDialog = true },
                     onRefresh: { Task { await viewModel.loadFiles() } }
                 ))
             }
@@ -85,33 +81,44 @@ struct BrowserView: View {
             viewModel = vm
             await vm.loadFiles()
         }
-        .alert("New Folder", isPresented: $showNewFolder) {
-            TextField("Folder name", text: $newFolderName)
+        .alert("New Folder", isPresented: Binding(
+            get: { viewModel?.showNewFolderDialog ?? false },
+            set: { viewModel?.showNewFolderDialog = $0 }
+        )) {
+            TextField("Folder name", text: Binding(
+                get: { viewModel?.newFolderName ?? "" },
+                set: { viewModel?.newFolderName = $0 }
+            ))
             Button("Create") {
                 Task {
-                    try? await viewModel?.createFolder(name: newFolderName)
-                    newFolderName = ""
+                    if let viewModel {
+                        try? await viewModel.createFolder(name: viewModel.newFolderName)
+                        viewModel.newFolderName = ""
+                    }
                 }
             }
-            Button("Cancel", role: .cancel) { newFolderName = "" }
+            Button("Cancel", role: .cancel) { viewModel?.newFolderName = "" }
         }
         .alert("Rename", isPresented: Binding(
-            get: { renamingFile != nil },
-            set: { if !$0 { renamingFile = nil } }
+            get: { viewModel?.renamingFile != nil },
+            set: { if !$0 { viewModel?.renamingFile = nil } }
         )) {
-            TextField("New name", text: $renameText)
+            TextField("New name", text: Binding(
+                get: { viewModel?.renameText ?? "" },
+                set: { viewModel?.renameText = $0 }
+            ))
             Button("Rename") {
-                if let file = renamingFile {
+                if let viewModel, let file = viewModel.renamingFile {
                     Task {
-                        try? await viewModel?.renameItem(oldPath: file.path, newName: renameText)
-                        renamingFile = nil
-                        renameText = ""
+                        try? await viewModel.renameItem(oldPath: file.path, newName: viewModel.renameText)
+                        viewModel.renamingFile = nil
+                        viewModel.renameText = ""
                     }
                 }
             }
             Button("Cancel", role: .cancel) {
-                renamingFile = nil
-                renameText = ""
+                viewModel?.renamingFile = nil
+                viewModel?.renameText = ""
             }
         }
     }
@@ -148,8 +155,8 @@ struct BrowserView: View {
         case .open:
             handleOpen(file, viewModel: viewModel)
         case .rename:
-            renamingFile = file
-            renameText = file.name
+            viewModel.renamingFile = file
+            viewModel.renameText = file.name
         case .delete:
             Task { try? await viewModel.deleteItems(paths: [file.path]) }
         }

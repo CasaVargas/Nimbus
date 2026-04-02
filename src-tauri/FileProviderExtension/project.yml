@@ -2,7 +2,7 @@ name: FileProviderExtension
 options:
   deploymentTarget:
     macOS: "13.0"
-  bundleIdPrefix: com.nimbus.app
+  bundleIdPrefix: app.casavargas.nimbus
 
 targets:
   FileProviderExtension:
@@ -16,7 +16,7 @@ targets:
       - path: SharedState.swift
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.nimbus.app.FileProvider
+        PRODUCT_BUNDLE_IDENTIFIER: app.casavargas.nimbus.FileProvider
         PRODUCT_NAME: FileProviderExtension
         INFOPLIST_FILE: Info.plist
         CODE_SIGN_ENTITLEMENTS: FileProviderExtension.entitlements

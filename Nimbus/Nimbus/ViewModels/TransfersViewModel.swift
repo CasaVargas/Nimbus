@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import RcloneKit
+import os
 
 @Observable
 @MainActor
@@ -10,15 +11,16 @@ final class TransfersViewModel {
 
     private let client: RcloneClient
     private var statsTask: Task<Void, Never>?
+    private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "transfers")
 
     init(client: RcloneClient) {
         self.client = client
     }
 
     func startStatsPolling() {
-        statsTask = Task { [weak self] in
+        statsTask = Task {
             while !Task.isCancelled {
-                await self?.fetchStats()
+                await self.fetchStats()
                 try? await Task.sleep(for: .seconds(2))
             }
         }
@@ -41,7 +43,7 @@ final class TransfersViewModel {
         do {
             overallStats = try await client.getStats()
         } catch {
-            // Transient — keep polling
+            logger.debug("Stats polling error (transient): \(error)")
         }
     }
 }

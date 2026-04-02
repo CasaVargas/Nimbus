@@ -5,7 +5,7 @@ use tauri::State;
 
 use super::rclone::RcloneState;
 
-const APP_GROUP_ID: &str = "group.com.nimbus.app";
+const APP_GROUP_ID: &str = "group.app.casavargas.nimbus";
 
 #[derive(Serialize, Clone)]
 pub struct FileProviderDomainInfo {

@@ -63,7 +63,7 @@ File Provider Extension (Swift) ──HTTP──▶ rclone RC API
 Finder integration
 ```
 
-**State sync between app and extension:** App group UserDefaults (`group.com.nimbus.app`) — rclone port and remote configs are broadcast to the extension via shared container.
+**State sync between app and extension:** App group UserDefaults (`group.app.casavargas.nimbus`) — rclone port and remote configs are broadcast to the extension via shared container.
 
 ### Key Layers
 
@@ -99,6 +99,43 @@ Finder integration
 - `SharedState.swift` — App group UserDefaults bridge
 - `DomainManager.swift` — Standalone CLI for domain registration
 
+### SwiftUI Native Rewrite (`Nimbus/`, `RcloneKit/`)
+
+A native SwiftUI rewrite is in progress — see `2026-03-31-swift-swiftui-rewrite-design.md`.
+
+| Layer | Location | Tech |
+|-------|----------|------|
+| SwiftUI App | `Nimbus/Nimbus/` | Swift 6, SwiftUI, @Observable, macOS 15.0 |
+| RcloneKit | `RcloneKit/` | Swift package — typed HTTP client for rclone RC API |
+| File Provider | `Nimbus/FileProviderExtension/` | Swift 6 — Finder integration (same as Tauri extension, uses RcloneKit) |
+| Xcode project | `Nimbus/project.yml` | XcodeGen → `Nimbus.xcodeproj` |
+
+**SwiftUI app organization:**
+- `Views/` — SwiftUI views organized by feature (`Browser/`, `Remotes/`, `Transfers/`, `Mounts/`, `Settings/`)
+- `ViewModels/` — `@Observable @MainActor` view models (`BrowserViewModel`, `RemotesViewModel`, etc.)
+- `Services/` — `RcloneDaemon` (subprocess lifecycle), `MountManager` (NFS), `FileProviderBridge` (domain registration)
+- `State/` — `TransferStore` (copy/sync job tracking)
+
+**RcloneKit** is a `final class: @unchecked Sendable` (not an actor) to avoid actor hop overhead. Port mutation only happens from MainActor during startup.
+
+```bash
+# SwiftUI build (requires xcodegen)
+cd Nimbus && xcodegen generate && xcodebuild -scheme Nimbus build
+```
+
+## Bundle Identifiers
+
+All apps and extensions use the `app.casavargas.nimbus` bundle ID family:
+
+| Component | Bundle ID |
+|-----------|-----------|
+| Tauri app | `app.casavargas.nimbus` |
+| SwiftUI app | `app.casavargas.nimbus` |
+| File Provider (both) | `app.casavargas.nimbus.FileProvider` |
+| App group | `group.app.casavargas.nimbus` |
+| Logger subsystem (main) | `app.casavargas.nimbus` |
+| Logger subsystem (extension) | `app.casavargas.nimbus.FileProvider` |
+
 ## Code Signing
 
 - **Development:** `Apple Development: Jonathan Vargas (4JQT5BXA8Q)`
@@ -109,7 +146,7 @@ Finder integration
 
 | File | Purpose |
 |------|---------|
-| `src-tauri/tauri.conf.json` | App identity (`com.nimbus.app`), window config (1200x800), bundle settings |
+| `src-tauri/tauri.conf.json` | App identity (`app.casavargas.nimbus`), window config (1200x800), bundle settings |
 | `src-tauri/Entitlements.plist` | Sandbox: network client/server, app group |
 | `src-tauri/FileProviderExtension/project.yml` | XcodeGen: Swift 6.0, macOS 13.0 target |
 | `biome.json` | Biome linter/formatter config |

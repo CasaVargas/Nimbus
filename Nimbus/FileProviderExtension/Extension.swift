@@ -19,7 +19,9 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         logger.info("Extension initialized for domain \(domain.identifier.rawValue) on port \(port)")
     }
 
-    func invalidate() {}
+    func invalidate() {
+        Self.cleanupTempDirectory()
+    }
 
     // MARK: - Item Lookup
 
@@ -44,7 +46,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 handler.value(item, nil)
             } catch {
                 logger.error("item(for:) failed: \(error)")
-                handler.value(nil, error)
+                handler.value(nil, Self.mapToFileProviderError(error))
             }
         }
         return Progress()
@@ -79,11 +81,10 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
         Task { @Sendable in
             do {
-                let tempDir = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("app.casavargas.nimbus.fileprovider", isDirectory: true)
+                let tempDir = Self.tempDirectory()
                 try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
                 let filename = (remotePath as NSString).lastPathComponent
-                let localURL = tempDir.appendingPathComponent(filename)
+                let localURL = tempDir.appendingPathComponent("\(UUID().uuidString)_\(filename)")
 
                 try await rclone.copyFile(
                     srcFs: "\(remoteName):",
@@ -96,7 +97,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 handler.value(localURL, item, nil)
             } catch {
                 logger.error("fetchContents failed: \(error)")
-                handler.value(nil, nil, error)
+                handler.value(nil, nil, Self.mapToFileProviderError(error))
             }
         }
         return Progress()
@@ -144,7 +145,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 handler.value(item, [], false, nil)
             } catch {
                 logger.error("createItem failed: \(error)")
-                handler.value(nil, [], false, error)
+                handler.value(nil, [], false, Self.mapToFileProviderError(error))
             }
         }
         return Progress()
@@ -188,7 +189,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 handler.value(resultItem, [], false, nil)
             } catch {
                 logger.error("modifyItem failed: \(error)")
-                handler.value(nil, [], false, error)
+                handler.value(nil, [], false, Self.mapToFileProviderError(error))
             }
         }
         return Progress()
@@ -215,10 +216,38 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 handler.value(nil)
             } catch {
                 logger.error("deleteItem failed: \(error)")
-                handler.value(error)
+                handler.value(Self.mapToFileProviderError(error))
             }
         }
         return Progress()
+    }
+
+    // MARK: - Error Mapping
+
+    private static func mapToFileProviderError(_ error: Error) -> Error {
+        guard let rcloneError = error as? RcloneError else { return error }
+        switch rcloneError {
+        case .requestFailed(status: 404, _):
+            return NSFileProviderError(.noSuchItem)
+        case .requestFailed(status: 403, _):
+            return NSFileProviderError(.notAuthenticated)
+        case .serverNotRunning:
+            return NSFileProviderError(.serverUnreachable)
+        case .requestFailed, .invalidResponse, .decodingError:
+            return NSFileProviderError(.serverUnreachable)
+        }
+    }
+
+    // MARK: - Temp Directory Management
+
+    private static func tempDirectory() -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("app.casavargas.nimbus.FileProvider", isDirectory: true)
+    }
+
+    private static func cleanupTempDirectory() {
+        let tempDir = tempDirectory()
+        try? FileManager.default.removeItem(at: tempDir)
     }
 
     // MARK: - Static Helpers (Sendable-safe)
@@ -254,7 +283,12 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     }
 
     private static func readPort() -> Int {
+        let logger = Logger(subsystem: "app.casavargas.nimbus.FileProvider", category: "extension")
         let defaults = UserDefaults(suiteName: "group.app.casavargas.nimbus")
-        return defaults?.integer(forKey: "rclonePort") ?? 5572
+        if let port = defaults?.integer(forKey: "rclonePort"), port > 0 {
+            return port
+        }
+        logger.warning("App group port not found, using default 5572")
+        return 5572
     }
 }

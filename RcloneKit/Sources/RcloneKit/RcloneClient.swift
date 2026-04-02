@@ -1,6 +1,6 @@
 import Foundation
 
-public actor RcloneClient {
+public final class RcloneClient: @unchecked Sendable {
     public private(set) var port: Int
     private let session: URLSession
 
