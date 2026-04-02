@@ -32,7 +32,7 @@ interface RemoteRow {
   hasConflict: boolean;
 }
 
-type Step = "idle" | "review" | "importing" | "done";
+type Step = "idle" | "review" | "done";
 
 export function ImportConfigDialog({
   open,
@@ -42,12 +42,14 @@ export function ImportConfigDialog({
   const { data: existingRemotes } = useRemotes();
 
   const [step, setStep] = useState<Step>("idle");
+  const [isImporting, setIsImporting] = useState(false);
   const [rows, setRows] = useState<RemoteRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
 
   const reset = useCallback(() => {
     setStep("idle");
+    setIsImporting(false);
     setRows([]);
     setError(null);
     setImportErrors([]);
@@ -63,13 +65,15 @@ export function ImportConfigDialog({
     try {
       const selected = await openFilePicker({
         multiple: false,
-        filters: [{ name: "rclone config", extensions: ["conf"] }],
+        filters: [
+          { name: "rclone config", extensions: ["conf"] },
+          { name: "All files", extensions: ["*"] },
+        ],
       });
       if (!selected) return;
 
-      const filePath = typeof selected === "string" ? selected : selected;
       const content = await invoke<string>("read_text_file", {
-        path: filePath,
+        path: selected,
       });
 
       const parsed = parseRcloneConf(content);
@@ -132,7 +136,7 @@ export function ImportConfigDialog({
       names.add(name);
     }
 
-    setStep("importing");
+    setIsImporting(true);
     setError(null);
     setImportErrors([]);
 
@@ -148,13 +152,12 @@ export function ImportConfigDialog({
       }
     }
 
+    setIsImporting(false);
     setImportErrors(errs);
     queryClient.invalidateQueries({ queryKey: ["remotes"] });
 
     if (errs.length === 0) {
       handleClose();
-    } else {
-      setStep("review");
     }
   }, [rows, queryClient, handleClose]);
 
@@ -166,25 +169,15 @@ export function ImportConfigDialog({
         <DialogHeader>
           <DialogTitle>Import rclone Config</DialogTitle>
           <DialogDescription>
-            {step === "idle" || step === "importing"
+            {step === "idle"
               ? "Select an rclone .conf file to import remotes from."
               : `Found ${rows.length} remote${rows.length === 1 ? "" : "s"}. Choose which ones to import.`}
           </DialogDescription>
         </DialogHeader>
 
-        {(step === "idle" || step === "importing") && (
+        {step === "idle" && (
           <div className="flex flex-col items-center gap-4 py-6">
-            <Button
-              variant="outline"
-              onClick={handlePickFile}
-              disabled={step === "importing"}
-            >
-              {step === "importing" && (
-                <Loader2
-                  className="size-4 animate-spin"
-                  data-icon="inline-start"
-                />
-              )}
+            <Button variant="outline" onClick={handlePickFile}>
               Choose File…
             </Button>
           </div>
@@ -271,10 +264,23 @@ export function ImportConfigDialog({
 
         {step === "review" && (
           <DialogFooter>
-            <Button variant="outline" onClick={handlePickFile}>
+            <Button
+              variant="outline"
+              onClick={handlePickFile}
+              disabled={isImporting}
+            >
               Choose Different File
             </Button>
-            <Button onClick={handleImport} disabled={selectedCount === 0}>
+            <Button
+              onClick={handleImport}
+              disabled={selectedCount === 0 || isImporting}
+            >
+              {isImporting && (
+                <Loader2
+                  className="size-4 animate-spin"
+                  data-icon="inline-start"
+                />
+              )}
               Import {selectedCount > 0 ? `${selectedCount} ` : ""}
               {selectedCount === 1 ? "Remote" : "Remotes"}
             </Button>

@@ -1,8 +1,6 @@
 pub mod file_provider;
+pub mod fs;
 pub mod nfs_mount;
 pub mod rclone;
 
-#[tauri::command]
-pub fn read_text_file(path: String) -> Result<String, String> {
-    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))
-}
+pub use fs::read_text_file;
