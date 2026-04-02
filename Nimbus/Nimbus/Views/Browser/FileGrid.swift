@@ -12,7 +12,7 @@ struct FileGrid: View {
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(files, id: \.path) { file in
+                ForEach(files) { file in
                     VStack(spacing: 4) {
                         Image(systemName: file.isDir ? "folder.fill" : "doc")
                             .font(.system(size: 40))

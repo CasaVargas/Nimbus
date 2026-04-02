@@ -56,6 +56,14 @@ struct BrowserView: View {
                         }
                     }
                 }
+                .overlay {
+                    if viewModel.isLoading && !viewModel.files.isEmpty {
+                        ProgressView()
+                            .controlSize(.large)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(.ultraThinMaterial)
+                    }
+                }
                 .modifier(BrowserToolbar(
                     viewMode: Binding(
                         get: { viewModel.viewMode },
@@ -72,6 +80,9 @@ struct BrowserView: View {
                     onNewFolder: { viewModel.showNewFolderDialog = true },
                     onRefresh: { Task { await viewModel.loadFiles() } }
                 ))
+            } else {
+                ProgressView("Loading...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle(remoteName)

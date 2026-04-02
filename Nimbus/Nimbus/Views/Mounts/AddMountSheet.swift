@@ -3,7 +3,7 @@ import SwiftUI
 struct AddMountSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(MountConfigStore.self) private var configStore
-    let remoteNames: [String]
+    var viewModel: MountsViewModel
 
     @State private var selectedRemote = ""
     @State private var mountPoint = ""
@@ -16,12 +16,14 @@ struct AddMountSheet: View {
             Form {
                 Picker("Remote", selection: $selectedRemote) {
                     Text("Select...").tag("")
-                    ForEach(remoteNames, id: \.self) { name in
+                    ForEach(viewModel.remoteNames, id: \.self) { name in
                         Text(name).tag(name)
                     }
                 }
 
-                TextField("Mount Point", text: $mountPoint, prompt: Text("~/CloudDrives/remote-name"))
+                if backend == .nfs {
+                    TextField("Mount Point", text: $mountPoint, prompt: Text("~/CloudDrives/remote-name"))
+                }
 
                 Picker("Mode", selection: $vfsMode) {
                     ForEach(VFSMode.allCases, id: \.self) { mode in
@@ -54,7 +56,7 @@ struct AddMountSheet: View {
                         configStore.addConfig(config)
                         dismiss()
                     }
-                    .disabled(selectedRemote.isEmpty || mountPoint.isEmpty)
+                    .disabled(selectedRemote.isEmpty || (backend == .nfs && mountPoint.isEmpty))
                 }
             }
         }

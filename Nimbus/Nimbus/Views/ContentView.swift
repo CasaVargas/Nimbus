@@ -1,8 +1,13 @@
 import SwiftUI
 
+// Value type pushed onto the NavigationStack path when the user browses a remote.
+struct BrowserDestination: Hashable {
+    let remoteName: String
+}
+
 struct ContentView: View {
     @State private var selection: SidebarItem? = .remotes
-    @State private var browsingRemote: String?
+    @State private var navigationPath = NavigationPath()
     @Environment(AppSettings.self) private var settings
     @Environment(RcloneDaemon.self) private var daemon
 
@@ -14,20 +19,11 @@ struct ContentView: View {
                 Sidebar(selection: $selection)
                     .frame(minWidth: 180)
             } detail: {
-                NavigationStack {
-                    if let browsingRemote {
-                        BrowserView(remoteName: browsingRemote)
-                            .toolbar {
-                                ToolbarItem(placement: .navigation) {
-                                    Button("Back to Remotes") {
-                                        self.browsingRemote = nil
-                                        self.selection = .remotes
-                                    }
-                                }
-                            }
-                    } else {
-                        detailView
-                    }
+                NavigationStack(path: $navigationPath) {
+                    detailView
+                        .navigationDestination(for: BrowserDestination.self) { destination in
+                            BrowserView(remoteName: destination.remoteName)
+                        }
                 }
             }
             .frame(minWidth: 800, minHeight: 600)
@@ -40,7 +36,7 @@ struct ContentView: View {
                 }
             }
             .environment(\.openBrowser, OpenBrowserAction { remote in
-                browsingRemote = remote
+                navigationPath.append(BrowserDestination(remoteName: remote))
             })
         }
     }
@@ -50,7 +46,7 @@ struct ContentView: View {
         switch selection {
         case .remotes:
             RemotesView(onBrowse: { remote in
-                browsingRemote = remote
+                navigationPath.append(BrowserDestination(remoteName: remote))
             })
         case .mounts:
             MountsView()

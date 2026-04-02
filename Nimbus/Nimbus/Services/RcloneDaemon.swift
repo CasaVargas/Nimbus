@@ -31,6 +31,9 @@ final class RcloneDaemon {
         guard status != .connected && status != .starting else { return }
         status = .starting
 
+        // Kill any stale rclone daemons from previous app sessions
+        await Self.killStaleRcloneDaemons(in: Self.portRange, logger: logger)
+
         guard let availablePort = await Self.findAvailablePort(in: Self.portRange) else {
             status = .error("No available port in range \(Self.portRange)")
             return
@@ -91,6 +94,39 @@ final class RcloneDaemon {
     func retry(binaryPath: String = "/usr/local/bin/rclone") async {
         stop()
         await start(binaryPath: binaryPath)
+    }
+
+    /// Kills any rclone rcd processes listening on ports in our range that were
+    /// left over from previous app sessions.
+    nonisolated private static func killStaleRcloneDaemons(in range: ClosedRange<Int>, logger: Logger) async {
+        await Task.detached(priority: .userInitiated) {
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+            proc.arguments = ["-f", "rclone rcd"]
+            let pipe = Pipe()
+            proc.standardOutput = pipe
+            proc.standardError = FileHandle.nullDevice
+
+            do {
+                try proc.run()
+                proc.waitUntilExit()
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+                let pids = output.split(separator: "\n").compactMap { Int32($0.trimmingCharacters(in: .whitespaces)) }
+
+                for pid in pids {
+                    kill(pid, SIGTERM)
+                    logger.info("Killed stale rclone process: \(pid)")
+                }
+
+                // Brief pause to let ports free up
+                if !pids.isEmpty {
+                    try? await Task.sleep(for: .milliseconds(500))
+                }
+            } catch {
+                // Non-fatal
+            }
+        }.value
     }
 
     nonisolated private static func findAvailablePort(in range: ClosedRange<Int>) async -> Int? {

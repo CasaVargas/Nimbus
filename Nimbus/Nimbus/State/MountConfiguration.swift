@@ -18,6 +18,11 @@ struct MountConfig: Codable, Identifiable {
     var vfsMode: VFSMode
     var autoMount: Bool
     var backend: MountBackend
+
+    /// Remote name without the trailing colon (e.g. "GoogleDrive" from "GoogleDrive:")
+    var remoteNameOnly: String {
+        remote.hasSuffix(":") ? String(remote.dropLast()) : remote
+    }
 }
 
 @Observable

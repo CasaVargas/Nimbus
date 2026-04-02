@@ -36,16 +36,26 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
 
         let boxedObserver = UncheckedBox(value: observer)
         Task { @Sendable in
-            do {
-                let files = try await rclone.listFiles(fs: "\(remoteName):", remote: remotePath)
-                let items = files.map { FileProviderItem(from: $0, parentIdentifier: parentId, remoteName: remoteName) }
+            // Retry with backoff — the extension may launch before rclone is ready
+            var lastError: Error?
+            for attempt in 0..<5 {
+                do {
+                    if attempt > 0 {
+                        try await Task.sleep(for: .seconds(Double(attempt) * 1.0))
+                    }
+                    let files = try await rclone.listFiles(fs: "\(remoteName):", remote: remotePath)
+                    let items = files.map { FileProviderItem(from: $0, parentIdentifier: parentId, remoteName: remoteName) }
 
-                boxedObserver.value.didEnumerate(items)
-                boxedObserver.value.finishEnumerating(upTo: nil)
-            } catch {
-                logger.error("enumerateItems failed: \(error)")
-                boxedObserver.value.finishEnumeratingWithError(error)
+                    boxedObserver.value.didEnumerate(items)
+                    boxedObserver.value.finishEnumerating(upTo: nil)
+                    return
+                } catch {
+                    lastError = error
+                    logger.warning("enumerateItems attempt \(attempt + 1) for \(remoteName):\(remotePath) on port \(rclone.port) failed: \(String(describing: error))")
+                }
             }
+            logger.error("enumerateItems exhausted retries for \(remoteName):\(remotePath)")
+            boxedObserver.value.finishEnumeratingWithError(lastError ?? NSFileProviderError(.serverUnreachable))
         }
     }
 

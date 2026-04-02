@@ -15,9 +15,19 @@ final class AppSettings {
     }
 
     var rcloneBinaryPath: String {
-        get { defaults.string(forKey: "rcloneBinaryPath") ?? "/usr/local/bin/rclone" }
+        get { defaults.string(forKey: "rcloneBinaryPath") ?? Self.defaultRclonePath }
         set { defaults.set(newValue, forKey: "rcloneBinaryPath") }
     }
+
+    private static let defaultRclonePath: String = {
+        let candidates = [
+            "/opt/homebrew/bin/rclone",
+            "/usr/local/bin/rclone",
+            "/usr/bin/rclone",
+        ]
+        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+            ?? "/usr/local/bin/rclone"
+    }()
 
     var bandwidthLimit: String {
         get { defaults.string(forKey: "bandwidthLimit") ?? "" }

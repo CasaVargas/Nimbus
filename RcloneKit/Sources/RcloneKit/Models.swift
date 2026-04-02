@@ -11,7 +11,45 @@ public struct FileItem: Codable, Identifiable, Sendable {
     public let isDir: Bool
     public let fileID: String?
 
-    public var id: String { path }
+    /// The fully-qualified rclone path in the form `remote:dir/name`, set by
+    /// `BrowserViewModel` after each directory listing. This is used as the
+    /// SwiftUI identity so that two files with the same name at the same
+    /// directory level are still distinguished. `path` is kept as the
+    /// rclone-relative path that API calls require.
+    public let qualifiedRemotePath: String
+
+    /// Stable SwiftUI identity. Prefers the provider-assigned `fileID` (Google
+    /// Drive supplies one per file, unique even across duplicate names) and falls
+    /// back to `qualifiedRemotePath` which incorporates the remote name and full
+    /// directory prefix.
+    public var id: String {
+        if let fileID, !fileID.isEmpty {
+            return fileID
+        }
+        return qualifiedRemotePath
+    }
+
+    /// Memberwise initialiser used by `BrowserViewModel` to construct items with
+    /// a fully-qualified remote path after receiving a listing from rclone.
+    public init(
+        path: String,
+        name: String,
+        size: Int64,
+        mimeType: String,
+        modTime: Date?,
+        isDir: Bool,
+        fileID: String?,
+        qualifiedRemotePath: String
+    ) {
+        self.path = path
+        self.name = name
+        self.size = size
+        self.mimeType = mimeType
+        self.modTime = modTime
+        self.isDir = isDir
+        self.fileID = fileID
+        self.qualifiedRemotePath = qualifiedRemotePath
+    }
 
     enum CodingKeys: String, CodingKey {
         case path = "Path"
@@ -38,6 +76,11 @@ public struct FileItem: Codable, Identifiable, Sendable {
         } else {
             modTime = nil
         }
+        // qualifiedRemotePath is not present in the rclone JSON response.
+        // BrowserViewModel rewrites it to `remote:dir/name` after each listing.
+        // Using `path` as a placeholder keeps the value non-empty in contexts
+        // that bypass the ViewModel (e.g. unit tests, FileProviderExtension).
+        qualifiedRemotePath = path
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -233,6 +276,16 @@ public struct StatResponse: Codable, Sendable {
 
 public struct RemoteListResponse: Codable, Sendable {
     public let remotes: [String]
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // rclone returns {} (no "remotes" key) when there are zero remotes configured
+        remotes = (try? container.decode([String].self, forKey: .remotes)) ?? []
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case remotes
+    }
 }
 
 public struct ProvidersResponse: Codable, Sendable {

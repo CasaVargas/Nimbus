@@ -71,6 +71,70 @@ public final class RcloneClient: @unchecked Sendable {
         let _: EmptyResponse = try await call(endpoint, params: params)
     }
 
+    /// Downloads raw file bytes via the rclone RC API and writes them to
+    /// a local destination URL. Uses `operations/cat` which streams the
+    /// file content as the HTTP response body — no local filesystem access
+    /// by rclone is needed, making this safe for sandboxed callers.
+    public func downloadFile(fs: String, remote: String, to destination: URL) async throws {
+        let url = URL(string: "\(baseURL)/operations/cat")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 600
+
+        let params: [String: Any] = ["fs": fs, "remote": remote]
+        request.httpBody = try JSONSerialization.data(withJSONObject: params)
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw RcloneError.invalidResponse
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? "unknown"
+            throw RcloneError.requestFailed(status: httpResponse.statusCode, message: body)
+        }
+
+        try data.write(to: destination, options: .atomic)
+    }
+
+    /// Uploads a local file to a remote via rclone's `operations/uploadfile`
+    /// endpoint using multipart form data. Safe from sandboxed callers since
+    /// the extension reads the file and sends bytes over HTTP.
+    public func uploadFile(from localURL: URL, fs: String, remote: String) async throws {
+        let url = URL(string: "\(baseURL)/operations/uploadfile")!
+        let boundary = UUID().uuidString
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 600
+
+        let fileData = try Data(contentsOf: localURL)
+        let filename = localURL.lastPathComponent
+
+        var body = Data()
+        // fs parameter
+        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"fs\"\r\n\r\n\(fs)\r\n".data(using: .utf8)!)
+        // remote parameter (directory path)
+        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"remote\"\r\n\r\n\(remote)\r\n".data(using: .utf8)!)
+        // file content
+        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\nContent-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
+        body.append(fileData)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+
+        request.httpBody = body
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw RcloneError.invalidResponse
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let responseBody = String(data: data, encoding: .utf8) ?? "unknown"
+            throw RcloneError.requestFailed(status: httpResponse.statusCode, message: responseBody)
+        }
+    }
+
     public func healthCheck() async -> Bool {
         do {
             let _: EmptyResponse = try await call("rc/noop")

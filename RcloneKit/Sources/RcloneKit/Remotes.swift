@@ -7,7 +7,11 @@ extension RcloneClient {
     }
 
     public func configDump() async throws -> [String: [String: String]] {
-        try await call("config/dump")
+        // rclone may return null for some config values; decode permissively then compact
+        let raw: [String: [String: String?]] = try await call("config/dump")
+        return raw.mapValues { inner in
+            inner.compactMapValues { $0 }
+        }
     }
 
     public func getProviders() async throws -> [Provider] {

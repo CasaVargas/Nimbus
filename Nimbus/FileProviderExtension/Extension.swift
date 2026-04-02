@@ -16,7 +16,18 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         self.domain = domain
         let port = Self.readPort()
         self.rclone = RcloneClient(port: port)
-        logger.info("Extension initialized for domain \(domain.identifier.rawValue) on port \(port)")
+        logger.error("Extension init: domain=\(domain.identifier.rawValue), port=\(port)")
+    }
+
+    /// Re-reads the port from app group UserDefaults — the main app may have
+    /// restarted on a different port since this extension process was spawned.
+    private func refreshPort() {
+        let port = Self.readPort()
+        let currentPort = rclone.port
+        if port != currentPort {
+            logger.info("Port changed: \(currentPort) → \(port)")
+            rclone.updatePort(port)
+        }
     }
 
     func invalidate() {
@@ -30,6 +41,8 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         request: NSFileProviderRequest,
         completionHandler: @escaping (NSFileProviderItem?, (any Error)?) -> Void
     ) -> Progress {
+        refreshPort()
+
         if identifier == .rootContainer {
             completionHandler(FileProviderItem.rootContainer(domain: domain), nil)
             return Progress()
@@ -58,7 +71,8 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         for containerItemIdentifier: NSFileProviderItemIdentifier,
         request: NSFileProviderRequest
     ) throws -> any NSFileProviderEnumerator {
-        FileProviderEnumerator(
+        refreshPort()
+        return FileProviderEnumerator(
             containerIdentifier: containerItemIdentifier,
             rclone: rclone,
             domain: domain
@@ -73,6 +87,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         request: NSFileProviderRequest,
         completionHandler: @escaping (URL?, NSFileProviderItem?, (any Error)?) -> Void
     ) -> Progress {
+        refreshPort()
         let rclone = self.rclone
         let remoteName = domain.identifier.rawValue
         let logger = self.logger
@@ -81,11 +96,16 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
         Task { @Sendable in
             do {
-                let tempDir = Self.tempDirectory()
-                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-                let filename = (remotePath as NSString).lastPathComponent
-                let localURL = tempDir.appendingPathComponent("\(UUID().uuidString)_\(filename)")
+                // NSTemporaryDirectory() resolves inside the sandbox container.
+                // rclone (unsandboxed) can write here, and we can read it.
+                let downloadDir = URL(fileURLWithPath: NSTemporaryDirectory())
+                    .appendingPathComponent("FileProviderDownloads", isDirectory: true)
+                try FileManager.default.createDirectory(at: downloadDir, withIntermediateDirectories: true)
 
+                let filename = (remotePath as NSString).lastPathComponent
+                let localURL = downloadDir.appendingPathComponent("\(UUID().uuidString)_\(filename)")
+
+                // Use copyfile — rclone writes to our sandbox tmp path
                 try await rclone.copyFile(
                     srcFs: "\(remoteName):",
                     srcRemote: remotePath,
@@ -113,6 +133,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         request: NSFileProviderRequest,
         completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, (any Error)?) -> Void
     ) -> Progress {
+        refreshPort()
         let rclone = self.rclone
         let remoteName = domain.identifier.rawValue
         let logger = self.logger
@@ -129,6 +150,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 if isFolder {
                     try await rclone.mkdir(fs: "\(remoteName):", remote: newPath)
                 } else if let localURL {
+                    // rclone can read from our sandbox path since it's unsandboxed
                     try await rclone.copyFile(
                         srcFs: "/",
                         srcRemote: localURL.path,
@@ -162,6 +184,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         request: NSFileProviderRequest,
         completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, (any Error)?) -> Void
     ) -> Progress {
+        refreshPort()
         let rclone = self.rclone
         let remoteName = domain.identifier.rawValue
         let logger = self.logger
@@ -204,6 +227,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         request: NSFileProviderRequest,
         completionHandler: @escaping ((any Error)?) -> Void
     ) -> Progress {
+        refreshPort()
         let rclone = self.rclone
         let remoteName = domain.identifier.rawValue
         let logger = self.logger
@@ -282,13 +306,45 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         return raw
     }
 
+    private static let appGroupID = "group.app.casavargas.nimbus"
+
     private static func readPort() -> Int {
         let logger = Logger(subsystem: "app.casavargas.nimbus.FileProvider", category: "extension")
-        let defaults = UserDefaults(suiteName: "group.app.casavargas.nimbus")
-        if let port = defaults?.integer(forKey: "rclonePort"), port > 0 {
+
+        // Try UserDefaults first
+        if let defaults = UserDefaults(suiteName: appGroupID),
+           case let port = defaults.integer(forKey: "rclonePort"), port > 0 {
+            logger.debug("Read port \(port) from UserDefaults")
             return port
         }
+
+        // Try group container
+        if let containerURL = FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: appGroupID
+        ) {
+            if let port = Self.readPortFromJSON(containerURL.appendingPathComponent("shared-state.json")) {
+                logger.debug("Read port \(port) from group container")
+                return port
+            }
+        }
+
+        // Try extension's own Application Support (main app writes here since it's unsandboxed)
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        if let appSupport {
+            if let port = Self.readPortFromJSON(appSupport.appendingPathComponent("shared-state.json")) {
+                logger.debug("Read port \(port) from Application Support")
+                return port
+            }
+        }
+
         logger.warning("App group port not found, using default 5572")
         return 5572
+    }
+
+    private static func readPortFromJSON(_ url: URL) -> Int? {
+        guard let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let port = json["rclonePort"] as? Int, port > 0 else { return nil }
+        return port
     }
 }

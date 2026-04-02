@@ -75,6 +75,9 @@ struct NimbusApp: App {
                     try? await fileProviderBridge.addDomain(identifier: remote, displayName: remote)
                 }
                 _ = await fileProviderBridge.cleanupStaleDomains(activeRemotes: remotes)
+                await fileProviderBridge.refreshDomains()
+                // Signal extensions to re-enumerate now that rclone is ready
+                await fileProviderBridge.signalAllDomains()
             } catch {
                 // Non-fatal
             }

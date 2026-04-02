@@ -89,8 +89,32 @@ final class BrowserViewModel {
 
         do {
             let result = try await client.listFiles(fs: fs, remote: path)
-            files = result
-            cache[cacheKey] = result
+            // rclone returns each item's Path relative to the listed directory
+            // (e.g. just the filename when listing a flat folder). Two files with
+            // the same display name at the same level therefore produce identical
+            // Path values, which triggers the SwiftUI ForEach duplicate-ID warning.
+            // Stamp each item with a qualifiedRemotePath in the form
+            // `remote:dir/name` so the SwiftUI identity is globally unique.
+            // The original `path` is left untouched because it is what the rclone
+            // API expects for delete/rename/copy operations.
+            let currentDir = path  // capture before potential mutation
+            let qualifiedFiles = result.map { item in
+                let qualifiedPath = currentDir.isEmpty
+                    ? "\(remote):\(item.path)"
+                    : "\(remote):\(currentDir)/\(item.path)"
+                return FileItem(
+                    path: item.path,
+                    name: item.name,
+                    size: item.size,
+                    mimeType: item.mimeType,
+                    modTime: item.modTime,
+                    isDir: item.isDir,
+                    fileID: item.fileID,
+                    qualifiedRemotePath: qualifiedPath
+                )
+            }
+            files = qualifiedFiles
+            cache[cacheKey] = qualifiedFiles
         } catch {
             self.error = error.localizedDescription
         }
@@ -98,6 +122,10 @@ final class BrowserViewModel {
 
     func navigateTo(path newPath: String) async {
         selection = []
+        let cacheKey = "\(remote):\(newPath)"
+        if cache[cacheKey] == nil {
+            files = []
+        }
         path = newPath
 
         if historyIndex < pathHistory.count - 1 {

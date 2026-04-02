@@ -3,6 +3,7 @@ import RcloneKit
 
 struct RemotesView: View {
     @Environment(RcloneDaemon.self) private var daemon
+    @Environment(AppSettings.self) private var settings
     var onBrowse: ((String) -> Void)?
     @State private var viewModel: RemotesViewModel?
     @State private var showAddRemote = false
@@ -17,6 +18,8 @@ struct RemotesView: View {
                     Button("Add Remote", systemImage: "plus") {
                         showAddRemote = true
                     }
+                    // Only allow adding remotes once the daemon is reachable
+                    .disabled(daemon.status != .connected)
                 }
             }
             .task(id: daemon.status) {
@@ -61,29 +64,76 @@ struct RemotesView: View {
 
     @ViewBuilder
     private var content: some View {
-        if let viewModel {
-            if viewModel.isLoading && viewModel.remotes.isEmpty {
+        switch daemon.status {
+        case .idle, .starting:
+            // Daemon is still starting up — show a labelled spinner
+            ProgressView("Connecting to rclone...")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+        case .error(let message):
+            // Daemon failed to start — give the user a clear error and a retry button
+            VStack(spacing: 16) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.largeTitle)
+                    .foregroundStyle(.red)
+                Text("Could not start rclone")
+                    .font(.headline)
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                Button("Retry") {
+                    Task { await daemon.retry(binaryPath: settings.rcloneBinaryPath) }
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+        case .connected:
+            if let viewModel {
+                if viewModel.isLoading && viewModel.remotes.isEmpty {
+                    ProgressView("Loading remotes...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let error = viewModel.error, viewModel.remotes.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.largeTitle)
+                            .foregroundStyle(.orange)
+                        Text("Failed to load remotes")
+                            .font(.headline)
+                        Text(error)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        Button("Retry") {
+                            Task { await viewModel.loadRemotes() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if viewModel.remotes.isEmpty {
+                    ContentUnavailableView(
+                        "No Remotes",
+                        systemImage: "cloud",
+                        description: Text("Add a cloud remote to get started.")
+                    )
+                } else {
+                    List(viewModel.remotes, id: \.name) { remote in
+                        RemoteRow(
+                            remote: remote,
+                            onEdit: { editingRemote = remote },
+                            onDelete: { deletingRemote = remote },
+                            onBrowse: { onBrowse?(remote.name) }
+                        )
+                    }
+                }
+            } else {
+                // Connected but viewModel not yet initialised (very brief window)
                 ProgressView("Loading remotes...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if viewModel.remotes.isEmpty {
-                ContentUnavailableView(
-                    "No Remotes",
-                    systemImage: "cloud",
-                    description: Text("Add a cloud remote to get started.")
-                )
-            } else {
-                List(viewModel.remotes, id: \.name) { remote in
-                    RemoteRow(
-                        remote: remote,
-                        onEdit: { editingRemote = remote },
-                        onDelete: { deletingRemote = remote },
-                        onBrowse: { onBrowse?(remote.name) }
-                    )
-                }
             }
-        } else {
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

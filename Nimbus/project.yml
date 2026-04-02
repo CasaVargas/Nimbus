@@ -63,6 +63,10 @@ targets:
     info:
       path: FileProviderExtension/Info.plist
       properties:
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
         NSExtension:
+          NSExtensionFileProviderDocumentGroup: group.app.casavargas.nimbus
+          NSExtensionFileProviderSupportsEnumeration: true
           NSExtensionPointIdentifier: com.apple.fileprovider-nonui
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).FileProviderExtension
