@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/page-header";
 import { Separator } from "@/components/ui/separator";
 import { AboutSection } from "../components/about-section";
 import { AppearanceSection } from "../components/appearance-section";
+import { GeneralSection } from "../components/general-section";
 import { RcloneSection } from "../components/rclone-section";
 import { StorageUsage } from "../components/storage-usage";
 import { TransferSection } from "../components/transfer-section";
@@ -11,6 +12,8 @@ export default function SettingsPage() {
     <div>
       <PageHeader title="Settings" description="Configure Nimbus preferences" />
       <div className="space-y-6 p-6">
+        <GeneralSection />
+        <Separator />
         <AppearanceSection />
         <Separator />
         <RcloneSection />
