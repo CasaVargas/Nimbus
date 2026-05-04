@@ -48,6 +48,7 @@
 		A913C369B67982D50F7AD437 /* AppearanceSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41F3DFFC42572098A760795D /* AppearanceSection.swift */; };
 		A979C070DA92EC52E67B28C8 /* RcloneKit in Frameworks */ = {isa = PBXBuildFile; productRef = E038A2CCB7EA233033D5CFCD /* RcloneKit */; };
 		ADCDC4391F85BAB27DAB12D2 /* FileTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4782ABB2481E119B80157DEF /* FileTable.swift */; };
+		BB433D456B5CF70AADD995A2 /* GeneralSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19EC56E2B7C399E6BF5ADA94 /* GeneralSection.swift */; };
 		BFF22B953FB079BC7AE62130 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56DDC44A90929A9518155E77 /* AppSettings.swift */; };
 		D6295020365053BF15FF340A /* Enumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CE2F8E812EA096D4E38C711 /* Enumerator.swift */; };
 		D717CF81D7DB9C05536E61BB /* MountRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941B52BF2A1E8F0D27C9A987 /* MountRow.swift */; };
@@ -90,6 +91,7 @@
 		10A3816E1EC55E5657611B64 /* CopySyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopySyncView.swift; sourceTree = "<group>"; };
 		122FC43D9B9925959BF766EE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		19E2E1139EDDC520B6D6223F /* StorageUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageUsageView.swift; sourceTree = "<group>"; };
+		19EC56E2B7C399E6BF5ADA94 /* GeneralSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSection.swift; sourceTree = "<group>"; };
 		23222C40A9098C836B111200 /* RemotesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemotesView.swift; sourceTree = "<group>"; };
 		2526A5E71E5C5ECDAD53597D /* ImportConfigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportConfigSheet.swift; sourceTree = "<group>"; };
 		2AA331A1A776F8D581FF01DF /* MountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountsView.swift; sourceTree = "<group>"; };
@@ -301,6 +303,7 @@
 			children = (
 				BC4F8A4196F233DFDE0DE17E /* AboutSection.swift */,
 				41F3DFFC42572098A760795D /* AppearanceSection.swift */,
+				19EC56E2B7C399E6BF5ADA94 /* GeneralSection.swift */,
 				673EAFA8BD6B60893A5DDFDE /* RcloneSection.swift */,
 				8557E940D1B7790FDD7F35AD /* SettingsView.swift */,
 				19E2E1139EDDC520B6D6223F /* StorageUsageView.swift */,
@@ -454,6 +457,7 @@
 				DCF3A7B53E448200A6780F13 /* FileGrid.swift in Sources */,
 				7186B43DDF9D7F839F82B6E6 /* FileProviderBridge.swift in Sources */,
 				ADCDC4391F85BAB27DAB12D2 /* FileTable.swift in Sources */,
+				BB433D456B5CF70AADD995A2 /* GeneralSection.swift in Sources */,
 				912BAC08F7745480EA5992B8 /* ImportConfigSheet.swift in Sources */,
 				E5589C4F42939982895BEEDF /* LaunchAtLoginService.swift in Sources */,
 				53185BE42E73B300337515B4 /* MountConfiguration.swift in Sources */,
