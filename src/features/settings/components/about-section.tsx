@@ -9,9 +9,7 @@ export function AboutSection() {
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-medium">About</h3>
-        <p className="text-xs text-muted-foreground">
-          Nimbus v{APP_VERSION}
-        </p>
+        <p className="text-xs text-muted-foreground">Nimbus v{APP_VERSION}</p>
       </div>
       <div className="flex items-center gap-4">
         <Button
