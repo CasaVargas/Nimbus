@@ -16,6 +16,10 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--launched-at-login"]),
+        ))
         .invoke_handler(tauri::generate_handler![
             commands::rclone::start_rclone,
             commands::rclone::stop_rclone,
@@ -32,6 +36,20 @@ pub fn run() {
             commands::fs::read_text_file,
         ])
         .setup(|app| {
+            // If launchd started us at login, hide the window and switch to
+            // accessory activation policy so we behave like a menubar app.
+            let launched_at_login = std::env::args().any(|a| a == "--launched-at-login");
+            if launched_at_login {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.hide();
+                }
+                #[cfg(target_os = "macos")]
+                {
+                    use tauri::ActivationPolicy;
+                    let _ = app.set_activation_policy(ActivationPolicy::Accessory);
+                }
+            }
+
             tray::setup_tray(app)?;
 
             // Clean up stale NFS mounts from a previous crash
