@@ -10,6 +10,7 @@ struct NimbusApp: App {
     @State private var mountConfigs = MountConfigStore()
     @State private var transferStore = TransferStore()
     @State private var bookmarkStore = BookmarkStore()
+    @State private var launchAtLogin = LaunchAtLoginService()
 
     var body: some Scene {
         WindowGroup {
@@ -21,6 +22,7 @@ struct NimbusApp: App {
                 .environment(mountConfigs)
                 .environment(transferStore)
                 .environment(bookmarkStore)
+                .environment(launchAtLogin)
                 .preferredColorScheme(settings.colorScheme)
                 .task {
                     await startApp()
@@ -30,8 +32,9 @@ struct NimbusApp: App {
 
         MenuBarExtra("Nimbus", systemImage: "cloud") {
             Button("Show Nimbus") {
+                NSApp.setActivationPolicy(.regular)
                 NSApp.activate(ignoringOtherApps: true)
-                if let window = NSApp.windows.first {
+                if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
                     window.makeKeyAndOrderFront(nil)
                 }
             }
