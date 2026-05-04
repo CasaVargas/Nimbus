@@ -51,6 +51,7 @@ struct NimbusApp: App {
             SettingsView()
                 .environment(settings)
                 .environment(daemon)
+                .environment(launchAtLogin)
         }
     }
 

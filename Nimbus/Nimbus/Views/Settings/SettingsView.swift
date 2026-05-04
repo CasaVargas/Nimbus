@@ -1,14 +1,18 @@
 import SwiftUI
 
 enum SettingsTab: Hashable {
-    case appearance, transfers, rclone, storage, about
+    case general, appearance, transfers, rclone, storage, about
 }
 
 struct SettingsView: View {
-    @State private var selectedTab: SettingsTab = .appearance
+    @State private var selectedTab: SettingsTab = .general
 
     var body: some View {
         TabView(selection: $selectedTab) {
+            GeneralSection()
+                .tag(SettingsTab.general)
+                .tabItem { Label("General", systemImage: "gearshape") }
+
             AppearanceSection()
                 .tag(SettingsTab.appearance)
                 .tabItem { Label("Appearance", systemImage: "paintbrush") }
