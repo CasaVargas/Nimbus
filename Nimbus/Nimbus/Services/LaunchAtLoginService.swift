@@ -16,6 +16,9 @@ final class LaunchAtLoginService {
     }
 
     func refresh() {
+        // Clear any stale error so the caption disappears once the underlying
+        // condition is fixed (e.g., user moved the app to /Applications).
+        lastError = nil
         isEnabled = SMAppService.mainApp.status == .enabled
         logger.info("Launch-at-login status refreshed: \(self.isEnabled)")
     }
