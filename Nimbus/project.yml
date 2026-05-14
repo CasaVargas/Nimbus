@@ -87,6 +87,7 @@ targets:
       - path: NimbusTests
         excludes:
           - "**/.DS_Store"
+          - "Fixtures/**"
     dependencies:
       - target: Nimbus
       - package: RcloneKit
