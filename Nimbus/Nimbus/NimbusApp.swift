@@ -12,6 +12,10 @@ struct NimbusApp: App {
     @State private var bookmarkStore = BookmarkStore()
     @State private var launchAtLogin = LaunchAtLoginService()
 
+    init() {
+        DesignSystem.Lints.runStartupChecks()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

@@ -32,6 +32,15 @@ targets:
         buildPhase:
           copyFiles:
             destination: plugins
+    preBuildScripts:
+      - name: Lint — no .system(size:)
+        script: |
+          bash "$SRCROOT/../scripts/lint-no-system-size.sh"
+        basedOnDependencyAnalysis: false
+      - name: Lint — Package.resolved allowlist
+        script: |
+          bash "$SRCROOT/../scripts/lint-package-resolved.sh"
+        basedOnDependencyAnalysis: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.casavargas.nimbus
@@ -70,3 +79,20 @@ targets:
           NSExtensionFileProviderSupportsEnumeration: true
           NSExtensionPointIdentifier: com.apple.fileprovider-nonui
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).FileProviderExtension
+
+  NimbusTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: NimbusTests
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - target: Nimbus
+      - package: RcloneKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.casavargas.nimbus.tests
+        GENERATE_INFOPLIST_FILE: YES
+        BUNDLE_LOADER: $(TEST_HOST)
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Nimbus.app/Contents/MacOS/Nimbus

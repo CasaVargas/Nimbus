@@ -56,7 +56,9 @@ struct ImportConfigSheet: View {
     private var emptyState: some View {
         VStack(spacing: 16) {
             Image(systemName: "square.and.arrow.down")
-                .font(.system(size: 48))
+                .resizable()
+                .scaledToFit()
+                .frame(width: 48, height: 48)
                 .foregroundStyle(.secondary)
             Text("No file selected")
                 .font(.headline)

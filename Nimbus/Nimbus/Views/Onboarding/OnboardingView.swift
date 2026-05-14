@@ -13,7 +13,9 @@ struct OnboardingView: View {
             Spacer()
 
             Image(systemName: "cloud")
-                .font(.system(size: 64))
+                .resizable()
+                .scaledToFit()
+                .frame(width: 64, height: 64)
                 .foregroundStyle(.tint)
 
             Text("Welcome to Nimbus")

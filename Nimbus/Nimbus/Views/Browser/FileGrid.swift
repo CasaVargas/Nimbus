@@ -15,7 +15,9 @@ struct FileGrid: View {
                 ForEach(files) { file in
                     VStack(spacing: 4) {
                         Image(systemName: file.isDir ? "folder.fill" : "doc")
-                            .font(.system(size: 40))
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 40, height: 40)
                             .foregroundStyle(file.isDir ? .blue : .secondary)
 
                         Text(file.name)
