@@ -12,10 +12,12 @@ final class Selection<ID: Hashable & Sendable> {
         anchor = id
     }
 
-    func toggle(_ id: ID) {
+    func toggle(_ id: ID, in ordering: [ID]) {
         if ids.contains(id) {
             ids.remove(id)
-            if anchor == id { anchor = ids.first }
+            if anchor == id {
+                anchor = ordering.first(where: { ids.contains($0) })
+            }
         } else {
             ids.insert(id)
             anchor = id
@@ -23,13 +25,16 @@ final class Selection<ID: Hashable & Sendable> {
     }
 
     func extend(to id: ID, in ordering: [ID]) {
-        guard let anchor, ordering.contains(id), ordering.contains(anchor) else {
-            // Without anchor or unknown id: degrade to plain select if id is known.
-            if ordering.contains(id) {
-                select(id, in: ordering)
-            }
+        // Unknown target: no-op.
+        guard ordering.contains(id) else { return }
+
+        // No anchor (or stale anchor): degrade to plain select.
+        guard let anchor, ordering.contains(anchor) else {
+            select(id, in: ordering)
             return
         }
+
+        // Both endpoints known: inclusive range.
         guard let a = ordering.firstIndex(of: anchor),
               let b = ordering.firstIndex(of: id) else { return }
         let lo = min(a, b)

@@ -16,9 +16,9 @@ struct SelectionTests {
     @Test func toggleAddsAndRemoves() {
         let sel = Selection<String>()
         sel.select("a", in: order)
-        sel.toggle("c")
+        sel.toggle("c", in: order)
         #expect(sel.ids == ["a", "c"])
-        sel.toggle("a")
+        sel.toggle("a", in: order)
         #expect(sel.ids == ["c"])
     }
 
@@ -47,7 +47,7 @@ struct SelectionTests {
     @Test func clearRemovesAllAndAnchor() {
         let sel = Selection<String>()
         sel.select("a", in: order)
-        sel.toggle("b")
+        sel.toggle("b", in: order)
         sel.clear()
         #expect(sel.ids.isEmpty)
         #expect(sel.anchor == nil)
@@ -65,5 +65,33 @@ struct SelectionTests {
         sel.select("a", in: order)
         sel.extend(to: "zz", in: order) // zz not in order
         #expect(sel.ids == ["a"]) // no change
+        #expect(sel.anchor == "a") // anchor survives the no-op
+    }
+
+    @Test func replaceWithEmptySetClearsAnchor() {
+        let sel = Selection<String>()
+        sel.select("a", in: order)
+        sel.replace(with: [], in: order)
+        #expect(sel.ids.isEmpty)
+        #expect(sel.anchor == nil)
+    }
+
+    @Test func extendSurvivesReorder() {
+        let sel = Selection<String>()
+        sel.select("b", in: order)
+        let reordered = ["e", "d", "c", "b", "a"]
+        sel.extend(to: "d", in: reordered)
+        #expect(sel.ids == ["d", "c", "b"]) // range in the new ordering
+        #expect(sel.anchor == "b")
+    }
+
+    @Test func extendToAnchorCollapsesToSingle() {
+        let sel = Selection<String>()
+        sel.select("c", in: order)
+        sel.toggle("d", in: order)
+        sel.toggle("e", in: order)
+        // After toggles, anchor is "e" (toggle moves anchor on insert).
+        sel.extend(to: "e", in: order)
+        #expect(sel.ids == ["e"])
     }
 }
