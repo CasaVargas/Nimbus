@@ -4,124 +4,85 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Nimbus** is a macOS cloud storage manager built with Tauri 2 (Rust backend + React frontend) and a native Swift File Provider extension for Finder integration. It uses **rclone** as the cloud backend (spawned as a subprocess, never reimplemented) to support 50+ cloud providers (S3, Google Drive, OneDrive, etc.).
+**Nimbus** is a native macOS cloud storage manager built in SwiftUI (Swift 6) with a Swift File Provider extension for Finder integration. It uses **rclone** as the cloud backend (spawned as a subprocess, never reimplemented) to support 50+ cloud providers (S3, Google Drive, OneDrive, etc.).
 
-A full SwiftUI native rewrite is planned — see `2026-03-31-swift-swiftui-rewrite-design.md`.
+> The previous Tauri (Rust + React) build is deprecated. Its sources are frozen under `legacy/tauri/` and on the `tauri-eol` branch. See `DEPRECATED.md`.
 
 ## Build & Development Commands
 
+Prefer **XcodeBuildMCP** tools over raw `xcodebuild` when invoking builds from Claude Code.
+
 ```bash
-# Development
-npm run dev                        # Vite dev server + Tauri
+# Regenerate Xcode project from project.yml (run after editing project.yml or adding files)
+cd Nimbus && xcodegen generate
 
-# Frontend build
-npm run build                      # TypeScript check + Vite bundle to dist/
+# Open in Xcode for development
+cd Nimbus && open Nimbus.xcodeproj
 
-# Tests
-npm run test                       # Vitest unit tests
-npm run test:watch                 # Watch mode
+# Build (Debug) from CLI
+xcodebuild \
+  -project Nimbus/Nimbus.xcodeproj \
+  -scheme Nimbus \
+  -destination 'platform=macOS' \
+  build
 
-# Lint & Format
-npx biome check --apply            # Format + lint (Biome)
-npx biome format                   # Format only
-npx biome lint                     # Lint only
-
-# Swift File Provider extension
-bash src-tauri/build-extension.sh              # Debug build
-bash src-tauri/build-extension.sh --release    # Release build (XcodeGen → xcodebuild → sign)
-
-# Full release build (4-step pipeline)
+# Full release build
 bash scripts/build-release.sh
-# 1. npm run build (frontend)
-# 2. build-extension.sh --release (Swift extension)
-# 3. cargo tauri build --bundles app (Rust + app bundle)
-# 4. embed-extension.sh --release (embed .appex, re-sign in /tmp to avoid iCloud xattr issues)
 ```
 
 ### Prerequisites
 
-- macOS 13.0+ deployment target
-- Xcode + CLI tools, XcodeGen (`brew install xcodegen`)
-- Rust (2021 edition), Node.js + npm
+- macOS 13.0+ deployment target (SwiftUI app targets macOS 15.0)
+- Xcode + Command Line Tools
+- XcodeGen (`brew install xcodegen`)
 - rclone binary in PATH (default `/usr/local/bin/rclone`, configurable in settings)
 
 ## Architecture
 
 ```
-React UI (src/) ──Tauri IPC──▶ Rust backend (src-tauri/src/)
-     │                              │
-     │ HTTP (rclone RC API)         │ spawns rclone daemon
-     ▼                              │ spawns rclone serve nfs
-rclone daemon ◀─────────────────────┘
-     │                              │ mount_nfs system call
-     ▼                              ▼
-Cloud providers              NFS mount points
-
-File Provider Extension (Swift) ──HTTP──▶ rclone RC API
-     │
-     ▼
-Finder integration
+SwiftUI app (Nimbus/Nimbus/) ──▶ RcloneKit ──HTTP──▶ rclone daemon ──▶ Cloud providers
+                                     ▲
+                                     │
+File Provider extension (Nimbus/FileProviderExtension/) ───────────────▶ Finder
 ```
 
-**State sync between app and extension:** App group UserDefaults (`group.app.casavargas.nimbus`) — rclone port and remote configs are broadcast to the extension via shared container.
+- The SwiftUI app spawns the rclone daemon as a subprocess and talks to it over HTTP via `RcloneKit`.
+- The File Provider extension also uses `RcloneKit` to talk to the same daemon, exposing remotes in Finder.
+- NFS mounting is handled in-process by `MountManager` (spawns `rclone serve nfs`, calls `mount_nfs`).
+
+**State sync between app and extension:** App group UserDefaults (`group.app.casavargas.nimbus`) — rclone port and remote configs are broadcast to the extension via the shared container.
 
 ### Key Layers
 
 | Layer | Location | Tech |
 |-------|----------|------|
-| Frontend UI | `src/` | React 19, TypeScript 5.8, Tailwind CSS 4, Zustand, TanStack Query |
-| Tauri IPC | `src-tauri/src/commands/` | Rust — rclone daemon lifecycle, NFS mount/unmount, File Provider domain registration |
-| File Provider | `src-tauri/FileProviderExtension/` | Swift 6 — Finder integration via NSFileProviderReplicatedExtension |
-| Build scripts | `scripts/`, `src-tauri/scripts/` | Shell — orchestrate multi-step build + code signing |
-
-### Frontend Organization (`src/`)
-
-- `app/` — Shell: router (React Router 7), providers, theme
-- `features/` — Feature modules: `browser/`, `remotes/`, `transfers/`, `mount/`, `copy-sync/`, `settings/`, `onboarding/`
-- `stores/` — Zustand stores: `app-store.ts`, `mount-store.ts`, `transfer-store.ts`
-- `hooks/` — Global hooks: `use-daemon.ts` (rclone lifecycle), `use-auto-mount.ts`, `use-file-provider-sync.ts`
-- `components/` — Shared UI (sidebar, connection banner, etc.)
-- Path alias: `@/*` maps to `./src/*`
-
-### Tauri Commands (`src-tauri/src/commands/`)
-
-- `rclone.rs` — Start/stop rclone daemon subprocess
-- `nfs_mount.rs` — Mount/unmount NFS volumes (spawns `rclone serve nfs`, calls `mount_nfs`)
-- `file_provider.rs` — Register/unregister File Provider domains via `fp-domain-manager` CLI
-
-### Swift Extension (`src-tauri/FileProviderExtension/`)
-
-- Built via XcodeGen (`project.yml` → Xcode project)
-- `FileProviderExtension.swift` — Main NSFileProviderReplicatedExtension
-- `FileProviderItem.swift` — File/folder representation
-- `FileProviderEnumerator.swift` — Directory enumeration
-- `RcloneClient.swift` — HTTP client to rclone RC API
-- `SharedState.swift` — App group UserDefaults bridge
-- `DomainManager.swift` — Standalone CLI for domain registration
-
-### SwiftUI Native Rewrite (`Nimbus/`, `RcloneKit/`)
-
-A native SwiftUI rewrite is in progress — see `2026-03-31-swift-swiftui-rewrite-design.md`.
-
-| Layer | Location | Tech |
-|-------|----------|------|
-| SwiftUI App | `Nimbus/Nimbus/` | Swift 6, SwiftUI, @Observable, macOS 15.0 |
-| RcloneKit | `RcloneKit/` | Swift package — typed HTTP client for rclone RC API |
-| File Provider | `Nimbus/FileProviderExtension/` | Swift 6 — Finder integration (same as Tauri extension, uses RcloneKit) |
+| SwiftUI app | `Nimbus/Nimbus/` | Swift 6, SwiftUI, `@Observable`, macOS 15.0 |
+| RcloneKit | `RcloneKit/` | Local Swift package — typed HTTP client for rclone RC API |
+| File Provider | `Nimbus/FileProviderExtension/` | Swift 6 — `NSFileProviderReplicatedExtension`, uses RcloneKit |
 | Xcode project | `Nimbus/project.yml` | XcodeGen → `Nimbus.xcodeproj` |
+| Build scripts | `scripts/` | Shell — orchestrate XcodeGen + xcodebuild |
 
-**SwiftUI app organization:**
+### SwiftUI App Organization (`Nimbus/Nimbus/`)
+
 - `Views/` — SwiftUI views organized by feature (`Browser/`, `Remotes/`, `Transfers/`, `Mounts/`, `Settings/`)
 - `ViewModels/` — `@Observable @MainActor` view models (`BrowserViewModel`, `RemotesViewModel`, etc.)
 - `Services/` — `RcloneDaemon` (subprocess lifecycle), `MountManager` (NFS), `FileProviderBridge` (domain registration)
 - `State/` — `TransferStore` (copy/sync job tracking)
 
-**RcloneKit** is a `final class: @unchecked Sendable` (not an actor) to avoid actor hop overhead. Port mutation only happens from MainActor during startup.
+### File Provider Extension (`Nimbus/FileProviderExtension/`)
 
-```bash
-# SwiftUI build (requires xcodegen)
-cd Nimbus && xcodegen generate && xcodebuild -scheme Nimbus build
-```
+- `FileProviderExtension.swift` — Main `NSFileProviderReplicatedExtension`
+- `FileProviderItem.swift` — File/folder representation
+- `FileProviderEnumerator.swift` — Directory enumeration
+- `SharedState.swift` — App group UserDefaults bridge
+- `DomainManager.swift` — Standalone CLI for domain registration
+- Talks to the rclone daemon via RcloneKit
+
+### RcloneKit (`RcloneKit/`)
+
+- `final class: @unchecked Sendable` (not an actor) to avoid actor hop overhead
+- Port mutation only happens from MainActor during startup
+- Typed wrappers over rclone's RC API
 
 ## Bundle Identifiers
 
@@ -129,9 +90,8 @@ All apps and extensions use the `app.casavargas.nimbus` bundle ID family:
 
 | Component | Bundle ID |
 |-----------|-----------|
-| Tauri app | `app.casavargas.nimbus` |
 | SwiftUI app | `app.casavargas.nimbus` |
-| File Provider (both) | `app.casavargas.nimbus.FileProvider` |
+| File Provider extension | `app.casavargas.nimbus.FileProvider` |
 | App group | `group.app.casavargas.nimbus` |
 | Logger subsystem (main) | `app.casavargas.nimbus` |
 | Logger subsystem (extension) | `app.casavargas.nimbus.FileProvider` |
@@ -146,16 +106,20 @@ All apps and extensions use the `app.casavargas.nimbus` bundle ID family:
 
 | File | Purpose |
 |------|---------|
-| `src-tauri/tauri.conf.json` | App identity (`app.casavargas.nimbus`), window config (1200x800), bundle settings |
-| `src-tauri/Entitlements.plist` | Sandbox: network client/server, app group |
-| `src-tauri/FileProviderExtension/project.yml` | XcodeGen: Swift 6.0, macOS 13.0 target |
-| `biome.json` | Biome linter/formatter config |
-| `vite.config.ts` | Vite + React plugin + Tailwind + path aliases + Vitest |
+| `Nimbus/project.yml` | XcodeGen project definition: Swift 6.0, macOS 15.0 target, app + extension targets |
+| `Nimbus/Nimbus/Nimbus.entitlements` | Sandbox: network client/server, app group, File Provider |
+| `RcloneKit/Package.swift` | Swift package manifest for RcloneKit |
 
 ## Conventions
 
-- Frontend uses **Biome** (not ESLint/Prettier) for formatting and linting
-- Feature modules follow `features/<name>/` with `pages/`, `components/`, `hooks/` subdirs
-- Rclone RC API is called directly from frontend via HTTP (not proxied through Tauri for most operations)
-- The rclone daemon port starts at 5572 and is shared with the File Provider extension via UserDefaults
-- NFS servers use ports starting at 19049
+- Rclone RC API is called directly from SwiftUI view models via `RcloneKit` (no extra IPC layer).
+- The rclone daemon port starts at 5572 and is shared with the File Provider extension via App Group UserDefaults.
+- NFS servers use ports starting at 19049.
+- View models are `@Observable @MainActor`; services own background work via actors or `@unchecked Sendable` classes where justified.
+- New features land under `Nimbus/Nimbus/Views/<Feature>/` plus matching `ViewModels/` entries.
+
+## Historical Context
+
+- `legacy/tauri/` — Frozen Tauri + React sources, kept for reference only. Do not build.
+- `tauri-eol` branch — Last working Tauri state before the SwiftUI cutover.
+- Strategic context: `docs/superpowers/specs/2026-05-14-nimbus-north-star-design.md` and `docs/superpowers/specs/2026-05-14-phase1-foundation-browser-design.md`.
