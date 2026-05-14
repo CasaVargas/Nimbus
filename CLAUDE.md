@@ -32,7 +32,7 @@ bash scripts/build-release.sh
 
 ### Prerequisites
 
-- macOS 13.0+ deployment target (SwiftUI app targets macOS 15.0)
+- macOS 15.0+ deployment target
 - Xcode + Command Line Tools
 - XcodeGen (`brew install xcodegen`)
 - rclone binary in PATH (default `/usr/local/bin/rclone`, configurable in settings)

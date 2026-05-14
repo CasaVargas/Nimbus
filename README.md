@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-macOS%2013%2B-blue" alt="macOS 13+">
+  <img src="https://img.shields.io/badge/platform-macOS%2015%2B-blue" alt="macOS 15+">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
@@ -46,7 +46,7 @@ File Provider extension (Swift) ────▶ Finder
 
 ### Prerequisites
 
-- macOS 13.0+ (SwiftUI app builds against macOS 15.0)
+- macOS 15.0+
 - Xcode + Command Line Tools
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 - [rclone](https://rclone.org/install/) in PATH
@@ -58,7 +58,7 @@ File Provider extension (Swift) ────▶ Finder
 cd Nimbus && xcodegen generate
 
 # Open in Xcode
-open Nimbus.xcodeproj
+cd Nimbus && open Nimbus.xcodeproj
 ```
 
 ### Release Build
@@ -67,7 +67,7 @@ open Nimbus.xcodeproj
 bash scripts/build-release.sh
 ```
 
-This regenerates the Xcode project and produces a signed release `.app` at `Nimbus/build/Build/Products/Release/Nimbus.app`.
+This regenerates the Xcode project and produces a release `.app` at `Nimbus/build/Build/Products/Release/Nimbus.app`.
 
 ## Project Structure
 
