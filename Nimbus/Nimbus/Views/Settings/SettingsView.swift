@@ -33,7 +33,6 @@ struct SettingsView: View {
                 .tag(SettingsTab.about)
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 450, height: 250)
-        .padding()
+        .frame(width: 520, height: 360)
     }
 }
