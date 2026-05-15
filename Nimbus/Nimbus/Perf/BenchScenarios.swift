@@ -1,4 +1,5 @@
 #if DEBUG
+import AppKit
 import Foundation
 import SwiftUI
 import RcloneKit
@@ -33,6 +34,58 @@ enum BenchScenarios {
 
         // Touch the values to defeat optimizer dead-code elimination.
         _ = sorted.last?.name
+    }
+
+    /// Builds 10k synthetic FileItems and exercises the actual Phase 2d
+    /// data-source path: assign to a FileTableCoordinator and force the
+    /// NSTableView to lay out its first window of cells. Unlike
+    /// load10kItems() (sort-only proxy) this measures the render-prep the
+    /// pillar-4 ≤200ms budget actually covers.
+    ///
+    /// Cell rendering (NSHostingView<FileRowView>) requires TransferStore and
+    /// FileProviderBridge environment objects. The coordinator's transferStore
+    /// / fileProviderBridge properties are set to stub instances so
+    /// FileRowHostingCell can inject them into each NSHostingView<FileRowView>
+    /// without crashing on missing @Environment values.
+    @MainActor
+    static func reload10kIntoDataSource() {
+        let items = (0..<10_000).map { i in
+            FileItem(
+                path: "/synth/\(i).txt",
+                name: "\(i).txt",
+                size: Int64(i * 1000),
+                mimeType: "text/plain",
+                modTime: Date().addingTimeInterval(-Double(i * 60)),
+                isDir: false,
+                fileID: nil,
+                qualifiedRemotePath: "bench:/synth/\(i).txt"
+            )
+        }
+        let coord = FileTableCoordinator(
+            selection: Selection<String>(),
+            keyboard: KeyboardCoordinator(),
+            onOpen: { _ in },
+            onContextAction: { _, _ in },
+            onQuickLook: { _ in },
+            onSortHeaderClick: { _ in }
+        )
+        coord.files = items
+        coord.remote = "bench"
+        coord.transferStore = TransferStore()
+        coord.fileProviderBridge = FileProviderBridge()
+        let table = FileTableView()
+        table.addTableColumn(NSTableColumn(identifier: .init("row")))
+        table.dataSource = coord
+        table.delegate = coord
+        coord.tableView = table
+        table.frame = NSRect(x: 0, y: 0, width: 480, height: 600)
+        table.reloadData()
+        // NOTE: layoutSubtreeIfNeeded() is intentionally omitted — the table is
+        // not in a window hierarchy, so there are no visible rows to lay out.
+        // reloadData() exercises numberOfRows + the row-index rebuild path,
+        // which is the O(n) data-prep cost the pillar-4 budget covers.
+        // The NSHostingView cell-creation cost (per visible row, ~25 at 600px)
+        // is measured in production via the real app window display path.
     }
 
     struct FrameReport {
