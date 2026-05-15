@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import RcloneKit
+import SwiftUI
 
 enum ViewMode: String {
     case list, grid
@@ -24,7 +25,26 @@ final class BrowserViewModel {
     var viewMode: ViewMode = .list
     var sortField: SortField = .name
     var sortAscending: Bool = true
-    var selection: Set<String> = []
+
+    /// Foundation Selection<String> instance shared with FileTable / FileGrid.
+    /// IDs are file paths (`FileItem.path`), not the SwiftUI `Identifiable.id` —
+    /// downstream rclone ops require the rclone-relative path.
+    let selection = Selection<String>()
+
+    /// Foundation keyboard coordinator. Owns the type-to-select buffer and any
+    /// keyboard bindings registered by the browser scope.
+    let keyboard = KeyboardCoordinator()
+
+    /// Bridges the foundation Selection<String> model to SwiftUI Table's
+    /// `Set<String>` binding contract.
+    var swiftUISelection: Binding<Set<String>> {
+        Binding(
+            get: { self.selection.ids },
+            set: { newSet in
+                self.selection.replace(with: newSet, in: self.sortedFiles.map(\.path))
+            }
+        )
+    }
 
     var showNewFolderDialog = false
     var newFolderName = ""
@@ -121,7 +141,7 @@ final class BrowserViewModel {
     }
 
     func navigateTo(path newPath: String) async {
-        selection = []
+        selection.clear()
         let cacheKey = "\(remote):\(newPath)"
         if cache[cacheKey] == nil {
             files = []
@@ -141,7 +161,7 @@ final class BrowserViewModel {
         guard canGoBack else { return }
         historyIndex -= 1
         path = pathHistory[historyIndex]
-        selection = []
+        selection.clear()
         await loadFiles()
     }
 
@@ -149,7 +169,7 @@ final class BrowserViewModel {
         guard canGoForward else { return }
         historyIndex += 1
         path = pathHistory[historyIndex]
-        selection = []
+        selection.clear()
         await loadFiles()
     }
 
@@ -169,7 +189,7 @@ final class BrowserViewModel {
                 }
             }
         }
-        selection = []
+        selection.clear()
         await loadFiles()
     }
 

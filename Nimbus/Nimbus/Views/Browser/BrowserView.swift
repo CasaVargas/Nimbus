@@ -29,10 +29,9 @@ struct BrowserView: View {
                         case .list:
                             FileTable(
                                 files: viewModel.sortedFiles,
-                                selection: Binding(
-                                    get: { viewModel.selection },
-                                    set: { viewModel.selection = $0 }
-                                ),
+                                remote: remoteName,
+                                selection: viewModel.selection,
+                                keyboard: viewModel.keyboard,
                                 sortField: Binding(
                                     get: { viewModel.sortField },
                                     set: { viewModel.sortField = $0 }
@@ -42,15 +41,18 @@ struct BrowserView: View {
                                     set: { viewModel.sortAscending = $0 }
                                 ),
                                 onOpen: { file in handleOpen(file, viewModel: viewModel) },
-                                onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) }
+                                onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) },
+                                onQuickLook: { items in
+                                    // Quick Look wiring deferred to Task 9/10 environment integration.
+                                    // For Task 8, just no-op (log for manual verification).
+                                    print("Quick Look requested for \(items.count) items")
+                                }
                             )
                         case .grid:
                             FileGrid(
                                 files: viewModel.sortedFiles,
-                                selection: Binding(
-                                    get: { viewModel.selection },
-                                    set: { viewModel.selection = $0 }
-                                ),
+                                remote: remoteName,
+                                selection: viewModel.selection,
                                 onOpen: { file in handleOpen(file, viewModel: viewModel) },
                                 onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) }
                             )

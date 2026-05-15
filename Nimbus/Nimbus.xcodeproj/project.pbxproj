@@ -27,6 +27,7 @@
 		3B570AF7E92B487AA5A10BCE /* KeyboardCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE6352CE9D017F8C0445AE17 /* KeyboardCoordinatorTests.swift */; };
 		3C060FF052C454049745004C /* SnapshotHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6C4E572632B0FC138085082 /* SnapshotHelpers.swift */; };
 		3C172B72006EC20821ADFC0E /* RemotesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23222C40A9098C836B111200 /* RemotesView.swift */; };
+		3FA68E784291944BDC50BD40 /* CloudStatusColumn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0366C19B7D2EB46178EC2B31 /* CloudStatusColumn.swift */; };
 		42AC237AAAA6C46413CF2BBB /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8557E940D1B7790FDD7F35AD /* SettingsView.swift */; };
 		457AAF26BB535EF79DC2B152 /* TransferSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96D748F5B10AFEA969C88CE3 /* TransferSection.swift */; };
 		4B8F27C6E2737CE62B78A053 /* RcloneDaemon.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0B2F0DEB49277B20924FD2F /* RcloneDaemon.swift */; };
@@ -116,6 +117,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0366C19B7D2EB46178EC2B31 /* CloudStatusColumn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudStatusColumn.swift; sourceTree = "<group>"; };
 		0D6672817A705472989CD40D /* TransfersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransfersView.swift; sourceTree = "<group>"; };
 		0DC9150CFA4799141AFE8FCC /* RcloneClientAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RcloneClientAdapter.swift; sourceTree = "<group>"; };
 		0DD44EF54342043F83BC0D1B /* TransferStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferStore.swift; sourceTree = "<group>"; };
@@ -440,6 +442,7 @@
 			children = (
 				9E059E24ADEB8ACBC1AE9096 /* BrowserToolbar.swift */,
 				B90D4E52BA97B181F32A18D8 /* BrowserView.swift */,
+				0366C19B7D2EB46178EC2B31 /* CloudStatusColumn.swift */,
 				DCD1239B19EFBC711BD3068F /* FileContextMenu.swift */,
 				9500A98F5338D92B273CB2A3 /* FileGrid.swift */,
 				4782ABB2481E119B80157DEF /* FileTable.swift */,
@@ -650,6 +653,7 @@
 				5C406B453B1A1567E325AEF5 /* BrowserToolbar.swift in Sources */,
 				0547DBC2DAD79ADF6180EC83 /* BrowserView.swift in Sources */,
 				51928D9ADBCC0691B3771981 /* BrowserViewModel.swift in Sources */,
+				3FA68E784291944BDC50BD40 /* CloudStatusColumn.swift in Sources */,
 				79CD5B771150740985B6CFA1 /* Colors.swift in Sources */,
 				08E7462C33D968419FE1571D /* ConfigForm.swift in Sources */,
 				6259278BE2E32B337ED7DF95 /* ContentView.swift in Sources */,
