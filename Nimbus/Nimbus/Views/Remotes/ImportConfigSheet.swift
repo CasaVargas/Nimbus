@@ -6,7 +6,7 @@ struct ImportConfigSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(RcloneDaemon.self) private var daemon
 
-    var onComplete: (() -> Void)?
+    var onDismiss: (() -> Void)?
 
     // File selection & parsing state
     @State private var parsedRemotes: [ParsedRemote] = []
@@ -21,127 +21,88 @@ struct ImportConfigSheet: View {
 
     // Operation state
     @State private var isImporting = false
-    @State private var error: String?
+    @State private var error: NimbusError?
 
     var body: some View {
-        NavigationStack {
-            Group {
+        SheetChrome(
+            title: "Import rclone Config",
+            subtitle: fileURL.map { LocalizedStringKey($0.lastPathComponent) },
+            body: {
                 if parsedRemotes.isEmpty {
-                    emptyState
+                    EmptyState(
+                        icon: "square.and.arrow.down",
+                        title: "No File Selected",
+                        message: "Choose an rclone configuration file to import remotes from.",
+                        action: .init(label: "Choose File…", perform: { pickFile() })
+                    )
                 } else {
-                    remoteList
-                }
-            }
-            .navigationTitle("Import rclone Config")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Import") {
-                        Task { await importSelected() }
+                    VStack(spacing: 0) {
+                        fileHeader
+                        Divider()
+                        ImportPreviewList(
+                            remotes: parsedRemotes,
+                            selected: $selected,
+                            renames: $renames,
+                            isConflict: isConflict
+                        )
+                        if isImporting {
+                            Divider()
+                            HStack(spacing: DesignSystem.Spacing.s) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text("Importing…")
+                                    .font(DesignSystem.Typography.caption)
+                                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                            }
+                            .padding(DesignSystem.Spacing.m)
+                        }
                     }
-                    .disabled(selected.isEmpty || isImporting || parsedRemotes.isEmpty)
                 }
+            },
+            actions: {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button(isImporting ? "Importing…" : "Import") {
+                    Task { await importSelected() }
+                }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+                .disabled(selected.isEmpty || isImporting || parsedRemotes.isEmpty)
             }
-        }
-        .frame(minWidth: 500, minHeight: 380)
+        )
+        .frame(minWidth: 540, minHeight: 420)
         .task {
             await loadExistingNames()
         }
-    }
-
-    // MARK: - Empty state (no file chosen yet)
-
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "square.and.arrow.down")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 48, height: 48)
-                .foregroundStyle(.secondary)
-            Text("No file selected")
-                .font(.headline)
-            Text("Choose an rclone configuration file to import remotes from.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            Button("Choose File...") {
-                pickFile()
-            }
-            .buttonStyle(.borderedProminent)
-
-            if let error {
-                Text(error)
-                    .foregroundStyle(.red)
-                    .font(.subheadline)
-                    .padding(.horizontal)
-            }
+        .alert(
+            "Import error",
+            isPresented: Binding(
+                get: { error != nil },
+                set: { if !$0 { error = nil } }
+            ),
+            presenting: error
+        ) { _ in
+            Button("OK", role: .cancel) { error = nil }
+        } message: { err in
+            Text(verbatim: err.message)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Remote list (after file parsed)
-
-    private var remoteList: some View {
-        VStack(spacing: 0) {
-            // File path header
-            HStack {
-                Image(systemName: "doc.text")
-                    .foregroundStyle(.secondary)
-                Text(fileURL?.lastPathComponent ?? "")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button("Choose Different File...") {
-                    pickFile()
-                }
+    private var fileHeader: some View {
+        HStack(spacing: DesignSystem.Spacing.s) {
+            Image(systemName: "doc.text")
+                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+            Text(verbatim: fileURL?.lastPathComponent ?? "")
+                .font(DesignSystem.Typography.caption)
+                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+            Spacer()
+            Button("Choose Different File…") { pickFile() }
                 .buttonStyle(.plain)
-                .font(.subheadline)
-                .foregroundStyle(Color.accentColor)
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 10)
-
-            Divider()
-
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(parsedRemotes) { remote in
-                        RemoteImportRow(
-                            remote: remote,
-                            isSelected: selected.contains(remote.id),
-                            isConflict: isConflict(remote),
-                            rename: renameBinding(for: remote),
-                            onToggle: { toggle(remote) }
-                        )
-                        Divider()
-                            .padding(.leading, 40)
-                    }
-                }
-            }
-
-            if let error {
-                Divider()
-                Text(error)
-                    .foregroundStyle(.red)
-                    .font(.subheadline)
-                    .padding()
-            }
-
-            if isImporting {
-                Divider()
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Importing...")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .padding()
-            }
+                .font(DesignSystem.Typography.caption)
+                .foregroundStyle(DesignSystem.Color.semantic.accent)
         }
+        .padding(.horizontal, DesignSystem.Spacing.m)
+        .padding(.vertical, DesignSystem.Spacing.s)
     }
 
     // MARK: - Actions
@@ -167,7 +128,7 @@ struct ImportConfigSheet: View {
             selected = Set(remotes.filter { !isConflict($0) }.map(\.id))
             error = nil
         } catch {
-            self.error = "Could not read file: \(error.localizedDescription)"
+            self.error = NimbusError.classify(error)
         }
     }
 
@@ -182,11 +143,9 @@ struct ImportConfigSheet: View {
 
     private func importSelected() async {
         isImporting = true
-        error = nil
         defer { isImporting = false }
 
         let toImport = parsedRemotes.filter { selected.contains($0.id) }
-
         do {
             for remote in toImport {
                 let effectiveName = renames[remote.id].flatMap { $0.isEmpty ? nil : $0 } ?? remote.name
@@ -196,10 +155,10 @@ struct ImportConfigSheet: View {
                     parameters: remote.parameters
                 )
             }
-            onComplete?()
+            onDismiss?()
             dismiss()
         } catch {
-            self.error = error.localizedDescription
+            self.error = NimbusError.classify(error)
         }
     }
 
@@ -208,75 +167,5 @@ struct ImportConfigSheet: View {
     private func isConflict(_ remote: ParsedRemote) -> Bool {
         let effectiveName = renames[remote.id].flatMap { $0.isEmpty ? nil : $0 } ?? remote.name
         return existingNames.contains(effectiveName)
-    }
-
-    private func toggle(_ remote: ParsedRemote) {
-        if selected.contains(remote.id) {
-            selected.remove(remote.id)
-        } else {
-            selected.insert(remote.id)
-        }
-    }
-
-    private func renameBinding(for remote: ParsedRemote) -> Binding<String> {
-        Binding(
-            get: { renames[remote.id] ?? "" },
-            set: { renames[remote.id] = $0 }
-        )
-    }
-}
-
-// MARK: - RemoteImportRow
-
-private struct RemoteImportRow: View {
-    let remote: ParsedRemote
-    let isSelected: Bool
-    let isConflict: Bool
-    @Binding var rename: String
-    let onToggle: () -> Void
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Toggle("", isOn: Binding(get: { isSelected }, set: { _ in onToggle() }))
-                .labelsHidden()
-                .toggleStyle(.checkbox)
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(remote.name)
-                        .font(.body)
-                    Text(remote.type)
-                        .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.secondary.opacity(0.15), in: Capsule())
-                        .foregroundStyle(.secondary)
-
-                    if isConflict {
-                        Label("Name conflict", systemImage: "exclamationmark.triangle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
-                }
-
-                if isConflict && isSelected {
-                    HStack(spacing: 6) {
-                        Text("Rename to:")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        TextField("New name", text: $rename)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.caption)
-                            .frame(maxWidth: 200)
-                    }
-                }
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 10)
-        .contentShape(Rectangle())
-        .onTapGesture { onToggle() }
     }
 }

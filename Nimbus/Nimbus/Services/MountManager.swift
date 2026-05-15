@@ -15,6 +15,22 @@ final class MountManager {
     private(set) var activeMounts: [ActiveMount] = []
     private var nfsProcesses: [String: Process] = [:]
 
+    /// IDs (`MountConfig.id`) currently considered mounted. Tracked separately
+    /// from `activeMounts` so the UI can map config → state without re-deriving
+    /// from `mountPoint` strings on every render.
+    private(set) var mountedIDs: Set<String> = []
+
+    /// IDs whose mount/unmount operation is in flight — used to drive the
+    /// `.mounting` / `.unmounting` transitional `StatusToggleState`.
+    private(set) var inFlight: Set<String> = []
+
+    /// Per-config error messages from the last failed mount/unmount.
+    private(set) var errors: [String: String] = [:]
+
+    /// Timestamp of the last successful mount per config. Surfaced in
+    /// `MountInspector`.
+    private(set) var lastMounted: [String: Date] = [:]
+
     private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "mount")
     private var healthTask: Task<Void, Never>?
 
@@ -119,6 +135,58 @@ final class MountManager {
 
         activeMounts.removeAll { $0.mountPoint == mountPoint }
         logger.info("Unmounted \(mountPoint)")
+    }
+
+    // MARK: - Config-keyed wrappers
+
+    /// Mount a `MountConfig`; tracks `inFlight`, `errors`, `mountedIDs`,
+    /// and `lastMounted` by `config.id`. Wraps `mount(remote:mountPoint:readOnly:)`.
+    func mountConfig(_ config: MountConfig) async throws {
+        inFlight.insert(config.id)
+        errors[config.id] = nil
+        do {
+            try await mount(
+                remote: config.remote,
+                mountPoint: config.mountPoint,
+                readOnly: config.vfsMode == .readOnly
+            )
+            mountedIDs.insert(config.id)
+            lastMounted[config.id] = Date()
+        } catch {
+            errors[config.id] = error.localizedDescription
+            inFlight.remove(config.id)
+            throw error
+        }
+        inFlight.remove(config.id)
+    }
+
+    /// Unmount a `MountConfig`; tracks `inFlight`, `errors`, and `mountedIDs`
+    /// by `config.id`. Wraps `unmount(mountPoint:)`.
+    func unmountConfig(_ config: MountConfig) async throws {
+        inFlight.insert(config.id)
+        errors[config.id] = nil
+        do {
+            try await unmount(mountPoint: config.mountPoint)
+            mountedIDs.remove(config.id)
+        } catch {
+            errors[config.id] = error.localizedDescription
+            inFlight.remove(config.id)
+            throw error
+        }
+        inFlight.remove(config.id)
+    }
+
+    /// Refresh `mountedIDs` from system state. Phase 2a stub — the view-level
+    /// `isMountActive(_:)` derivation already unions `mountedIDs` with the
+    /// in-process `activeMounts` list, so the user-visible state stays correct
+    /// without a parse of `mount(8)`. A richer implementation (detect manual
+    /// unmounts) can come in Phase 3.
+    func refreshAll() async {
+        // Drop any tracked ID whose mountPoint is no longer active in-process.
+        // Without a stored id->mountPoint map we conservatively keep IDs that
+        // might still be valid; the union derivation in MountsView covers gaps.
+        let liveMountPoints = Set(activeMounts.map(\.mountPoint))
+        _ = liveMountPoints
     }
 
     func startHealthMonitor() {

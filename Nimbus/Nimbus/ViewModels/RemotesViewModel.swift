@@ -8,7 +8,7 @@ final class RemotesViewModel {
     private(set) var remotes: [Remote] = []
     private(set) var providers: [Provider] = []
     private(set) var isLoading = false
-    private(set) var error: String?
+    private(set) var error: NimbusError?
 
     private let client: RcloneClient
 
@@ -35,7 +35,7 @@ final class RemotesViewModel {
                 )
             }
         } catch {
-            self.error = error.localizedDescription
+            self.error = NimbusError.classify(error)
         }
     }
 
@@ -43,7 +43,7 @@ final class RemotesViewModel {
         do {
             providers = try await client.getProviders()
         } catch {
-            self.error = error.localizedDescription
+            self.error = NimbusError.classify(error)
         }
     }
 
@@ -52,7 +52,7 @@ final class RemotesViewModel {
             try await client.deleteRemote(name: name)
             remotes.removeAll { $0.name == name }
         } catch {
-            self.error = error.localizedDescription
+            self.error = NimbusError.classify(error)
         }
     }
 

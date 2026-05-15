@@ -1,5 +1,6 @@
 import SwiftUI
 import RcloneKit
+import os
 
 struct RemotesView: View {
     @Environment(RcloneDaemon.self) private var daemon
@@ -10,6 +11,8 @@ struct RemotesView: View {
     @State private var showImportConfig = false
     @State private var editingRemote: Remote?
     @State private var deletingRemote: Remote?
+    @State private var searchText = ""
+    @State private var listSelection: String?
 
     var body: some View {
         content
@@ -22,13 +25,14 @@ struct RemotesView: View {
                     // Only allow adding remotes once the daemon is reachable
                     .disabled(daemon.status != .connected)
                 }
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .secondaryAction) {
                     Button("Import Config", systemImage: "square.and.arrow.down") {
                         showImportConfig = true
                     }
                     .disabled(daemon.status != .connected)
                 }
             }
+            .searchable(text: $searchText, placement: .toolbar)
             .task(id: daemon.status) {
                 guard daemon.status == .connected else { return }
                 if viewModel == nil {
@@ -36,13 +40,14 @@ struct RemotesView: View {
                 }
                 await viewModel?.loadRemotes()
             }
+            // Sheet call sites preserved from Phase 1; Tasks 4-6 will rebuild these.
             .sheet(isPresented: $showAddRemote) {
-                AddRemoteSheet(onComplete: {
+                AddRemoteSheet(client: daemon.client, onDismiss: {
                     Task { await viewModel?.loadRemotes() }
                 })
             }
             .sheet(isPresented: $showImportConfig) {
-                ImportConfigSheet(onComplete: {
+                ImportConfigSheet(onDismiss: {
                     Task { await viewModel?.loadRemotes() }
                 })
             }
@@ -51,7 +56,7 @@ struct RemotesView: View {
                 set: { if !$0 { editingRemote = nil } }
             )) {
                 if let remote = editingRemote {
-                    EditRemoteSheet(remote: remote, onComplete: {
+                    EditRemoteSheet(client: daemon.client, remote: remote, onDismiss: {
                         Task { await viewModel?.loadRemotes() }
                     })
                 }
@@ -69,6 +74,7 @@ struct RemotesView: View {
                         Task { await viewModel?.deleteRemote(name: remote.name) }
                     }
                 }
+                Button("Cancel", role: .cancel) { deletingRemote = nil }
             } message: {
                 Text("This will remove the remote configuration. Files on the cloud are not affected.")
             }
@@ -84,68 +90,122 @@ struct RemotesView: View {
 
         case .error(let message):
             // Daemon failed to start — give the user a clear error and a retry button
-            VStack(spacing: 16) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.largeTitle)
-                    .foregroundStyle(.red)
-                Text("Could not start rclone")
-                    .font(.headline)
-                Text(message)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-                Button("Retry") {
+            EmptyState(
+                icon: "exclamationmark.triangle",
+                title: "Could not start rclone",
+                messageVerbatim: message,
+                action: .init(label: "Retry", perform: {
                     Task { await daemon.retry(binaryPath: settings.rcloneBinaryPath) }
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                })
+            )
 
         case .connected:
             if let viewModel {
-                if viewModel.isLoading && viewModel.remotes.isEmpty {
-                    ProgressView("Loading remotes...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = viewModel.error, viewModel.remotes.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.largeTitle)
-                            .foregroundStyle(.orange)
-                        Text("Failed to load remotes")
-                            .font(.headline)
-                        Text(error)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                        Button("Retry") {
-                            Task { await viewModel.loadRemotes() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if viewModel.remotes.isEmpty {
-                    ContentUnavailableView(
-                        "No Remotes",
-                        systemImage: "cloud",
-                        description: Text("Add a cloud remote to get started.")
-                    )
-                } else {
-                    List(viewModel.remotes, id: \.name) { remote in
-                        RemoteRow(
-                            remote: remote,
-                            onEdit: { editingRemote = remote },
-                            onDelete: { deletingRemote = remote },
-                            onBrowse: { onBrowse?(remote.name) }
-                        )
-                    }
-                }
+                connectedContent(viewModel: viewModel)
             } else {
                 // Connected but viewModel not yet initialised (very brief window)
                 ProgressView("Loading remotes...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func connectedContent(viewModel: RemotesViewModel) -> some View {
+        if let error = viewModel.error, viewModel.remotes.isEmpty {
+            errorBanner(error: error, viewModel: viewModel)
+        } else if viewModel.isLoading && viewModel.remotes.isEmpty {
+            skeletonList
+        } else if viewModel.remotes.isEmpty {
+            EmptyState(
+                icon: "cloud.slash",
+                title: "No Remotes Yet",
+                message: "Add a remote to start browsing cloud storage.",
+                action: .init(label: "Add Remote", perform: { showAddRemote = true })
+            )
+        } else {
+            List(filteredRemotes(viewModel.remotes), id: \.name, selection: $listSelection) { remote in
+                RemoteRow(
+                    remote: remote,
+                    status: .connected, // Phase 2a placeholder; richer status discovery is Phase 3
+                    onEdit: { editingRemote = remote },
+                    onDelete: { deletingRemote = remote },
+                    onBrowse: { onBrowse?(remote.name) },
+                    onReconnect: {
+                        Logger(subsystem: "app.casavargas.nimbus", category: "remotes")
+                            .warning("Reconnect handler not wired (Phase 3); status is hardcoded to .connected in Phase 2a so this should be unreachable")
+                    }
+                )
+                .tag(remote.name)
+            }
+            .listStyle(.inset)
+        }
+    }
+
+    private var skeletonList: some View {
+        VStack(spacing: 0) {
+            ForEach(0..<3, id: \.self) { _ in
+                HStack(spacing: DesignSystem.Spacing.m) {
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xs)
+                        .fill(DesignSystem.Color.semantic.surfaceSubtle)
+                        .frame(width: 24, height: 24)
+                    VStack(alignment: .leading, spacing: 4) {
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.xs)
+                            .fill(DesignSystem.Color.semantic.surfaceSubtle)
+                            .frame(width: 120, height: 12)
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.xs)
+                            .fill(DesignSystem.Color.semantic.surfaceSubtle)
+                            .frame(width: 60, height: 10)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, DesignSystem.Spacing.m)
+                .padding(.vertical, DesignSystem.Spacing.s)
+                .redacted(reason: .placeholder)
+            }
+            Spacer()
+        }
+        .shimmering()
+    }
+
+    @ViewBuilder
+    private func errorBanner(error: NimbusError, viewModel: RemotesViewModel) -> some View {
+        switch error.kind {
+        case .authFailed:
+            EmptyState(
+                icon: "key.slash",
+                title: "Sign In Required",
+                messageVerbatim: error.message,
+                action: .init(label: "Reconnect", perform: {
+                    Task { await viewModel.loadRemotes() }
+                })
+            )
+        case .network:
+            EmptyState(
+                icon: "wifi.slash",
+                title: "Can't Reach Cloud",
+                messageVerbatim: error.message,
+                action: .init(label: "Retry", perform: {
+                    Task { await viewModel.loadRemotes() }
+                })
+            )
+        case .other:
+            EmptyState(
+                icon: "exclamationmark.triangle",
+                title: "Couldn't Load Remotes",
+                messageVerbatim: error.message,
+                action: .init(label: "Retry", perform: {
+                    Task { await viewModel.loadRemotes() }
+                })
+            )
+        }
+    }
+
+    private func filteredRemotes(_ remotes: [Remote]) -> [Remote] {
+        guard !searchText.isEmpty else { return remotes }
+        let q = searchText.lowercased()
+        return remotes.filter {
+            $0.name.lowercased().contains(q) || $0.type.lowercased().contains(q)
         }
     }
 }

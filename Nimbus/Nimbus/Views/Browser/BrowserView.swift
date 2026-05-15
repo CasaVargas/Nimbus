@@ -284,7 +284,7 @@ struct BrowserView: View {
             EmptyState(
                 icon: "key.slash",
                 title: "Sign In Required",
-                message: LocalizedStringKey("\(remoteName): \(error.message)"),
+                messageVerbatim: "\(remoteName): \(error.message)",
                 action: .init(label: "Reconnect Remote", perform: {
                     // Navigate to Remotes screen — implementation can hook into a
                     // navigation environment value if one exists; for Phase 1, a
@@ -293,11 +293,11 @@ struct BrowserView: View {
                         .info("Reconnect Remote tapped for \(remoteName)")
                 })
             )
-        case .offline:
+        case .network:
             EmptyState(
                 icon: "wifi.slash",
                 title: "Can't Reach Cloud",
-                message: LocalizedStringKey(error.message),
+                messageVerbatim: error.message,
                 action: .init(label: "Retry", perform: {
                     Task { await viewModel.loadFiles() }
                 })
@@ -306,7 +306,7 @@ struct BrowserView: View {
             EmptyState(
                 icon: "exclamationmark.triangle",
                 title: "Couldn't Load Folder",
-                message: LocalizedStringKey(error.message),
+                messageVerbatim: error.message,
                 action: .init(label: "Retry", perform: {
                     Task { await viewModel.loadFiles() }
                 })
