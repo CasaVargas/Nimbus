@@ -76,6 +76,12 @@ struct RemoteRow: View {
             Divider()
             Button("Delete", role: .destructive) { onDelete() }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(named: "Browse") { onBrowse() }
+        .accessibilityAction(named: "Edit") { onEdit() }
+        .accessibilityAction(named: "Reconnect") { onReconnect() }
+        .accessibilityAction(named: "Delete") { onDelete() }
     }
 
     private var statusPill: some View {

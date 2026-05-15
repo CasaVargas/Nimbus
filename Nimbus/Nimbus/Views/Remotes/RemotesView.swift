@@ -1,5 +1,6 @@
 import SwiftUI
 import RcloneKit
+import os
 
 struct RemotesView: View {
     @Environment(RcloneDaemon.self) private var daemon
@@ -11,6 +12,7 @@ struct RemotesView: View {
     @State private var editingRemote: Remote?
     @State private var deletingRemote: Remote?
     @State private var searchText = ""
+    @State private var listSelection: String?
 
     var body: some View {
         content
@@ -91,7 +93,7 @@ struct RemotesView: View {
             EmptyState(
                 icon: "exclamationmark.triangle",
                 title: "Could not start rclone",
-                message: LocalizedStringKey(message),
+                messageVerbatim: message,
                 action: .init(label: "Retry", perform: {
                     Task { await daemon.retry(binaryPath: settings.rcloneBinaryPath) }
                 })
@@ -122,15 +124,19 @@ struct RemotesView: View {
                 action: .init(label: "Add Remote", perform: { showAddRemote = true })
             )
         } else {
-            List(filteredRemotes(viewModel.remotes), id: \.name) { remote in
+            List(filteredRemotes(viewModel.remotes), id: \.name, selection: $listSelection) { remote in
                 RemoteRow(
                     remote: remote,
                     status: .connected, // Phase 2a placeholder; richer status discovery is Phase 3
                     onEdit: { editingRemote = remote },
                     onDelete: { deletingRemote = remote },
                     onBrowse: { onBrowse?(remote.name) },
-                    onReconnect: { /* Phase 3 */ }
+                    onReconnect: {
+                        Logger(subsystem: "app.casavargas.nimbus", category: "remotes")
+                            .warning("Reconnect handler not wired (Phase 3); status is hardcoded to .connected in Phase 2a so this should be unreachable")
+                    }
                 )
+                .tag(remote.name)
             }
             .listStyle(.inset)
         }
@@ -169,7 +175,7 @@ struct RemotesView: View {
             EmptyState(
                 icon: "key.slash",
                 title: "Sign In Required",
-                message: LocalizedStringKey(error.message),
+                messageVerbatim: error.message,
                 action: .init(label: "Reconnect", perform: {
                     Task { await viewModel.loadRemotes() }
                 })
@@ -178,7 +184,7 @@ struct RemotesView: View {
             EmptyState(
                 icon: "wifi.slash",
                 title: "Can't Reach Cloud",
-                message: LocalizedStringKey(error.message),
+                messageVerbatim: error.message,
                 action: .init(label: "Retry", perform: {
                     Task { await viewModel.loadRemotes() }
                 })
@@ -187,7 +193,7 @@ struct RemotesView: View {
             EmptyState(
                 icon: "exclamationmark.triangle",
                 title: "Couldn't Load Remotes",
-                message: LocalizedStringKey(error.message),
+                messageVerbatim: error.message,
                 action: .init(label: "Retry", perform: {
                     Task { await viewModel.loadRemotes() }
                 })
