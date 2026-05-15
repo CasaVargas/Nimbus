@@ -72,6 +72,8 @@
 		ADCDC4391F85BAB27DAB12D2 /* FileTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4782ABB2481E119B80157DEF /* FileTable.swift */; };
 		AE148200C57EA04A2F17BF57 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C597E692310630A9FD68C83 /* DesignSystem.swift */; };
 		B00080307FD8EA793F2CEAD7 /* NimbusError.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD46B92F934C6AADF654A9BA /* NimbusError.swift */; };
+		B3DD7DD69B279684EA0D9497 /* ImportPreviewList.swift in Sources */ = {isa = PBXBuildFile; fileRef = A21C381CEE03583B4CADE2DA /* ImportPreviewList.swift */; };
+		B4C719D6E99C2E5961856594 /* ImportRemoteRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9424E2AE45C4242AFBB7A2D /* ImportRemoteRow.swift */; };
 		B59DB74E76B93E5440D76430 /* KeyboardCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD5589C957FFEFEDDF3563A /* KeyboardCoordinator.swift */; };
 		B77CE9DC37BBD5AD88C123C4 /* FormSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD7376A5101C0586DF6E6E2F /* FormSection.swift */; };
 		BB433D456B5CF70AADD995A2 /* GeneralSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19EC56E2B7C399E6BF5ADA94 /* GeneralSection.swift */; };
@@ -185,6 +187,7 @@
 		9E059E24ADEB8ACBC1AE9096 /* BrowserToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserToolbar.swift; sourceTree = "<group>"; };
 		9E50D9C737FBBC708FF7A6F5 /* Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extension.swift; sourceTree = "<group>"; };
 		A0186DF6DCC0BD6FE9CA9574 /* Nimbus 2.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Nimbus 2.entitlements"; sourceTree = "<group>"; };
+		A21C381CEE03583B4CADE2DA /* ImportPreviewList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPreviewList.swift; sourceTree = "<group>"; };
 		A21CD08F98A42ACB20E40A27 /* Lints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lints.swift; sourceTree = "<group>"; };
 		A2E0EBD546A1309934BF1097 /* RemoteRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteRowTests.swift; sourceTree = "<group>"; };
 		A59C2F1C642178D0E5224A7D /* LaunchAtLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginService.swift; sourceTree = "<group>"; };
@@ -205,6 +208,7 @@
 		CE6352CE9D017F8C0445AE17 /* KeyboardCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardCoordinatorTests.swift; sourceTree = "<group>"; };
 		D2765A4CFF808628E32AA17B /* Nimbus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Nimbus.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D5EB7927C6E50511B15E82C3 /* Sidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sidebar.swift; sourceTree = "<group>"; };
+		D9424E2AE45C4242AFBB7A2D /* ImportRemoteRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportRemoteRow.swift; sourceTree = "<group>"; };
 		DB914ACBFE020C15E4BF90AB /* ConfirmCopySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmCopySheet.swift; sourceTree = "<group>"; };
 		DCD1239B19EFBC711BD3068F /* FileContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileContextMenu.swift; sourceTree = "<group>"; };
 		DD46B92F934C6AADF654A9BA /* NimbusError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NimbusError.swift; sourceTree = "<group>"; };
@@ -281,6 +285,8 @@
 				9514C974E975323DC538A60E /* ConfigForm.swift */,
 				8B919CAFBCBF7D878493B03F /* EditRemoteSheet.swift */,
 				2526A5E71E5C5ECDAD53597D /* ImportConfigSheet.swift */,
+				A21C381CEE03583B4CADE2DA /* ImportPreviewList.swift */,
+				D9424E2AE45C4242AFBB7A2D /* ImportRemoteRow.swift */,
 				807D46990D982B5DE50BE2BD /* ProviderPicker.swift */,
 				AF03C7B12F8D38C3F6E47381 /* RemoteRow.swift */,
 				23222C40A9098C836B111200 /* RemotesView.swift */,
@@ -720,6 +726,8 @@
 				B77CE9DC37BBD5AD88C123C4 /* FormSection.swift in Sources */,
 				BB433D456B5CF70AADD995A2 /* GeneralSection.swift in Sources */,
 				912BAC08F7745480EA5992B8 /* ImportConfigSheet.swift in Sources */,
+				B3DD7DD69B279684EA0D9497 /* ImportPreviewList.swift in Sources */,
+				B4C719D6E99C2E5961856594 /* ImportRemoteRow.swift in Sources */,
 				B59DB74E76B93E5440D76430 /* KeyboardCoordinator.swift in Sources */,
 				E5589C4F42939982895BEEDF /* LaunchAtLoginService.swift in Sources */,
 				C43A4C8EACB4C847D12E4E31 /* Lints.swift in Sources */,

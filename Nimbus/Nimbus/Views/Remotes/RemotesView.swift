@@ -47,7 +47,7 @@ struct RemotesView: View {
                 })
             }
             .sheet(isPresented: $showImportConfig) {
-                ImportConfigSheet(onComplete: {
+                ImportConfigSheet(onDismiss: {
                     Task { await viewModel?.loadRemotes() }
                 })
             }
