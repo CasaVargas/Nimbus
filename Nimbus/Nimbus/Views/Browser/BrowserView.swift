@@ -6,7 +6,9 @@ struct BrowserView: View {
     let remoteName: String
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(BookmarkStore.self) private var bookmarkStore
+    @Environment(TransferStore.self) private var transferStore
     @State private var viewModel: BrowserViewModel?
+    @State private var pendingCopy: CopyRequest?
 
     var body: some View {
         Group {
@@ -84,6 +86,9 @@ struct BrowserView: View {
                     onNewFolder: { viewModel.showNewFolderDialog = true },
                     onRefresh: { Task { await viewModel.loadFiles() } }
                 ))
+                .dropDestination(for: NimbusFileRef.self) { refs, _ in
+                    handleDrop(refs: refs, viewModel: viewModel)
+                }
             } else {
                 ProgressView("Loading...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -135,6 +140,55 @@ struct BrowserView: View {
                 viewModel?.renamingFile = nil
                 viewModel?.renameText = ""
             }
+        }
+        .sheet(item: $pendingCopy) { _ in
+            ConfirmCopySheet(request: $pendingCopy) { req in
+                Task {
+                    let coord = makeCoordinator()
+                    do {
+                        try await coord.apply(
+                            .crossRemote(items: req.items, sourceRemote: req.sourceRemote, target: req.target),
+                            conflictPolicy: req.conflictPolicy
+                        )
+                    } catch {
+                        Logger(subsystem: "app.casavargas.nimbus", category: "browser")
+                            .error("Cross-remote copy failed: \(String(describing: error))")
+                    }
+                }
+            }
+        }
+    }
+
+    private func makeCoordinator() -> DragDropCoordinator {
+        DragDropCoordinator(
+            transferStore: transferStore,
+            rclone: RcloneClientAdapter(client: daemon.client)
+        )
+    }
+
+    private func handleDrop(refs: [NimbusFileRef], viewModel: BrowserViewModel) -> Bool {
+        let coord = makeCoordinator()
+        let target = DropIntent.DropTarget(remote: remoteName, path: viewModel.path)
+        do {
+            let intent = try coord.resolve(drop: refs, onto: target)
+            switch intent {
+            case .crossRemote(let items, let sourceRemote, let resolvedTarget):
+                pendingCopy = CopyRequest(
+                    sourceRemote: sourceRemote,
+                    target: resolvedTarget,
+                    items: items
+                )
+                return true
+            case .withinRemote, .toFinder:
+                // Same-remote drops are handled inline by SwiftUI (move/copy via DnD chrome);
+                // Phase 1 doesn't implement in-browser within-remote drag operations beyond
+                // what the table/grid handle natively.
+                return false
+            }
+        } catch {
+            Logger(subsystem: "app.casavargas.nimbus", category: "browser")
+                .warning("Drop resolve error: \(String(describing: error))")
+            return false
         }
     }
 

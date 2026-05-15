@@ -24,6 +24,7 @@ struct Sidebar: View {
     @Binding var selection: SidebarItem?
     @Environment(BookmarkStore.self) private var bookmarkStore
     var onBookmarkSelected: ((String, String) -> Void)?
+    var onBookmarkDrop: ((_ refs: [NimbusFileRef], _ bookmark: FolderBookmark) -> Void)?
 
     var body: some View {
         List(selection: $selection) {
@@ -56,6 +57,10 @@ struct Sidebar: View {
                             Button("Remove Bookmark", role: .destructive) {
                                 bookmarkStore.removeBookmark(id: bookmark.id)
                             }
+                        }
+                        .dropDestination(for: NimbusFileRef.self) { refs, _ in
+                            onBookmarkDrop?(refs, bookmark)
+                            return true
                         }
                     }
                     .onMove { fromOffsets, toOffset in
