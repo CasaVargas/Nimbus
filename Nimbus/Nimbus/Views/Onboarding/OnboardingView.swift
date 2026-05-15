@@ -13,6 +13,9 @@ struct OnboardingView: View {
     @State private var mountsViewModel: MountsViewModel?
 
     private var hasRemotes: Bool { !remotes.isEmpty }
+    // Phase 2b: hasMounts reflects config presence, not actual mount state.
+    // Acceptable for the wedge flow (mount usually <2s); Phase 3 should
+    // gate this on mountManager.mountedIDs for accuracy.
     private var hasMounts: Bool { !mountStore.configs.isEmpty }
     private var canShowMountCard: Bool { hasRemotes }
     private var canShowDoneCard: Bool { hasRemotes && hasMounts }
@@ -50,6 +53,8 @@ struct OnboardingView: View {
                 await refreshRemotes()
             }
         }
+        // Onboarding only adds (never edits) configs, so .count is sufficient
+        // to detect new additions. Counting avoids requiring MountConfig: Equatable.
         .onChange(of: mountStore.configs.count) { _, _ in
             Task { await attemptAutoMount() }
         }
@@ -194,7 +199,12 @@ struct OnboardingView: View {
 
     private func attemptAutoMount() async {
         // If a new mount was added that isn't yet mounted, mount it now.
-        for config in mountStore.configs where !mountManager.mountedIDs.contains(config.id) {
+        // Filtering on inFlight as well closes the double-dispatch race where
+        // two overlapping .onChange tasks both pass the mountedIDs check before
+        // either has reached mountConfig's first suspension point.
+        for config in mountStore.configs
+            where !mountManager.mountedIDs.contains(config.id)
+               && !mountManager.inFlight.contains(config.id) {
             try? await mountManager.mountConfig(config)
         }
     }
