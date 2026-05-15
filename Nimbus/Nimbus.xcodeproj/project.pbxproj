@@ -40,7 +40,6 @@
 		4DBAB25E4B62DB8E0E86E49B /* EmptyStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98BCCBB2AD76F950F78233DE /* EmptyStateTests.swift */; };
 		4FA5B60B245C10D5BC4C3CDA /* FormSectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30338A429B08B2109735E495 /* FormSectionTests.swift */; };
 		51928D9ADBCC0691B3771981 /* BrowserViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84E656540BFE413CDECD552F /* BrowserViewModel.swift */; };
-		51B4C76F2CF8AA62AA83D4EC /* TransfersViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10777E1962C2F8AFC045DEB2 /* TransfersViewModel.swift */; };
 		53185BE42E73B300337515B4 /* MountConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5322BA5BF672E9A04097F109 /* MountConfiguration.swift */; };
 		591CB11FE3D80BAEE4C3C0AC /* AccessibilityAuditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C64BEDB5742B197BBB7C290D /* AccessibilityAuditTests.swift */; };
 		5C406B453B1A1567E325AEF5 /* BrowserToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E059E24ADEB8ACBC1AE9096 /* BrowserToolbar.swift */; };
@@ -144,7 +143,6 @@
 		0DC9150CFA4799141AFE8FCC /* RcloneClientAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RcloneClientAdapter.swift; sourceTree = "<group>"; };
 		0DD44EF54342043F83BC0D1B /* TransferStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferStore.swift; sourceTree = "<group>"; };
 		104F5462677686F8F07B0555 /* FileProviderExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FileProviderExtension.entitlements; sourceTree = "<group>"; };
-		10777E1962C2F8AFC045DEB2 /* TransfersViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransfersViewModel.swift; sourceTree = "<group>"; };
 		10A3816E1EC55E5657611B64 /* CopySyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopySyncView.swift; sourceTree = "<group>"; };
 		122FC43D9B9925959BF766EE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		14657C7B2112C65E41A648F4 /* ProgressMeter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressMeter.swift; sourceTree = "<group>"; };
@@ -558,7 +556,6 @@
 				7FCB9AC026693A5F56888FA5 /* CopySyncViewModel.swift */,
 				FF4CBB01D22517CB8878D768 /* MountsViewModel.swift */,
 				E054B9B81CE216542BE82F5F /* RemotesViewModel.swift */,
-				10777E1962C2F8AFC045DEB2 /* TransfersViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -789,7 +786,6 @@
 				457AAF26BB535EF79DC2B152 /* TransferSection.swift in Sources */,
 				13847A4076B6665A7D7772B5 /* TransferStore.swift in Sources */,
 				A0711627A70DE50CB302CBA1 /* TransfersView.swift in Sources */,
-				51B4C76F2CF8AA62AA83D4EC /* TransfersViewModel.swift in Sources */,
 				E3AB99E3E6035A1D4D8EAC43 /* Typography.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
