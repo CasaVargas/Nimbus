@@ -23,7 +23,7 @@ struct RemotesView: View {
                     // Only allow adding remotes once the daemon is reachable
                     .disabled(daemon.status != .connected)
                 }
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .secondaryAction) {
                     Button("Import Config", systemImage: "square.and.arrow.down") {
                         showImportConfig = true
                     }
