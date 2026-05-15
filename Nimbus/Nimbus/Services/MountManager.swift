@@ -2,6 +2,36 @@ import Foundation
 import Observation
 import os
 
+/// Test-friendly summary of an `NSFileProviderDomain`. `MountManager.refreshAll()`
+/// converts the OS type to this struct before passing to `reconcileFPDomains`
+/// so the reconciliation logic can be unit-tested without spinning up FP.
+struct FPDomainInfo: Equatable, Sendable {
+    let identifier: String
+    let displayName: String
+}
+
+/// Reconcile a snapshot of File Provider domains against the configured
+/// `.fileProvider` mounts. Domains whose identifier matches a config's
+/// `id` get added to `mountedIDs`. Configs without a matching domain are
+/// reported via `logger` (not auto-recreated — that's a different flow).
+///
+/// Pure function: testable without an `NSFileProviderManager` dependency.
+func reconcileFPDomains(
+    _ domains: [FPDomainInfo],
+    configs: [MountConfig],
+    mountedIDs: inout Set<String>,
+    logger: (String) -> Void
+) {
+    for domain in domains {
+        if let config = configs.first(where: { $0.id == domain.identifier }) {
+            mountedIDs.insert(config.id)
+        }
+    }
+    for config in configs where !domains.contains(where: { $0.identifier == config.id }) {
+        logger("FP config \(config.id) has no matching domain; not auto-recreating")
+    }
+}
+
 struct ActiveMount: Identifiable, Sendable {
     let id: String
     let remote: String
