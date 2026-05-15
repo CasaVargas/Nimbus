@@ -31,47 +31,11 @@ struct FileTable: View {
 
     var body: some View {
         Table(files, selection: tableSelectionBinding) {
-            TableColumn("") { file in
-                CloudStatusColumn(file: file, remote: remote)
-                    .accessibilityLabel("Cloud status")
-            }
-            .width(28)
-
             TableColumn("Name") { file in
-                HStack(spacing: DesignSystem.Spacing.s) {
-                    Image(systemName: file.isDir ? "folder.fill" : iconName(for: file.name))
-                        .foregroundStyle(file.isDir
-                                         ? DesignSystem.Color.semantic.statusInfo
-                                         : DesignSystem.Color.semantic.textSecondary)
-                    Text(file.name)
-                        .font(DesignSystem.Typography.body)
-                        .lineLimit(1)
-                }
-                .contentShape(Rectangle())
-                .draggable(bundle(for: file)) {
-                    dragPreview(for: file)
-                }
+                FileRowView(file: file, remote: remote,
+                            isSelected: selection.ids.contains(file.id))
+                    .draggable(bundle(for: file)) { dragPreview(for: file) }
             }
-
-            TableColumn("Size") { file in
-                Text(file.isDir ? "--" : formatSize(file.size))
-                    .font(DesignSystem.Typography.callout)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-            }
-            .width(ideal: 80)
-
-            TableColumn("Modified") { file in
-                if let date = file.modTime {
-                    Text(date, style: .date)
-                        .font(DesignSystem.Typography.callout)
-                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-                } else {
-                    Text("--")
-                        .font(DesignSystem.Typography.callout)
-                        .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
-                }
-            }
-            .width(ideal: 120)
         }
         .contextMenu(forSelectionType: String.self) { ids in
             if let id = ids.first, let file = files.first(where: { $0.id == id }) {
@@ -83,9 +47,7 @@ struct FileTable: View {
             }
         }
         .focusable(true)
-        .onKeyPress(phases: .down) { press in
-            handleKey(press: press)
-        }
+        .onKeyPress(phases: .down) { press in handleKey(press: press) }
     }
 
     private func handleKey(press: KeyPress) -> KeyPress.Result {
@@ -142,7 +104,7 @@ struct FileTable: View {
     private func dragPreview(for file: FileItem) -> some View {
         let count = max(1, selection.ids.count)
         ZStack(alignment: .topTrailing) {
-            Image(systemName: file.isDir ? "folder.fill" : iconName(for: file.name))
+            Image(systemName: file.isDir ? "folder.fill" : FileRowView.iconName(for: file.name))
                 .font(DesignSystem.Typography.largeTitle)
                 .foregroundStyle(DesignSystem.Color.semantic.statusInfo)
             if count > 1 {
@@ -157,22 +119,4 @@ struct FileTable: View {
         .padding(DesignSystem.Spacing.s)
     }
 
-    private func iconName(for filename: String) -> String {
-        let ext = (filename as NSString).pathExtension.lowercased()
-        switch ext {
-        case "pdf": return "doc.fill"
-        case "jpg", "jpeg", "png", "gif", "heic": return "photo"
-        case "mp4", "mov", "avi": return "film"
-        case "mp3", "wav", "aac": return "music.note"
-        case "zip", "tar", "gz": return "archivebox"
-        case "txt", "md": return "doc.text"
-        default: return "doc"
-        }
-    }
-
-    private func formatSize(_ bytes: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: bytes)
-    }
 }

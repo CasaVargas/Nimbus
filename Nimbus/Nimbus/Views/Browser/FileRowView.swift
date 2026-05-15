@@ -1,0 +1,97 @@
+import SwiftUI
+import RcloneKit
+
+/// Single Browser row, extracted verbatim from the FileTable column
+/// closures so it can be hosted inside an AppKit NSTableView cell
+/// (Phase 2d) while remaining the single source of truth for row
+/// appearance. Fixed-height; no self-sizing (avoids NSHostingView /
+/// NSTableView autolayout thrash).
+struct FileRowView: View {
+    let file: FileItem
+    let remote: String
+    let isSelected: Bool
+
+    static let rowHeight: CGFloat = 24
+
+    var body: some View {
+        HStack(spacing: DesignSystem.Spacing.s) {
+            CloudStatusColumn(file: file, remote: remote)
+                .frame(width: 28)
+                .accessibilityLabel("Cloud status")
+
+            Image(systemName: file.isDir ? "folder.fill" : Self.iconName(for: file.name))
+                .foregroundStyle(file.isDir
+                                 ? DesignSystem.Color.semantic.statusInfo
+                                 : DesignSystem.Color.semantic.textSecondary)
+
+            Text(file.name)
+                .font(DesignSystem.Typography.body)
+                .lineLimit(1)
+                .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+
+            Spacer(minLength: DesignSystem.Spacing.m)
+
+            Text(file.isDir ? "--" : Self.formatSize(file.size))
+                .font(DesignSystem.Typography.callout)
+                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                .frame(width: 80, alignment: .trailing)
+
+            Group {
+                if let date = file.modTime {
+                    Text(date, style: .date)
+                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                } else {
+                    Text("--")
+                        .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                }
+            }
+            .font(DesignSystem.Typography.callout)
+            .frame(width: 120, alignment: .leading)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.s)
+        .frame(height: Self.rowHeight)
+        .contentShape(Rectangle())
+        .background(
+            isSelected
+            ? DesignSystem.Color.semantic.accent.opacity(0.18)
+            : Color.clear
+        )
+    }
+
+    static func iconName(for filename: String) -> String {
+        let ext = (filename as NSString).pathExtension.lowercased()
+        switch ext {
+        case "pdf": return "doc.fill"
+        case "jpg", "jpeg", "png", "gif", "heic": return "photo"
+        case "mp4", "mov", "avi": return "film"
+        case "mp3", "wav", "aac": return "music.note"
+        case "zip", "tar", "gz": return "archivebox"
+        case "txt", "md": return "doc.text"
+        default: return "doc"
+        }
+    }
+
+    static func formatSize(_ bytes: Int64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: bytes)
+    }
+}
+
+#Preview {
+    VStack(spacing: 0) {
+        FileRowView(
+            file: FileItem(path: "/a/folder", name: "Documents", size: 0,
+                           mimeType: "public.folder", modTime: Date(), isDir: true,
+                           fileID: nil, qualifiedRemotePath: "r:/a/folder"),
+            remote: "r", isSelected: false
+        )
+        FileRowView(
+            file: FileItem(path: "/a/report.pdf", name: "report.pdf", size: 1_400_000,
+                           mimeType: "application/pdf", modTime: Date(), isDir: false,
+                           fileID: nil, qualifiedRemotePath: "r:/a/report.pdf"),
+            remote: "r", isSelected: true
+        )
+    }
+    .frame(width: 520)
+}
