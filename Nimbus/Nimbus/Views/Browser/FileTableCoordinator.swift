@@ -11,7 +11,9 @@ import UniformTypeIdentifiers
 @MainActor
 final class FileTableCoordinator: NSObject {
     // Inputs, refreshed by FileTableRepresentable.updateNSView.
-    var files: [FileItem] = []
+    var files: [FileItem] = [] {
+        didSet { rebuildRowIndex() }
+    }
     var remote: String = ""
     let selection: Selection<String>
     let keyboard: KeyboardCoordinator
@@ -24,6 +26,19 @@ final class FileTableCoordinator: NSObject {
 
     /// Guards the SwiftUI→AppKit→SwiftUI selection echo loop.
     private var isApplyingSelection = false
+
+    /// Reverse index id → row, rebuilt on every `files` assignment so
+    /// `row(forID:)` is O(1). Without this, syncTableSelectionFromModel
+    /// is O(selected × n) and select-all on a 10k dir blows the pillar-4
+    /// 200ms budget by ~10×.
+    private var rowIndexByID: [String: Int] = [:]
+
+    private func rebuildRowIndex() {
+        rowIndexByID = Dictionary(
+            files.enumerated().map { ($1.id, $0) },
+            uniquingKeysWith: { first, _ in first }   // FileItem.id should be unique; keep first defensively
+        )
+    }
 
     init(
         selection: Selection<String>,
@@ -45,18 +60,32 @@ final class FileTableCoordinator: NSObject {
     private func file(atRow row: Int) -> FileItem? {
         files.indices.contains(row) ? files[row] : nil
     }
-    private func row(forID id: String) -> Int? {
-        files.firstIndex(where: { $0.id == id })
-    }
+    private func row(forID id: String) -> Int? { rowIndexByID[id] }
 
     /// Push the current Selection.ids into the NSTableView selection.
-    /// Called after updateNSView and after keyboard-driven changes.
+    /// Called after keyboard-driven / type-to-select changes. NOTE: this
+    /// does NOT reload the table — for a reload, Task 6's updateNSView
+    /// MUST call `reloadPreservingSelection()` instead of touching the
+    /// table directly, otherwise reloadData()'s selection-cleared
+    /// notification can wipe the model selection.
     func syncTableSelectionFromModel() {
         guard let tableView else { return }
         isApplyingSelection = true
         defer { isApplyingSelection = false }
         let indexes = IndexSet(selection.ids.compactMap { row(forID: $0) })
         tableView.selectRowIndexes(indexes, byExtendingSelection: false)
+    }
+
+    /// Reload the table and restore the model selection atomically. Brackets
+    /// the whole operation in isApplyingSelection so reloadData()'s internal
+    /// selection-cleared notification doesn't wipe the model. Task 6's
+    /// updateNSView MUST call this, not tableView.reloadData() directly.
+    func reloadPreservingSelection() {
+        isApplyingSelection = true
+        defer { isApplyingSelection = false }
+        tableView?.reloadData()
+        let indexes = IndexSet(selection.ids.compactMap { row(forID: $0) })
+        tableView?.selectRowIndexes(indexes, byExtendingSelection: false)
     }
 }
 
@@ -181,7 +210,7 @@ extension FileTableCoordinator: FileTableKeyResponding {
     private func moveSelection(down: Bool, extend: Bool) {
         guard !files.isEmpty else { return }
         let order = ordering
-        let currentID = selection.anchor ?? (down ? order.last : order.first)
+        let currentID = selection.anchor ?? (down ? order.first : order.last)
         let currentIdx = currentID.flatMap { order.firstIndex(of: $0) } ?? 0
         let nextIdx = max(0, min(order.count - 1, currentIdx + (down ? 1 : -1)))
         let targetID = order[nextIdx]
