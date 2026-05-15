@@ -13,8 +13,8 @@ import os
 protocol FileProviderBridgeProtocol: AnyObject {
     func isRegistered(remote: String) -> Bool
     func urlForItem(remote: String, path: String) async -> URL?
-    func isItemMaterialized(remote: String, path: String) -> Bool
-    func wasRecentlyEvicted(remote: String, path: String) -> Bool
+    func isItemMaterialized(remote: String, path: String) async -> Bool
+    func wasRecentlyEvicted(remote: String, path: String) async -> Bool
 }
 
 @MainActor @Observable
@@ -22,6 +22,11 @@ final class FileProviderBridge {
     private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "fileprovider")
     private static let appGroupID = "group.app.casavargas.nimbus"
     private(set) var activeDomains: Set<String> = []
+
+    /// Per-domain cache of basenames currently materialized to the FP cache.
+    /// The materialized enumerator is domain-wide, not folder-scoped, so we
+    /// key by remote only. TTL = 5s to avoid hammering FP on every scroll.
+    private let materializedCache = TimedCache<String, Set<String>>(ttl: .seconds(5))
 
     func refreshDomains() async {
         do {
@@ -168,16 +173,103 @@ extension FileProviderBridge: FileProviderBridgeProtocol {
         return rootURL.appendingPathComponent(trimmed)
     }
 
-    /// Phase 1 stub: real File Provider materialization state requires async
-    /// `NSFileProviderManager` enumeration. Defaulting to `false` so all
-    /// non-FP-cached files render as `.cloud`.
-    func isItemMaterialized(remote: String, path: String) -> Bool {
+    /// Query whether the (remote, path) item has been materialized to the
+    /// local File Provider cache. Walks the domain's
+    /// `enumeratorForMaterializedItems` and caches the resulting set of
+    /// basenames per-domain for 5 seconds.
+    ///
+    /// Limitation: `NSFileProviderItem` exposes `filename` + opaque
+    /// `parentItemIdentifier` but no full path. Walking the parent chain
+    /// for every item would be expensive and the identifiers are
+    /// extension-internal. We match on basename, which means two distinct
+    /// paths within the same remote that share a filename will both
+    /// report `true` if either is materialized. Accepted approximation
+    /// for a non-critical badge surface.
+    func isItemMaterialized(remote: String, path: String) async -> Bool {
+        if let cached = materializedCache.value(for: remote) {
+            return cached.contains((path as NSString).lastPathComponent)
+        }
+        let names = await loadMaterializedBasenames(remote: remote)
+        materializedCache.store(names, for: remote)
+        return names.contains((path as NSString).lastPathComponent)
+    }
+
+    /// File Provider does not expose an evicted-items enumerator on
+    /// macOS 26 / iOS 18 (only materialized + pending sets exist). True
+    /// eviction tracking would require a previous-snapshot diff that's
+    /// out of scope here. Returns `false` so paths render as `.cloud`
+    /// instead of `.evicted` — the badge surface degrades gracefully.
+    // TODO Phase 3: track materialized-set transitions to surface evicted state.
+    func wasRecentlyEvicted(remote _: String, path _: String) async -> Bool {
         false
     }
 
-    /// Phase 1 stub: real recently-evicted tracking is FP-specific and
-    /// out of scope for Phase 1.
-    func wasRecentlyEvicted(remote: String, path: String) -> Bool {
-        false
+    private func loadMaterializedBasenames(remote: String) async -> Set<String> {
+        let domain = NSFileProviderDomain(
+            identifier: NSFileProviderDomainIdentifier(rawValue: remote),
+            displayName: remote
+        )
+        guard let manager = NSFileProviderManager(for: domain) else {
+            return []
+        }
+        let enumerator = manager.enumeratorForMaterializedItems()
+        var collected: Set<String> = []
+        var page = NSFileProviderPage(rawValue: Data())
+        // Hard cap on pages to bound the walk if a misbehaving extension
+        // returns a non-nil next page forever. The cache TTL refreshes
+        // truncated results within 5s of any FP-set change anyway.
+        for _ in 0..<32 {
+            let (names, next) = await enumeratePage(enumerator: enumerator, startingAt: page)
+            collected.formUnion(names)
+            guard let next else { break }
+            page = next
+        }
+        return collected
+    }
+
+    private func enumeratePage(
+        enumerator: any NSFileProviderEnumerator,
+        startingAt page: NSFileProviderPage
+    ) async -> (Set<String>, NSFileProviderPage?) {
+        await withCheckedContinuation { continuation in
+            let observer = MaterializationObserver { names, next in
+                continuation.resume(returning: (names, next))
+            }
+            enumerator.enumerateItems(for: observer, startingAt: page)
+        }
+    }
+}
+
+/// Collects basenames from one page of an `NSFileProviderEnumerator`.
+/// The framework invokes `didEnumerate` zero or more times then exactly
+/// one of `finishEnumerating(upTo:)` or `finishEnumeratingWithError`.
+/// We resume the continuation on whichever terminal callback fires —
+/// errors are treated as an empty result with no next page so the
+/// cache doesn't hold a broken state forever and the page loop stops.
+private final class MaterializationObserver: NSObject, NSFileProviderEnumerationObserver, @unchecked Sendable {
+    private let completion: (Set<String>, NSFileProviderPage?) -> Void
+    private var collected: Set<String> = []
+    private var finished = false
+
+    init(completion: @escaping (Set<String>, NSFileProviderPage?) -> Void) {
+        self.completion = completion
+    }
+
+    func didEnumerate(_ updatedItems: [any NSFileProviderItem]) {
+        for item in updatedItems {
+            collected.insert(item.filename)
+        }
+    }
+
+    func finishEnumerating(upTo nextPage: NSFileProviderPage?) {
+        guard !finished else { return }
+        finished = true
+        completion(collected, nextPage)
+    }
+
+    func finishEnumeratingWithError(_: any Error) {
+        guard !finished else { return }
+        finished = true
+        completion(collected, nil)
     }
 }
