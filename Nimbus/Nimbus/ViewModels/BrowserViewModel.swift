@@ -13,12 +13,22 @@ enum SortField: String, CaseIterable {
     case modified = "Modified"
 }
 
+struct BrowserError: Equatable {
+    enum Kind: Equatable {
+        case authFailed
+        case offline
+        case other
+    }
+    let kind: Kind
+    let message: String
+}
+
 @Observable
 @MainActor
 final class BrowserViewModel {
     private(set) var files: [FileItem] = []
     private(set) var isLoading = false
-    private(set) var error: String?
+    private(set) var error: BrowserError?
 
     var remote: String = ""
     var path: String = ""
@@ -125,8 +135,20 @@ final class BrowserViewModel {
             files = qualifiedFiles
             cache[cacheKey] = qualifiedFiles
         } catch {
-            self.error = error.localizedDescription
+            self.error = classifyError(error)
         }
+    }
+
+    private func classifyError(_ error: Error) -> BrowserError {
+        let message = error.localizedDescription
+        let lower = message.lowercased()
+        if lower.contains("auth") || lower.contains("unauthorized") || lower.contains("token") || lower.contains("sign in") {
+            return BrowserError(kind: .authFailed, message: message)
+        }
+        if lower.contains("network") || lower.contains("connection") || lower.contains("offline") || lower.contains("reach") {
+            return BrowserError(kind: .offline, message: message)
+        }
+        return BrowserError(kind: .other, message: message)
     }
 
     func navigateTo(path newPath: String) async {

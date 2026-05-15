@@ -18,14 +18,16 @@ struct BrowserView: View {
 
                     Divider()
 
-                    if viewModel.isLoading && viewModel.files.isEmpty {
-                        ProgressView("Loading...")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if let error = viewModel.error {
+                        errorState(for: error, viewModel: viewModel)
+                    } else if viewModel.isLoading && viewModel.files.isEmpty {
+                        skeletonRows
                     } else if viewModel.files.isEmpty {
-                        ContentUnavailableView(
-                            "Empty Folder",
-                            systemImage: "folder",
-                            description: Text("This folder has no files.")
+                        EmptyState(
+                            icon: "folder",
+                            title: "Empty Folder",
+                            message: "Drop files here or use ⌘N to create a folder.",
+                            action: .init(label: "New Folder", perform: { viewModel.showNewFolderDialog = true })
                         )
                     } else {
                         switch viewModel.viewMode {
@@ -237,6 +239,68 @@ struct BrowserView: View {
         case .evict:
             // Will use NSFileProviderManager when wired up
             break
+        }
+    }
+
+    private var skeletonRows: some View {
+        VStack(spacing: 0) {
+            ForEach(0..<8, id: \.self) { _ in
+                HStack(spacing: DesignSystem.Spacing.s) {
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xs)
+                        .fill(DesignSystem.Color.semantic.surfaceSubtle)
+                        .frame(width: 16, height: 16)
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xs)
+                        .fill(DesignSystem.Color.semantic.surfaceSubtle)
+                        .frame(height: 12)
+                    Spacer()
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xs)
+                        .fill(DesignSystem.Color.semantic.surfaceSubtle)
+                        .frame(width: 60, height: 10)
+                }
+                .padding(.horizontal, DesignSystem.Spacing.m)
+                .padding(.vertical, DesignSystem.Spacing.xs)
+                .redacted(reason: .placeholder)
+            }
+            Spacer()
+        }
+        .shimmering()
+        .accessibilityLabel("Loading folder contents")
+    }
+
+    @ViewBuilder
+    private func errorState(for error: BrowserError, viewModel: BrowserViewModel) -> some View {
+        switch error.kind {
+        case .authFailed:
+            EmptyState(
+                icon: "key.slash",
+                title: "Sign In Required",
+                message: LocalizedStringKey("\(remoteName): \(error.message)"),
+                action: .init(label: "Reconnect Remote", perform: {
+                    // Navigate to Remotes screen — implementation can hook into a
+                    // navigation environment value if one exists; for Phase 1, a
+                    // simple no-op + log is acceptable.
+                    Logger(subsystem: "app.casavargas.nimbus", category: "browser")
+                        .info("Reconnect Remote tapped for \(remoteName)")
+                })
+            )
+        case .offline:
+            EmptyState(
+                icon: "wifi.slash",
+                title: "Can't Reach Cloud",
+                message: LocalizedStringKey(error.message),
+                action: .init(label: "Retry", perform: {
+                    Task { await viewModel.loadFiles() }
+                })
+            )
+        case .other:
+            EmptyState(
+                icon: "exclamationmark.triangle",
+                title: "Couldn't Load Folder",
+                message: LocalizedStringKey(error.message),
+                action: .init(label: "Retry", perform: {
+                    Task { await viewModel.loadFiles() }
+                })
+            )
         }
     }
 }
