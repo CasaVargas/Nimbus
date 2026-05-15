@@ -19,8 +19,8 @@ Records the state of Phase 2b's exit gates at the time of merge readiness. Per t
 | View migrations — Onboarding | `OnboardingView` rebuilt as progressive card stack | ✅ | `OnboardingView` rebuilt around four `OnboardingCard` instances with 4-state machine; auto-mount `.onChange` pipeline added |
 | View migrations — Settings (6 panes) | All six `*Section` views rebuilt against `FormSection` | ✅ | `GeneralSection`, `AppearanceSection`, `TransferSection`, `RcloneSection`, `StorageUsageView`, `AboutSection` all rebuilt; window resized to 520×360 |
 | View migrations — CopySync | `CopySyncView` rebuilt with `FormSection` + `DestructiveCallout` | ✅ | Source, destination, operation, flags all in `FormSection`; `DestructiveCallout` used for overwrite-flag warning |
-| View migrations — PathPicker | Rebuilt as `FormRow`-compatible | ✅ | `PathPicker` rebuilt as a `FormRow`-style control with `NSOpenPanel` under the hood |
-| ViewModel migrations — `CopySyncViewModel.error` ownership refactor | `private(set) var` + `clearError()` + `startOperation` is `async` (not `async throws`) | ✅ | `error` is `private(set) var lastError: String?`; `clearError()` resets it; `startOperation` catches internally and assigns `lastError` rather than throwing |
+| View migrations — PathPicker | Rebuilt as `FormRow`-compatible | ✅ | `PathPicker` rebuilt as a `FormRow` containing a remote-name `Picker` (with `"Choose…"` placeholder tag) and a free-text path `TextField` (disabled until a remote is selected) |
+| ViewModel migrations — `CopySyncViewModel.error` ownership refactor | `private(set) var` + `clearError()` + `startOperation` is `async` (not `async throws`) | ✅ | `error: String?` stays `private(set)`; `clearError()` resets it; `startOperation` catches internally and assigns `error` rather than throwing |
 | Full test suite | ≥ 87 tests, 0 failures | ✅ | **87 tests in 17 suites passed after 1.037 seconds** (was 82 baseline; +5 in Phase 2b) |
 | Build-time lints green | Zero `.system(size:)`, zero remote SPM deps | ✅ | `lint-no-system-size: OK`, `lint-package-resolved: no Package.resolved (no remote SPM deps) — OK` |
 | `Package.resolved` unchanged | No new SPM deps | ✅ | No `Package.resolved` file exists; no remote SPM deps added |
@@ -34,9 +34,9 @@ Records the state of Phase 2b's exit gates at the time of merge readiness. Per t
 |------|--------|-------|
 | HIG side-by-side — Onboarding ↔ macOS Setup Assistant | ⏳ User to verify | `OnboardingCard` uses a centered card-stack layout with system SF Symbols, `.largeTitle` typography, and native `Button` controls. Progressive disclosure matches Setup Assistant's single-step-at-a-time cadence. No custom navigation chrome — cards reveal sequentially via state transitions. |
 | HIG side-by-side — Settings ↔ macOS Mail Preferences | ⏳ User to verify | All six Settings panes use `FormSection` (matching System Settings preference-form style). `GeneralSection` uses `Toggle(.switch)` for Launch at Login. `AppearanceSection` uses `Picker(.segmented)` for Appearance. `TransferSection` uses `TextField` + `Stepper` for numeric limits. `RcloneSection` uses a file-path `TextField` + Browse button. No custom segmented controls or checkboxes. |
-| HIG side-by-side — CopySync ↔ Pages Export | ⏳ User to verify | `CopySyncView` uses `FormSection` (three sections: Source, Destination, Options). `DestructiveCallout` surfaces the overwrite-flag warning inline in the form — matching the Pages Export destructive-action pattern. `PathPicker` uses native `NSOpenPanel`. No modal interruptions for the happy path. |
-| Two-minute walkthrough — zero non-native moments | ⏳ User to verify | All Phase 2b primitives are native: `OnboardingCard` state machine uses `withAnimation(.spring)`, native `Button`, native `ProgressView`. Settings panes use all-native controls. `DestructiveCallout` uses `.callout` color + `.destructiveAction` button role. No custom capsule toggles, no third-party UI. |
-| All four design pillars hold for the 3 screens | ⏳ User to verify | **Native-or-nothing:** No third-party UI deps; all controls are system-provided. **Finder-grade interaction:** `PathPicker` uses `NSOpenPanel`; `CopySyncView` toolbar validates before running. **Utility-app rigor:** `OnboardingCard` / `FormSection` / `DestructiveCallout` / `PathPicker` primitives consistent across screens. **Performance is a feature:** Onboarding daemon card auto-progresses without polling; no new timers introduced. |
+| HIG side-by-side — CopySync ↔ Pages Export | ⏳ User to verify | `CopySyncView` uses `FormSection` (Operation + Paths). `DestructiveCallout` surfaces the Sync-mode warning inline in the form — matching the Pages Export destructive-action pattern. `PathPicker` is `Picker` (remote name) + `TextField` (path). No modal interruptions for the happy path. |
+| Two-minute walkthrough — zero non-native moments | ⏳ User to verify | All Phase 2b primitives are native: `OnboardingCard` state transitions use `withAnimation(DesignSystem.Motion.smooth)`, native `Button`, native `ProgressView`. Settings panes use all-native controls. `DestructiveCallout` is a passive HStack with a `statusWarning`-tinted background — no button. No custom capsule toggles, no third-party UI. |
+| All four design pillars hold for the 3 screens | ⏳ User to verify | **Native-or-nothing:** No third-party UI deps; all controls are system-provided. **Finder-grade interaction:** `RcloneSection` Choose Binary uses native `.fileImporter`; `CopySyncView` Run button validates before firing. **Utility-app rigor:** `OnboardingCard` / `FormSection` / `DestructiveCallout` / `PathPicker` primitives consistent across screens. **Performance is a feature:** Onboarding daemon card auto-progresses without polling; no new timers introduced. |
 
 ## Wedge demo
 
@@ -65,9 +65,9 @@ End-to-end first-launch flow — ≤ 90 seconds setup-to-mount:
 - ✅ `StorageUsageView` — Cache usage display + real **Clear Cache** implementation; `FormSection` layout
 - ✅ `AboutSection` — Centered chrome-less layout with app icon, version, copyright, and links
 - ✅ `CopySyncView` — Full rebuild: source/destination `PathPicker`, operation picker, flags, `DestructiveCallout` for overwrite warning
-- ✅ `PathPicker` — `FormRow`-compatible file-path picker backed by `NSOpenPanel`
-- ✅ `DestructiveCallout` — Inline warning primitive for destructive-action confirmation
-- ✅ `CopySyncViewModel` — `error` ownership refactor: `private(set) var lastError: String?` + `clearError()` + `startOperation` is `async` (catches internally)
+- ✅ `PathPicker` — `FormRow` containing a remote-name `Picker` + free-text path `TextField` (disabled until a remote is selected)
+- ✅ `DestructiveCallout` — Inline warning HStack (statusWarning triangle + caption + tinted background); file-private to `CopySyncView.swift`, no button
+- ✅ `CopySyncViewModel` — `error` ownership refactor: `private(set) var error: String?` + `clearError()` + `startOperation` is `async` (catches internally)
 
 ## Test suite snapshot
 
@@ -117,6 +117,7 @@ These were deferred by spec or surfaced during implementation; they do not block
 - **`OnboardingCard` snapshot of `.inProgress` state** captures a static prohibited-sign glyph instead of an animating spinner — a known macOS `ImageRenderer` limitation with `ProgressView`. Documented; not a defect.
 - **`isValid` in `CopySyncView`** doesn't guard `viewModel != nil`. Safe today because the empty `remoteNames` array prevents the user from selecting a remote, but fragile if `PathPicker` ever gains free-text input. Add `viewModel != nil` to the `isValid` guard in a follow-up.
 - **Magic literal `frame(maxHeight: 160)` on the CopySync error `EmptyState`** — no `DesignSystem` token corresponds. Cosmetic.
+- **`OnboardingView` wraps runtime strings in `LocalizedStringKey(...)`** at three call sites: `LocalizedStringKey("Connected to \(remotes.first ?? ...)")` (`OnboardingView.swift:131`), `LocalizedStringKey("Mounted at \(firstMountPath).")` (`OnboardingView.swift:148`), and `LocalizedStringKey(message)` for the daemon error case (`OnboardingView.swift:163`). Same anti-pattern as the existing `ConfigForm.LocalizedStringKey(runtime-string)` carry-forward. Fix: widen `OnboardingCard.message` to support a verbatim variant (mirror `EmptyState.messageVerbatim`) and switch these call sites over.
 
 ### Phase 2a / Phase 1 carry-forwards (still open)
 
