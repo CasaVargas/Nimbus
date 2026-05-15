@@ -12,51 +12,33 @@ struct CopySyncView: View {
     @State private var dstRemote = ""
     @State private var dstPath = ""
     @State private var isRunning = false
-    @State private var error: String?
 
     var body: some View {
-        Form {
-            Picker("Operation", selection: $operation) {
-                Text("Copy").tag(TransferOperation.copy)
-                Text("Sync").tag(TransferOperation.sync)
+        ScrollView {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.l) {
+                operationSection
+                if operation == .sync {
+                    DestructiveCallout(
+                        message: "Sync will make the destination identical to the source. Files in the destination not in the source will be deleted."
+                    )
+                }
+                pathsSection
+                if let error = viewModel?.error {
+                    EmptyState(
+                        icon: "exclamationmark.triangle",
+                        title: "Couldn't start",
+                        messageVerbatim: error,
+                        action: .init(label: "Dismiss", perform: { viewModel?.clearError() })
+                    )
+                    .frame(maxHeight: 160)
+                }
+                runRow
             }
-            .pickerStyle(.segmented)
-
-            if operation == .sync {
-                Text("Sync will make the destination identical to the source. Files in the destination that don't exist in the source will be deleted.")
-                    .font(.callout)
-                    .foregroundStyle(.orange)
-            }
-
-            if let remotes = viewModel?.remoteNames {
-                PathPicker(
-                    label: "Source",
-                    remoteNames: remotes,
-                    selectedRemote: $srcRemote,
-                    path: $srcPath
-                )
-
-                PathPicker(
-                    label: "Destination",
-                    remoteNames: remotes,
-                    selectedRemote: $dstRemote,
-                    path: $dstPath
-                )
-            }
-
-            if let error {
-                Text(error)
-                    .foregroundStyle(.red)
-            }
-
-            Button(operation == .copy ? "Start Copy" : "Start Sync") {
-                Task { await startOperation() }
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(srcRemote.isEmpty || dstRemote.isEmpty || isRunning)
+            .padding(DesignSystem.Spacing.xl)
+            .frame(maxWidth: 720)
         }
-        .padding()
         .navigationTitle("Copy / Sync")
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: daemon.status) {
             guard daemon.status == .connected else { return }
             if viewModel == nil {
@@ -66,23 +48,97 @@ struct CopySyncView: View {
         }
     }
 
-    private func startOperation() async {
+    private var operationSection: some View {
+        FormSection(title: "Operation", footer: nil) {
+            FormRow(label: "Mode", help: nil) {
+                Picker("", selection: $operation) {
+                    Text("Copy").tag(TransferOperation.copy)
+                    Text("Sync").tag(TransferOperation.sync)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 200)
+            }
+        }
+    }
+
+    private var pathsSection: some View {
+        FormSection(title: "Paths", footer: nil) {
+            PathPicker(
+                label: "Source",
+                remoteNames: viewModel?.remoteNames ?? [],
+                selectedRemote: $srcRemote,
+                path: $srcPath
+            )
+            PathPicker(
+                label: "Destination",
+                remoteNames: viewModel?.remoteNames ?? [],
+                selectedRemote: $dstRemote,
+                path: $dstPath
+            )
+        }
+    }
+
+    private var runRow: some View {
+        HStack {
+            Spacer()
+            Button(isRunning ? "Running…" : "Run") {
+                Task { await run() }
+            }
+            .keyboardShortcut(.defaultAction)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(!isValid || isRunning)
+        }
+    }
+
+    private var isValid: Bool {
+        !srcRemote.isEmpty && !dstRemote.isEmpty
+    }
+
+    private func run() async {
+        guard let viewModel else { return }
         isRunning = true
-        error = nil
         defer { isRunning = false }
 
         let srcFs = srcPath.isEmpty ? "\(srcRemote):" : "\(srcRemote):\(srcPath)"
         let dstFs = dstPath.isEmpty ? "\(dstRemote):" : "\(dstRemote):\(dstPath)"
 
-        do {
-            try await viewModel?.startOperation(
-                operation: operation,
-                srcFs: srcFs,
-                dstFs: dstFs,
-                store: store
-            )
-        } catch {
-            self.error = error.localizedDescription
-        }
+        await viewModel.startOperation(
+            operation: operation,
+            srcFs: srcFs,
+            dstFs: dstFs,
+            store: store
+        )
     }
+}
+
+/// File-private destructive-action callout. Used only by CopySyncView to warn
+/// users that `Sync` deletes destination-only files. Intentionally not extracted
+/// to `Components/` — no other screen currently needs this affordance.
+private struct DestructiveCallout: View {
+    let message: LocalizedStringKey
+
+    var body: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.s) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(DesignSystem.Color.semantic.statusWarning)
+            Text(message)
+                .font(DesignSystem.Typography.caption)
+                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+            Spacer()
+        }
+        .padding(DesignSystem.Spacing.m)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                .fill(DesignSystem.Color.semantic.statusWarning.opacity(0.10))
+        )
+    }
+}
+
+#Preview {
+    CopySyncView()
+        .environment(RcloneDaemon())
+        .environment(TransferStore())
+        .frame(width: 720, height: 540)
 }

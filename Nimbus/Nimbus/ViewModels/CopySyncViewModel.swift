@@ -22,25 +22,39 @@ final class CopySyncViewModel {
         }
     }
 
+    /// Clears the most-recent error so the inline EmptyState banner can be
+    /// dismissed without re-issuing the failing request.
+    func clearError() {
+        error = nil
+    }
+
+    /// Starts a copy/sync. Owns its own error state so the view can render a
+    /// single VM-driven banner (cleared via `clearError()`) instead of
+    /// juggling a separate `@State` error string.
     func startOperation(
         operation: TransferOperation,
         srcFs: String,
         dstFs: String,
         store: TransferStore
-    ) async throws {
-        let jobId: Int
-        switch operation {
-        case .copy:
-            jobId = try await client.copy(srcFs: srcFs, dstFs: dstFs)
-        case .sync:
-            jobId = try await client.sync(srcFs: srcFs, dstFs: dstFs)
-        case .move:
-            // The Copy/Sync screen UI doesn't expose move; it's used by
-            // `DragDropCoordinator` for within-remote drag-and-drop. Guard
-            // against future misuse rather than silently mapping to copy.
-            assertionFailure("CopySyncViewModel does not support .move")
-            return
+    ) async {
+        error = nil
+        do {
+            let jobId: Int
+            switch operation {
+            case .copy:
+                jobId = try await client.copy(srcFs: srcFs, dstFs: dstFs)
+            case .sync:
+                jobId = try await client.sync(srcFs: srcFs, dstFs: dstFs)
+            case .move:
+                // The Copy/Sync screen UI doesn't expose move; it's used by
+                // `DragDropCoordinator` for within-remote drag-and-drop. Guard
+                // against future misuse rather than silently mapping to copy.
+                assertionFailure("CopySyncViewModel does not support .move")
+                return
+            }
+            store.addTransfer(jobId: jobId, operation: operation, srcFs: srcFs, dstFs: dstFs)
+        } catch {
+            self.error = error.localizedDescription
         }
-        store.addTransfer(jobId: jobId, operation: operation, srcFs: srcFs, dstFs: dstFs)
     }
 }
