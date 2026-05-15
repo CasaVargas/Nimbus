@@ -60,4 +60,18 @@ struct OnboardingCardTests {
             view, size: CGSize(width: 520, height: 96), named: "OnboardingCard-actionRequired"
         )
     }
+
+    @Test func rendersCompleteWithPrimaryAction() throws {
+        let view = OnboardingCard(
+            state: .complete,
+            icon: "checkmark.seal.fill",
+            title: "You're All Set",
+            message: "Nimbus is ready to manage your cloud storage.",
+            primaryAction: .init(label: "Done", perform: {}),
+            secondaryAction: nil
+        )
+        try SnapshotHelpers.assertSnapshot(
+            view, size: CGSize(width: 520, height: 96), named: "OnboardingCard-completeWithPrimary"
+        )
+    }
 }

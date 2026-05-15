@@ -55,7 +55,7 @@ struct OnboardingCard: View {
 
             Spacer()
 
-            if state == .actionRequired, let primaryAction {
+            if let primaryAction, state == .actionRequired || state == .complete {
                 Button {
                     primaryAction.perform()
                 } label: {
@@ -116,10 +116,10 @@ struct OnboardingCard: View {
     VStack(spacing: DesignSystem.Spacing.m) {
         OnboardingCard(
             state: .complete,
-            icon: "bolt",
-            title: "Rclone Daemon",
-            message: "Rclone is ready.",
-            primaryAction: nil,
+            icon: "checkmark.seal.fill",
+            title: "You're All Set",
+            message: "Nimbus is ready to manage your cloud storage.",
+            primaryAction: .init(label: "Done", perform: {}),
             secondaryAction: nil
         )
         OnboardingCard(

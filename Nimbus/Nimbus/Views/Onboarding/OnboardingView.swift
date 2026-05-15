@@ -7,7 +7,6 @@ struct OnboardingView: View {
     @Environment(MountConfigStore.self) private var mountStore
 
     @State private var remotes: [String] = []
-    @State private var loadingRemotes = false
     @State private var showAddRemote = false
     @State private var showAddMount = false
     @State private var mountsViewModel: MountsViewModel?
@@ -77,7 +76,6 @@ struct OnboardingView: View {
     @ViewBuilder
     private var cardStack: some View {
         daemonCard
-            .transition(.opacity.combined(with: .move(edge: .top)))
 
         if daemon.status == .connected {
             addRemoteCard
@@ -151,7 +149,9 @@ struct OnboardingView: View {
             icon: "externaldrive",
             title: "Mount Your Remote",
             message: hasMounts
-                ? LocalizedStringKey("Mounted at \(firstMountPath).")
+                ? (firstMountPath.isEmpty
+                    ? LocalizedStringKey("Remote mounted successfully.")
+                    : LocalizedStringKey("Mounted at \(firstMountPath)."))
                 : LocalizedStringKey("Mount the remote to access it in Finder."),
             primaryAction: hasMounts ? nil : .init(label: "Add Mount", perform: { showAddMount = true }),
             secondaryAction: hasMounts ? .init(label: "Browse it →", perform: { finish() }) : nil
@@ -160,7 +160,7 @@ struct OnboardingView: View {
 
     private var doneCard: some View {
         OnboardingCard(
-            state: .actionRequired,
+            state: .complete,
             icon: "checkmark.seal.fill",
             title: "You're All Set",
             message: "Nimbus is ready to manage your cloud storage.",
@@ -180,8 +180,6 @@ struct OnboardingView: View {
     }
 
     private func refreshRemotes() async {
-        loadingRemotes = true
-        defer { loadingRemotes = false }
         do {
             let names = try await daemon.client.listRemotes()
             remotes = names
@@ -189,4 +187,12 @@ struct OnboardingView: View {
             // Silent — daemon error state surfaces via daemon.status, not here.
         }
     }
+}
+
+#Preview {
+    OnboardingView()
+        .environment(AppSettings())
+        .environment(RcloneDaemon())
+        .environment(MountConfigStore())
+        .frame(width: 700, height: 800)
 }
