@@ -14,6 +14,22 @@ enum TransferStatus {
     case cancelled
 }
 
+extension TransferStatus {
+    var isActive: Bool {
+        if case .active = self { return true }
+        return false
+    }
+}
+
+/// Distinguishes how a transfer was initiated so the UI can group / label
+/// activity sensibly (manual single-file copies, cross-remote drops from
+/// the browser, or batched copy/sync jobs from the Copy/Sync screen).
+enum TransferOrigin: String, Sendable {
+    case manual
+    case crossRemoteDrop
+    case copySyncJob
+}
+
 struct Transfer: Identifiable {
     let id: Int
     let operation: TransferOperation
@@ -22,6 +38,9 @@ struct Transfer: Identifiable {
     let startedAt: Date
     var completedAt: Date?
     var status: TransferStatus
+    let origin: TransferOrigin
+    let nimbusUUID: UUID
+    var progress: Double = 0.0
 }
 
 @Observable
@@ -47,16 +66,31 @@ final class TransferStore {
         }
     }
 
-    func addTransfer(jobId: Int, operation: TransferOperation, srcFs: String, dstFs: String) {
+    func addTransfer(
+        jobId: Int,
+        operation: TransferOperation,
+        srcFs: String,
+        dstFs: String,
+        origin: TransferOrigin = .manual,
+        nimbusUUID: UUID = UUID()
+    ) {
         let transfer = Transfer(
             id: jobId,
             operation: operation,
             srcFs: srcFs,
             dstFs: dstFs,
             startedAt: Date(),
-            status: .active
+            status: .active,
+            origin: origin,
+            nimbusUUID: nimbusUUID
         )
         transfers.append(transfer)
+    }
+
+    /// Updates the progress for an in-flight transfer. Clamped to `0...1`.
+    func setProgress(_ progress: Double, forJobId id: Int) {
+        guard let idx = transfers.firstIndex(where: { $0.id == id }) else { return }
+        transfers[idx].progress = max(0, min(1, progress))
     }
 
     func completeTransfer(jobId: Int) {

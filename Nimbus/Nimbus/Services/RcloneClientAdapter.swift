@@ -34,3 +34,37 @@ final class RcloneClientAdapter: RcloneClientProtocol, @unchecked Sendable {
         return dstURL
     }
 }
+
+// MARK: - DragDropCoordinator.RcloneInterface
+
+@MainActor
+extension RcloneClientAdapter: DragDropCoordinator.RcloneInterface {
+    func operationsCopyFile(
+        srcFs: String, srcRemote: String,
+        dstFs: String, dstRemote: String,
+        flags: [String: String]
+    ) async throws -> Int {
+        try await client.copyFileAsync(
+            srcFs: srcFs, srcRemote: srcRemote,
+            dstFs: dstFs, dstRemote: dstRemote,
+            extraParams: flags
+        )
+    }
+
+    func operationsMoveFile(
+        srcFs: String, srcRemote: String,
+        dstFs: String, dstRemote: String
+    ) async throws -> Int {
+        try await client.moveFileAsync(
+            srcFs: srcFs, srcRemote: srcRemote,
+            dstFs: dstFs, dstRemote: dstRemote
+        )
+    }
+
+    /// Note: ignores `flags` for now — the existing `RcloneClient.copy(srcFs:dstFs:)`
+    /// doesn't accept extra params. If Phase 1 needs flag support for sync/copy,
+    /// add a `copyWithFlags` variant in RcloneKit.
+    func syncCopy(srcFs: String, dstFs: String, flags: [String: String]) async throws -> Int {
+        try await client.copy(srcFs: srcFs, dstFs: dstFs)
+    }
+}

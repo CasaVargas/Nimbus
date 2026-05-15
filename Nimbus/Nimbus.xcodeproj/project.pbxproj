@@ -45,6 +45,7 @@
 		6FECFF9BD67D0EEC503B2DD1 /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509C7DB1AE1B3496F8DBC733 /* StatusBadge.swift */; };
 		7186B43DDF9D7F839F82B6E6 /* FileProviderBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F4DF18D93B378AC2C60ABC /* FileProviderBridge.swift */; };
 		72176941173EF046F32623F4 /* Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E50D9C737FBBC708FF7A6F5 /* Extension.swift */; };
+		73624E8F2C5CA2884BBB6B04 /* DragDropCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1813355BB10E9306891A015 /* DragDropCoordinatorTests.swift */; };
 		7372ADA10B5EAFFA4935D1F2 /* QuickLookHostTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADEDCF3F309AB2843957D1B7 /* QuickLookHostTests.swift */; };
 		79CD5B771150740985B6CFA1 /* Colors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CCCEBA204DCFCEBF2063D66 /* Colors.swift */; };
 		7B21C1EF6C00795220F62C64 /* StorageUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E2E1139EDDC520B6D6223F /* StorageUsageView.swift */; };
@@ -68,6 +69,7 @@
 		BFF22B953FB079BC7AE62130 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56DDC44A90929A9518155E77 /* AppSettings.swift */; };
 		C43A4C8EACB4C847D12E4E31 /* Lints.swift in Sources */ = {isa = PBXBuildFile; fileRef = A21CD08F98A42ACB20E40A27 /* Lints.swift */; };
 		CA0E5E0F07A0AF378C3BA5E7 /* Selection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C428B03536470F32946F2BB /* Selection.swift */; };
+		CAF8A4396F7EEB736BD84E8F /* NimbusFileRef.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3994C6A2379A27396999FD1F /* NimbusFileRef.swift */; };
 		D6295020365053BF15FF340A /* Enumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CE2F8E812EA096D4E38C711 /* Enumerator.swift */; };
 		D717CF81D7DB9C05536E61BB /* MountRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941B52BF2A1E8F0D27C9A987 /* MountRow.swift */; };
 		DCF3A7B53E448200A6780F13 /* FileGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9500A98F5338D92B273CB2A3 /* FileGrid.swift */; };
@@ -78,6 +80,7 @@
 		F0F4A75D1B29B6DF7A215EFB /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DECF7995C720D6A071047D2 /* Motion.swift */; };
 		F20DC020AE748305501AE6DC /* CopySyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10A3816E1EC55E5657611B64 /* CopySyncView.swift */; };
 		F9FD77DF27F29CDE9EFFFB9D /* SelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A7B1EA1A669A9C652EB28CE /* SelectionTests.swift */; };
+		FB77045C44E0A163992B23CE /* DragDropCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15FA1F3BDA73D07840AB71F1 /* DragDropCoordinator.swift */; };
 		FF59C40D0EABC51F0CC90B28 /* RcloneClientAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DC9150CFA4799141AFE8FCC /* RcloneClientAdapter.swift */; };
 /* End PBXBuildFile section */
 
@@ -120,6 +123,7 @@
 		10777E1962C2F8AFC045DEB2 /* TransfersViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransfersViewModel.swift; sourceTree = "<group>"; };
 		10A3816E1EC55E5657611B64 /* CopySyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopySyncView.swift; sourceTree = "<group>"; };
 		122FC43D9B9925959BF766EE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		15FA1F3BDA73D07840AB71F1 /* DragDropCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragDropCoordinator.swift; sourceTree = "<group>"; };
 		17129623204ED7556BB5F506 /* Spacing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spacing.swift; sourceTree = "<group>"; };
 		19E2E1139EDDC520B6D6223F /* StorageUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageUsageView.swift; sourceTree = "<group>"; };
 		19EC56E2B7C399E6BF5ADA94 /* GeneralSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSection.swift; sourceTree = "<group>"; };
@@ -131,6 +135,7 @@
 		2C9DD7A0DC635154022B19D4 /* Radius.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Radius.swift; sourceTree = "<group>"; };
 		357AE42AD3448C6FC4B5DF2F /* FileProviderExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FileProviderExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		36F4DF18D93B378AC2C60ABC /* FileProviderBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileProviderBridge.swift; sourceTree = "<group>"; };
+		3994C6A2379A27396999FD1F /* NimbusFileRef.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NimbusFileRef.swift; sourceTree = "<group>"; };
 		3C597E692310630A9FD68C83 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		3CE2F8E812EA096D4E38C711 /* Enumerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Enumerator.swift; sourceTree = "<group>"; };
 		41F3DFFC42572098A760795D /* AppearanceSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSection.swift; sourceTree = "<group>"; };
@@ -167,6 +172,7 @@
 		ADEDCF3F309AB2843957D1B7 /* QuickLookHostTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookHostTests.swift; sourceTree = "<group>"; };
 		AF03C7B12F8D38C3F6E47381 /* RemoteRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteRow.swift; sourceTree = "<group>"; };
 		B07A2E84E597DE37C122A15B /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
+		B1813355BB10E9306891A015 /* DragDropCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragDropCoordinatorTests.swift; sourceTree = "<group>"; };
 		B4BBDEBA281F41466C04A187 /* AddRemoteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRemoteSheet.swift; sourceTree = "<group>"; };
 		B90D4E52BA97B181F32A18D8 /* BrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserView.swift; sourceTree = "<group>"; };
 		BC4F8A4196F233DFDE0DE17E /* AboutSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSection.swift; sourceTree = "<group>"; };
@@ -310,7 +316,9 @@
 		55019A8531900EE7C4E2324C /* Interaction */ = {
 			isa = PBXGroup;
 			children = (
+				15FA1F3BDA73D07840AB71F1 /* DragDropCoordinator.swift */,
 				6BD5589C957FFEFEDDF3563A /* KeyboardCoordinator.swift */,
+				3994C6A2379A27396999FD1F /* NimbusFileRef.swift */,
 				F9CE29401FAD3CBE223A9672 /* QuickLookHost.swift */,
 				8FCE75373125F37CCBC0B6AB /* RcloneClientProtocol.swift */,
 				9C428B03536470F32946F2BB /* Selection.swift */,
@@ -454,6 +462,7 @@
 		E3F2B09E1363EEB31AC237BB /* NimbusTests */ = {
 			isa = PBXGroup;
 			children = (
+				B1813355BB10E9306891A015 /* DragDropCoordinatorTests.swift */,
 				98BCCBB2AD76F950F78233DE /* EmptyStateTests.swift */,
 				CE6352CE9D017F8C0445AE17 /* KeyboardCoordinatorTests.swift */,
 				ADEDCF3F309AB2843957D1B7 /* QuickLookHostTests.swift */,
@@ -647,6 +656,7 @@
 				F20DC020AE748305501AE6DC /* CopySyncView.swift in Sources */,
 				27661839BBC147E0FA2D2DFA /* CopySyncViewModel.swift in Sources */,
 				AE148200C57EA04A2F17BF57 /* DesignSystem.swift in Sources */,
+				FB77045C44E0A163992B23CE /* DragDropCoordinator.swift in Sources */,
 				87CFD6A8899C1EA8058561D8 /* EditRemoteSheet.swift in Sources */,
 				A2C663DDD788A6BAEDFE4B0F /* EmptyState.swift in Sources */,
 				E44A61C3B21F17DBD6CA101A /* FileContextMenu.swift in Sources */,
@@ -665,6 +675,7 @@
 				644721DAEC63D8209964147C /* MountsView.swift in Sources */,
 				61DC667EF5CFBE0C7BA170C2 /* MountsViewModel.swift in Sources */,
 				278E2D760830C431C685CF0B /* NimbusApp.swift in Sources */,
+				CAF8A4396F7EEB736BD84E8F /* NimbusFileRef.swift in Sources */,
 				66686A62291C3FC31EFD0607 /* OnboardingView.swift in Sources */,
 				21E72894D5B09900044349EC /* PathPicker.swift in Sources */,
 				A2C445BFC1D91129614EB77D /* QuickLookHost.swift in Sources */,
@@ -706,6 +717,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				73624E8F2C5CA2884BBB6B04 /* DragDropCoordinatorTests.swift in Sources */,
 				4DBAB25E4B62DB8E0E86E49B /* EmptyStateTests.swift in Sources */,
 				3B570AF7E92B487AA5A10BCE /* KeyboardCoordinatorTests.swift in Sources */,
 				7372ADA10B5EAFFA4935D1F2 /* QuickLookHostTests.swift in Sources */,
