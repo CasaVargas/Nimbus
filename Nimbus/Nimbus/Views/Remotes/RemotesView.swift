@@ -56,7 +56,7 @@ struct RemotesView: View {
                 set: { if !$0 { editingRemote = nil } }
             )) {
                 if let remote = editingRemote {
-                    EditRemoteSheet(remote: remote, onComplete: {
+                    EditRemoteSheet(client: daemon.client, remote: remote, onDismiss: {
                         Task { await viewModel?.loadRemotes() }
                     })
                 }
