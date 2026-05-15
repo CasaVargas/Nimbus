@@ -27,6 +27,7 @@
 		2B6CF636018DA7068597AA46 /* ProviderPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 807D46990D982B5DE50BE2BD /* ProviderPicker.swift */; };
 		2ED849493F32B6988F73CA7C /* TransferRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADA1580276A631B918461D24 /* TransferRow.swift */; };
 		344BFFDF89CBCBC316D298C4 /* BenchScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31C7C40D39EDA92229DFFC55 /* BenchScene.swift */; };
+		3642897EA12AD25B4106C0D7 /* TransferRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BBED5BF19EAACDD19F5A75D /* TransferRowTests.swift */; };
 		374E003E00317D2F7CE9D15F /* MountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C59D2ED20596903528EE7EB1 /* MountManager.swift */; };
 		3B570AF7E92B487AA5A10BCE /* KeyboardCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE6352CE9D017F8C0445AE17 /* KeyboardCoordinatorTests.swift */; };
 		3C060FF052C454049745004C /* SnapshotHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6C4E572632B0FC138085082 /* SnapshotHelpers.swift */; };
@@ -178,6 +179,7 @@
 		6BD5589C957FFEFEDDF3563A /* KeyboardCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardCoordinator.swift; sourceTree = "<group>"; };
 		6EFB6DB3EF366558FF0BAF07 /* RcloneConfParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RcloneConfParser.swift; sourceTree = "<group>"; };
 		773187DDF62D87927128DCAC /* EmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyState.swift; sourceTree = "<group>"; };
+		7BBED5BF19EAACDD19F5A75D /* TransferRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferRowTests.swift; sourceTree = "<group>"; };
 		7D2921088EDC82F0A95AEEAB /* BookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkStore.swift; sourceTree = "<group>"; };
 		7FCB9AC026693A5F56888FA5 /* CopySyncViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopySyncViewModel.swift; sourceTree = "<group>"; };
 		807D46990D982B5DE50BE2BD /* ProviderPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderPicker.swift; sourceTree = "<group>"; };
@@ -534,6 +536,7 @@
 				F9ECF234179CA3F12952215A /* StatusBadgeTests.swift */,
 				C8EC5A7120D51A50AD5F8BDD /* StatusToggleTests.swift */,
 				1A1CAF59AEE652F952B3F63C /* TokensTests.swift */,
+				7BBED5BF19EAACDD19F5A75D /* TransferRowTests.swift */,
 				53F12DC845AFAB4BB5EC5321 /* Support */,
 			);
 			path = NimbusTests;
@@ -821,6 +824,7 @@
 				1B9224D361708E4B5060A3B3 /* StatusBadgeTests.swift in Sources */,
 				198A7618316FAA1EB6805362 /* StatusToggleTests.swift in Sources */,
 				0706041D983EFF788C48B84C /* TokensTests.swift in Sources */,
+				3642897EA12AD25B4106C0D7 /* TransferRowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
