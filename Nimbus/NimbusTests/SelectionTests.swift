@@ -30,6 +30,20 @@ struct SelectionTests {
         #expect(sel.anchor == "b") // anchor doesn't move on extend
     }
 
+    @Test func consecutiveExtendStreakKeepsBaseFrozenAndShrinksRange() {
+        let sel = Selection<String>()
+        // Plain select commits anchor=b, base={b}.
+        sel.select("b", in: order)
+        // First extend in the streak: base ∪ b…d.
+        sel.extend(to: "d", in: order)
+        #expect(sel.ids == ["b", "c", "d"])
+        // Second extend WITHOUT a new anchor commit: base stays {b},
+        // range recomputes b…c — must SHRINK, not accumulate the prior d.
+        sel.extend(to: "c", in: order)
+        #expect(sel.ids == ["b", "c"])
+        #expect(sel.anchor == "b")
+    }
+
     @Test func extendBackwardWorks() {
         let sel = Selection<String>()
         sel.select("d", in: order)
