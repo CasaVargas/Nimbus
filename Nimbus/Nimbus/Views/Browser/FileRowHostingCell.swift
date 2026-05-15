@@ -11,10 +11,24 @@ import RcloneKit
 final class FileRowHostingCell: NSTableCellView {
     static let reuseIdentifier = NSUserInterfaceItemIdentifier("FileRowHostingCell")
 
-    private var hosting: NSHostingView<FileRowView>?
+    // Type-erased so configure() can inject @Observable environment objects
+    // without making the cell generic. The environment pair is set once per
+    // table (from FileTableRepresentable) and carried through every cell.
+    private var hosting: NSHostingView<AnyView>?
+
+    /// Environment objects required by FileRowView → CloudStatusColumn.
+    /// Set by FileTableRepresentable before any reloadData() call.
+    var transferStore: TransferStore?
+    var fileProviderBridge: FileProviderBridge?
 
     func configure(file: FileItem, remote: String, isSelected: Bool) {
-        let root = FileRowView(file: file, remote: remote, isSelected: isSelected)
+        let rowView = FileRowView(file: file, remote: remote, isSelected: isSelected)
+        let root: AnyView
+        if let ts = transferStore, let fpb = fileProviderBridge {
+            root = AnyView(rowView.environment(ts).environment(fpb))
+        } else {
+            root = AnyView(rowView)
+        }
         if let hosting {
             hosting.rootView = root
         } else {

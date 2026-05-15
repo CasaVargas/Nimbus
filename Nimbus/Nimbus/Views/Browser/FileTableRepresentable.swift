@@ -24,6 +24,9 @@ struct FileTableRepresentable: NSViewRepresentable {
     let onContextAction: (FileItem, FileAction) -> Void
     let onQuickLook: ([FileItem]) -> Void
 
+    @Environment(TransferStore.self) private var transferStore
+    @Environment(FileProviderBridge.self) private var fileProviderBridge
+
     func makeCoordinator() -> FileTableCoordinator {
         FileTableCoordinator(
             selection: selection,
@@ -74,6 +77,8 @@ struct FileTableRepresentable: NSViewRepresentable {
         coord.onOpen = onOpen
         coord.onContextAction = onContextAction
         coord.onQuickLook = onQuickLook
+        coord.transferStore = transferStore
+        coord.fileProviderBridge = fileProviderBridge
         coord.reloadPreservingSelection()
     }
 }

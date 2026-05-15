@@ -63,6 +63,7 @@
 		79CD5B771150740985B6CFA1 /* Colors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CCCEBA204DCFCEBF2063D66 /* Colors.swift */; };
 		7B21C1EF6C00795220F62C64 /* StorageUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E2E1139EDDC520B6D6223F /* StorageUsageView.swift */; };
 		7E1811F8DF1E49EE390EB846 /* AddRemoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4BBDEBA281F41466C04A187 /* AddRemoteSheet.swift */; };
+		7F2D61DC7E7CDD14F57173E7 /* FileTablePerfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F5A8E026E6C2BD49858289 /* FileTablePerfTests.swift */; };
 		8003FB992907A684C2574B8C /* Spacing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17129623204ED7556BB5F506 /* Spacing.swift */; };
 		833FC20DDC68505108B49A43 /* RcloneKit in Frameworks */ = {isa = PBXBuildFile; productRef = 11AF8C8943FA319B962BF492 /* RcloneKit */; };
 		844029015E27C6AE33F6BC56 /* FileTableCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EA2E3EFFF4F7667BA7CC0D1 /* FileTableCoordinator.swift */; };
@@ -200,6 +201,7 @@
 		698951C956253067F50F6B75 /* ProgressMeterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressMeterTests.swift; sourceTree = "<group>"; };
 		6BD5589C957FFEFEDDF3563A /* KeyboardCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardCoordinator.swift; sourceTree = "<group>"; };
 		6EFB6DB3EF366558FF0BAF07 /* RcloneConfParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RcloneConfParser.swift; sourceTree = "<group>"; };
+		75F5A8E026E6C2BD49858289 /* FileTablePerfTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTablePerfTests.swift; sourceTree = "<group>"; };
 		773187DDF62D87927128DCAC /* EmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyState.swift; sourceTree = "<group>"; };
 		7BBED5BF19EAACDD19F5A75D /* TransferRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferRowTests.swift; sourceTree = "<group>"; };
 		7D2921088EDC82F0A95AEEAB /* BookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkStore.swift; sourceTree = "<group>"; };
@@ -569,6 +571,7 @@
 				C64BEDB5742B197BBB7C290D /* AccessibilityAuditTests.swift */,
 				B1813355BB10E9306891A015 /* DragDropCoordinatorTests.swift */,
 				98BCCBB2AD76F950F78233DE /* EmptyStateTests.swift */,
+				75F5A8E026E6C2BD49858289 /* FileTablePerfTests.swift */,
 				30338A429B08B2109735E495 /* FormSectionTests.swift */,
 				CE6352CE9D017F8C0445AE17 /* KeyboardCoordinatorTests.swift */,
 				E61BE3E85906D683B22F88CA /* MountRowTests.swift */,
@@ -869,6 +872,7 @@
 				591CB11FE3D80BAEE4C3C0AC /* AccessibilityAuditTests.swift in Sources */,
 				73624E8F2C5CA2884BBB6B04 /* DragDropCoordinatorTests.swift in Sources */,
 				4DBAB25E4B62DB8E0E86E49B /* EmptyStateTests.swift in Sources */,
+				7F2D61DC7E7CDD14F57173E7 /* FileTablePerfTests.swift in Sources */,
 				4FA5B60B245C10D5BC4C3CDA /* FormSectionTests.swift in Sources */,
 				3B570AF7E92B487AA5A10BCE /* KeyboardCoordinatorTests.swift in Sources */,
 				FB5D8F7887C2D8639ACBDE33 /* MockRcloneClient.swift in Sources */,

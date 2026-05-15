@@ -22,6 +22,12 @@ final class FileTableCoordinator: NSObject {
     var onQuickLook: ([FileItem]) -> Void
     var onSortHeaderClick: (SortField) -> Void
 
+    /// SwiftUI environment objects forwarded from FileTableRepresentable so
+    /// FileRowHostingCell can inject them into NSHostingView<FileRowView>.
+    /// These are set in updateNSView; nil until the first SwiftUI update fires.
+    var transferStore: TransferStore?
+    var fileProviderBridge: FileProviderBridge?
+
     weak var tableView: FileTableView?
 
     /// Guards the SwiftUI→AppKit→SwiftUI selection echo loop.
@@ -125,6 +131,8 @@ extension FileTableCoordinator: NSTableViewDelegate {
             withIdentifier: FileRowHostingCell.reuseIdentifier, owner: self
         ) as? FileRowHostingCell ?? FileRowHostingCell()
         cell.identifier = FileRowHostingCell.reuseIdentifier
+        cell.transferStore = transferStore
+        cell.fileProviderBridge = fileProviderBridge
         cell.configure(file: file, remote: remote,
                        isSelected: selection.ids.contains(file.id))
         return cell
