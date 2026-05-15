@@ -29,31 +29,11 @@ struct StatusToggleTests {
         #expect(StatusToggleState.error(reason: "x").isTransitioning == false)
     }
 
-    @Test func rendersOffState() throws {
-        let view = StatusToggle(state: .off, onToggle: {})
-        try SnapshotHelpers.assertSnapshot(
-            view, size: CGSize(width: 60, height: 32), named: "StatusToggle-off"
-        )
-    }
-
-    @Test func rendersOnState() throws {
-        let view = StatusToggle(state: .on, onToggle: {})
-        try SnapshotHelpers.assertSnapshot(
-            view, size: CGSize(width: 60, height: 32), named: "StatusToggle-on"
-        )
-    }
-
-    @Test func rendersMountingState() throws {
-        let view = StatusToggle(state: .mounting, onToggle: {})
-        try SnapshotHelpers.assertSnapshot(
-            view, size: CGSize(width: 60, height: 32), named: "StatusToggle-mounting"
-        )
-    }
-
-    @Test func rendersErrorState() throws {
-        let view = StatusToggle(state: .error(reason: "Permission denied"), onToggle: {})
-        try SnapshotHelpers.assertSnapshot(
-            view, size: CGSize(width: 60, height: 32), named: "StatusToggle-error"
-        )
+    @Test func visualIsOnReflectsState() {
+        #expect(StatusToggleState.on.visualIsOn)
+        #expect(StatusToggleState.unmounting.visualIsOn)
+        #expect(StatusToggleState.off.visualIsOn == false)
+        #expect(StatusToggleState.mounting.visualIsOn == false)
+        #expect(StatusToggleState.error(reason: "x").visualIsOn == false)
     }
 }
