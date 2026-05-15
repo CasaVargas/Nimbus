@@ -34,6 +34,7 @@
 		457AAF26BB535EF79DC2B152 /* TransferSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96D748F5B10AFEA969C88CE3 /* TransferSection.swift */; };
 		4B8F27C6E2737CE62B78A053 /* RcloneDaemon.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0B2F0DEB49277B20924FD2F /* RcloneDaemon.swift */; };
 		4DBAB25E4B62DB8E0E86E49B /* EmptyStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98BCCBB2AD76F950F78233DE /* EmptyStateTests.swift */; };
+		4FA5B60B245C10D5BC4C3CDA /* FormSectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30338A429B08B2109735E495 /* FormSectionTests.swift */; };
 		51928D9ADBCC0691B3771981 /* BrowserViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84E656540BFE413CDECD552F /* BrowserViewModel.swift */; };
 		51B4C76F2CF8AA62AA83D4EC /* TransfersViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10777E1962C2F8AFC045DEB2 /* TransfersViewModel.swift */; };
 		53185BE42E73B300337515B4 /* MountConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5322BA5BF672E9A04097F109 /* MountConfiguration.swift */; };
@@ -71,14 +72,17 @@
 		AE148200C57EA04A2F17BF57 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C597E692310630A9FD68C83 /* DesignSystem.swift */; };
 		B00080307FD8EA793F2CEAD7 /* NimbusError.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD46B92F934C6AADF654A9BA /* NimbusError.swift */; };
 		B59DB74E76B93E5440D76430 /* KeyboardCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD5589C957FFEFEDDF3563A /* KeyboardCoordinator.swift */; };
+		B77CE9DC37BBD5AD88C123C4 /* FormSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD7376A5101C0586DF6E6E2F /* FormSection.swift */; };
 		BB433D456B5CF70AADD995A2 /* GeneralSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19EC56E2B7C399E6BF5ADA94 /* GeneralSection.swift */; };
 		BEB2919E1DEAAD9383F9C900 /* RcloneClientProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FCE75373125F37CCBC0B6AB /* RcloneClientProtocol.swift */; };
 		BFF22B953FB079BC7AE62130 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56DDC44A90929A9518155E77 /* AppSettings.swift */; };
 		C43A4C8EACB4C847D12E4E31 /* Lints.swift in Sources */ = {isa = PBXBuildFile; fileRef = A21CD08F98A42ACB20E40A27 /* Lints.swift */; };
+		C4C1CE457BC2536A447DE1BB /* SheetChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6C3E0E28CB14B1FC1F0F666 /* SheetChrome.swift */; };
 		CA0E5E0F07A0AF378C3BA5E7 /* Selection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C428B03536470F32946F2BB /* Selection.swift */; };
 		CAF8A4396F7EEB736BD84E8F /* NimbusFileRef.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3994C6A2379A27396999FD1F /* NimbusFileRef.swift */; };
 		D6295020365053BF15FF340A /* Enumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CE2F8E812EA096D4E38C711 /* Enumerator.swift */; };
 		D717CF81D7DB9C05536E61BB /* MountRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941B52BF2A1E8F0D27C9A987 /* MountRow.swift */; };
+		D9AF1E4394AE9635984EFF17 /* SheetChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B66BA5D854765E4D13BAFE5D /* SheetChromeTests.swift */; };
 		DAD5B2624B34C841E8166756 /* ConfirmCopySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB914ACBFE020C15E4BF90AB /* ConfirmCopySheet.swift */; };
 		DCF3A7B53E448200A6780F13 /* FileGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9500A98F5338D92B273CB2A3 /* FileGrid.swift */; };
 		E3AB99E3E6035A1D4D8EAC43 /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = F02845E63011B958D55F9CCF /* Typography.swift */; };
@@ -143,6 +147,7 @@
 		2AA331A1A776F8D581FF01DF /* MountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountsView.swift; sourceTree = "<group>"; };
 		2C9DD7A0DC635154022B19D4 /* Radius.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Radius.swift; sourceTree = "<group>"; };
 		2EB2C2B81251C7B4B0282151 /* NimbusErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NimbusErrorTests.swift; sourceTree = "<group>"; };
+		30338A429B08B2109735E495 /* FormSectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormSectionTests.swift; sourceTree = "<group>"; };
 		31C7C40D39EDA92229DFFC55 /* BenchScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchScene.swift; sourceTree = "<group>"; };
 		357AE42AD3448C6FC4B5DF2F /* FileProviderExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FileProviderExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		36F4DF18D93B378AC2C60ABC /* FileProviderBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileProviderBridge.swift; sourceTree = "<group>"; };
@@ -179,14 +184,17 @@
 		A0186DF6DCC0BD6FE9CA9574 /* Nimbus 2.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Nimbus 2.entitlements"; sourceTree = "<group>"; };
 		A21CD08F98A42ACB20E40A27 /* Lints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lints.swift; sourceTree = "<group>"; };
 		A59C2F1C642178D0E5224A7D /* LaunchAtLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginService.swift; sourceTree = "<group>"; };
+		A6C3E0E28CB14B1FC1F0F666 /* SheetChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetChrome.swift; sourceTree = "<group>"; };
 		ADA1580276A631B918461D24 /* TransferRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferRow.swift; sourceTree = "<group>"; };
 		ADEDCF3F309AB2843957D1B7 /* QuickLookHostTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookHostTests.swift; sourceTree = "<group>"; };
 		AF03C7B12F8D38C3F6E47381 /* RemoteRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteRow.swift; sourceTree = "<group>"; };
 		B07A2E84E597DE37C122A15B /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
 		B1813355BB10E9306891A015 /* DragDropCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragDropCoordinatorTests.swift; sourceTree = "<group>"; };
 		B4BBDEBA281F41466C04A187 /* AddRemoteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRemoteSheet.swift; sourceTree = "<group>"; };
+		B66BA5D854765E4D13BAFE5D /* SheetChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetChromeTests.swift; sourceTree = "<group>"; };
 		B90D4E52BA97B181F32A18D8 /* BrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserView.swift; sourceTree = "<group>"; };
 		BC4F8A4196F233DFDE0DE17E /* AboutSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSection.swift; sourceTree = "<group>"; };
+		BD7376A5101C0586DF6E6E2F /* FormSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormSection.swift; sourceTree = "<group>"; };
 		C59D2ED20596903528EE7EB1 /* MountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountManager.swift; sourceTree = "<group>"; };
 		C64BEDB5742B197BBB7C290D /* AccessibilityAuditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityAuditTests.swift; sourceTree = "<group>"; };
 		C6BDD32CDD93AAFF19D9AC33 /* BenchScenarios.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchScenarios.swift; sourceTree = "<group>"; };
@@ -384,6 +392,8 @@
 			isa = PBXGroup;
 			children = (
 				773187DDF62D87927128DCAC /* EmptyState.swift */,
+				BD7376A5101C0586DF6E6E2F /* FormSection.swift */,
+				A6C3E0E28CB14B1FC1F0F666 /* SheetChrome.swift */,
 				F32C605A79BB39D3677407F6 /* ShimmerModifier.swift */,
 				509C7DB1AE1B3496F8DBC733 /* StatusBadge.swift */,
 			);
@@ -486,10 +496,12 @@
 				C64BEDB5742B197BBB7C290D /* AccessibilityAuditTests.swift */,
 				B1813355BB10E9306891A015 /* DragDropCoordinatorTests.swift */,
 				98BCCBB2AD76F950F78233DE /* EmptyStateTests.swift */,
+				30338A429B08B2109735E495 /* FormSectionTests.swift */,
 				CE6352CE9D017F8C0445AE17 /* KeyboardCoordinatorTests.swift */,
 				2EB2C2B81251C7B4B0282151 /* NimbusErrorTests.swift */,
 				ADEDCF3F309AB2843957D1B7 /* QuickLookHostTests.swift */,
 				2A7B1EA1A669A9C652EB28CE /* SelectionTests.swift */,
+				B66BA5D854765E4D13BAFE5D /* SheetChromeTests.swift */,
 				F9ECF234179CA3F12952215A /* StatusBadgeTests.swift */,
 				1A1CAF59AEE652F952B3F63C /* TokensTests.swift */,
 				53F12DC845AFAB4BB5EC5321 /* Support */,
@@ -699,6 +711,7 @@
 				DCF3A7B53E448200A6780F13 /* FileGrid.swift in Sources */,
 				7186B43DDF9D7F839F82B6E6 /* FileProviderBridge.swift in Sources */,
 				ADCDC4391F85BAB27DAB12D2 /* FileTable.swift in Sources */,
+				B77CE9DC37BBD5AD88C123C4 /* FormSection.swift in Sources */,
 				BB433D456B5CF70AADD995A2 /* GeneralSection.swift in Sources */,
 				912BAC08F7745480EA5992B8 /* ImportConfigSheet.swift in Sources */,
 				B59DB74E76B93E5440D76430 /* KeyboardCoordinator.swift in Sources */,
@@ -727,6 +740,7 @@
 				04EC499A7C0DF8F96188864B /* RemotesViewModel.swift in Sources */,
 				CA0E5E0F07A0AF378C3BA5E7 /* Selection.swift in Sources */,
 				42AC237AAAA6C46413CF2BBB /* SettingsView.swift in Sources */,
+				C4C1CE457BC2536A447DE1BB /* SheetChrome.swift in Sources */,
 				7556E68F8D67B85B04E1E136 /* ShimmerModifier.swift in Sources */,
 				25DA4AD53EF27768DC29591B /* Sidebar.swift in Sources */,
 				8003FB992907A684C2574B8C /* Spacing.swift in Sources */,
@@ -758,10 +772,12 @@
 				591CB11FE3D80BAEE4C3C0AC /* AccessibilityAuditTests.swift in Sources */,
 				73624E8F2C5CA2884BBB6B04 /* DragDropCoordinatorTests.swift in Sources */,
 				4DBAB25E4B62DB8E0E86E49B /* EmptyStateTests.swift in Sources */,
+				4FA5B60B245C10D5BC4C3CDA /* FormSectionTests.swift in Sources */,
 				3B570AF7E92B487AA5A10BCE /* KeyboardCoordinatorTests.swift in Sources */,
 				12AF0C007C05EF5B007B0AD0 /* NimbusErrorTests.swift in Sources */,
 				7372ADA10B5EAFFA4935D1F2 /* QuickLookHostTests.swift in Sources */,
 				F9FD77DF27F29CDE9EFFFB9D /* SelectionTests.swift in Sources */,
+				D9AF1E4394AE9635984EFF17 /* SheetChromeTests.swift in Sources */,
 				3C060FF052C454049745004C /* SnapshotHelpers.swift in Sources */,
 				1B9224D361708E4B5060A3B3 /* StatusBadgeTests.swift in Sources */,
 				0706041D983EFF788C48B84C /* TokensTests.swift in Sources */,
