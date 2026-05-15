@@ -20,12 +20,7 @@ struct FileGrid: View {
             LazyVGrid(columns: columns, spacing: DesignSystem.Spacing.m) {
                 ForEach(files) { file in
                     tile(for: file)
-                        .draggable(NimbusFileRef(
-                            remoteName: remote,
-                            path: file.path,
-                            size: file.size,
-                            isDir: file.isDir
-                        )) {
+                        .draggable(bundle(for: file)) {
                             tilePreview(for: file)
                         }
                         .contextMenu {
@@ -74,6 +69,19 @@ struct FileGrid: View {
             // Single-tap toggles selection. shift/cmd handling deferred to AppKit if needed.
             selection.select(file.id, in: sortedIDs)
         })
+    }
+
+    /// Builds the drag payload. If the dragged file is part of the current selection,
+    /// bundle all selected files together. Otherwise just this single file.
+    private func bundle(for file: FileItem) -> NimbusFileBundle {
+        let isInSelection = selection.ids.contains(file.id)
+        let sourceFiles: [FileItem] = isInSelection
+            ? files.filter { selection.ids.contains($0.id) }
+            : [file]
+        let refs = sourceFiles.map {
+            NimbusFileRef(remoteName: remote, path: $0.path, size: $0.size, isDir: $0.isDir)
+        }
+        return NimbusFileBundle(refs: refs)
     }
 
     @ViewBuilder

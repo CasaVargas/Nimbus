@@ -14,14 +14,23 @@ struct NimbusFileRef: Codable, Hashable, Sendable, Transferable {
     let isDir: Bool
 
     static var transferRepresentation: some TransferRepresentation {
-        CodableRepresentation(contentType: .nimbusFileRef)
+        // Encode via JSON over a system-registered UTI so SwiftUI's drag-and-drop
+        // round-trip matches without requiring UTExportedTypeDeclarations in Info.plist.
+        // Drops are typed on `NimbusFileRef.self` at the destination, so non-NimbusFileRef
+        // JSON drops will fail decoding and the closure won't fire.
+        CodableRepresentation(contentType: .json)
     }
 }
 
-extension UTType {
-    /// Custom UTI for in-app drag-and-drop payloads. Declared `exportedAs`
-    /// so SwiftUI's `Transferable` machinery recognizes it in-process.
-    /// Phase 1 intentionally skips the `Info.plist` `UTExportedTypeDeclarations`
-    /// block — OS-wide registration is not needed yet.
-    static let nimbusFileRef = UTType(exportedAs: "app.casavargas.nimbus.fileref")
+/// Multi-file drag payload. SwiftUI Table's `.draggable` on a cell produces only
+/// the directly-dragged row's Transferable, not the entire selection. To support
+/// multi-row drag we wrap the selection set into a bundle and treat it as a single
+/// Transferable. Sources produce a bundle containing all selected files (when the
+/// dragged row is part of the selection) or just the dragged file.
+struct NimbusFileBundle: Codable, Hashable, Sendable, Transferable {
+    let refs: [NimbusFileRef]
+
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .json)
+    }
 }

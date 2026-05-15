@@ -32,7 +32,9 @@ This document records the state of Phase 1's exit gates at the time of merge rea
 
 ## Wedge demo
 
-The Phase 1 ship gate is: **drag 3 files from Remote A's Browser → drop on a Remote B bookmark in the Sidebar (or onto Remote B's Browser window) → confirmation sheet → Copy → transfer appears in Transfers view with origin = crossRemoteDrop → progress ring visible on source rows → swap to "● Local" pill on complete**.
+The Phase 1 ship gate is: **drag N files from Remote A's Browser → drop on a Remote B bookmark in the Sidebar (or onto Remote B's Browser window) → confirmation sheet → Copy → transfer appears in Transfers view with origin = crossRemoteDrop → progress ring visible on source rows → swap to "● Local" pill on complete**.
+
+**Status: ✅ Verified manually on 2026-05-15.**
 
 Component status:
 - ✅ DragDropCoordinator wired and unit-tested for ≤5 / >5 / mixed-parent paths
@@ -41,7 +43,16 @@ Component status:
 - ✅ BrowserView content-area drop target wired
 - ✅ TransferStore tags origin = crossRemoteDrop and polls per-job progress at 250ms
 - ✅ CloudStatusColumn reads TransferStore progress and renders the locked StatusBadge visual
-- ⏳ Manual end-to-end smoke test pending (user-driven before Phase 2 begins)
+- ✅ Multi-select drag carries the full selection via `NimbusFileBundle` (single-file drag still works as a 1-element bundle)
+
+### Fixes landed during the wedge smoke test
+
+Manual testing surfaced three integration issues that the unit tests couldn't catch. All fixed in the same session:
+
+1. **Bookmark click navigation discarded the path.** `BrowserDestination` only carried `remoteName`, so clicking a bookmark opened the remote at root. Now carries `initialPath` and `BrowserView` seeds `viewModel.path` before the initial `loadFiles()`.
+2. **`.dropDestination` never fired on bookmark rows.** The bookmark row was a `Button` inside a `List` Section — SwiftUI Button intercepted drag-and-drop events. Restructured the row to a tap-gesture-handling `Label` with `.contentShape(Rectangle())` so the row itself receives drops.
+3. **Custom UTType wasn't recognized by SwiftUI's `Transferable` round-trip.** `app.casavargas.nimbus.fileref` was declared via `UTType(exportedAs:)` but never registered in `Info.plist` (Task 7 deferred it). Switched `NimbusFileRef.transferRepresentation` to `CodableRepresentation(contentType: .json)`. Drop-side type filtering still works (non-NimbusFileRef JSON fails decoding and the closure doesn't fire).
+4. **Multi-select drag passed only the directly-dragged row.** SwiftUI Table's `.draggable` on a `TableColumn` cell only provides that one row's payload, even with multi-select active. Added `NimbusFileBundle` as a parent Transferable wrapping `[NimbusFileRef]`; `FileTable`/`FileGrid` produce a bundle of either the entire selection (when the dragged row is part of it) or just the dragged file.
 
 ## Test suite snapshot
 
@@ -73,6 +84,9 @@ These were either deferred by spec or surfaced during reviews; they don't block 
 - Selection's `replace(with:in:)` discards the user's true anchor under SwiftUI Table's set-based selection model — known impedance mismatch documented in `FileTable.tableSelectionBinding` comment.
 - `RcloneClientAdapter.syncCopy` flag plumbing — fixed in Task 7 review pass (`Sync.copy` gained `extraParams`).
 - `NimbusUITests` target with XCUIApplication-based cross-remote drag E2E — deferred. Coordinator logic is exhaustively unit-tested in `DragDropCoordinatorTests`; macOS XCUITest drag-and-drop is known-flaky, and the only thing the E2E would exercise beyond unit coverage is SwiftUI Table's drag invocation (Apple's code).
+- **Browser selection responsiveness.** Clicking a row in a large folder feels sluggish because SwiftUI Table re-evaluates every visible TableColumn closure on every selection mutation. Surfaced during the manual wedge smoke test. Fixes worth trying in Phase 2: row-level `Equatable` hints; failing that, an AppKit `NSOutlineView` bridge (the deferred Phase 1 escape hatch).
+- **Cold folder load latency.** Dominated by rclone's `operations/list` round-trip — cloud-backed remotes inherit provider listing latency. The viewmodel already caches by `remote:path` for re-visits. Not actionable at the app layer; Phase 2 can investigate request batching or speculative prefetch.
+- **Custom UTI Info.plist registration.** `NimbusFileRef`/`NimbusFileBundle` ship via `.json` content type to avoid `UTExportedTypeDeclarations` plumbing. Trade-off: any process advertising JSON-drop acceptance will appear as a drop target. For OS-wide drag-and-drop with Finder + third-party apps in Phase 2, register a proper UTI under `app.casavargas.nimbus.fileref`.
 
 ## What's next
 

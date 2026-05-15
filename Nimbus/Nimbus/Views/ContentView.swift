@@ -4,6 +4,7 @@ import os
 // Value type pushed onto the NavigationStack path when the user browses a remote.
 struct BrowserDestination: Hashable {
     let remoteName: String
+    var initialPath: String = ""
 }
 
 struct ContentView: View {
@@ -21,11 +22,12 @@ struct ContentView: View {
             NavigationSplitView {
                 Sidebar(
                     selection: $selection,
-                    onBookmarkSelected: { remote, _ in
+                    onBookmarkSelected: { remote, path in
                         selection = .remotes
-                        navigationPath.append(BrowserDestination(remoteName: remote))
+                        navigationPath.append(BrowserDestination(remoteName: remote, initialPath: path))
                     },
-                    onBookmarkDrop: { refs, bookmark in
+                    onBookmarkDrop: { bundles, bookmark in
+                        let refs = bundles.flatMap(\.refs)
                         handleBookmarkDrop(refs: refs, bookmark: bookmark)
                     }
                 )
@@ -34,7 +36,7 @@ struct ContentView: View {
                 NavigationStack(path: $navigationPath) {
                     detailView
                         .navigationDestination(for: BrowserDestination.self) { destination in
-                            BrowserView(remoteName: destination.remoteName)
+                            BrowserView(remoteName: destination.remoteName, initialPath: destination.initialPath)
                         }
                 }
             }

@@ -4,6 +4,7 @@ import os
 
 struct BrowserView: View {
     let remoteName: String
+    var initialPath: String = ""
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(BookmarkStore.self) private var bookmarkStore
     @Environment(TransferStore.self) private var transferStore
@@ -95,8 +96,9 @@ struct BrowserView: View {
                     onNewFolder: { viewModel.showNewFolderDialog = true },
                     onRefresh: { Task { await viewModel.loadFiles() } }
                 ))
-                .dropDestination(for: NimbusFileRef.self) { refs, _ in
-                    handleDrop(refs: refs, viewModel: viewModel)
+                .dropDestination(for: NimbusFileBundle.self) { bundles, _ in
+                    let refs = bundles.flatMap(\.refs)
+                    return handleDrop(refs: refs, viewModel: viewModel)
                 }
             } else {
                 ProgressView("Loading...")
@@ -107,6 +109,7 @@ struct BrowserView: View {
         .task {
             let vm = BrowserViewModel(client: daemon.client)
             vm.remote = remoteName
+            vm.path = initialPath
             viewModel = vm
             await vm.loadFiles()
         }
