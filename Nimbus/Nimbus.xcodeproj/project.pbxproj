@@ -29,6 +29,7 @@
 		344BFFDF89CBCBC316D298C4 /* BenchScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31C7C40D39EDA92229DFFC55 /* BenchScene.swift */; };
 		3642897EA12AD25B4106C0D7 /* TransferRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BBED5BF19EAACDD19F5A75D /* TransferRowTests.swift */; };
 		374E003E00317D2F7CE9D15F /* MountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C59D2ED20596903528EE7EB1 /* MountManager.swift */; };
+		3A2213D7E076AD922C03DA9C /* FileRowHostingCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 025E9AE6BB70AE2224D48C6F /* FileRowHostingCell.swift */; };
 		3B570AF7E92B487AA5A10BCE /* KeyboardCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE6352CE9D017F8C0445AE17 /* KeyboardCoordinatorTests.swift */; };
 		3C060FF052C454049745004C /* SnapshotHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6C4E572632B0FC138085082 /* SnapshotHelpers.swift */; };
 		3C172B72006EC20821ADFC0E /* RemotesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23222C40A9098C836B111200 /* RemotesView.swift */; };
@@ -149,6 +150,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		025E9AE6BB70AE2224D48C6F /* FileRowHostingCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileRowHostingCell.swift; sourceTree = "<group>"; };
 		0366C19B7D2EB46178EC2B31 /* CloudStatusColumn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudStatusColumn.swift; sourceTree = "<group>"; };
 		0D6672817A705472989CD40D /* TransfersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransfersView.swift; sourceTree = "<group>"; };
 		0DC9150CFA4799141AFE8FCC /* RcloneClientAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RcloneClientAdapter.swift; sourceTree = "<group>"; };
@@ -532,6 +534,7 @@
 				DB914ACBFE020C15E4BF90AB /* ConfirmCopySheet.swift */,
 				DCD1239B19EFBC711BD3068F /* FileContextMenu.swift */,
 				9500A98F5338D92B273CB2A3 /* FileGrid.swift */,
+				025E9AE6BB70AE2224D48C6F /* FileRowHostingCell.swift */,
 				12DD2FA34040B72E75777C56 /* FileRowView.swift */,
 				4782ABB2481E119B80157DEF /* FileTable.swift */,
 				313EDAEB0224DB7D4DC108F8 /* SelectionIntent.swift */,
@@ -781,6 +784,7 @@
 				E44A61C3B21F17DBD6CA101A /* FileContextMenu.swift in Sources */,
 				DCF3A7B53E448200A6780F13 /* FileGrid.swift in Sources */,
 				7186B43DDF9D7F839F82B6E6 /* FileProviderBridge.swift in Sources */,
+				3A2213D7E076AD922C03DA9C /* FileRowHostingCell.swift in Sources */,
 				88F8E0B1BCE114CE9A6AED41 /* FileRowView.swift in Sources */,
 				ADCDC4391F85BAB27DAB12D2 /* FileTable.swift in Sources */,
 				B77CE9DC37BBD5AD88C123C4 /* FormSection.swift in Sources */,
