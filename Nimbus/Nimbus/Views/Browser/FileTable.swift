@@ -8,8 +8,8 @@ import RcloneKit
 struct FileTable: View {
     let files: [FileItem]
     let remote: String
-    @Bindable var selection: Selection<String>
-    @Bindable var keyboard: KeyboardCoordinator
+    let selection: Selection<String>
+    let keyboard: KeyboardCoordinator
     @Binding var sortField: SortField
     @Binding var sortAscending: Bool
     let onOpen: (FileItem) -> Void

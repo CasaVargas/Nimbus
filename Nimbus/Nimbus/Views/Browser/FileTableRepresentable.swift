@@ -44,7 +44,7 @@ struct FileTableRepresentable: NSViewRepresentable {
         table.usesAlternatingRowBackgroundColors = false
         table.allowsMultipleSelection = true
         table.rowHeight = FileRowView.rowHeight
-        table.headerView = NSTableHeaderView()
+        table.headerView = nil
 
         func column(_ id: String, _ title: String, width: CGFloat) -> NSTableColumn {
             let c = NSTableColumn(identifier: .init(id))
