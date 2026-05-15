@@ -10,22 +10,34 @@ final class KeyboardCoordinator {
         case quickLook
     }
 
-    private struct Binding {
+    private struct KeyBinding {
         let key: KeyEquivalent
         let modifiers: EventModifiers
         let scope: Scope
         let perform: () -> Void
     }
 
-    private var bindings: [Binding] = []
+    private var bindings: [KeyBinding] = []
 
     // Type-to-select buffer state
     private var buffer: String = ""
-    private var lastInputTime: TimeInterval = 0
+    private var lastInputTime: TimeInterval = -.infinity
     private let bufferTimeout: TimeInterval = 0.5
 
+    /// Registers a key binding. Duplicate `(key.character, modifiers, scope)` is a programmer error
+    /// and traps in debug — pick `unregisterAll(scope:)` and re-register if you need to rebind.
     func register(_ key: KeyEquivalent, modifiers: EventModifiers = [], scope: Scope, perform: @escaping () -> Void) {
-        bindings.append(Binding(key: key, modifiers: modifiers, scope: scope, perform: perform))
+        precondition(
+            !bindings.contains(where: { $0.key.character == key.character && $0.modifiers == modifiers && $0.scope == scope }),
+            "duplicate keyboard binding for \(key.character) modifiers=\(modifiers.rawValue) scope=\(scope)"
+        )
+        bindings.append(KeyBinding(key: key, modifiers: modifiers, scope: scope, perform: perform))
+    }
+
+    /// Removes all bindings for the given scope. Call when a view's lifecycle ends to drop
+    /// captured handler closures and allow re-registration on next mount.
+    func unregisterAll(scope: Scope) {
+        bindings.removeAll { $0.scope == scope }
     }
 
     @discardableResult
@@ -59,5 +71,12 @@ final class KeyboardCoordinator {
         }) {
             onMatch(hit)
         }
+    }
+
+    /// Clears the type-to-select buffer immediately. Call on focus loss, sheet present,
+    /// or other moments where preserving the half-typed prefix would be confusing.
+    func resetBuffer() {
+        buffer = ""
+        lastInputTime = -.infinity
     }
 }

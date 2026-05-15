@@ -66,4 +66,39 @@ struct KeyboardCoordinatorTests {
         // localized comparison treats é/E/e as equivalent — should find a non-nil match
         #expect(matched != nil)
     }
+
+    @Test func unregisterAllRemovesScopedBindings() {
+        let kc = KeyboardCoordinator()
+        var browserFired = 0
+        var sheetFired = 0
+        kc.register(.space, modifiers: [], scope: .browser) { browserFired += 1 }
+        kc.register(.space, modifiers: [], scope: .sheet) { sheetFired += 1 }
+        kc.unregisterAll(scope: .browser)
+        _ = kc.handle(key: .space, modifiers: [], scope: .browser)
+        _ = kc.handle(key: .space, modifiers: [], scope: .sheet)
+        #expect(browserFired == 0)
+        #expect(sheetFired == 1)
+    }
+
+    @Test func reregisterAfterUnregisterWorks() {
+        let kc = KeyboardCoordinator()
+        var fired = 0
+        kc.register(.space, modifiers: [], scope: .browser) { fired += 1 }
+        kc.unregisterAll(scope: .browser)
+        kc.register(.space, modifiers: [], scope: .browser) { fired += 10 }
+        _ = kc.handle(key: .space, modifiers: [], scope: .browser)
+        #expect(fired == 10)
+    }
+
+    @Test func resetBufferClearsTypeToSelect() {
+        let kc = KeyboardCoordinator()
+        var matched: String?
+        let items = ["Apple.pdf", "Banana.txt"]
+        kc.handleTypeToSelect(char: "a", against: items, now: 0) { matched = $0 }
+        #expect(matched == "Apple.pdf")
+        kc.resetBuffer()
+        kc.handleTypeToSelect(char: "b", against: items, now: 0.01) { matched = $0 }
+        // Reset succeeded → "b" alone matches Banana even within the 0.5s timeout window
+        #expect(matched == "Banana.txt")
+    }
 }
