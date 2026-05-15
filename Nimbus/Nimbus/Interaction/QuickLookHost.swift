@@ -31,8 +31,19 @@ final class FileProviderMaterializationProvider: MaterializationProvider {
     }
 
     func resolveURL(for item: FileItem, remote: String) async throws -> URL {
-        guard let url = await bridge.urlForItem(remote: remote, path: item.path) else {
-            throw QuickLookError.cannotResolveFileProviderURL(remote: remote, path: item.path)
+        // FileItem.path is the leaf name relative to the current listed dir.
+        // FileItem.qualifiedRemotePath ("remote:dir/sub/leaf") encodes the full path from the remote root.
+        // Strip the "remote:" prefix to get the path the FP-mounted root URL expects.
+        let prefix = "\(remote):"
+        let fullPath: String
+        if item.qualifiedRemotePath.hasPrefix(prefix) {
+            fullPath = String(item.qualifiedRemotePath.dropFirst(prefix.count))
+        } else {
+            // Best-effort fallback: use FileItem.path as-is.
+            fullPath = item.path
+        }
+        guard let url = await bridge.urlForItem(remote: remote, path: fullPath) else {
+            throw QuickLookError.cannotResolveFileProviderURL(remote: remote, path: fullPath)
         }
         return url
     }
@@ -55,7 +66,14 @@ final class TempDownloadMaterializationProvider: MaterializationProvider {
     }
 
     func resolveURL(for item: FileItem, remote: String) async throws -> URL {
-        let url = try await client.downloadToTemp(remote: remote, path: item.path)
+        let prefix = "\(remote):"
+        let fullPath: String
+        if item.qualifiedRemotePath.hasPrefix(prefix) {
+            fullPath = String(item.qualifiedRemotePath.dropFirst(prefix.count))
+        } else {
+            fullPath = item.path
+        }
+        let url = try await client.downloadToTemp(remote: remote, path: fullPath)
         createdDirs.append(url.deletingLastPathComponent())
         return url
     }
@@ -101,13 +119,20 @@ final class QuickLookHost: NSObject {
     /// Resolves URLs for `items` via `provider`, then opens `QLPreviewPanel`.
     /// Errors during resolution leave the panel un-shown.
     func show(items: [FileItem], provider: MaterializationProvider, remote: String) async {
+        // Dispose any provider from a prior invocation before taking ownership of the new one.
+        teardownProvider()
+
+        // Empty selection: do nothing rather than open an empty panel.
+        guard !items.isEmpty else { return }
+
         self.items = items
         self.provider = provider
 
         do {
             urls = try await Self.resolveURLs(items: items, provider: provider, remote: remote)
         } catch {
-            urls = []
+            // Partial resolutions may have created temp files — clean them up.
+            teardownProvider()
             return
         }
 
@@ -121,10 +146,16 @@ final class QuickLookHost: NSObject {
     /// any temp files it created are removed.
     func close() {
         QLPreviewPanel.shared()?.orderOut(nil)
+        teardownProvider()
+    }
+
+    /// Disposes any in-flight provider and clears resolved URLs.
+    /// Called at the start of show() (re-entry) and on error paths.
+    private func teardownProvider() {
         provider?.dispose()
         provider = nil
-        items = []
         urls = []
+        items = []
     }
 
     /// Resolves URLs sequentially. Sequential rather than parallel because the
@@ -150,11 +181,9 @@ final class QuickLookHost: NSObject {
 // MARK: - QLPreviewPanelDataSource
 
 // `QLPreviewPanelDataSource` and `QLPreviewPanelDelegate` are AppKit Objective-C
-// protocols that pre-date Swift concurrency, so they are unisolated. The panel
-// itself only calls these methods on the main thread, so the bridge is safe
-// when we annotate the methods nonisolated and hop back to the MainActor for
-// any state access. `@preconcurrency` keeps the compiler from refusing the
-// conformance entirely.
+// protocols that pre-date Swift concurrency. The panel only calls these methods
+// on the main thread, so we mark each method `nonisolated` and use
+// `MainActor.assumeIsolated` to access MainActor-isolated state safely.
 extension QuickLookHost: QLPreviewPanelDataSource {
     nonisolated func numberOfPreviewItems(in _: QLPreviewPanel!) -> Int {
         MainActor.assumeIsolated { urls.count }
