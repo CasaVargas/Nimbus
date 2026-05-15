@@ -4,14 +4,22 @@ struct GeneralSection: View {
     @Environment(LaunchAtLoginService.self) private var launchAtLogin
 
     var body: some View {
-        Form {
-            Toggle("Launch Nimbus at login", isOn: launchAtLoginBinding)
-            if let error = launchAtLogin.lastError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.l) {
+            FormSection(title: "Application", footer: nil) {
+                FormRow(label: "Launch at Login", help: nil) {
+                    Toggle("", isOn: launchAtLoginBinding)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
             }
+            if let error = launchAtLogin.lastError {
+                Text(verbatim: error)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundStyle(DesignSystem.Color.semantic.statusError)
+            }
+            Spacer()
         }
+        .padding(DesignSystem.Spacing.xl)
         .onAppear { launchAtLogin.refresh() }
     }
 
@@ -29,9 +37,8 @@ struct GeneralSection: View {
     }
 }
 
-#Preview("Idle") {
+#Preview {
     GeneralSection()
         .environment(LaunchAtLoginService())
-        .frame(width: 450, height: 250)
-        .padding()
+        .frame(width: 480, height: 320)
 }
