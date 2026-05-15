@@ -13,6 +13,8 @@ import os
 protocol FileProviderBridgeProtocol: AnyObject {
     func isRegistered(remote: String) -> Bool
     func urlForItem(remote: String, path: String) async -> URL?
+    func isItemMaterialized(remote: String, path: String) -> Bool
+    func wasRecentlyEvicted(remote: String, path: String) -> Bool
 }
 
 @MainActor @Observable
@@ -164,5 +166,18 @@ extension FileProviderBridge: FileProviderBridgeProtocol {
         }
         let trimmed = path.hasPrefix("/") ? String(path.dropFirst()) : path
         return rootURL.appendingPathComponent(trimmed)
+    }
+
+    /// Phase 1 stub: real File Provider materialization state requires async
+    /// `NSFileProviderManager` enumeration. Defaulting to `false` so all
+    /// non-FP-cached files render as `.cloud`.
+    func isItemMaterialized(remote: String, path: String) -> Bool {
+        false
+    }
+
+    /// Phase 1 stub: real recently-evicted tracking is FP-specific and
+    /// out of scope for Phase 1.
+    func wasRecentlyEvicted(remote: String, path: String) -> Bool {
+        false
     }
 }

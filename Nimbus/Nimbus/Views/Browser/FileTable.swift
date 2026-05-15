@@ -32,7 +32,7 @@ struct FileTable: View {
     var body: some View {
         Table(files, selection: tableSelectionBinding) {
             TableColumn("") { file in
-                CloudStatusColumn(file: file)
+                CloudStatusColumn(file: file, remote: remote)
                     .accessibilityLabel("Cloud status")
             }
             .width(28)

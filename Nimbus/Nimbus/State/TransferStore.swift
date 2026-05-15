@@ -128,7 +128,10 @@ final class TransferStore {
     func startPolling(client: RcloneClient) {
         pollingTask = Task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
+                // ~4fps poll cadence keeps progress rings smooth without
+                // hammering the rclone RC API. Phase 1 acceptable; revisit
+                // if CPU pressure shows up in profiling.
+                try? await Task.sleep(for: .milliseconds(250))
                 await self.pollActiveJobs(client: client)
             }
         }
@@ -143,8 +146,20 @@ final class TransferStore {
         for transfer in activeTransfers {
             do {
                 let job = try await client.jobStatus(id: transfer.id)
+
+                // Update progress from per-group stats while the job is still
+                // running. `try?` keeps a transient stats failure non-fatal —
+                // we'll retry on the next poll cycle.
+                if !job.finished, !job.group.isEmpty {
+                    if let stats = try? await client.getStats(group: job.group) {
+                        let progress = computeProgress(from: stats)
+                        setProgress(progress, forJobId: transfer.id)
+                    }
+                }
+
                 if job.finished {
                     if job.success {
+                        setProgress(1.0, forJobId: transfer.id)
                         completeTransfer(jobId: transfer.id)
                     } else {
                         failTransfer(jobId: transfer.id, error: job.error)
@@ -156,5 +171,18 @@ final class TransferStore {
                 logger.debug("Job \(transfer.id) status poll failed (may be cleaned up): \(error)")
             }
         }
+    }
+
+    /// Computes overall progress from a `StatsResponse`:
+    /// - prefers `totalBytes` / `bytes` when `totalBytes > 0`
+    /// - falls back to averaging `transferring[].percentage` when bytes
+    ///   accounting is missing (small files, multi-file batches early on)
+    private func computeProgress(from stats: StatsResponse) -> Double {
+        if stats.totalBytes > 0 {
+            return max(0, min(1, Double(stats.bytes) / Double(stats.totalBytes)))
+        }
+        guard let transferring = stats.transferring, !transferring.isEmpty else { return 0 }
+        let avg = Double(transferring.map(\.percentage).reduce(0, +)) / Double(transferring.count)
+        return max(0, min(1, avg / 100.0))
     }
 }
