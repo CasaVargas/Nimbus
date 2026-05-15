@@ -7,9 +7,17 @@ final class Selection<ID: Hashable & Sendable> {
     private(set) var anchor: ID?
     private(set) var ids: Set<ID> = []
 
+    /// Base selection snapshot: everything selected before the current
+    /// shift-extend streak. Re-captured whenever the anchor is (re)set
+    /// via plain select, toggle, or replace. `extend` unions this with
+    /// the live anchor→target range — real Finder behavior, so a
+    /// shift-click after a ⌘-click preserves disjoint selected items.
+    private var baseIDs: Set<ID> = []
+
     func select(_ id: ID, in ordering: [ID]) {
         ids = [id]
         anchor = id
+        baseIDs = [id]
     }
 
     func toggle(_ id: ID, in ordering: [ID]) {
@@ -22,6 +30,7 @@ final class Selection<ID: Hashable & Sendable> {
             ids.insert(id)
             anchor = id
         }
+        baseIDs = ids
     }
 
     func extend(to id: ID, in ordering: [ID]) {
@@ -34,21 +43,23 @@ final class Selection<ID: Hashable & Sendable> {
             return
         }
 
-        // Both endpoints known: inclusive range.
+        // Both endpoints known: base selection ∪ inclusive range.
         guard let a = ordering.firstIndex(of: anchor),
               let b = ordering.firstIndex(of: id) else { return }
         let lo = min(a, b)
         let hi = max(a, b)
-        ids = Set(ordering[lo...hi])
+        ids = baseIDs.union(ordering[lo...hi])
     }
 
     func replace(with newSet: Set<ID>, in ordering: [ID]) {
         ids = newSet
         anchor = ordering.first(where: { newSet.contains($0) })
+        baseIDs = newSet
     }
 
     func clear() {
         ids = []
         anchor = nil
+        baseIDs = []
     }
 }

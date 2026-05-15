@@ -85,13 +85,16 @@ struct SelectionTests {
         #expect(sel.anchor == "b")
     }
 
-    @Test func extendToAnchorCollapsesToSingle() {
+    @Test func extendToAnchorPreservesDisjointSelection() {
         let sel = Selection<String>()
         sel.select("c", in: order)
         sel.toggle("d", in: order)
         sel.toggle("e", in: order)
         // After toggles, anchor is "e" (toggle moves anchor on insert).
+        // Finder-accurate: ⇧-click on the anchor after disjoint ⌘-clicks
+        // preserves the disjoint selection (base ∪ range e…e) — it does
+        // NOT collapse to the single anchor item.
         sel.extend(to: "e", in: order)
-        #expect(sel.ids == ["e"])
+        #expect(sel.ids == ["c", "d", "e"])
     }
 }
