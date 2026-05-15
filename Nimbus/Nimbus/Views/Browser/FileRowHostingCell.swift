@@ -11,24 +11,37 @@ import RcloneKit
 final class FileRowHostingCell: NSTableCellView {
     static let reuseIdentifier = NSUserInterfaceItemIdentifier("FileRowHostingCell")
 
-    // Type-erased so configure() can inject @Observable environment objects
-    // without making the cell generic. The environment pair is set once per
-    // table (from FileTableRepresentable) and carried through every cell.
-    private var hosting: NSHostingView<AnyView>?
+    /// Concrete wrapper so the cell stays non-generic and AnyView-free while
+    /// still injecting the @Observable environment pair FileRowView →
+    /// CloudStatusColumn requires. `.environment(T?)` with nil is a no-op,
+    /// matching the previous bare-row behavior.
+    private struct FileRowHost: View {
+        let file: FileItem
+        let remote: String
+        let isSelected: Bool
+        let transferStore: TransferStore?
+        let fileProviderBridge: FileProviderBridge?
+        var body: some View {
+            FileRowView(file: file, remote: remote, isSelected: isSelected)
+                .environment(transferStore)
+                .environment(fileProviderBridge)
+        }
+    }
+
+    private var hosting: NSHostingView<FileRowHost>?
 
     /// Environment objects required by FileRowView → CloudStatusColumn.
-    /// Set by FileTableRepresentable before any reloadData() call.
+    /// Set by FileTableCoordinator before configure() / any reloadData().
     var transferStore: TransferStore?
     var fileProviderBridge: FileProviderBridge?
 
     func configure(file: FileItem, remote: String, isSelected: Bool) {
-        let rowView = FileRowView(file: file, remote: remote, isSelected: isSelected)
-        let root: AnyView
-        if let ts = transferStore, let fpb = fileProviderBridge {
-            root = AnyView(rowView.environment(ts).environment(fpb))
-        } else {
-            root = AnyView(rowView)
-        }
+        assert(transferStore != nil && fileProviderBridge != nil,
+               "FileRowHostingCell.configure called without env objects — FileTableCoordinator must set transferStore/fileProviderBridge first")
+        let root = FileRowHost(
+            file: file, remote: remote, isSelected: isSelected,
+            transferStore: transferStore, fileProviderBridge: fileProviderBridge
+        )
         if let hosting {
             hosting.rootView = root
         } else {
