@@ -1,5 +1,6 @@
 import SwiftUI
 import RcloneKit
+import os
 
 struct BrowserView: View {
     let remoteName: String
@@ -44,8 +45,8 @@ struct BrowserView: View {
                                 onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) },
                                 onQuickLook: { items in
                                     // Quick Look wiring deferred to Task 9/10 environment integration.
-                                    // For Task 8, just no-op (log for manual verification).
-                                    print("Quick Look requested for \(items.count) items")
+                                    Logger(subsystem: "app.casavargas.nimbus", category: "browser")
+                                        .debug("Quick Look requested for \(items.count) items (real wiring deferred to Task 9/10)")
                                 }
                             )
                         case .grid:

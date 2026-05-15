@@ -11,7 +11,7 @@ struct FileGrid: View {
     let onOpen: (FileItem) -> Void
     let onContextAction: (FileItem, FileAction) -> Void
 
-    private var sortedIDs: [String] { files.map(\.path) }
+    private var sortedIDs: [String] { files.map(\.id) }
 
     private let columns = [GridItem(.adaptive(minimum: 96), spacing: DesignSystem.Spacing.m)]
 
@@ -41,7 +41,7 @@ struct FileGrid: View {
 
     @ViewBuilder
     private func tile(for file: FileItem) -> some View {
-        let isSelected = selection.ids.contains(file.path)
+        let isSelected = selection.ids.contains(file.id)
         VStack(spacing: DesignSystem.Spacing.xs) {
             ZStack {
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
@@ -69,11 +69,11 @@ struct FileGrid: View {
                       : .clear)
         )
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { onOpen(file) }
-        .onTapGesture {
+        .gesture(TapGesture(count: 2).onEnded { onOpen(file) })
+        .simultaneousGesture(TapGesture().onEnded {
             // Single-tap toggles selection. shift/cmd handling deferred to AppKit if needed.
-            selection.select(file.path, in: sortedIDs)
-        }
+            selection.select(file.id, in: sortedIDs)
+        })
     }
 
     @ViewBuilder

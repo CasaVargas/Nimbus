@@ -27,24 +27,13 @@ final class BrowserViewModel {
     var sortAscending: Bool = true
 
     /// Foundation Selection<String> instance shared with FileTable / FileGrid.
-    /// IDs are file paths (`FileItem.path`), not the SwiftUI `Identifiable.id` —
-    /// downstream rclone ops require the rclone-relative path.
+    /// IDs are `FileItem.id` (matching SwiftUI's Identifiable contract on Table)
+    /// — call sites resolve back to `FileItem.path` for rclone ops.
     let selection = Selection<String>()
 
     /// Foundation keyboard coordinator. Owns the type-to-select buffer and any
     /// keyboard bindings registered by the browser scope.
     let keyboard = KeyboardCoordinator()
-
-    /// Bridges the foundation Selection<String> model to SwiftUI Table's
-    /// `Set<String>` binding contract.
-    var swiftUISelection: Binding<Set<String>> {
-        Binding(
-            get: { self.selection.ids },
-            set: { newSet in
-                self.selection.replace(with: newSet, in: self.sortedFiles.map(\.path))
-            }
-        )
-    }
 
     var showNewFolderDialog = false
     var newFolderName = ""

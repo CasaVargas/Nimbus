@@ -16,8 +16,12 @@ struct FileTable: View {
     let onContextAction: (FileItem, FileAction) -> Void
     let onQuickLook: ([FileItem]) -> Void
 
-    private var sortedIDs: [String] { files.map(\.path) }
+    private var sortedIDs: [String] { files.map(\.id) }
 
+    // NOTE: SwiftUI Table re-sets the entire selection on each click, so Selection's
+    // anchor is overwritten by `replace(with:in:)` rather than tracking the actual
+    // click point. Keyboard ops (handled below) set anchor correctly; shift-arrow
+    // extension across mixed mouse+keyboard input would need an AppKit bridge.
     private var tableSelectionBinding: Binding<Set<String>> {
         Binding(
             get: { selection.ids },
@@ -29,6 +33,7 @@ struct FileTable: View {
         Table(files, selection: tableSelectionBinding) {
             TableColumn("") { file in
                 CloudStatusColumn(file: file)
+                    .accessibilityLabel("Cloud status")
             }
             .width(28)
 
@@ -73,17 +78,16 @@ struct FileTable: View {
             }
             .width(ideal: 120)
         }
-        .contextMenu(forSelectionType: String.self) { paths in
-            if let path = paths.first, let file = files.first(where: { $0.path == path }) {
+        .contextMenu(forSelectionType: String.self) { ids in
+            if let id = ids.first, let file = files.first(where: { $0.id == id }) {
                 FileContextMenu(file: file, onAction: { action in onContextAction(file, action) })
             }
-        } primaryAction: { paths in
-            if let path = paths.first, let file = files.first(where: { $0.path == path }) {
+        } primaryAction: { ids in
+            if let id = ids.first, let file = files.first(where: { $0.id == id }) {
                 onOpen(file)
             }
         }
         .focusable(true)
-        .focusEffectDisabled()
         .onKeyPress(phases: .down) { press in
             handleKey(press: press)
         }
@@ -92,11 +96,12 @@ struct FileTable: View {
     private func handleKey(press: KeyPress) -> KeyPress.Result {
         let ordering = sortedIDs
 
-        // Type-to-select first (letter/digit chars only).
-        if let c = press.characters.first, c.isLetter || c.isNumber {
+        // Type-to-select first (letter/digit + common filename chars).
+        if let c = press.characters.first,
+           c.isLetter || c.isNumber || ".-_".contains(c) {
             keyboard.handleTypeToSelect(char: c, against: files.map(\.name)) { matchedName in
                 if let f = files.first(where: { $0.name == matchedName }) {
-                    selection.select(f.path, in: ordering)
+                    selection.select(f.id, in: ordering)
                 }
             }
             return .handled
@@ -105,18 +110,18 @@ struct FileTable: View {
         switch press.key {
         case .space:
             // Trigger Quick Look on the current selection.
-            let items = files.filter { selection.ids.contains($0.path) }
+            let items = files.filter { selection.ids.contains($0.id) }
             if !items.isEmpty {
                 onQuickLook(items)
             }
             return .handled
         case .return:
-            if let id = selection.anchor, let f = files.first(where: { $0.path == id }) {
+            if let id = selection.anchor, let f = files.first(where: { $0.id == id }) {
                 onOpen(f)
             }
             return .handled
         case .delete:
-            if let id = selection.anchor, let f = files.first(where: { $0.path == id }) {
+            if let id = selection.anchor, let f = files.first(where: { $0.id == id }) {
                 onContextAction(f, .delete)
             }
             return .handled
