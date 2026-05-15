@@ -135,7 +135,7 @@ struct FileTable: View {
         let count = max(1, selection.ids.count)
         ZStack(alignment: .topTrailing) {
             Image(systemName: file.isDir ? "folder.fill" : iconName(for: file.name))
-                .font(.largeTitle)
+                .font(DesignSystem.Typography.largeTitle)
                 .foregroundStyle(DesignSystem.Color.semantic.statusInfo)
             if count > 1 {
                 Text("\(count)")

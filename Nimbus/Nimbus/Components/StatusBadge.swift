@@ -38,7 +38,7 @@ struct StatusBadge: View {
     @ViewBuilder
     private func pill(text: String, tint: Color, muted: Bool) -> some View {
         Text(text)
-            .font(.system(.caption2, design: .default).weight(.medium))
+            .font(DesignSystem.Typography.caption2.weight(.medium))
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
             .background(tint.opacity(muted ? 0.10 : 0.18),

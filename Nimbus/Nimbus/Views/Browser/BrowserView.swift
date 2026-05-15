@@ -7,8 +7,10 @@ struct BrowserView: View {
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(BookmarkStore.self) private var bookmarkStore
     @Environment(TransferStore.self) private var transferStore
+    @Environment(FileProviderBridge.self) private var fileProviderBridge
     @State private var viewModel: BrowserViewModel?
     @State private var pendingCopy: CopyRequest?
+    @State private var quickLookHost = QuickLookHost()
 
     var body: some View {
         Group {
@@ -48,9 +50,14 @@ struct BrowserView: View {
                                 onOpen: { file in handleOpen(file, viewModel: viewModel) },
                                 onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) },
                                 onQuickLook: { items in
-                                    // Quick Look wiring deferred to Task 9/10 environment integration.
-                                    Logger(subsystem: "app.casavargas.nimbus", category: "browser")
-                                        .debug("Quick Look requested for \(items.count) items (real wiring deferred to Task 9/10)")
+                                    Task {
+                                        let provider = QuickLookHost.provider(
+                                            forRemote: remoteName,
+                                            bridge: fileProviderBridge,
+                                            client: RcloneClientAdapter(client: daemon.client)
+                                        )
+                                        await quickLookHost.show(items: items, provider: provider, remote: remoteName)
+                                    }
                                 }
                             )
                         case .grid:
@@ -200,7 +207,7 @@ struct BrowserView: View {
                 ForEach(Array(viewModel.pathComponents.enumerated()), id: \.offset) { index, component in
                     if index > 0 {
                         Image(systemName: "chevron.right")
-                            .font(.caption)
+                            .font(DesignSystem.Typography.caption)
                             .foregroundStyle(.secondary)
                     }
                     Button(component.name) {

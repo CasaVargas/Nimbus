@@ -100,7 +100,6 @@ All apps and extensions use the `app.casavargas.nimbus` bundle ID family:
 
 - **Development:** `Apple Development: Jonathan Vargas (4JQT5BXA8Q)`
 - **Release:** `Developer ID Application: Jonathan Vargas (53MUTM55LC)`
-- Release builds sign in `/tmp` to avoid iCloud xattr interference on the working directory
 
 ## Configuration
 

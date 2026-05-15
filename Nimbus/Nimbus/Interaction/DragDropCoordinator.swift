@@ -141,34 +141,42 @@ final class DragDropCoordinator {
                 // ambiguous root sync. Issue per-file copyfile jobs.
                 for item in items {
                     let dstPath = "\(target.path)/\(item.name)"
+                    // Generate one UUID per job so the user-visible `_conflict-<8hex>`
+                    // suffix is traceable back to the matching TransferStore row.
+                    let nimbusUUID = UUID()
                     let jobId = try await rclone.operationsCopyFile(
                         srcFs: "\(sourceRemote):",
                         srcRemote: item.path,
                         dstFs: "\(target.remote):",
                         dstRemote: dstPath,
-                        flags: flagsFor(conflictPolicy, nimbusUUID: UUID())
+                        flags: flagsFor(conflictPolicy, nimbusUUID: nimbusUUID)
                     )
                     transferStore.addTransfer(
                         jobId: jobId,
                         operation: .copy,
                         srcFs: "\(sourceRemote):\(item.path)",
                         dstFs: "\(target.remote):\(dstPath)",
-                        origin: .crossRemoteDrop
+                        origin: .crossRemoteDrop,
+                        nimbusUUID: nimbusUUID
                     )
                 }
             } else {
                 // Batched sync of a common parent directory.
+                // Generate one UUID for the job so the rename suffix and
+                // TransferStore row share an identifier.
+                let nimbusUUID = UUID()
                 let jobId = try await rclone.syncCopy(
                     srcFs: "\(sourceRemote):\(prefix)",
                     dstFs: "\(target.remote):\(target.path)",
-                    flags: flagsFor(conflictPolicy, nimbusUUID: UUID())
+                    flags: flagsFor(conflictPolicy, nimbusUUID: nimbusUUID)
                 )
                 transferStore.addTransfer(
                     jobId: jobId,
                     operation: .sync,
                     srcFs: "\(sourceRemote):\(prefix)",
                     dstFs: "\(target.remote):\(target.path)",
-                    origin: .crossRemoteDrop
+                    origin: .crossRemoteDrop,
+                    nimbusUUID: nimbusUUID
                 )
             }
 

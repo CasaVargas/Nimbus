@@ -15,6 +15,7 @@ This document records the state of Phase 1's exit gates at the time of merge rea
 | Mount → Finder visible | ≤ 2.0s | Manual verification deferred | No automated scenario in Phase 1 BenchScene |
 | Animation max frame | ≤ 16.7ms (60fps) | Coarse sampler in BenchScene | True validation requires Instruments |
 | Foundation primitive tests | All pass | ✅ | Selection (11), KeyboardCoordinator (9), DragDropCoordinator (10), QuickLookHost (6) = 36 tests |
+| QuickLookHost wired into Browser | Spacebar opens Quick Look on the current selection | ✅ | `BrowserView` owns a `@State private var quickLookHost = QuickLookHost()`; `onQuickLook` resolves a `MaterializationProvider` and calls `host.show(items:provider:remote:)` |
 | StatusBadge snapshot tests | Pass light + dark | ✅ | 8 tests pass; perceptual-hash comparison absorbs sub-pixel noise |
 | Cross-remote drag UI test | Wedge end-to-end | ⚠️  Deferred to post-Phase-1 | Coordinator logic exhaustively unit-tested; XCUITest drag-and-drop on macOS is flaky |
 | Lints.swift / build-time | Zero .system(size:), zero remote SPM deps | ✅ | `scripts/lint-no-system-size.sh` runs on every build; `scripts/lint-package-resolved.sh` enforces |

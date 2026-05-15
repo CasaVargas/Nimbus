@@ -43,12 +43,18 @@ struct CloudStatusColumn: View {
     }
 
     /// Returns progress (0...1) if any active transfer's destination matches
-    /// this file. Match heuristic: `dstFs` ends with the file's path.
-    /// `DragDropCoordinator` builds `dstFs` as `<remote>:<dest-path>/<filename>`
-    /// so the suffix match is sufficient.
+    /// this file. `DragDropCoordinator` builds `dstFs` as
+    /// `<remote>:<dest-path>/<filename>`, so we match the exact
+    /// `"<remote>:<path>"` form first and fall back to a remote-scoped
+    /// filename match. The remote prefix ensures a transfer destined for
+    /// `s3:/Backup/foo.jpg` doesn't bleed into a `gdrive:/Backup/foo.jpg`
+    /// row with the same filename.
     private func activeProgress() -> Double? {
+        let expected = "\(remote):\(file.path)"
         for t in transferStore.transfers where t.status.isActive {
-            if t.dstFs.hasSuffix(file.path) || t.dstFs.hasSuffix("/\(file.name)") {
+            // Exact match against "<remote>:<path>" first (DragDropCoordinator's dstFs format),
+            // then a fallback that still scopes to this remote's path.
+            if t.dstFs == expected || t.dstFs.hasPrefix("\(remote):") && t.dstFs.hasSuffix("/\(file.name)") {
                 return t.progress
             }
         }

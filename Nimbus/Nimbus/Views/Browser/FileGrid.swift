@@ -79,7 +79,7 @@ struct FileGrid: View {
     @ViewBuilder
     private func tilePreview(for file: FileItem) -> some View {
         Image(systemName: file.isDir ? "folder.fill" : iconName(for: file.name))
-            .font(.largeTitle)
+            .font(DesignSystem.Typography.largeTitle)
             .foregroundStyle(DesignSystem.Color.semantic.statusInfo)
             .padding()
     }
