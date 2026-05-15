@@ -79,6 +79,7 @@
 		B00080307FD8EA793F2CEAD7 /* NimbusError.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD46B92F934C6AADF654A9BA /* NimbusError.swift */; };
 		B3DD7DD69B279684EA0D9497 /* ImportPreviewList.swift in Sources */ = {isa = PBXBuildFile; fileRef = A21C381CEE03583B4CADE2DA /* ImportPreviewList.swift */; };
 		B4C719D6E99C2E5961856594 /* ImportRemoteRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9424E2AE45C4242AFBB7A2D /* ImportRemoteRow.swift */; };
+		B547BE9FD937ABAB8296D8A8 /* TimedCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC429C15479FA55A4F70DA21 /* TimedCacheTests.swift */; };
 		B59DB74E76B93E5440D76430 /* KeyboardCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD5589C957FFEFEDDF3563A /* KeyboardCoordinator.swift */; };
 		B77CE9DC37BBD5AD88C123C4 /* FormSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD7376A5101C0586DF6E6E2F /* FormSection.swift */; };
 		B85590E6C8AA1C9E8B6597BB /* ReconcileFPDomainsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CD4E8CAFFAB8F0A899246EF /* ReconcileFPDomainsTests.swift */; };
@@ -88,6 +89,7 @@
 		C3151C4840BF9BE471F4ED0B /* RemoteRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0EBD546A1309934BF1097 /* RemoteRowTests.swift */; };
 		C43A4C8EACB4C847D12E4E31 /* Lints.swift in Sources */ = {isa = PBXBuildFile; fileRef = A21CD08F98A42ACB20E40A27 /* Lints.swift */; };
 		C4C1CE457BC2536A447DE1BB /* SheetChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6C3E0E28CB14B1FC1F0F666 /* SheetChrome.swift */; };
+		C94C8DD95DA8BF42396D3779 /* TimedCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCAC9985B428E97E63330C61 /* TimedCache.swift */; };
 		CA0E5E0F07A0AF378C3BA5E7 /* Selection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C428B03536470F32946F2BB /* Selection.swift */; };
 		CA84245C980DE470FB035D8B /* RemoteStatusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3664099969BCEF740DAB5F4B /* RemoteStatusService.swift */; };
 		CAF8A4396F7EEB736BD84E8F /* NimbusFileRef.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3994C6A2379A27396999FD1F /* NimbusFileRef.swift */; };
@@ -221,6 +223,7 @@
 		B66BA5D854765E4D13BAFE5D /* SheetChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetChromeTests.swift; sourceTree = "<group>"; };
 		B90D4E52BA97B181F32A18D8 /* BrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserView.swift; sourceTree = "<group>"; };
 		BC4F8A4196F233DFDE0DE17E /* AboutSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSection.swift; sourceTree = "<group>"; };
+		BCAC9985B428E97E63330C61 /* TimedCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimedCache.swift; sourceTree = "<group>"; };
 		BD21B96800F2631A8D3C2F30 /* OnboardingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingCard.swift; sourceTree = "<group>"; };
 		BD7376A5101C0586DF6E6E2F /* FormSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormSection.swift; sourceTree = "<group>"; };
 		C59D2ED20596903528EE7EB1 /* MountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountManager.swift; sourceTree = "<group>"; };
@@ -249,6 +252,7 @@
 		F9A419551C6F4187C05A07F7 /* NimbusApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NimbusApp.swift; sourceTree = "<group>"; };
 		F9CE29401FAD3CBE223A9672 /* QuickLookHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookHost.swift; sourceTree = "<group>"; };
 		F9ECF234179CA3F12952215A /* StatusBadgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadgeTests.swift; sourceTree = "<group>"; };
+		FC429C15479FA55A4F70DA21 /* TimedCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimedCacheTests.swift; sourceTree = "<group>"; };
 		FF1ECD3038C0295EC2B40C77 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		FF4CBB01D22517CB8878D768 /* MountsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountsViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -336,6 +340,7 @@
 				0DC9150CFA4799141AFE8FCC /* RcloneClientAdapter.swift */,
 				F0B2F0DEB49277B20924FD2F /* RcloneDaemon.swift */,
 				3664099969BCEF740DAB5F4B /* RemoteStatusService.swift */,
+				BCAC9985B428E97E63330C61 /* TimedCache.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -558,6 +563,7 @@
 				B66BA5D854765E4D13BAFE5D /* SheetChromeTests.swift */,
 				F9ECF234179CA3F12952215A /* StatusBadgeTests.swift */,
 				C8EC5A7120D51A50AD5F8BDD /* StatusToggleTests.swift */,
+				FC429C15479FA55A4F70DA21 /* TimedCacheTests.swift */,
 				1A1CAF59AEE652F952B3F63C /* TokensTests.swift */,
 				7BBED5BF19EAACDD19F5A75D /* TransferRowTests.swift */,
 				17C527F7D5BE6B44A85632C9 /* Mocks */,
@@ -810,6 +816,7 @@
 				6FECFF9BD67D0EEC503B2DD1 /* StatusBadge.swift in Sources */,
 				F851328D953F638D4192726E /* StatusToggle.swift in Sources */,
 				7B21C1EF6C00795220F62C64 /* StorageUsageView.swift in Sources */,
+				C94C8DD95DA8BF42396D3779 /* TimedCache.swift in Sources */,
 				2ED849493F32B6988F73CA7C /* TransferRow.swift in Sources */,
 				457AAF26BB535EF79DC2B152 /* TransferSection.swift in Sources */,
 				13847A4076B6665A7D7772B5 /* TransferStore.swift in Sources */,
@@ -851,6 +858,7 @@
 				3C060FF052C454049745004C /* SnapshotHelpers.swift in Sources */,
 				1B9224D361708E4B5060A3B3 /* StatusBadgeTests.swift in Sources */,
 				198A7618316FAA1EB6805362 /* StatusToggleTests.swift in Sources */,
+				B547BE9FD937ABAB8296D8A8 /* TimedCacheTests.swift in Sources */,
 				0706041D983EFF788C48B84C /* TokensTests.swift in Sources */,
 				3642897EA12AD25B4106C0D7 /* TransferRowTests.swift in Sources */,
 			);
