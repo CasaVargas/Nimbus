@@ -1,6 +1,37 @@
+import FileProvider
 import Foundation
 import Observation
 import os
+
+/// Test-friendly summary of an `NSFileProviderDomain`. `MountManager.refreshAll()`
+/// converts the OS type to this struct before passing to `reconcileFPDomains`
+/// so the reconciliation logic can be unit-tested without spinning up FP.
+struct FPDomainInfo: Equatable, Sendable {
+    let identifier: String
+    let displayName: String
+}
+
+/// Reconcile a snapshot of File Provider domains against the configured
+/// `.fileProvider` mounts. Domains whose identifier matches a config's
+/// `id` get added to `mountedIDs`. Configs without a matching domain are
+/// reported via `logger` (not auto-recreated — that's a different flow).
+///
+/// Pure function: testable without an `NSFileProviderManager` dependency.
+func reconcileFPDomains(
+    _ domains: [FPDomainInfo],
+    configs: [MountConfig],
+    mountedIDs: inout Set<String>,
+    logger: (String) -> Void
+) {
+    for domain in domains {
+        if let config = configs.first(where: { $0.id == domain.identifier }) {
+            mountedIDs.insert(config.id)
+        }
+    }
+    for config in configs where !domains.contains(where: { $0.identifier == config.id }) {
+        logger("FP config \(config.id) has no matching domain; not auto-recreating")
+    }
+}
 
 struct ActiveMount: Identifiable, Sendable {
     let id: String
@@ -176,18 +207,35 @@ final class MountManager {
         inFlight.remove(config.id)
     }
 
-    /// Refresh `mountedIDs` from system state. Phase 2a stub — the view-level
-    /// `isMountActive(_:)` derivation already unions `mountedIDs` with the
-    /// in-process `activeMounts` list, so the user-visible state stays correct
-    /// without a parse of `mount(8)`. A richer implementation (detect manual
-    /// unmounts) can come in Phase 3.
     func refreshAll() async {
-        // Drop any tracked ID whose mountPoint is no longer active in-process.
-        // Without a stored id->mountPoint map we conservatively keep IDs that
-        // might still be valid; the union derivation in MountsView covers gaps.
-        let liveMountPoints = Set(activeMounts.map(\.mountPoint))
-        _ = liveMountPoints
+        await cleanupStaleMounts()
+        await reconcileFileProviderDomains()
     }
+
+    private func reconcileFileProviderDomains() async {
+        let nsDomains: [NSFileProviderDomain]
+        do {
+            nsDomains = try await NSFileProviderManager.domains()
+        } catch {
+            logger.warning("refreshAll: getDomains failed: \(error.localizedDescription)")
+            return
+        }
+        let domainInfos = nsDomains.map {
+            FPDomainInfo(identifier: $0.identifier.rawValue, displayName: $0.displayName)
+        }
+        // configStore isn't directly accessible from MountManager; refreshAll
+        // is called by callers that have a MountConfigStore in scope. Pass
+        // configs explicitly via the configs storage on this MountManager.
+        reconcileFPDomains(domainInfos, configs: configs, mountedIDs: &mountedIDs) { msg in
+            logger.info("\(msg)")
+        }
+    }
+
+    /// Set of configs `refreshAll()` should reconcile against. The caller
+    /// updates this just before calling `refreshAll()`. Done this way to
+    /// keep `MountManager` independent of `MountConfigStore` (which would
+    /// otherwise create an env/store coupling).
+    var configs: [MountConfig] = []
 
     func startHealthMonitor() {
         healthTask = Task {

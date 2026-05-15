@@ -28,7 +28,10 @@ struct MountsView: View {
                 }
                 ToolbarItem(placement: .secondaryAction) {
                     Button("Refresh", systemImage: "arrow.clockwise") {
-                        Task { await mountManager.refreshAll() }
+                        Task {
+                            mountManager.configs = configs.configs
+                            await mountManager.refreshAll()
+                        }
                     }
                 }
             }
@@ -38,6 +41,10 @@ struct MountsView: View {
                     viewModel = MountsViewModel(client: daemon.client)
                 }
                 await viewModel?.loadRemotes()
+            }
+            .task {
+                mountManager.configs = configs.configs
+                await mountManager.refreshAll()
             }
             .sheet(isPresented: $showingAddSheet) {
                 if let viewModel {

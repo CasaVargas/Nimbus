@@ -108,8 +108,8 @@ private final class StubFileProviderBridge: FileProviderBridgeProtocol {
             .appendingPathComponent("fake-fp-\(remote)\(path)")
     }
 
-    func isItemMaterialized(remote _: String, path _: String) -> Bool { false }
-    func wasRecentlyEvicted(remote _: String, path _: String) -> Bool { false }
+    func isItemMaterialized(remote _: String, path _: String) async -> Bool { false }
+    func wasRecentlyEvicted(remote _: String, path _: String) async -> Bool { false }
 }
 
 @MainActor
@@ -130,8 +130,8 @@ private final class RecordingFileProviderBridge: FileProviderBridgeProtocol {
         return FileManager.default.temporaryDirectory.appendingPathComponent("fake-\(remote)-\(path)")
     }
 
-    func isItemMaterialized(remote _: String, path _: String) -> Bool { false }
-    func wasRecentlyEvicted(remote _: String, path _: String) -> Bool { false }
+    func isItemMaterialized(remote _: String, path _: String) async -> Bool { false }
+    func wasRecentlyEvicted(remote _: String, path _: String) async -> Bool { false }
 }
 
 private final class StubRcloneClient: RcloneClientProtocol, @unchecked Sendable {

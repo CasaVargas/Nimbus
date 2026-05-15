@@ -6,7 +6,7 @@ import RcloneKit
 @MainActor
 final class CopySyncViewModel {
     private(set) var remoteNames: [String] = []
-    private(set) var error: String?
+    private(set) var error: NimbusError?
 
     private let client: RcloneClient
 
@@ -18,7 +18,7 @@ final class CopySyncViewModel {
         do {
             remoteNames = try await client.listRemotes()
         } catch {
-            self.error = error.localizedDescription
+            self.error = NimbusError.classify(error)
         }
     }
 
@@ -54,7 +54,7 @@ final class CopySyncViewModel {
             }
             store.addTransfer(jobId: jobId, operation: operation, srcFs: srcFs, dstFs: dstFs)
         } catch {
-            self.error = error.localizedDescription
+            self.error = NimbusError.classify(error)
         }
     }
 }

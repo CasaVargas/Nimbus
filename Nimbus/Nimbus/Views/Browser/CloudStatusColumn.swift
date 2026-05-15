@@ -14,9 +14,28 @@ struct CloudStatusColumn: View {
     @Environment(TransferStore.self) private var transferStore
     @Environment(FileProviderBridge.self) private var bridge
 
+    /// FP-materialized flag, refreshed in `.task` since the bridge query is
+    /// async (it walks `NSFileProviderManager.enumeratorForMaterializedItems`).
+    /// The bridge caches results for 5s per-remote so the per-row task is cheap.
+    @State private var isMaterialized = false
+    /// FP-evicted flag. Currently always `false` (no evicted-set enumerator
+    /// on the SDK), kept as a `@State` for forward-compatibility with the
+    /// async protocol.
+    @State private var isEvicted = false
+
     var body: some View {
         StatusBadge(state: state)
+            .task(id: queryKey) {
+                let materialized = await bridge.isItemMaterialized(remote: remote, path: file.path)
+                let evicted = await bridge.wasRecentlyEvicted(remote: remote, path: file.path)
+                isMaterialized = materialized
+                isEvicted = evicted
+            }
     }
+
+    /// Re-fire the FP-status task only when the row identity changes.
+    /// Avoids re-querying when transfer progress ticks redraw the row.
+    private var queryKey: String { "\(remote)|\(file.path)" }
 
     private var state: CloudStatus {
         // Directories don't have meaningful cloud status — show .local so
@@ -29,12 +48,12 @@ struct CloudStatusColumn: View {
         }
 
         // FP-materialized → local
-        if bridge.isItemMaterialized(remote: remote, path: file.path) {
+        if isMaterialized {
             return .local
         }
 
         // Recently evicted → evicted state
-        if bridge.wasRecentlyEvicted(remote: remote, path: file.path) {
+        if isEvicted {
             return .evicted
         }
 

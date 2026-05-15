@@ -27,7 +27,7 @@ struct CopySyncView: View {
                     EmptyState(
                         icon: "exclamationmark.triangle",
                         title: "Couldn't start",
-                        messageVerbatim: error,
+                        messageVerbatim: error.message,
                         action: .init(label: "Dismiss", perform: { viewModel?.clearError() })
                     )
                     .frame(maxHeight: 160)
