@@ -1,25 +1,47 @@
 import SwiftUI
-import RcloneKit
 
 struct PathPicker: View {
-    let label: String
+    let label: LocalizedStringKey
     let remoteNames: [String]
     @Binding var selectedRemote: String
     @Binding var path: String
 
     var body: some View {
-        GroupBox(label) {
-            VStack(alignment: .leading, spacing: 8) {
-                Picker("Remote", selection: $selectedRemote) {
-                    Text("Select...").tag("")
+        FormRow(label: label, help: nil) {
+            HStack(spacing: DesignSystem.Spacing.s) {
+                Picker("", selection: $selectedRemote) {
+                    Text("Choose…").tag("")
                     ForEach(remoteNames, id: \.self) { name in
-                        Text(name).tag(name)
+                        Text(verbatim: name).tag(name)
                     }
                 }
+                .labelsHidden()
+                .frame(width: 140)
 
-                TextField("Path", text: $path, prompt: Text("e.g., documents/photos"))
+                TextField("/", text: $path)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 200)
+                    .disabled(selectedRemote.isEmpty)
             }
-            .padding(8)
         }
     }
+}
+
+#Preview {
+    VStack {
+        PathPicker(
+            label: "Source",
+            remoteNames: ["gdrive", "s3", "local"],
+            selectedRemote: .constant("gdrive"),
+            path: .constant("backup/2026")
+        )
+        PathPicker(
+            label: "Destination",
+            remoteNames: ["gdrive", "s3", "local"],
+            selectedRemote: .constant(""),
+            path: .constant("")
+        )
+    }
+    .padding(DesignSystem.Spacing.xl)
+    .frame(width: 600)
 }
