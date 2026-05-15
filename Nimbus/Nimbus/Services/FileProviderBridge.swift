@@ -214,15 +214,27 @@ extension FileProviderBridge: FileProviderBridgeProtocol {
         }
         let enumerator = manager.enumeratorForMaterializedItems()
         var collected: Set<String> = []
-        var page = NSFileProviderPage(rawValue: Data())
-        // Hard cap on pages to bound the walk if a misbehaving extension
-        // returns a non-nil next page forever. The cache TTL refreshes
-        // truncated results within 5s of any FP-set change anyway.
-        for _ in 0..<32 {
-            let (names, next) = await enumeratePage(enumerator: enumerator, startingAt: page)
+        // Defensive absolute cap: walk at most 32 pages. This bounds
+        // worst-case walk time against a misbehaving extension that
+        // returns a non-nil next page indefinitely. It is NOT a
+        // temporal truncation — the 5s cache TTL does not cause a
+        // deeper walk on the next refresh; every refresh re-truncates
+        // at the same boundary. Items beyond page 32 will therefore be
+        // missing from the cache for the remote until the materialized
+        // set actually shrinks below the cap. A warning is logged when
+        // the cap is hit so stale-badge reports on large domains are
+        // diagnosable.
+        let maxPages = 32
+        var nextPage: NSFileProviderPage? = NSFileProviderPage(rawValue: Data())
+        var pagesWalked = 0
+        while let current = nextPage, pagesWalked < maxPages {
+            let (names, next) = await enumeratePage(enumerator: enumerator, startingAt: current)
             collected.formUnion(names)
-            guard let next else { break }
-            page = next
+            nextPage = next
+            pagesWalked += 1
+        }
+        if nextPage != nil {
+            logger.warning("loadMaterializedBasenames: hit \(maxPages)-page cap for remote '\(remote)'; materialized set may be incomplete")
         }
         return collected
     }
