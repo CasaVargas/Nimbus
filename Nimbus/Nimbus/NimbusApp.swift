@@ -3,7 +3,8 @@ import SwiftUI
 @main
 struct NimbusApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @State private var daemon = RcloneDaemon()
+    @State private var daemon: RcloneDaemon
+    @State private var statusService: RemoteStatusService
     @State private var mountManager = MountManager()
     @State private var fileProviderBridge = FileProviderBridge()
     @State private var settings = AppSettings()
@@ -14,6 +15,9 @@ struct NimbusApp: App {
 
     init() {
         DesignSystem.Lints.runStartupChecks()
+        let d = RcloneDaemon()
+        _daemon = State(initialValue: d)
+        _statusService = State(initialValue: RemoteStatusService(client: d.client))
     }
 
     var body: some Scene {
@@ -27,6 +31,7 @@ struct NimbusApp: App {
                 .environment(transferStore)
                 .environment(bookmarkStore)
                 .environment(launchAtLogin)
+                .environment(statusService)
                 .preferredColorScheme(settings.colorScheme)
                 .task {
                     await startApp()

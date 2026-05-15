@@ -1,10 +1,10 @@
 import SwiftUI
 import RcloneKit
-import os
 
 struct RemotesView: View {
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(AppSettings.self) private var settings
+    @Environment(RemoteStatusService.self) private var statusService
     var onBrowse: ((String) -> Void)?
     @State private var viewModel: RemotesViewModel?
     @State private var showAddRemote = false
@@ -39,6 +39,9 @@ struct RemotesView: View {
                     viewModel = RemotesViewModel(client: daemon.client)
                 }
                 await viewModel?.loadRemotes()
+                if let names = viewModel?.remotes.map(\.name), !names.isEmpty {
+                    await statusService.probeAll(names)
+                }
             }
             // Sheet call sites preserved from Phase 1; Tasks 4-6 will rebuild these.
             .sheet(isPresented: $showAddRemote) {
@@ -71,7 +74,11 @@ struct RemotesView: View {
             ) {
                 Button("Delete", role: .destructive) {
                     if let remote = deletingRemote {
-                        Task { await viewModel?.deleteRemote(name: remote.name) }
+                        let name = remote.name
+                        Task {
+                            await viewModel?.deleteRemote(name: name)
+                            statusService.clear(name)
+                        }
                     }
                 }
                 Button("Cancel", role: .cancel) { deletingRemote = nil }
@@ -127,13 +134,12 @@ struct RemotesView: View {
             List(filteredRemotes(viewModel.remotes), id: \.name, selection: $listSelection) { remote in
                 RemoteRow(
                     remote: remote,
-                    status: .connected, // Phase 2a placeholder; richer status discovery is Phase 3
+                    status: statusService.statuses[remote.name] ?? .unknown,
                     onEdit: { editingRemote = remote },
                     onDelete: { deletingRemote = remote },
                     onBrowse: { onBrowse?(remote.name) },
                     onReconnect: {
-                        Logger(subsystem: "app.casavargas.nimbus", category: "remotes")
-                            .warning("Reconnect handler not wired (Phase 3); status is hardcoded to .connected in Phase 2a so this should be unreachable")
+                        Task { await statusService.probe(remote.name) }
                     }
                 )
                 .tag(remote.name)
