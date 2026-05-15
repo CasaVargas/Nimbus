@@ -1,11 +1,17 @@
 import SwiftUI
 import RcloneKit
+import os
 
 struct BrowserView: View {
     let remoteName: String
+    var initialPath: String = ""
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(BookmarkStore.self) private var bookmarkStore
+    @Environment(TransferStore.self) private var transferStore
+    @Environment(FileProviderBridge.self) private var fileProviderBridge
     @State private var viewModel: BrowserViewModel?
+    @State private var pendingCopy: CopyRequest?
+    @State private var quickLookHost = QuickLookHost()
 
     var body: some View {
         Group {
@@ -15,24 +21,25 @@ struct BrowserView: View {
 
                     Divider()
 
-                    if viewModel.isLoading && viewModel.files.isEmpty {
-                        ProgressView("Loading...")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if let error = viewModel.error {
+                        errorState(for: error, viewModel: viewModel)
+                    } else if viewModel.isLoading && viewModel.files.isEmpty {
+                        skeletonRows
                     } else if viewModel.files.isEmpty {
-                        ContentUnavailableView(
-                            "Empty Folder",
-                            systemImage: "folder",
-                            description: Text("This folder has no files.")
+                        EmptyState(
+                            icon: "folder",
+                            title: "Empty Folder",
+                            message: "Drop files here or use ⌘N to create a folder.",
+                            action: .init(label: "New Folder", perform: { viewModel.showNewFolderDialog = true })
                         )
                     } else {
                         switch viewModel.viewMode {
                         case .list:
                             FileTable(
                                 files: viewModel.sortedFiles,
-                                selection: Binding(
-                                    get: { viewModel.selection },
-                                    set: { viewModel.selection = $0 }
-                                ),
+                                remote: remoteName,
+                                selection: viewModel.selection,
+                                keyboard: viewModel.keyboard,
                                 sortField: Binding(
                                     get: { viewModel.sortField },
                                     set: { viewModel.sortField = $0 }
@@ -42,15 +49,23 @@ struct BrowserView: View {
                                     set: { viewModel.sortAscending = $0 }
                                 ),
                                 onOpen: { file in handleOpen(file, viewModel: viewModel) },
-                                onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) }
+                                onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) },
+                                onQuickLook: { items in
+                                    Task {
+                                        let provider = QuickLookHost.provider(
+                                            forRemote: remoteName,
+                                            bridge: fileProviderBridge,
+                                            client: RcloneClientAdapter(client: daemon.client)
+                                        )
+                                        await quickLookHost.show(items: items, provider: provider, remote: remoteName)
+                                    }
+                                }
                             )
                         case .grid:
                             FileGrid(
                                 files: viewModel.sortedFiles,
-                                selection: Binding(
-                                    get: { viewModel.selection },
-                                    set: { viewModel.selection = $0 }
-                                ),
+                                remote: remoteName,
+                                selection: viewModel.selection,
                                 onOpen: { file in handleOpen(file, viewModel: viewModel) },
                                 onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) }
                             )
@@ -81,6 +96,10 @@ struct BrowserView: View {
                     onNewFolder: { viewModel.showNewFolderDialog = true },
                     onRefresh: { Task { await viewModel.loadFiles() } }
                 ))
+                .dropDestination(for: NimbusFileBundle.self) { bundles, _ in
+                    let refs = bundles.flatMap(\.refs)
+                    return handleDrop(refs: refs, viewModel: viewModel)
+                }
             } else {
                 ProgressView("Loading...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -90,6 +109,7 @@ struct BrowserView: View {
         .task {
             let vm = BrowserViewModel(client: daemon.client)
             vm.remote = remoteName
+            vm.path = initialPath
             viewModel = vm
             await vm.loadFiles()
         }
@@ -133,6 +153,55 @@ struct BrowserView: View {
                 viewModel?.renameText = ""
             }
         }
+        .sheet(item: $pendingCopy) { _ in
+            ConfirmCopySheet(request: $pendingCopy) { req in
+                Task {
+                    let coord = makeCoordinator()
+                    do {
+                        try await coord.apply(
+                            .crossRemote(items: req.items, sourceRemote: req.sourceRemote, target: req.target),
+                            conflictPolicy: req.conflictPolicy
+                        )
+                    } catch {
+                        Logger(subsystem: "app.casavargas.nimbus", category: "browser")
+                            .error("Cross-remote copy failed: \(String(describing: error))")
+                    }
+                }
+            }
+        }
+    }
+
+    private func makeCoordinator() -> DragDropCoordinator {
+        DragDropCoordinator(
+            transferStore: transferStore,
+            rclone: RcloneClientAdapter(client: daemon.client)
+        )
+    }
+
+    private func handleDrop(refs: [NimbusFileRef], viewModel: BrowserViewModel) -> Bool {
+        let coord = makeCoordinator()
+        let target = DropIntent.DropTarget(remote: remoteName, path: viewModel.path)
+        do {
+            let intent = try coord.resolve(drop: refs, onto: target)
+            switch intent {
+            case .crossRemote(let items, let sourceRemote, let resolvedTarget):
+                pendingCopy = CopyRequest(
+                    sourceRemote: sourceRemote,
+                    target: resolvedTarget,
+                    items: items
+                )
+                return true
+            case .withinRemote, .toFinder:
+                // Same-remote drops are handled inline by SwiftUI (move/copy via DnD chrome);
+                // Phase 1 doesn't implement in-browser within-remote drag operations beyond
+                // what the table/grid handle natively.
+                return false
+            }
+        } catch {
+            Logger(subsystem: "app.casavargas.nimbus", category: "browser")
+                .warning("Drop resolve error: \(String(describing: error))")
+            return false
+        }
     }
 
     private func breadcrumb(viewModel: BrowserViewModel) -> some View {
@@ -141,7 +210,7 @@ struct BrowserView: View {
                 ForEach(Array(viewModel.pathComponents.enumerated()), id: \.offset) { index, component in
                     if index > 0 {
                         Image(systemName: "chevron.right")
-                            .font(.caption)
+                            .font(DesignSystem.Typography.caption)
                             .foregroundStyle(.secondary)
                     }
                     Button(component.name) {
@@ -180,6 +249,68 @@ struct BrowserView: View {
         case .evict:
             // Will use NSFileProviderManager when wired up
             break
+        }
+    }
+
+    private var skeletonRows: some View {
+        VStack(spacing: 0) {
+            ForEach(0..<8, id: \.self) { _ in
+                HStack(spacing: DesignSystem.Spacing.s) {
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xs)
+                        .fill(DesignSystem.Color.semantic.surfaceSubtle)
+                        .frame(width: 16, height: 16)
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xs)
+                        .fill(DesignSystem.Color.semantic.surfaceSubtle)
+                        .frame(height: 12)
+                    Spacer()
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xs)
+                        .fill(DesignSystem.Color.semantic.surfaceSubtle)
+                        .frame(width: 60, height: 10)
+                }
+                .padding(.horizontal, DesignSystem.Spacing.m)
+                .padding(.vertical, DesignSystem.Spacing.xs)
+                .redacted(reason: .placeholder)
+            }
+            Spacer()
+        }
+        .shimmering()
+        .accessibilityLabel("Loading folder contents")
+    }
+
+    @ViewBuilder
+    private func errorState(for error: BrowserError, viewModel: BrowserViewModel) -> some View {
+        switch error.kind {
+        case .authFailed:
+            EmptyState(
+                icon: "key.slash",
+                title: "Sign In Required",
+                message: LocalizedStringKey("\(remoteName): \(error.message)"),
+                action: .init(label: "Reconnect Remote", perform: {
+                    // Navigate to Remotes screen — implementation can hook into a
+                    // navigation environment value if one exists; for Phase 1, a
+                    // simple no-op + log is acceptable.
+                    Logger(subsystem: "app.casavargas.nimbus", category: "browser")
+                        .info("Reconnect Remote tapped for \(remoteName)")
+                })
+            )
+        case .offline:
+            EmptyState(
+                icon: "wifi.slash",
+                title: "Can't Reach Cloud",
+                message: LocalizedStringKey(error.message),
+                action: .init(label: "Retry", perform: {
+                    Task { await viewModel.loadFiles() }
+                })
+            )
+        case .other:
+            EmptyState(
+                icon: "exclamationmark.triangle",
+                title: "Couldn't Load Folder",
+                message: LocalizedStringKey(error.message),
+                action: .init(label: "Retry", perform: {
+                    Task { await viewModel.loadFiles() }
+                })
+            )
         }
     }
 }

@@ -12,6 +12,10 @@ struct NimbusApp: App {
     @State private var bookmarkStore = BookmarkStore()
     @State private var launchAtLogin = LaunchAtLoginService()
 
+    init() {
+        DesignSystem.Lints.runStartupChecks()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -29,6 +33,17 @@ struct NimbusApp: App {
                 }
         }
         .defaultSize(width: 1000, height: 700)
+        .commands {
+            #if DEBUG
+            CommandMenu("Debug") {
+                OpenBenchCommand()
+            }
+            #endif
+        }
+
+        #if DEBUG
+        BenchScene()
+        #endif
 
         MenuBarExtra("Nimbus", systemImage: "cloud") {
             Button("Show Nimbus") {
@@ -96,3 +111,14 @@ struct NimbusApp: App {
         daemon.stop()
     }
 }
+
+#if DEBUG
+private struct OpenBenchCommand: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button("Open Bench") { openWindow(id: "bench") }
+            .keyboardShortcut("b", modifiers: [.option, .command])
+    }
+}
+#endif

@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import RcloneKit
+import SwiftUI
 
 enum ViewMode: String {
     case list, grid
@@ -12,19 +13,37 @@ enum SortField: String, CaseIterable {
     case modified = "Modified"
 }
 
+struct BrowserError: Equatable {
+    enum Kind: Equatable {
+        case authFailed
+        case offline
+        case other
+    }
+    let kind: Kind
+    let message: String
+}
+
 @Observable
 @MainActor
 final class BrowserViewModel {
     private(set) var files: [FileItem] = []
     private(set) var isLoading = false
-    private(set) var error: String?
+    private(set) var error: BrowserError?
 
     var remote: String = ""
     var path: String = ""
     var viewMode: ViewMode = .list
     var sortField: SortField = .name
     var sortAscending: Bool = true
-    var selection: Set<String> = []
+
+    /// Foundation Selection<String> instance shared with FileTable / FileGrid.
+    /// IDs are `FileItem.id` (matching SwiftUI's Identifiable contract on Table)
+    /// — call sites resolve back to `FileItem.path` for rclone ops.
+    let selection = Selection<String>()
+
+    /// Foundation keyboard coordinator. Owns the type-to-select buffer and any
+    /// keyboard bindings registered by the browser scope.
+    let keyboard = KeyboardCoordinator()
 
     var showNewFolderDialog = false
     var newFolderName = ""
@@ -116,12 +135,24 @@ final class BrowserViewModel {
             files = qualifiedFiles
             cache[cacheKey] = qualifiedFiles
         } catch {
-            self.error = error.localizedDescription
+            self.error = classifyError(error)
         }
     }
 
+    private func classifyError(_ error: Error) -> BrowserError {
+        let message = error.localizedDescription
+        let lower = message.lowercased()
+        if lower.contains("auth") || lower.contains("unauthorized") || lower.contains("token") || lower.contains("sign in") {
+            return BrowserError(kind: .authFailed, message: message)
+        }
+        if lower.contains("network") || lower.contains("connection") || lower.contains("offline") || lower.contains("reach") {
+            return BrowserError(kind: .offline, message: message)
+        }
+        return BrowserError(kind: .other, message: message)
+    }
+
     func navigateTo(path newPath: String) async {
-        selection = []
+        selection.clear()
         let cacheKey = "\(remote):\(newPath)"
         if cache[cacheKey] == nil {
             files = []
@@ -141,7 +172,7 @@ final class BrowserViewModel {
         guard canGoBack else { return }
         historyIndex -= 1
         path = pathHistory[historyIndex]
-        selection = []
+        selection.clear()
         await loadFiles()
     }
 
@@ -149,7 +180,7 @@ final class BrowserViewModel {
         guard canGoForward else { return }
         historyIndex += 1
         path = pathHistory[historyIndex]
-        selection = []
+        selection.clear()
         await loadFiles()
     }
 
@@ -169,7 +200,7 @@ final class BrowserViewModel {
                 }
             }
         }
-        selection = []
+        selection.clear()
         await loadFiles()
     }
 

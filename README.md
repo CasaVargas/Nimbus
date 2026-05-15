@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src-tauri/icons/128x128@2x.png" width="128" height="128" alt="Nimbus icon">
+  <img src="legacy/tauri/src-tauri/icons/128x128@2x.png" width="128" height="128" alt="Nimbus icon">
 </p>
 
 <h1 align="center">Nimbus</h1>
@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-macOS%2013%2B-blue" alt="macOS 13+">
+  <img src="https://img.shields.io/badge/platform-macOS%2015%2B-blue" alt="macOS 15+">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
@@ -29,49 +29,36 @@ Nimbus brings all your cloud storage into one place on macOS. Powered by [rclone
 ## Architecture
 
 ```
-React UI ──Tauri IPC──▶ Rust backend
-     │                       │
-     │                       ├─ spawns rclone daemon
-     │                       ├─ spawns rclone serve nfs
-     ▼                       └─ mount_nfs system call
-rclone RC API
-     ▲
-     │
-File Provider Extension (Swift) ──▶ Finder
+SwiftUI views ──▶ RcloneKit ──HTTP──▶ rclone daemon ──▶ Cloud providers
+                      ▲
+                      │
+File Provider extension (Swift) ────▶ Finder
 ```
 
 | Layer | Tech |
 |-------|------|
-| Frontend | React 19, TypeScript, Tailwind CSS 4, Zustand, TanStack Query |
-| Backend | Tauri 2 (Rust) — rclone lifecycle, NFS mounts, File Provider domains |
-| File Provider | Swift 6 — NSFileProviderReplicatedExtension for Finder integration |
+| App | SwiftUI (Swift 6, macOS 15.0, `@Observable` view models) |
+| Rclone client | RcloneKit — local Swift package, typed HTTP client over the rclone RC API |
+| File Provider | Swift 6 — `NSFileProviderReplicatedExtension` for Finder integration |
 | Cloud backend | rclone (spawned as subprocess, never reimplemented) |
 
 ## Getting Started
 
 ### Prerequisites
 
-- macOS 13.0+
+- macOS 15.0+
 - Xcode + Command Line Tools
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
-- Rust toolchain (2021 edition)
-- Node.js + npm
 - [rclone](https://rclone.org/install/) in PATH
 
 ### Development
 
 ```bash
-# Install dependencies
-npm install
+# Generate the Xcode project from project.yml
+cd Nimbus && xcodegen generate
 
-# Run in development mode (Vite dev server + Tauri)
-npm run dev
-
-# Build the File Provider extension
-bash src-tauri/build-extension.sh
-
-# Run tests
-npm run test
+# Open in Xcode
+cd Nimbus && open Nimbus.xcodeproj
 ```
 
 ### Release Build
@@ -80,28 +67,27 @@ npm run test
 bash scripts/build-release.sh
 ```
 
-This runs a 4-step pipeline:
-1. Frontend build (`npm run build`)
-2. Swift File Provider extension (`build-extension.sh --release`)
-3. Rust + app bundle (`cargo tauri build --bundles app`)
-4. Embed extension and re-sign
+This regenerates the Xcode project and produces a release `.app` at `Nimbus/build/Build/Products/Release/Nimbus.app`.
 
 ## Project Structure
 
 ```
-src/                          # React frontend
-  features/                   # Feature modules (browser, remotes, mounts, transfers, etc.)
-  stores/                     # Zustand state management
-  hooks/                      # Global hooks (daemon lifecycle, auto-mount, etc.)
+Nimbus/                       # SwiftUI app + Xcode project
+  Nimbus/                     # App sources (Views, ViewModels, Services, State)
+  FileProviderExtension/      # NSFileProviderReplicatedExtension
+  project.yml                 # XcodeGen project definition
 
-src-tauri/
-  src/commands/               # Tauri IPC commands (Rust)
-  FileProviderExtension/      # Swift File Provider for Finder integration
-
-Nimbus/                       # SwiftUI native rewrite (in progress)
-RcloneKit/                    # Swift package for rclone RC API
+RcloneKit/                    # Local Swift package — typed rclone RC API client
+scripts/                      # Build scripts (build-release.sh)
+docs/superpowers/             # Design specs and implementation plans
 ```
 
 ## License
 
 MIT
+
+---
+
+### Legacy
+
+The original Tauri (Rust + React) build is end-of-life. Its sources are preserved at `legacy/tauri/` for reference, and the last working Tauri state is frozen on the [`tauri-eol`](https://github.com/CasaVargas/Nimbus/tree/tauri-eol) branch. See [`DEPRECATED.md`](DEPRECATED.md).

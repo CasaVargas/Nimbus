@@ -1,54 +1,160 @@
 import SwiftUI
 import RcloneKit
 
+/// File browser table view. Wires foundation primitives:
+/// - Selection<String> drives multi-select with Finder semantics
+/// - KeyboardCoordinator handles space/return/delete + type-to-select
+/// - .draggable produces NimbusFileRef payloads for cross-remote drag
 struct FileTable: View {
     let files: [FileItem]
-    @Binding var selection: Set<String>
+    let remote: String
+    @Bindable var selection: Selection<String>
+    @Bindable var keyboard: KeyboardCoordinator
     @Binding var sortField: SortField
     @Binding var sortAscending: Bool
     let onOpen: (FileItem) -> Void
     let onContextAction: (FileItem, FileAction) -> Void
+    let onQuickLook: ([FileItem]) -> Void
+
+    private var sortedIDs: [String] { files.map(\.id) }
+
+    // NOTE: SwiftUI Table re-sets the entire selection on each click, so Selection's
+    // anchor is overwritten by `replace(with:in:)` rather than tracking the actual
+    // click point. Keyboard ops (handled below) set anchor correctly; shift-arrow
+    // extension across mixed mouse+keyboard input would need an AppKit bridge.
+    private var tableSelectionBinding: Binding<Set<String>> {
+        Binding(
+            get: { selection.ids },
+            set: { newSet in selection.replace(with: newSet, in: sortedIDs) }
+        )
+    }
 
     var body: some View {
-        Table(files, selection: $selection) {
+        Table(files, selection: tableSelectionBinding) {
+            TableColumn("") { file in
+                CloudStatusColumn(file: file, remote: remote)
+                    .accessibilityLabel("Cloud status")
+            }
+            .width(28)
+
             TableColumn("Name") { file in
-                HStack(spacing: 8) {
+                HStack(spacing: DesignSystem.Spacing.s) {
                     Image(systemName: file.isDir ? "folder.fill" : iconName(for: file.name))
-                        .foregroundStyle(file.isDir ? .blue : .secondary)
+                        .foregroundStyle(file.isDir
+                                         ? DesignSystem.Color.semantic.statusInfo
+                                         : DesignSystem.Color.semantic.textSecondary)
                     Text(file.name)
+                        .font(DesignSystem.Typography.body)
                         .lineLimit(1)
                 }
                 .contentShape(Rectangle())
-                .onTapGesture(count: 2) { onOpen(file) }
+                .draggable(bundle(for: file)) {
+                    dragPreview(for: file)
+                }
             }
 
             TableColumn("Size") { file in
                 Text(file.isDir ? "--" : formatSize(file.size))
-                    .foregroundStyle(.secondary)
+                    .font(DesignSystem.Typography.callout)
+                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
             }
             .width(ideal: 80)
 
             TableColumn("Modified") { file in
                 if let date = file.modTime {
                     Text(date, style: .date)
-                        .foregroundStyle(.secondary)
+                        .font(DesignSystem.Typography.callout)
+                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
                 } else {
-                    Text("--").foregroundStyle(.secondary)
+                    Text("--")
+                        .font(DesignSystem.Typography.callout)
+                        .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
                 }
             }
             .width(ideal: 120)
         }
-        .contextMenu(forSelectionType: String.self) { paths in
-            if let path = paths.first, let file = files.first(where: { $0.path == path }) {
-                FileContextMenu(file: file, onAction: { action in
-                    onContextAction(file, action)
-                })
+        .contextMenu(forSelectionType: String.self) { ids in
+            if let id = ids.first, let file = files.first(where: { $0.id == id }) {
+                FileContextMenu(file: file, onAction: { action in onContextAction(file, action) })
             }
-        } primaryAction: { paths in
-            if let path = paths.first, let file = files.first(where: { $0.path == path }) {
+        } primaryAction: { ids in
+            if let id = ids.first, let file = files.first(where: { $0.id == id }) {
                 onOpen(file)
             }
         }
+        .focusable(true)
+        .onKeyPress(phases: .down) { press in
+            handleKey(press: press)
+        }
+    }
+
+    private func handleKey(press: KeyPress) -> KeyPress.Result {
+        let ordering = sortedIDs
+
+        // Type-to-select first (letter/digit + common filename chars).
+        if let c = press.characters.first,
+           c.isLetter || c.isNumber || ".-_".contains(c) {
+            keyboard.handleTypeToSelect(char: c, against: files.map(\.name)) { matchedName in
+                if let f = files.first(where: { $0.name == matchedName }) {
+                    selection.select(f.id, in: ordering)
+                }
+            }
+            return .handled
+        }
+
+        switch press.key {
+        case .space:
+            // Trigger Quick Look on the current selection.
+            let items = files.filter { selection.ids.contains($0.id) }
+            if !items.isEmpty {
+                onQuickLook(items)
+            }
+            return .handled
+        case .return:
+            if let id = selection.anchor, let f = files.first(where: { $0.id == id }) {
+                onOpen(f)
+            }
+            return .handled
+        case .delete:
+            if let id = selection.anchor, let f = files.first(where: { $0.id == id }) {
+                onContextAction(f, .delete)
+            }
+            return .handled
+        default:
+            return .ignored
+        }
+    }
+
+    /// Builds the drag payload. If the dragged file is part of the current selection,
+    /// bundle all selected files together. Otherwise just this single file.
+    private func bundle(for file: FileItem) -> NimbusFileBundle {
+        let isInSelection = selection.ids.contains(file.id)
+        let sourceFiles: [FileItem] = isInSelection
+            ? files.filter { selection.ids.contains($0.id) }
+            : [file]
+        let refs = sourceFiles.map {
+            NimbusFileRef(remoteName: remote, path: $0.path, size: $0.size, isDir: $0.isDir)
+        }
+        return NimbusFileBundle(refs: refs)
+    }
+
+    @ViewBuilder
+    private func dragPreview(for file: FileItem) -> some View {
+        let count = max(1, selection.ids.count)
+        ZStack(alignment: .topTrailing) {
+            Image(systemName: file.isDir ? "folder.fill" : iconName(for: file.name))
+                .font(DesignSystem.Typography.largeTitle)
+                .foregroundStyle(DesignSystem.Color.semantic.statusInfo)
+            if count > 1 {
+                Text("\(count)")
+                    .font(DesignSystem.Typography.captionEmphasized)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Capsule().fill(DesignSystem.Color.semantic.statusError))
+                    .foregroundStyle(.white)
+                    .offset(x: 6, y: -6)
+            }
+        }
+        .padding(DesignSystem.Spacing.s)
     }
 
     private func iconName(for filename: String) -> String {

@@ -2,6 +2,21 @@ import FileProvider
 import Foundation
 import os
 
+/// Abstracts the File Provider bridge so callers (e.g. `QuickLookHost`) can be
+/// tested without standing up real `NSFileProviderManager` infrastructure.
+///
+/// `urlForItem` is async because the only macOS-available way to resolve the
+/// Finder-visible URL for a File Provider domain
+/// (`NSFileProviderManager.getUserVisibleURL(for:)`) is itself async. The
+/// per-domain `documentStorageURL` property is iOS-only.
+@MainActor
+protocol FileProviderBridgeProtocol: AnyObject {
+    func isRegistered(remote: String) -> Bool
+    func urlForItem(remote: String, path: String) async -> URL?
+    func isItemMaterialized(remote: String, path: String) -> Bool
+    func wasRecentlyEvicted(remote: String, path: String) -> Bool
+}
+
 @MainActor @Observable
 final class FileProviderBridge {
     private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "fileprovider")
@@ -124,5 +139,45 @@ final class FileProviderBridge {
             logger.debug("File Provider not available: \(error.localizedDescription)")
         }
         return removed
+    }
+}
+
+// MARK: - FileProviderBridgeProtocol
+
+extension FileProviderBridge: FileProviderBridgeProtocol {
+    /// Whether the user has registered the given remote with the File Provider
+    /// extension — i.e. whether it shows up as a Finder mount.
+    func isRegistered(remote: String) -> Bool {
+        activeDomains.contains(remote)
+    }
+
+    /// Best-effort resolution of the Finder-visible URL for a (remote, path)
+    /// pair. Returns nil if the domain cannot be resolved by
+    /// `NSFileProviderManager` (e.g. the extension hasn't finished registering
+    /// yet). Callers should fall back to a temp-download path.
+    func urlForItem(remote: String, path: String) async -> URL? {
+        let domain = NSFileProviderDomain(
+            identifier: NSFileProviderDomainIdentifier(rawValue: remote),
+            displayName: remote
+        )
+        guard let manager = NSFileProviderManager(for: domain) else { return nil }
+        guard let rootURL = try? await manager.getUserVisibleURL(for: .rootContainer) else {
+            return nil
+        }
+        let trimmed = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        return rootURL.appendingPathComponent(trimmed)
+    }
+
+    /// Phase 1 stub: real File Provider materialization state requires async
+    /// `NSFileProviderManager` enumeration. Defaulting to `false` so all
+    /// non-FP-cached files render as `.cloud`.
+    func isItemMaterialized(remote: String, path: String) -> Bool {
+        false
+    }
+
+    /// Phase 1 stub: real recently-evicted tracking is FP-specific and
+    /// out of scope for Phase 1.
+    func wasRecentlyEvicted(remote: String, path: String) -> Bool {
+        false
     }
 }
