@@ -19,7 +19,7 @@ struct OnboardingCard: View {
 
     struct ActionConfig {
         let label: LocalizedStringKey
-        let perform: () -> Void
+        let perform: @MainActor () -> Void
     }
 
     var body: some View {
@@ -33,7 +33,7 @@ struct OnboardingCard: View {
                 .frame(width: 32, height: 32)
                 .foregroundStyle(iconTint)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                 Text(title)
                     .font(DesignSystem.Typography.headline)
                     .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
@@ -71,7 +71,7 @@ struct OnboardingCard: View {
                 .fill(DesignSystem.Color.semantic.surfaceSubtle)
         )
         .accessibilityElement(children: .combine)
-        .accessibilityValue(accessibilityValue)
+        .accessibilityHint(Text(accessibilityHint))
     }
 
     @ViewBuilder
@@ -102,7 +102,7 @@ struct OnboardingCard: View {
         }
     }
 
-    private var accessibilityValue: String {
+    private var accessibilityHint: String {
         switch state {
         case .pending: return "Pending"
         case .inProgress: return "In progress"
@@ -110,4 +110,43 @@ struct OnboardingCard: View {
         case .actionRequired: return "Action required"
         }
     }
+}
+
+#Preview {
+    VStack(spacing: DesignSystem.Spacing.m) {
+        OnboardingCard(
+            state: .complete,
+            icon: "bolt",
+            title: "Rclone Daemon",
+            message: "Rclone is ready.",
+            primaryAction: nil,
+            secondaryAction: nil
+        )
+        OnboardingCard(
+            state: .actionRequired,
+            icon: "cloud",
+            title: "Add a Remote",
+            message: "Connect a cloud provider to get started.",
+            primaryAction: .init(label: "Add Remote", perform: {}),
+            secondaryAction: nil
+        )
+        OnboardingCard(
+            state: .complete,
+            icon: "cloud",
+            title: "Add a Remote",
+            message: "Connected to gdrive.",
+            primaryAction: nil,
+            secondaryAction: .init(label: "Mount it for Finder →", perform: {})
+        )
+        OnboardingCard(
+            state: .pending,
+            icon: "externaldrive",
+            title: "Mount Your Remote",
+            message: "Mount the remote to access it in Finder.",
+            primaryAction: nil,
+            secondaryAction: nil
+        )
+    }
+    .padding(DesignSystem.Spacing.xl)
+    .frame(width: 560)
 }
