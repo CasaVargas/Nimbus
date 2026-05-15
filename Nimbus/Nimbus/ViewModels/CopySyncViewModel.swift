@@ -34,6 +34,12 @@ final class CopySyncViewModel {
             jobId = try await client.copy(srcFs: srcFs, dstFs: dstFs)
         case .sync:
             jobId = try await client.sync(srcFs: srcFs, dstFs: dstFs)
+        case .move:
+            // The Copy/Sync screen UI doesn't expose move; it's used by
+            // `DragDropCoordinator` for within-remote drag-and-drop. Guard
+            // against future misuse rather than silently mapping to copy.
+            assertionFailure("CopySyncViewModel does not support .move")
+            return
         }
         store.addTransfer(jobId: jobId, operation: operation, srcFs: srcFs, dstFs: dstFs)
     }

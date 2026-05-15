@@ -8,6 +8,13 @@ enum ConflictPolicy: String, Sendable {
     case overwrite
 }
 
+/// Errors thrown by `DragDropCoordinator` when an intent cannot be resolved
+/// or applied safely.
+enum DragDropError: Error {
+    /// Cross-remote drops where source items come from multiple remotes are not yet supported.
+    case mixedSourceRemotesNotSupported(sources: Set<String>)
+}
+
 /// A resolved drop operation that the coordinator has classified by direction
 /// and inferred shape. Built by `DragDropCoordinator.resolve(drop:onto:)`
 /// before being executed via `apply(_:conflictPolicy:)`.
@@ -76,11 +83,18 @@ final class DragDropCoordinator {
     /// - Returns `.withinRemote` when every ref shares the same source remote
     ///   AND that remote equals the target remote — this becomes an
     ///   `operations/movefile` per item.
-    /// - Returns `.crossRemote` otherwise (including mixed-source drops). The
-    ///   first ref's remote is treated as the canonical source. Mixed-source
-    ///   drops should be rare in practice; the API call uses one source remote.
-    func resolve(drop refs: [NimbusFileRef], onto target: DropIntent.DropTarget) -> DropIntent {
+    /// - Returns `.crossRemote` otherwise.
+    /// - Throws `DragDropError.mixedSourceRemotesNotSupported` when refs come
+    ///   from multiple source remotes (the underlying rclone call needs a
+    ///   single `srcFs`).
+    func resolve(drop refs: [NimbusFileRef], onto target: DropIntent.DropTarget) throws -> DropIntent {
         guard let first = refs.first else { return .toFinder(items: []) }
+        let sourceRemotes = Set(refs.map { $0.remoteName })
+
+        if sourceRemotes.count > 1 {
+            throw DragDropError.mixedSourceRemotesNotSupported(sources: sourceRemotes)
+        }
+
         let items = refs.map { ref in
             DropIntent.Item(
                 name: (ref.path as NSString).lastPathComponent,
@@ -90,8 +104,7 @@ final class DragDropCoordinator {
             )
         }
 
-        let allSameRemote = refs.allSatisfy { $0.remoteName == first.remoteName }
-        if allSameRemote && first.remoteName == target.remote {
+        if first.remoteName == target.remote {
             return .withinRemote(items: items, destPath: target.path, sourceRemote: first.remoteName)
         }
         return .crossRemote(items: items, sourceRemote: first.remoteName, target: target)
@@ -112,7 +125,7 @@ final class DragDropCoordinator {
                 )
                 transferStore.addTransfer(
                     jobId: jobId,
-                    operation: .copy,
+                    operation: .move,
                     srcFs: "\(sourceRemote):\(item.path)",
                     dstFs: "\(sourceRemote):\(dstPath)",
                     origin: .manual
@@ -120,7 +133,12 @@ final class DragDropCoordinator {
             }
 
         case .crossRemote(let items, let sourceRemote, let target):
-            if items.count <= Self.batchThreshold {
+            let prefix = commonPrefix(items: items)
+            let canBatch = items.count > Self.batchThreshold && prefix != "/" && !prefix.isEmpty
+
+            if !canBatch {
+                // Either ≤ batchThreshold items, OR mixed parents that would produce an
+                // ambiguous root sync. Issue per-file copyfile jobs.
                 for item in items {
                     let dstPath = "\(target.path)/\(item.name)"
                     let jobId = try await rclone.operationsCopyFile(
@@ -128,7 +146,7 @@ final class DragDropCoordinator {
                         srcRemote: item.path,
                         dstFs: "\(target.remote):",
                         dstRemote: dstPath,
-                        flags: flagsFor(conflictPolicy)
+                        flags: flagsFor(conflictPolicy, nimbusUUID: UUID())
                     )
                     transferStore.addTransfer(
                         jobId: jobId,
@@ -139,11 +157,11 @@ final class DragDropCoordinator {
                     )
                 }
             } else {
-                let prefix = commonPrefix(items: items)
+                // Batched sync of a common parent directory.
                 let jobId = try await rclone.syncCopy(
                     srcFs: "\(sourceRemote):\(prefix)",
                     dstFs: "\(target.remote):\(target.path)",
-                    flags: flagsFor(conflictPolicy)
+                    flags: flagsFor(conflictPolicy, nimbusUUID: UUID())
                 )
                 transferStore.addTransfer(
                     jobId: jobId,
@@ -162,10 +180,13 @@ final class DragDropCoordinator {
     }
 
     /// Maps a `ConflictPolicy` to the corresponding rclone flags.
-    private func flagsFor(_ policy: ConflictPolicy) -> [String: String] {
+    /// `nimbusUUID` provides per-job uniqueness for the rename suffix so
+    /// concurrent jobs don't collide on the same `_conflict-…` tag.
+    private func flagsFor(_ policy: ConflictPolicy, nimbusUUID: UUID) -> [String: String] {
         switch policy {
         case .rename:
-            return ["suffix": "_conflict-\(Int(Date().timeIntervalSince1970))"]
+            let tag = nimbusUUID.uuidString.replacingOccurrences(of: "-", with: "").prefix(8)
+            return ["suffix": "_conflict-\(tag)"]
         case .skip:
             return ["ignore-existing": "true"]
         case .overwrite:

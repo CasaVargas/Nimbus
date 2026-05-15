@@ -61,10 +61,7 @@ extension RcloneClientAdapter: DragDropCoordinator.RcloneInterface {
         )
     }
 
-    /// Note: ignores `flags` for now — the existing `RcloneClient.copy(srcFs:dstFs:)`
-    /// doesn't accept extra params. If Phase 1 needs flag support for sync/copy,
-    /// add a `copyWithFlags` variant in RcloneKit.
     func syncCopy(srcFs: String, dstFs: String, flags: [String: String]) async throws -> Int {
-        try await client.copy(srcFs: srcFs, dstFs: dstFs)
+        try await client.copy(srcFs: srcFs, dstFs: dstFs, extraParams: flags)
     }
 }

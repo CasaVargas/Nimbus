@@ -9,13 +9,13 @@ struct DragDropCoordinatorTests {
         NimbusFileRef(remoteName: remote, path: path, size: size, isDir: false)
     }
 
-    @Test func dropOfSameRemoteResolvesToWithinRemote() async {
+    @Test func dropOfSameRemoteResolvesToWithinRemote() async throws {
         let store = TransferStore()
         let client = RecordingRcloneClient()
         let coord = DragDropCoordinator(transferStore: store, rclone: client)
 
         let refs = [makeRef(remote: "gdrive", path: "/Photos/a.jpg")]
-        let intent = coord.resolve(drop: refs, onto: .init(remote: "gdrive", path: "/Backup"))
+        let intent = try coord.resolve(drop: refs, onto: .init(remote: "gdrive", path: "/Backup"))
         if case .withinRemote(let items, let dest, _) = intent {
             #expect(items.count == 1)
             #expect(dest == "/Backup")
@@ -24,13 +24,13 @@ struct DragDropCoordinatorTests {
         }
     }
 
-    @Test func dropOfDifferentRemoteResolvesToCrossRemote() async {
+    @Test func dropOfDifferentRemoteResolvesToCrossRemote() async throws {
         let store = TransferStore()
         let client = RecordingRcloneClient()
         let coord = DragDropCoordinator(transferStore: store, rclone: client)
 
         let refs = [makeRef(remote: "gdrive", path: "/Photos/a.jpg")]
-        let intent = coord.resolve(drop: refs, onto: .init(remote: "s3", path: "/Backup"))
+        let intent = try coord.resolve(drop: refs, onto: .init(remote: "s3", path: "/Backup"))
         if case .crossRemote(let items, let src, let target) = intent {
             #expect(items.count == 1)
             #expect(src == "gdrive")
@@ -41,7 +41,7 @@ struct DragDropCoordinatorTests {
         }
     }
 
-    @Test func mixedSourceRemotesProducesCrossRemote() async {
+    @Test func mixedSourceRemotesThrowsError() {
         let store = TransferStore()
         let client = RecordingRcloneClient()
         let coord = DragDropCoordinator(transferStore: store, rclone: client)
@@ -50,9 +50,8 @@ struct DragDropCoordinatorTests {
             makeRef(remote: "gdrive", path: "/a.jpg"),
             makeRef(remote: "s3", path: "/b.jpg"),
         ]
-        let intent = coord.resolve(drop: refs, onto: .init(remote: "dropbox", path: "/"))
-        if case .crossRemote = intent {} else {
-            Issue.record("Expected .crossRemote for mixed source")
+        #expect(throws: DragDropError.self) {
+            _ = try coord.resolve(drop: refs, onto: .init(remote: "dropbox", path: "/"))
         }
     }
 
@@ -82,8 +81,9 @@ struct DragDropCoordinatorTests {
         let client = RecordingRcloneClient()
         let coord = DragDropCoordinator(transferStore: store, rclone: client)
 
+        // Items share a real common parent `/Photos`, so batching is safe.
         let items = (0..<10).map { i in
-            DropIntent.Item(name: "\(i).jpg", path: "/\(i).jpg", size: 100, isDir: false)
+            DropIntent.Item(name: "\(i).jpg", path: "/Photos/\(i).jpg", size: 100, isDir: false)
         }
         let intent: DropIntent = .crossRemote(
             items: items,
@@ -112,6 +112,87 @@ struct DragDropCoordinatorTests {
 
         #expect(client.moveFileCalls.count == 1)
         #expect(client.copyFileCalls.isEmpty)
+    }
+
+    @Test func applyCrossRemoteFewItemsWithRenameSetsSuffixFlag() async throws {
+        let store = TransferStore()
+        let client = RecordingRcloneClient()
+        let coord = DragDropCoordinator(transferStore: store, rclone: client)
+
+        let intent: DropIntent = .crossRemote(
+            items: [.init(name: "a.jpg", path: "/a.jpg", size: 100, isDir: false)],
+            sourceRemote: "gdrive",
+            target: .init(remote: "s3", path: "/Backup")
+        )
+        try await coord.apply(intent, conflictPolicy: .rename)
+
+        #expect(client.copyFileCalls.count == 1)
+        let suffix = client.copyFileCalls[0].flags["suffix"]
+        #expect(suffix != nil)
+        #expect(suffix?.hasPrefix("_conflict-") == true)
+    }
+
+    @Test func applyCrossRemoteMixedParentsFallsBackToPerItemCopy() async throws {
+        let store = TransferStore()
+        let client = RecordingRcloneClient()
+        let coord = DragDropCoordinator(transferStore: store, rclone: client)
+
+        // 10 items from two different parents → batching would target root `/`.
+        // Should fall back to per-item copyfile.
+        let items = (0..<5).map { i in
+            DropIntent.Item(name: "a\(i).jpg", path: "/A/a\(i).jpg", size: 100, isDir: false)
+        } + (0..<5).map { i in
+            DropIntent.Item(name: "b\(i).jpg", path: "/B/b\(i).jpg", size: 100, isDir: false)
+        }
+        let intent: DropIntent = .crossRemote(
+            items: items,
+            sourceRemote: "gdrive",
+            target: .init(remote: "s3", path: "/Backup")
+        )
+        try await coord.apply(intent, conflictPolicy: .overwrite)
+
+        // Critical: NO sync/copy call (root-level sync would be catastrophic)
+        #expect(client.syncCopyCalls.isEmpty)
+        // 10 individual copyfile calls
+        #expect(client.copyFileCalls.count == 10)
+    }
+
+    @Test func applyCrossRemoteSharedParentBatchesIntoSyncCopy() async throws {
+        let store = TransferStore()
+        let client = RecordingRcloneClient()
+        let coord = DragDropCoordinator(transferStore: store, rclone: client)
+
+        let items = (0..<10).map { i in
+            DropIntent.Item(name: "\(i).jpg", path: "/Photos/\(i).jpg", size: 100, isDir: false)
+        }
+        let intent: DropIntent = .crossRemote(
+            items: items,
+            sourceRemote: "gdrive",
+            target: .init(remote: "s3", path: "/Backup")
+        )
+        try await coord.apply(intent, conflictPolicy: .skip)
+
+        // Real common parent → does batch into sync/copy with the conflict flag.
+        #expect(client.syncCopyCalls.count == 1)
+        let syncCall = client.syncCopyCalls[0]
+        #expect(syncCall.src == "gdrive:/Photos")
+        #expect(syncCall.flags["ignore-existing"] == "true")
+    }
+
+    @Test func applyWithinRemoteRecordsOperationAsMove() async throws {
+        let store = TransferStore()
+        let client = RecordingRcloneClient()
+        let coord = DragDropCoordinator(transferStore: store, rclone: client)
+
+        let intent: DropIntent = .withinRemote(
+            items: [.init(name: "a.jpg", path: "/Pics/a.jpg", size: 100, isDir: false)],
+            destPath: "/Archive",
+            sourceRemote: "gdrive"
+        )
+        try await coord.apply(intent, conflictPolicy: .overwrite)
+
+        #expect(store.transfers.count == 1)
+        #expect(store.transfers[0].operation == .move)
     }
 }
 

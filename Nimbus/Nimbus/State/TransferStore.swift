@@ -4,7 +4,9 @@ import RcloneKit
 import os
 
 enum TransferOperation: String {
-    case copy, sync
+    case copy
+    case sync
+    case move
 }
 
 enum TransferStatus {
