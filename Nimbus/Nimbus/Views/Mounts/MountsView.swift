@@ -39,17 +39,14 @@ struct MountsView: View {
                 }
                 await viewModel?.loadRemotes()
             }
-            // Preserve existing AddMountSheet call shape — Task 9 will rebuild it.
             .sheet(isPresented: $showingAddSheet) {
                 if let viewModel {
                     AddMountSheet(viewModel: viewModel)
                 }
             }
-            .sheet(item: $editingConfig) { _ in
-                // Edit reuses AddMountSheet for now; Task 9 will introduce an
-                // `editing:` variant. Until then the user re-adds.
+            .sheet(item: $editingConfig) { config in
                 if let viewModel {
-                    AddMountSheet(viewModel: viewModel)
+                    AddMountSheet(viewModel: viewModel, editing: config)
                 }
             }
             .confirmationDialog(
