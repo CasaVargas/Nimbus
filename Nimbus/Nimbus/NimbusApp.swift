@@ -80,11 +80,7 @@ struct NimbusApp: App {
 
             for config in mountConfigs.configs where config.autoMount {
                 if config.backend == .nfs {
-                    try? await mountManager.mount(
-                        remote: config.remote,
-                        mountPoint: config.mountPoint,
-                        readOnly: config.vfsMode == .readOnly
-                    )
+                    try? await mountManager.mountConfig(config)
                 }
             }
 
