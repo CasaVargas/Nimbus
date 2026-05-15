@@ -132,6 +132,8 @@ Note: The Swift Testing harness reports 113 in its summary because `FileTablePer
 
 5. **Automated headless render-FPS harness.** 120fps remains a manual Instruments gate; no windowless XCTest equivalent exists for GPU compositing.
 
+6. **`FileRowView.isSelected` custom accent is not reactively bound to `Selection`.** PRE-EXISTING architectural gap, surfaced (not caused) by the `updateNSView` files-identity reload guard. `isSelected` is a plain `let` baked into the hosted `FileRowHost` at `FileRowHostingCell.configure(...)` time. On a selection-only change (no files change), `reloadData()` is correctly skipped, so cells are not reconfigured and the custom `.background(isSelected ? accent.opacity(0.18) : .clear)` does not refresh for affected rows. **NSTableView's native row-selection highlight still shows selection correctly** — this is a cosmetic secondary-accent staleness, not a "can't see selection" defect; it self-corrects on the next directory load/navigation. Before the guard, the over-reload bug incidentally masked this. Phase 3 fix: make `FileRowView`/`FileRowHost` observe `Selection<String>` reactively (inject it and read `selection.ids.contains(file.id)` in the body), or `tableView.reloadRows(at:)` on selection deltas. **The manual interaction ⏳ gate should specifically check whether the stale custom accent + native highlight produce a visible double-styling glitch during mixed mouse/keyboard selection on a static directory.**
+
 ### Phase 2c-discovered carry-forwards (still open)
 
 6. **`FileProviderBridge.wasRecentlyEvicted` SDK gap.** macOS 26 SDK does not expose `enumeratorForEvictedItems`. Method is async with `// TODO Phase 3` marker. Phase 3 should revisit when Apple ships the API.
