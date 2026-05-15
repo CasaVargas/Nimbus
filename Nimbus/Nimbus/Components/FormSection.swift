@@ -16,6 +16,7 @@ struct FormSection<Content: View>: View {
                     .font(DesignSystem.Typography.captionEmphasized)
                     .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
                     .textCase(.uppercase)
+                    .accessibilityAddTraits(.isHeader)
             }
             VStack(spacing: 0) {
                 content()
@@ -36,6 +37,12 @@ struct FormSection<Content: View>: View {
 
 /// A single labeled row inside a FormSection. Label on the left, trailing content
 /// (e.g. TextField, Picker, value Text) on the right.
+///
+/// **Trailing-width contract:** the row's `Spacer()` consumes all flex between
+/// label and trailing. Trailing content controls its own width. For TextFields
+/// that should expand horizontally, apply `.frame(maxWidth: <number>)` (typically
+/// 200–280pt for most form inputs). Don't add `.frame(maxWidth: .infinity)` —
+/// the trailing area is bounded by row width, not infinite.
 struct FormRow<Trailing: View>: View {
     let label: LocalizedStringKey
     let help: LocalizedStringKey?

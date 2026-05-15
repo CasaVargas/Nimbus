@@ -36,8 +36,10 @@ struct SheetChrome<BodyContent: View, Actions: View>: View {
                     .padding(DesignSystem.Spacing.xl)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Divider()
-            actionBar
+            if Actions.self != EmptyView.self {
+                Divider()
+                actionBar
+            }
         }
         .frame(minWidth: 460)
         .background(DesignSystem.Color.semantic.surface)
@@ -49,6 +51,7 @@ struct SheetChrome<BodyContent: View, Actions: View>: View {
             Text(title)
                 .font(DesignSystem.Typography.titleEmphasized)
                 .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                .accessibilityAddTraits(.isHeader)
             if let subtitle {
                 Text(subtitle)
                     .font(DesignSystem.Typography.caption)
