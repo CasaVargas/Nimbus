@@ -72,13 +72,21 @@ struct FileTableRepresentable: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         let coord = context.coordinator
-        coord.files = files
+        // Cheap reference/string inputs: may legitimately change per render
+        // (closures captured fresh each body pass, env objects), always apply.
         coord.remote = remote
         coord.onOpen = onOpen
         coord.onContextAction = onContextAction
         coord.onQuickLook = onQuickLook
         coord.transferStore = transferStore
         coord.fileProviderBridge = fileProviderBridge
-        coord.reloadPreservingSelection()
+        // Only reassign `files` (O(n) rebuildRowIndex didSet) and reload the
+        // table when the file list actually changed. SwiftUI re-invokes
+        // updateNSView on every re-render; during an active transfer over a
+        // large directory TransferStore observation cascades re-renders, so
+        // an unguarded reload would replay a full 10k reloadData per tick.
+        if coord.applyFilesIfChanged(files) {
+            coord.reloadPreservingSelection()
+        }
     }
 }

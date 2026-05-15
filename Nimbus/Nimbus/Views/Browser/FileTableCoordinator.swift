@@ -30,6 +30,31 @@ final class FileTableCoordinator: NSObject {
 
     weak var tableView: FileTableView?
 
+    /// Files-identity signal for the last list applied via
+    /// `FileTableRepresentable.updateNSView`. `FileItem` is not `Equatable`,
+    /// so we compare the id ordering (`files.map(\.id)`, id is `String`).
+    /// `hasAppliedFiles` forces the first updateNSView to apply+reload even
+    /// when both the stored signal and the incoming files are empty (an
+    /// initially-empty directory must still reload exactly once).
+    private(set) var appliedFileIDs: [String] = []
+    private(set) var hasAppliedFiles = false
+
+    /// Apply `newFiles` only when the list actually changed since the last
+    /// applied signal (or on the very first call). Returns `true` when the
+    /// caller should follow up with `reloadPreservingSelection()`. SwiftUI
+    /// re-invokes updateNSView on every BrowserView re-render (e.g. each
+    /// TransferStore progress tick during an active transfer over a large
+    /// directory); gating here avoids a redundant O(n) rebuildRowIndex
+    /// (`files` didSet) + full NSTableView.reloadData() per tick.
+    func applyFilesIfChanged(_ newFiles: [FileItem]) -> Bool {
+        let signal = newFiles.map(\.id)
+        if hasAppliedFiles && signal == appliedFileIDs { return false }
+        files = newFiles            // fires didSet → rebuildRowIndex (only when changed)
+        appliedFileIDs = signal
+        hasAppliedFiles = true
+        return true
+    }
+
     /// Guards the SwiftUI→AppKit→SwiftUI selection echo loop.
     private var isApplyingSelection = false
 
