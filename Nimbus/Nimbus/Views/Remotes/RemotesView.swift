@@ -42,7 +42,7 @@ struct RemotesView: View {
             }
             // Sheet call sites preserved from Phase 1; Tasks 4-6 will rebuild these.
             .sheet(isPresented: $showAddRemote) {
-                AddRemoteSheet(onComplete: {
+                AddRemoteSheet(client: daemon.client, onDismiss: {
                     Task { await viewModel?.loadRemotes() }
                 })
             }

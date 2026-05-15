@@ -9,6 +9,7 @@ struct EditRemoteSheet: View {
     @State private var providers: [Provider] = []
     @State private var isSaving = false
     @State private var error: String?
+    @State private var remoteName: String = ""
 
     var onComplete: (() -> Void)?
 
@@ -24,7 +25,11 @@ struct EditRemoteSheet: View {
                 }
 
                 if let provider {
-                    ConfigForm(options: provider.options, values: $values)
+                    // Phase 2a placeholder: Task 6 will rebuild this sheet using
+                    // SheetChrome and a name-locked variant of ConfigForm. For now
+                    // we bind `remoteName` (immutable in the UI, set in .task) just
+                    // to satisfy the new ConfigForm(provider:name:values:) signature.
+                    ConfigForm(provider: provider, name: $remoteName, values: $values)
                 } else {
                     ProgressView("Loading...")
                 }
@@ -45,6 +50,7 @@ struct EditRemoteSheet: View {
         .frame(minWidth: 500, minHeight: 400)
         .task {
             values = remote.config
+            remoteName = remote.name
             do {
                 providers = try await daemon.client.getProviders()
             } catch {

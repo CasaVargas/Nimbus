@@ -23,6 +23,7 @@
 		25DA4AD53EF27768DC29591B /* Sidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5EB7927C6E50511B15E82C3 /* Sidebar.swift */; };
 		27661839BBC147E0FA2D2DFA /* CopySyncViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCB9AC026693A5F56888FA5 /* CopySyncViewModel.swift */; };
 		278E2D760830C431C685CF0B /* NimbusApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9A419551C6F4187C05A07F7 /* NimbusApp.swift */; };
+		2B6CF636018DA7068597AA46 /* ProviderPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 807D46990D982B5DE50BE2BD /* ProviderPicker.swift */; };
 		2ED849493F32B6988F73CA7C /* TransferRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADA1580276A631B918461D24 /* TransferRow.swift */; };
 		344BFFDF89CBCBC316D298C4 /* BenchScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31C7C40D39EDA92229DFFC55 /* BenchScene.swift */; };
 		374E003E00317D2F7CE9D15F /* MountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C59D2ED20596903528EE7EB1 /* MountManager.swift */; };
@@ -168,6 +169,7 @@
 		773187DDF62D87927128DCAC /* EmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyState.swift; sourceTree = "<group>"; };
 		7D2921088EDC82F0A95AEEAB /* BookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkStore.swift; sourceTree = "<group>"; };
 		7FCB9AC026693A5F56888FA5 /* CopySyncViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopySyncViewModel.swift; sourceTree = "<group>"; };
+		807D46990D982B5DE50BE2BD /* ProviderPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderPicker.swift; sourceTree = "<group>"; };
 		84E656540BFE413CDECD552F /* BrowserViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserViewModel.swift; sourceTree = "<group>"; };
 		8557E940D1B7790FDD7F35AD /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		8B919CAFBCBF7D878493B03F /* EditRemoteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditRemoteSheet.swift; sourceTree = "<group>"; };
@@ -279,6 +281,7 @@
 				9514C974E975323DC538A60E /* ConfigForm.swift */,
 				8B919CAFBCBF7D878493B03F /* EditRemoteSheet.swift */,
 				2526A5E71E5C5ECDAD53597D /* ImportConfigSheet.swift */,
+				807D46990D982B5DE50BE2BD /* ProviderPicker.swift */,
 				AF03C7B12F8D38C3F6E47381 /* RemoteRow.swift */,
 				23222C40A9098C836B111200 /* RemotesView.swift */,
 			);
@@ -731,6 +734,7 @@
 				CAF8A4396F7EEB736BD84E8F /* NimbusFileRef.swift in Sources */,
 				66686A62291C3FC31EFD0607 /* OnboardingView.swift in Sources */,
 				21E72894D5B09900044349EC /* PathPicker.swift in Sources */,
+				2B6CF636018DA7068597AA46 /* ProviderPicker.swift in Sources */,
 				A2C445BFC1D91129614EB77D /* QuickLookHost.swift in Sources */,
 				A76AA1BCD875893B5F5BDDC0 /* Radius.swift in Sources */,
 				FF59C40D0EABC51F0CC90B28 /* RcloneClientAdapter.swift in Sources */,

@@ -106,7 +106,7 @@ struct OnboardingView: View {
             }
         }
         .sheet(isPresented: $showAddRemote) {
-            AddRemoteSheet(onComplete: {
+            AddRemoteSheet(client: daemon.client, onDismiss: {
                 Task { await loadRemotes() }
             })
         }
