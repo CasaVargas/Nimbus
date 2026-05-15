@@ -114,7 +114,7 @@ struct RemotesView: View {
                             .foregroundStyle(.orange)
                         Text("Failed to load remotes")
                             .font(.headline)
-                        Text(error)
+                        Text(error.message)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)

@@ -293,7 +293,7 @@ struct BrowserView: View {
                         .info("Reconnect Remote tapped for \(remoteName)")
                 })
             )
-        case .offline:
+        case .network:
             EmptyState(
                 icon: "wifi.slash",
                 title: "Can't Reach Cloud",

@@ -7,7 +7,7 @@ import os
 @MainActor
 final class TransfersViewModel {
     private(set) var overallStats: StatsResponse?
-    private(set) var error: String?
+    private(set) var error: NimbusError?
 
     private let client: RcloneClient
     private var statsTask: Task<Void, Never>?
@@ -35,7 +35,7 @@ final class TransfersViewModel {
         do {
             try await client.stopJob(id: id)
         } catch {
-            self.error = error.localizedDescription
+            self.error = NimbusError.classify(error)
         }
     }
 
