@@ -89,6 +89,10 @@ struct NimbusApp: App {
                 }
             }
 
+            // Phase 2c: refreshAll reconciles mount(8) state and FP domains against configs
+            mountManager.configs = mountConfigs.configs
+            await mountManager.refreshAll()
+
             // Sync File Provider domains
             do {
                 let remotes = try await daemon.client.listRemotes()
