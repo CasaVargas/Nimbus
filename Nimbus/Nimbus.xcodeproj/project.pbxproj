@@ -96,6 +96,7 @@
 		CA0E5E0F07A0AF378C3BA5E7 /* Selection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C428B03536470F32946F2BB /* Selection.swift */; };
 		CA84245C980DE470FB035D8B /* RemoteStatusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3664099969BCEF740DAB5F4B /* RemoteStatusService.swift */; };
 		CAF8A4396F7EEB736BD84E8F /* NimbusFileRef.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3994C6A2379A27396999FD1F /* NimbusFileRef.swift */; };
+		CDFF0243B6962840E984F1EC /* FileTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABB5DAED70D29021C9AF7060 /* FileTableView.swift */; };
 		D6295020365053BF15FF340A /* Enumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CE2F8E812EA096D4E38C711 /* Enumerator.swift */; };
 		D717CF81D7DB9C05536E61BB /* MountRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941B52BF2A1E8F0D27C9A987 /* MountRow.swift */; };
 		D872AC01934287E9DA989928 /* MountRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E61BE3E85906D683B22F88CA /* MountRowTests.swift */; };
@@ -221,6 +222,7 @@
 		A2E0EBD546A1309934BF1097 /* RemoteRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteRowTests.swift; sourceTree = "<group>"; };
 		A59C2F1C642178D0E5224A7D /* LaunchAtLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginService.swift; sourceTree = "<group>"; };
 		A6C3E0E28CB14B1FC1F0F666 /* SheetChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetChrome.swift; sourceTree = "<group>"; };
+		ABB5DAED70D29021C9AF7060 /* FileTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTableView.swift; sourceTree = "<group>"; };
 		ADA1580276A631B918461D24 /* TransferRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferRow.swift; sourceTree = "<group>"; };
 		ADEDCF3F309AB2843957D1B7 /* QuickLookHostTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookHostTests.swift; sourceTree = "<group>"; };
 		AF03C7B12F8D38C3F6E47381 /* RemoteRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteRow.swift; sourceTree = "<group>"; };
@@ -537,6 +539,7 @@
 				025E9AE6BB70AE2224D48C6F /* FileRowHostingCell.swift */,
 				12DD2FA34040B72E75777C56 /* FileRowView.swift */,
 				4782ABB2481E119B80157DEF /* FileTable.swift */,
+				ABB5DAED70D29021C9AF7060 /* FileTableView.swift */,
 				313EDAEB0224DB7D4DC108F8 /* SelectionIntent.swift */,
 			);
 			path = Browser;
@@ -787,6 +790,7 @@
 				3A2213D7E076AD922C03DA9C /* FileRowHostingCell.swift in Sources */,
 				88F8E0B1BCE114CE9A6AED41 /* FileRowView.swift in Sources */,
 				ADCDC4391F85BAB27DAB12D2 /* FileTable.swift in Sources */,
+				CDFF0243B6962840E984F1EC /* FileTableView.swift in Sources */,
 				B77CE9DC37BBD5AD88C123C4 /* FormSection.swift in Sources */,
 				BB433D456B5CF70AADD995A2 /* GeneralSection.swift in Sources */,
 				912BAC08F7745480EA5992B8 /* ImportConfigSheet.swift in Sources */,
