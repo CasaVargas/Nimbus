@@ -1,23 +1,35 @@
 import SwiftUI
+import AppKit
 import RcloneKit
 
+/// Mounts list — rebuilt against the Phase 2a foundation.
+/// Reference: macOS System Settings · Login Items (row layout), Disk Utility
+/// (inline inspector pattern).
 struct MountsView: View {
-    @Environment(RcloneDaemon.self) private var daemon
-    @Environment(MountConfigStore.self) private var configStore
     @Environment(MountManager.self) private var mountManager
+    @Environment(MountConfigStore.self) private var configs
+    @Environment(RcloneDaemon.self) private var daemon
     @Environment(FileProviderBridge.self) private var fileProviderBridge
+
     @State private var viewModel: MountsViewModel?
-    @State private var showAddMount = false
+    @State private var showingAddSheet = false
+    @State private var editingConfig: MountConfig?
+    @State private var deletingConfig: MountConfig?
+    @State private var expandedID: String?
+    @State private var error: NimbusError?
 
     var body: some View {
         content
             .navigationTitle("Mounts")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Add Mount", systemImage: "plus") {
-                        showAddMount = true
+                    Button("Add Mount", systemImage: "plus") { showingAddSheet = true }
+                        .disabled(daemon.status != .connected || viewModel == nil)
+                }
+                ToolbarItem(placement: .secondaryAction) {
+                    Button("Refresh", systemImage: "arrow.clockwise") {
+                        Task { await mountManager.refreshAll() }
                     }
-                    .disabled(viewModel == nil)
                 }
             }
             .task(id: daemon.status) {
@@ -27,73 +39,163 @@ struct MountsView: View {
                 }
                 await viewModel?.loadRemotes()
             }
-            .sheet(isPresented: $showAddMount) {
+            // Preserve existing AddMountSheet call shape — Task 9 will rebuild it.
+            .sheet(isPresented: $showingAddSheet) {
                 if let viewModel {
                     AddMountSheet(viewModel: viewModel)
                 }
+            }
+            .sheet(item: $editingConfig) { _ in
+                // Edit reuses AddMountSheet for now; Task 9 will introduce an
+                // `editing:` variant. Until then the user re-adds.
+                if let viewModel {
+                    AddMountSheet(viewModel: viewModel)
+                }
+            }
+            .confirmationDialog(
+                "Delete this mount?",
+                isPresented: Binding(
+                    get: { deletingConfig != nil },
+                    set: { if !$0 { deletingConfig = nil } }
+                ),
+                presenting: deletingConfig
+            ) { config in
+                Button("Delete", role: .destructive) {
+                    Task { await deleteConfig(config) }
+                }
+                Button("Cancel", role: .cancel) { deletingConfig = nil }
+            } message: { _ in
+                Text("This will unmount the volume if mounted and remove the configuration.")
+            }
+            .alert(
+                "Mount error",
+                isPresented: Binding(
+                    get: { error != nil },
+                    set: { if !$0 { error = nil } }
+                ),
+                presenting: error
+            ) { _ in
+                Button("OK", role: .cancel) { error = nil }
+            } message: { err in
+                Text(verbatim: err.message)
             }
     }
 
     @ViewBuilder
     private var content: some View {
-        if configStore.configs.isEmpty {
-            ContentUnavailableView(
-                "No Mounts",
-                systemImage: "externaldrive",
-                description: Text("Add a mount to access cloud files as a local drive.")
+        if configs.configs.isEmpty {
+            EmptyState(
+                icon: "externaldrive",
+                title: "No Mounts Configured",
+                message: "Mount a remote to access it as a local volume.",
+                action: .init(label: "Add Mount", perform: { showingAddSheet = true })
             )
         } else {
-            List(configStore.configs) { config in
-                let isActive = isMountActive(config)
-                MountRow(
-                    config: config,
-                    isActive: isActive,
-                    onToggle: { Task { await toggleMount(config: config, isActive: isActive) } },
-                    onRemove: { Task { await removeMount(config: config) } }
-                )
-            }
+            list
         }
     }
 
+    private var list: some View {
+        List {
+            ForEach(configs.configs) { config in
+                VStack(spacing: 0) {
+                    MountRow(
+                        config: config,
+                        state: state(for: config),
+                        onToggle: { Task { await toggle(config: config) } },
+                        onRevealInFinder: { revealInFinder(config: config) },
+                        onEdit: { editingConfig = config },
+                        onDelete: { deletingConfig = config }
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(DesignSystem.Motion.smooth) {
+                            expandedID = expandedID == config.id ? nil : config.id
+                        }
+                    }
+                    if expandedID == config.id {
+                        MountInspector(
+                            config: config,
+                            lastMountedAt: mountManager.lastMounted[config.id]
+                        )
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                }
+            }
+        }
+        .listStyle(.inset)
+    }
+
+    // MARK: - State derivation
+
+    private func state(for config: MountConfig) -> StatusToggleState {
+        if let reason = mountManager.errors[config.id] {
+            return .error(reason: reason)
+        }
+        let isMounted = isMountActive(config)
+        if mountManager.inFlight.contains(config.id) {
+            return isMounted ? .unmounting : .mounting
+        }
+        return isMounted ? .on : .off
+    }
+
+    /// Source-of-truth derivation: union of MountManager's tracked IDs with the
+    /// in-process `activeMounts` list (mountPoint match) and the
+    /// FileProvider bridge's active domains. This keeps legacy code paths
+    /// (NimbusApp auto-mount loop) working without needing them to call the new
+    /// `mountConfig` wrapper.
     private func isMountActive(_ config: MountConfig) -> Bool {
+        if mountManager.mountedIDs.contains(config.id) { return true }
         switch config.backend {
         case .nfs:
-            mountManager.activeMounts.contains { $0.mountPoint == config.mountPoint }
+            return mountManager.activeMounts.contains { $0.mountPoint == config.mountPoint }
         case .fileProvider:
-            fileProviderBridge.activeDomains.contains(config.remoteNameOnly)
+            return fileProviderBridge.activeDomains.contains(config.remoteNameOnly)
         }
     }
 
-    private func toggleMount(config: MountConfig, isActive: Bool) async {
-        switch config.backend {
-        case .nfs:
-            if isActive {
-                try? await mountManager.unmount(mountPoint: config.mountPoint)
-            } else {
-                try? await mountManager.mount(
-                    remote: config.remote,
-                    mountPoint: config.mountPoint,
-                    readOnly: config.vfsMode == .readOnly
-                )
+    // MARK: - Actions
+
+    private func toggle(config: MountConfig) async {
+        do {
+            switch config.backend {
+            case .nfs:
+                if isMountActive(config) {
+                    try await mountManager.unmountConfig(config)
+                } else {
+                    try await mountManager.mountConfig(config)
+                }
+            case .fileProvider:
+                let name = config.remoteNameOnly
+                if isMountActive(config) {
+                    try await fileProviderBridge.removeDomain(identifier: name)
+                } else {
+                    try await fileProviderBridge.addDomain(identifier: name, displayName: name)
+                }
+                await fileProviderBridge.refreshDomains()
             }
-        case .fileProvider:
-            let name = config.remoteNameOnly
-            if isActive {
-                try? await fileProviderBridge.removeDomain(identifier: name)
-            } else {
-                try? await fileProviderBridge.addDomain(identifier: name, displayName: name)
-            }
-            await fileProviderBridge.refreshDomains()
+        } catch {
+            self.error = NimbusError.classify(error)
         }
     }
 
-    private func removeMount(config: MountConfig) async {
-        if config.backend == .fileProvider {
-            try? await fileProviderBridge.removeDomain(identifier: config.remoteNameOnly)
-            await fileProviderBridge.refreshDomains()
-        } else if mountManager.activeMounts.contains(where: { $0.mountPoint == config.mountPoint }) {
-            try? await mountManager.unmount(mountPoint: config.mountPoint)
+    private func deleteConfig(_ config: MountConfig) async {
+        if isMountActive(config) {
+            switch config.backend {
+            case .nfs:
+                try? await mountManager.unmountConfig(config)
+            case .fileProvider:
+                try? await fileProviderBridge.removeDomain(identifier: config.remoteNameOnly)
+                await fileProviderBridge.refreshDomains()
+            }
         }
-        configStore.removeConfig(id: config.id)
+        configs.removeConfig(id: config.id)
+        deletingConfig = nil
+    }
+
+    private func revealInFinder(config: MountConfig) {
+        NSWorkspace.shared.activateFileViewerSelecting(
+            [URL(fileURLWithPath: config.mountPoint)]
+        )
     }
 }
