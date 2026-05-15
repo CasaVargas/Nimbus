@@ -5,6 +5,7 @@ struct OnboardingView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(MountConfigStore.self) private var mountStore
+    @Environment(MountManager.self) private var mountManager
 
     @State private var remotes: [String] = []
     @State private var showAddRemote = false
@@ -48,6 +49,9 @@ struct OnboardingView: View {
             if daemon.status == .connected {
                 await refreshRemotes()
             }
+        }
+        .onChange(of: mountStore.configs.count) { _, _ in
+            Task { await attemptAutoMount() }
         }
         .onAppear {
             if mountsViewModel == nil {
@@ -187,6 +191,13 @@ struct OnboardingView: View {
             // Silent — daemon error state surfaces via daemon.status, not here.
         }
     }
+
+    private func attemptAutoMount() async {
+        // If a new mount was added that isn't yet mounted, mount it now.
+        for config in mountStore.configs where !mountManager.mountedIDs.contains(config.id) {
+            try? await mountManager.mountConfig(config)
+        }
+    }
 }
 
 #Preview {
@@ -194,5 +205,6 @@ struct OnboardingView: View {
         .environment(AppSettings())
         .environment(RcloneDaemon())
         .environment(MountConfigStore())
+        .environment(MountManager())
         .frame(width: 700, height: 800)
 }
