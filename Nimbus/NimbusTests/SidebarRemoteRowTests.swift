@@ -39,4 +39,14 @@ struct SidebarRemoteRowTests {
             view, size: CGSize(width: 220, height: 28), named: "SidebarRemoteRow-unknown"
         )
     }
+
+    @Test func rendersErrorStatus() throws {
+        let view = SidebarRemoteRow(
+            remote: makeRemote(), status: .error(reason: "Server returned 500"),
+            onEdit: {}, onDelete: {}, onReconnect: {}
+        )
+        try SnapshotHelpers.assertSnapshot(
+            view, size: CGSize(width: 220, height: 28), named: "SidebarRemoteRow-error"
+        )
+    }
 }

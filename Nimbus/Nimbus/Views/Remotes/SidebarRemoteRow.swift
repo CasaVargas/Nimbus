@@ -37,9 +37,13 @@ struct SidebarRemoteRow: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(remote.name), \(status.accessibilityLabel)")
-        .accessibilityAction(named: "Edit", onEdit)
-        .accessibilityAction(named: "Reconnect", onReconnect)
-        .accessibilityAction(named: "Delete", onDelete)
+        .accessibilityActions {
+            Button("Edit", action: onEdit)
+            if case .authNeeded = status {
+                Button("Reconnect", action: onReconnect)
+            }
+            Button("Delete", action: onDelete)
+        }
     }
 }
 
