@@ -221,9 +221,10 @@ enum ProviderCatalog {
 }
 
 #Preview {
-    let names = ["drive", "dropbox", "s3", "onedrive", "b2", "box", "mega",
-                 "protondrive", "iclouddrive", "swift", "yandex", "zoho",
-                 "crypt", "ftp", "webdav", "local", "hdfs", "pcloud",
+    let names = ["drive", "gcs", "gphotos", "dropbox", "s3", "onedrive",
+                 "azureblob", "azurefiles", "oos", "mailru", "b2", "box",
+                 "mega", "protondrive", "iclouddrive", "swift", "yandex",
+                 "zoho", "crypt", "ftp", "webdav", "local", "hdfs", "pcloud",
                  "storj", "koofr", "fichier", "doi"]
     return ScrollView {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 104))], spacing: 12) {
