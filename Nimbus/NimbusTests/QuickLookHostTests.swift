@@ -7,14 +7,20 @@ import Testing
 @Suite("QuickLookHost MaterializationProvider selection and cleanup")
 @MainActor
 struct QuickLookHostTests {
-    @Test func fileProviderMountedRemoteUsesFileProviderProvider() {
+    /// Regression guard for 18aea09: even when a remote is FP-mounted, Quick
+    /// Look must use a full temp download, NOT the File-Provider placeholder.
+    /// The placeholder path left types that can't render without full bytes
+    /// (e.g. an mp3 from a registered remote) opening blank. Do not "restore"
+    /// FileProviderMaterializationProvider selection here without re-checking
+    /// that bug.
+    @Test func fileProviderMountedRemoteStillUsesTempDownloadProvider() {
         let bridge = StubFileProviderBridge(mountedRemotes: ["gdrive"])
         let provider = QuickLookHost.provider(
             forRemote: "gdrive",
             bridge: bridge,
             client: StubRcloneClient()
         )
-        #expect(provider is FileProviderMaterializationProvider)
+        #expect(provider is TempDownloadMaterializationProvider)
     }
 
     @Test func unmountedRemoteUsesTempDownloadProvider() {
