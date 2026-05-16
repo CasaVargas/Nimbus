@@ -108,6 +108,7 @@ struct BrowserView: View {
             await vm.loadFiles()
         }
         .onChange(of: browseTarget) { _, newValue in
+            // If the target arrives before .task builds the view model, it's dropped on purpose — initialPath handles the first-load case; later wiring sets browseTarget only for an already-live browser.
             guard let target = newValue, target.remote == remoteName,
                   let viewModel else { return }
             Task { await viewModel.navigateTo(path: target.path) }
