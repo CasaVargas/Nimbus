@@ -17,14 +17,14 @@ struct ProviderPicker: View {
             TextField("Search providers", text: $search)
                 .textFieldStyle(.roundedBorder)
 
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: DesignSystem.Spacing.m) {
-                    ForEach(filtered, id: \.name) { provider in
-                        tile(for: provider)
-                    }
+            // No ScrollView here: SheetChrome already scrolls the body.
+            // A nested ScrollView reports unbounded height and balloons the sheet.
+            LazyVGrid(columns: columns, spacing: DesignSystem.Spacing.m) {
+                ForEach(filtered, id: \.name) { provider in
+                    tile(for: provider)
                 }
-                .padding(.vertical, DesignSystem.Spacing.s)
             }
+            .padding(.vertical, DesignSystem.Spacing.s)
         }
     }
 
@@ -37,46 +37,44 @@ struct ProviderPicker: View {
     }
 
     private func tile(for provider: Provider) -> some View {
-        Button {
-            onPick(provider)
-        } label: {
-            VStack(spacing: DesignSystem.Spacing.xs) {
-                Image(systemName: icon(for: provider.name))
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 32, height: 32)
-                    .foregroundStyle(DesignSystem.Color.semantic.statusInfo)
+        ProviderTile(provider: provider, onPick: { onPick(provider) })
+    }
+}
+
+/// Single app-icon-style provider tile with a hover lift + ring.
+private struct ProviderTile: View {
+    let provider: Provider
+    let onPick: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: onPick) {
+            VStack(spacing: DesignSystem.Spacing.s) {
+                ProviderBadge(provider: provider.prefix, size: 52)
                 Text(verbatim: provider.name)
                     .font(DesignSystem.Typography.caption)
                     .lineLimit(1)
                     .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
             }
-            .frame(width: 96, height: 96)
+            .frame(width: 104, height: 104)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
                     .fill(DesignSystem.Color.semantic.surfaceSubtle)
+                    .opacity(hovering ? 1 : 0.55)
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                    .strokeBorder(
+                        DesignSystem.Color.semantic.accent.opacity(hovering ? 0.55 : 0),
+                        lineWidth: 1
+                    )
+            )
+            .scaleEffect(hovering ? 1.03 : 1)
+            .animation(.snappy(duration: 0.14), value: hovering)
         }
         .buttonStyle(.plain)
+        .onHover { hovering = $0 }
         .accessibilityLabel(provider.name)
         .accessibilityHint(provider.description)
-    }
-
-    private func icon(for providerName: String) -> String {
-        switch providerName.lowercased() {
-        case "drive", "google drive": return "externaldrive.connected.to.line.below"
-        case "s3", "amazon s3": return "shippingbox"
-        case "b2", "backblaze": return "shippingbox"
-        case "dropbox": return "drop"
-        case "onedrive", "sharepoint": return "cloud"
-        case "sftp", "ftp": return "server.rack"
-        case "local": return "folder"
-        case "crypt": return "lock.shield"
-        case "webdav": return "globe"
-        case "azureblob", "azure": return "cloud.fill"
-        case "box": return "shippingbox.fill"
-        case "pcloud", "mega", "mailru": return "cloud"
-        default: return "cloud"
-        }
     }
 }

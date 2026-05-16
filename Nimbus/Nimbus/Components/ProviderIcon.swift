@@ -9,7 +9,7 @@ struct ProviderIcon: View {
     var size: CGFloat = 32
 
     var body: some View {
-        let key = provider.lowercased()
+        let key = ProviderCatalog.canonicalKey(provider)
         if let brand = ProviderCatalog.brand[key] {
             Image(brand.asset)
                 .renderingMode(.template)
@@ -37,7 +37,7 @@ struct ProviderBadge: View {
     var size: CGFloat = 56
 
     var body: some View {
-        let key = provider.lowercased()
+        let key = ProviderCatalog.canonicalKey(provider)
         let tint = ProviderCatalog.badgeTint(for: key)
         RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
             .fill(
@@ -76,6 +76,20 @@ struct ProviderBadge: View {
 }
 
 enum ProviderCatalog {
+    /// Maps the various raw spellings that reach the icon views — rclone
+    /// `Provider.prefix` from the picker and the stored `remote.type` from
+    /// RemoteRow — onto a single catalog key. Most backends already agree
+    /// (e.g. "s3", "dropbox"); only the multi-word ones diverge.
+    static func canonicalKey(_ raw: String) -> String {
+        let k = raw.lowercased().trimmingCharacters(in: .whitespaces)
+        switch k {
+        case "google cloud storage": return "gcs"
+        case "google photos": return "gphotos"
+        case "oracleobjectstorage": return "oos"
+        default: return k
+        }
+    }
+
     /// The provider's signature color — brand color when a logo exists,
     /// otherwise the deterministic SF Symbol fallback color.
     static func tint(for key: String) -> Color {
