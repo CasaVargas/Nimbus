@@ -5,6 +5,9 @@ import os
 struct BrowserView: View {
     let remoteName: String
     var initialPath: String = ""
+    /// When this changes and its `remote` matches `remoteName`, the browser
+    /// navigates to `path` on the live view model (no view recreation).
+    var browseTarget: BrowseTarget?
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(BookmarkStore.self) private var bookmarkStore
     @Environment(TransferStore.self) private var transferStore
@@ -103,6 +106,11 @@ struct BrowserView: View {
             vm.path = initialPath
             viewModel = vm
             await vm.loadFiles()
+        }
+        .onChange(of: browseTarget) { _, newValue in
+            guard let target = newValue, target.remote == remoteName,
+                  let viewModel else { return }
+            Task { await viewModel.navigateTo(path: target.path) }
         }
         .alert("New Folder", isPresented: Binding(
             get: { viewModel?.showNewFolderDialog ?? false },
