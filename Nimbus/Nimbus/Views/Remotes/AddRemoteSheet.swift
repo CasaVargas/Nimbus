@@ -50,7 +50,7 @@ struct AddRemoteSheet: View {
                 }
             }
         )
-        .frame(minWidth: 520, minHeight: 440)
+        .frame(width: 560, height: 560)
         .task {
             do {
                 providers = try await client.getProviders()

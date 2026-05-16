@@ -17,7 +17,7 @@ struct AddMountSheet: View {
     @State private var selectedRemote = ""
     @State private var mountPoint = ""
     @State private var vfsMode: VFSMode = .readWrite
-    @State private var backend: MountBackend = .nfs
+    @State private var backend: MountBackend = .fileProvider
     @State private var autoMount = false
     @State private var showingFolderPicker = false
 

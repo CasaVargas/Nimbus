@@ -47,11 +47,7 @@ struct RemoteRow: View {
 
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.m) {
-            Image(systemName: iconName(for: remote.type))
-                .resizable()
-                .scaledToFit()
-                .frame(width: 24, height: 24)
-                .foregroundStyle(DesignSystem.Color.semantic.statusInfo)
+            ProviderIcon(provider: remote.type, size: 24)
                 .frame(width: 32)
 
             VStack(alignment: .leading, spacing: 1) {
@@ -98,18 +94,5 @@ struct RemoteRow: View {
                 in: RoundedRectangle(cornerRadius: DesignSystem.Radius.pill, style: .continuous)
             )
             .foregroundStyle(status.tintColor)
-    }
-
-    private func iconName(for type: String) -> String {
-        switch type {
-        case "drive": return "externaldrive.connected.to.line.below"
-        case "s3": return "shippingbox"
-        case "dropbox": return "drop"
-        case "onedrive": return "cloud"
-        case "sftp", "ftp": return "server.rack"
-        case "local": return "folder"
-        case "crypt": return "lock.shield"
-        default: return "cloud"
-        }
     }
 }

@@ -18,17 +18,17 @@ struct RemotesView: View {
         content
             .navigationTitle("Remotes")
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button("Import Config", systemImage: "square.and.arrow.down") {
+                        showImportConfig = true
+                    }
+                    .help("Import an existing rclone configuration")
+                    .disabled(daemon.status != .connected)
+
                     Button("Add Remote", systemImage: "plus") {
                         showAddRemote = true
                     }
                     // Only allow adding remotes once the daemon is reachable
-                    .disabled(daemon.status != .connected)
-                }
-                ToolbarItem(placement: .secondaryAction) {
-                    Button("Import Config", systemImage: "square.and.arrow.down") {
-                        showImportConfig = true
-                    }
                     .disabled(daemon.status != .connected)
                 }
             }
