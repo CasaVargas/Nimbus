@@ -67,12 +67,14 @@ struct CopySyncView: View {
             PathPicker(
                 label: "Source",
                 remoteNames: viewModel?.remoteNames ?? [],
+                client: daemon.client,
                 selectedRemote: $srcRemote,
                 path: $srcPath
             )
             PathPicker(
                 label: "Destination",
                 remoteNames: viewModel?.remoteNames ?? [],
+                client: daemon.client,
                 selectedRemote: $dstRemote,
                 path: $dstPath
             )

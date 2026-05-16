@@ -1,10 +1,14 @@
 import SwiftUI
+import RcloneKit
 
 struct PathPicker: View {
     let label: LocalizedStringKey
     let remoteNames: [String]
+    let client: RcloneClient
     @Binding var selectedRemote: String
     @Binding var path: String
+
+    @State private var isBrowsing = false
 
     var body: some View {
         FormRow(label: label, help: nil) {
@@ -22,7 +26,22 @@ struct PathPicker: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 200)
                     .disabled(selectedRemote.isEmpty)
+
+                Button {
+                    isBrowsing = true
+                } label: {
+                    Image(systemName: "folder")
+                }
+                .help("Browse folders")
+                .disabled(selectedRemote.isEmpty)
             }
+        }
+        .sheet(isPresented: $isBrowsing) {
+            FolderBrowserSheet(
+                remote: selectedRemote,
+                client: client,
+                onSelect: { chosen in path = chosen }
+            )
         }
     }
 }
@@ -32,12 +51,14 @@ struct PathPicker: View {
         PathPicker(
             label: "Source",
             remoteNames: ["gdrive", "s3", "local"],
+            client: RcloneClient(),
             selectedRemote: .constant("gdrive"),
             path: .constant("backup/2026")
         )
         PathPicker(
             label: "Destination",
             remoteNames: ["gdrive", "s3", "local"],
+            client: RcloneClient(),
             selectedRemote: .constant(""),
             path: .constant("")
         )
