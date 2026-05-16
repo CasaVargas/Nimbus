@@ -5,7 +5,6 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case mounts = "Mounts"
     case transfers = "Transfers"
     case copySync = "Copy / Sync"
-    case settings = "Settings"
 
     var id: String { rawValue }
 
@@ -15,7 +14,6 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .mounts: "externaldrive"
         case .transfers: "arrow.up.arrow.down"
         case .copySync: "doc.on.doc"
-        case .settings: "gear"
         }
     }
 }

@@ -118,6 +118,14 @@ final class FileTableCoordinator: NSObject {
         let indexes = IndexSet(selection.ids.compactMap { row(forID: $0) })
         tableView?.selectRowIndexes(indexes, byExtendingSelection: false)
     }
+
+    /// NSTableView double-click → open the clicked row, mirroring the grid's
+    /// `TapGesture(count: 2)` path (FileGrid:67). `clickedRow` is valid for
+    /// the duration of a doubleAction dispatch.
+    @objc func handleDoubleClick(_ sender: NSTableView) {
+        guard let f = file(atRow: sender.clickedRow) else { return }
+        onOpen(f)
+    }
 }
 
 // MARK: - NSTableViewDataSource

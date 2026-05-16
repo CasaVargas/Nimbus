@@ -60,6 +60,8 @@ struct FileTableRepresentable: NSViewRepresentable {
         table.dataSource = context.coordinator
         table.delegate = context.coordinator
         table.keyResponder = context.coordinator
+        table.target = context.coordinator
+        table.doubleAction = #selector(FileTableCoordinator.handleDoubleClick(_:))
         context.coordinator.tableView = table
         table.setDraggingSourceOperationMask([.copy], forLocal: false)
 

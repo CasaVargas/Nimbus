@@ -109,8 +109,6 @@ struct ContentView: View {
             TransfersView()
         case .copySync:
             CopySyncView()
-        case .settings:
-            SettingsView()
         case nil:
             Text("Select an item from the sidebar")
                 .foregroundStyle(.secondary)

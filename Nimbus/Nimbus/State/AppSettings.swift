@@ -9,6 +9,10 @@ final class AppSettings {
     @ObservationIgnored
     private let defaults = UserDefaults.standard
 
+    init() {
+        appearance = Appearance(rawValue: defaults.string(forKey: "appearance") ?? "system") ?? .system
+    }
+
     var rclonePort: Int {
         get { defaults.object(forKey: "rclonePort") as? Int ?? 5572 }
         set { defaults.set(newValue, forKey: "rclonePort") }
@@ -45,8 +49,7 @@ final class AppSettings {
     }
 
     var appearance: Appearance {
-        get { Appearance(rawValue: defaults.string(forKey: "appearance") ?? "system") ?? .system }
-        set { defaults.set(newValue.rawValue, forKey: "appearance") }
+        didSet { defaults.set(appearance.rawValue, forKey: "appearance") }
     }
 
     var sidebarCollapsed: Bool {

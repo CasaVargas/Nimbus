@@ -100,15 +100,17 @@ enum QuickLookError: Error {
 final class QuickLookHost: NSObject {
     /// Picks the right `MaterializationProvider` for a remote based on
     /// whether it's currently registered with the File Provider extension.
+    /// Always downloads to a temp file via rclone. The File-Provider
+    /// placeholder path was unreliable for types Quick Look can't render
+    /// without the full bytes (e.g. audio: a registered remote's mp3
+    /// opened blank because the placeholder was never materialized). A
+    /// full temp download with the correct extension previews every type.
     static func provider(
         forRemote remote: String,
         bridge: FileProviderBridgeProtocol,
         client: RcloneClientProtocol
     ) -> MaterializationProvider {
-        if bridge.isRegistered(remote: remote) {
-            return FileProviderMaterializationProvider(bridge: bridge)
-        }
-        return TempDownloadMaterializationProvider(client: client)
+        TempDownloadMaterializationProvider(client: client)
     }
 
     // Live preview state.

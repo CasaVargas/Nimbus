@@ -50,16 +50,7 @@ struct BrowserView: View {
                                 ),
                                 onOpen: { file in handleOpen(file, viewModel: viewModel) },
                                 onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) },
-                                onQuickLook: { items in
-                                    Task {
-                                        let provider = QuickLookHost.provider(
-                                            forRemote: remoteName,
-                                            bridge: fileProviderBridge,
-                                            client: RcloneClientAdapter(client: daemon.client)
-                                        )
-                                        await quickLookHost.show(items: items, provider: provider, remote: remoteName)
-                                    }
-                                }
+                                onQuickLook: { items in previewFiles(items) }
                             )
                         case .grid:
                             FileGrid(
@@ -228,6 +219,19 @@ struct BrowserView: View {
     private func handleOpen(_ file: FileItem, viewModel: BrowserViewModel) {
         if file.isDir {
             Task { await viewModel.navigateTo(path: file.path) }
+        } else {
+            previewFiles([file])
+        }
+    }
+
+    private func previewFiles(_ items: [FileItem]) {
+        Task {
+            let provider = QuickLookHost.provider(
+                forRemote: remoteName,
+                bridge: fileProviderBridge,
+                client: RcloneClientAdapter(client: daemon.client)
+            )
+            await quickLookHost.show(items: items, provider: provider, remote: remoteName)
         }
     }
 
