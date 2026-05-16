@@ -121,6 +121,7 @@
 		E4F3B3A6E01AEAFB66959310 /* BrowseTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A61E9E60ADF2BA2578D08760 /* BrowseTarget.swift */; };
 		E5589C4F42939982895BEEDF /* LaunchAtLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A59C2F1C642178D0E5224A7D /* LaunchAtLoginService.swift */; };
 		E68C93C65CBC2C2403BF9431 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07A2E84E597DE37C122A15B /* Item.swift */; };
+		E7562F57E1C4EBDF92B4CC8D /* RemotesSidebarSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F17A62CC5244C028C56630 /* RemotesSidebarSection.swift */; };
 		F0F4A75D1B29B6DF7A215EFB /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DECF7995C720D6A071047D2 /* Motion.swift */; };
 		F20DC020AE748305501AE6DC /* CopySyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10A3816E1EC55E5657611B64 /* CopySyncView.swift */; };
 		F34A58B4A486A2186C914EEF /* SelectionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 313EDAEB0224DB7D4DC108F8 /* SelectionIntent.swift */; };
@@ -271,6 +272,7 @@
 		DD46B92F934C6AADF654A9BA /* NimbusError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NimbusError.swift; sourceTree = "<group>"; };
 		E054B9B81CE216542BE82F5F /* RemotesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemotesViewModel.swift; sourceTree = "<group>"; };
 		E2CE0C83256B3E94C72DD283 /* PathPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathPicker.swift; sourceTree = "<group>"; };
+		E3F17A62CC5244C028C56630 /* RemotesSidebarSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemotesSidebarSection.swift; sourceTree = "<group>"; };
 		E61BE3E85906D683B22F88CA /* MountRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountRowTests.swift; sourceTree = "<group>"; };
 		E6C4E572632B0FC138085082 /* SnapshotHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotHelpers.swift; sourceTree = "<group>"; };
 		E6FD1A3D6100AC0DBDCF1315 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -360,6 +362,7 @@
 				D9424E2AE45C4242AFBB7A2D /* ImportRemoteRow.swift */,
 				807D46990D982B5DE50BE2BD /* ProviderPicker.swift */,
 				AF03C7B12F8D38C3F6E47381 /* RemoteRow.swift */,
+				E3F17A62CC5244C028C56630 /* RemotesSidebarSection.swift */,
 				D546B42FD06CE92B26FB9A23 /* RemoteStatus.swift */,
 				23222C40A9098C836B111200 /* RemotesView.swift */,
 				2F99D135D9BA8782CC5F5E56 /* SidebarRemoteRow.swift */,
@@ -885,6 +888,7 @@
 				600793D2A53300711E5B23B4 /* RemoteRow.swift in Sources */,
 				73699A6102245454444A825F /* RemoteStatus.swift in Sources */,
 				CA84245C980DE470FB035D8B /* RemoteStatusService.swift in Sources */,
+				E7562F57E1C4EBDF92B4CC8D /* RemotesSidebarSection.swift in Sources */,
 				3C172B72006EC20821ADFC0E /* RemotesView.swift in Sources */,
 				04EC499A7C0DF8F96188864B /* RemotesViewModel.swift in Sources */,
 				CA0E5E0F07A0AF378C3BA5E7 /* Selection.swift in Sources */,
