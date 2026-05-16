@@ -78,7 +78,7 @@ struct ProviderBadge: View {
 enum ProviderCatalog {
     /// Maps the various raw spellings that reach the icon views — rclone
     /// `Provider.prefix` from the picker and the stored `remote.type` from
-    /// RemoteRow — onto a single catalog key. Most backends already agree
+    /// SidebarRemoteRow — onto a single catalog key. Most backends already agree
     /// (e.g. "s3", "dropbox"); only the multi-word ones diverge.
     static func canonicalKey(_ raw: String) -> String {
         let k = raw.lowercased().trimmingCharacters(in: .whitespaces)

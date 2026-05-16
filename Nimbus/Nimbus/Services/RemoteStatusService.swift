@@ -3,7 +3,7 @@ import Observation
 import RcloneKit
 
 /// Owner of per-remote connectivity / auth state. Runs `operations/about`
-/// probes on RemotesView appear and on Reconnect. Probes are fire-once;
+/// probes on RemotesSidebarSection appear and on Reconnect. Probes are fire-once;
 /// no timers, no polling. Status is cleared when a remote is deleted.
 ///
 /// Reference: macOS Disk Utility's volume-info refresh-on-appear pattern.
