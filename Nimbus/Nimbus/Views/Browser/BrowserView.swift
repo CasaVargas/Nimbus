@@ -108,7 +108,13 @@ struct BrowserView: View {
             await vm.loadFiles()
         }
         .onChange(of: browseTarget) { _, newValue in
-            // If the target arrives before .task builds the view model, it's dropped on purpose — initialPath handles the first-load case; later wiring sets browseTarget only for an already-live browser.
+            // browseTarget is a one-shot trigger for an IN-REMOTE jump on the
+            // already-live browser. A CROSS-REMOTE jump recreates this view
+            // (.id(remote) in ContentView) and is seeded via initialPath in
+            // .task instead — .onChange does not fire on a fresh view's first
+            // value, so there's no double-load. If a target somehow arrives
+            // before .task builds the view model, the guard drops it (the
+            // cross-remote/initialPath path covers first load).
             guard let target = newValue, target.remote == remoteName,
                   let viewModel else { return }
             Task { await viewModel.navigateTo(path: target.path) }
