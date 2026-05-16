@@ -57,6 +57,12 @@ struct RemotesSidebarSection: View {
             }
         }
         .task(id: daemon.status) {
+            // Reconciliation (onRemotesLoaded) fires only on a real list
+            // (re)load while connected. We deliberately do NOT fire it on
+            // daemon disconnect: that would feed nextSelection an empty list
+            // and deselect the user's remote on a transient hiccup. Daemon
+            // errors are surfaced in-pane by BrowserView, not by changing
+            // the sidebar selection.
             guard daemon.status == .connected else { return }
             if viewModel == nil {
                 viewModel = RemotesViewModel(client: daemon.client)
