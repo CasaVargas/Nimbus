@@ -164,8 +164,6 @@ enum ProviderCatalog {
             return ("cube.transparent.fill", Color(red: 0.15, green: 0.51, blue: 1.0))
         case "pcloud":
             return ("externaldrive.fill.badge.icloud", Color(nsColor: .systemPurple))
-        case "mailru":
-            return ("envelope.fill", Color(nsColor: .systemBlue))
         case "jottacloud", "hidrive", "koofr", "quatrix", "filefabric", "drime":
             return ("cloud.fill", paletteColor(name))
         case "sftp", "ftp":
