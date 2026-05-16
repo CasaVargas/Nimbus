@@ -92,8 +92,12 @@ struct ContentView: View {
     private var detailView: some View {
         switch selection {
         case .remote(let name):
-            BrowserView(remoteName: name, browseTarget: browseTarget)
-                .id(name)
+            BrowserView(
+                remoteName: name,
+                initialPath: browseTarget?.remote == name ? (browseTarget?.path ?? "") : "",
+                browseTarget: browseTarget
+            )
+            .id(name)
         case .mounts:
             MountsView()
         case .transfers:
