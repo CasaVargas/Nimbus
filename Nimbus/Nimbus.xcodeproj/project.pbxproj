@@ -60,6 +60,7 @@
 		7186B43DDF9D7F839F82B6E6 /* FileProviderBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F4DF18D93B378AC2C60ABC /* FileProviderBridge.swift */; };
 		72176941173EF046F32623F4 /* Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E50D9C737FBBC708FF7A6F5 /* Extension.swift */; };
 		73624E8F2C5CA2884BBB6B04 /* DragDropCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1813355BB10E9306891A015 /* DragDropCoordinatorTests.swift */; };
+		73699A6102245454444A825F /* RemoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = D546B42FD06CE92B26FB9A23 /* RemoteStatus.swift */; };
 		7372ADA10B5EAFFA4935D1F2 /* QuickLookHostTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADEDCF3F309AB2843957D1B7 /* QuickLookHostTests.swift */; };
 		7556E68F8D67B85B04E1E136 /* ShimmerModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = F32C605A79BB39D3677407F6 /* ShimmerModifier.swift */; };
 		79CD5B771150740985B6CFA1 /* Colors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CCCEBA204DCFCEBF2063D66 /* Colors.swift */; };
@@ -252,6 +253,7 @@
 		C8EC5A7120D51A50AD5F8BDD /* StatusToggleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusToggleTests.swift; sourceTree = "<group>"; };
 		CE6352CE9D017F8C0445AE17 /* KeyboardCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardCoordinatorTests.swift; sourceTree = "<group>"; };
 		D2765A4CFF808628E32AA17B /* Nimbus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Nimbus.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D546B42FD06CE92B26FB9A23 /* RemoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteStatus.swift; sourceTree = "<group>"; };
 		D5EB7927C6E50511B15E82C3 /* Sidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sidebar.swift; sourceTree = "<group>"; };
 		D9424E2AE45C4242AFBB7A2D /* ImportRemoteRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportRemoteRow.swift; sourceTree = "<group>"; };
 		DB914ACBFE020C15E4BF90AB /* ConfirmCopySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmCopySheet.swift; sourceTree = "<group>"; };
@@ -348,6 +350,7 @@
 				D9424E2AE45C4242AFBB7A2D /* ImportRemoteRow.swift */,
 				807D46990D982B5DE50BE2BD /* ProviderPicker.swift */,
 				AF03C7B12F8D38C3F6E47381 /* RemoteRow.swift */,
+				D546B42FD06CE92B26FB9A23 /* RemoteStatus.swift */,
 				23222C40A9098C836B111200 /* RemotesView.swift */,
 			);
 			path = Remotes;
@@ -864,6 +867,7 @@
 				4B8F27C6E2737CE62B78A053 /* RcloneDaemon.swift in Sources */,
 				5C6F84624EFBB6A31240C868 /* RcloneSection.swift in Sources */,
 				600793D2A53300711E5B23B4 /* RemoteRow.swift in Sources */,
+				73699A6102245454444A825F /* RemoteStatus.swift in Sources */,
 				CA84245C980DE470FB035D8B /* RemoteStatusService.swift in Sources */,
 				3C172B72006EC20821ADFC0E /* RemotesView.swift in Sources */,
 				04EC499A7C0DF8F96188864B /* RemotesViewModel.swift in Sources */,
