@@ -76,6 +76,7 @@
 		8BAC6FF1E3D21F04B898DA68 /* RcloneConfParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EFB6DB3EF366558FF0BAF07 /* RcloneConfParser.swift */; };
 		8C0B4B7304F04D2ED4C68DBC /* SelectionIntentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDFD6B91C6E9C08C1FFDE89 /* SelectionIntentTests.swift */; };
 		912BAC08F7745480EA5992B8 /* ImportConfigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2526A5E71E5C5ECDAD53597D /* ImportConfigSheet.swift */; };
+		957D1790039B620F9C6F62ED /* SidebarSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50D2F227ADA1BAED2F502D90 /* SidebarSelection.swift */; };
 		9687B9F94CCD65BEC93661D0 /* ProgressMeterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 698951C956253067F50F6B75 /* ProgressMeterTests.swift */; };
 		A0711627A70DE50CB302CBA1 /* TransfersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D6672817A705472989CD40D /* TransfersView.swift */; };
 		A2C445BFC1D91129614EB77D /* QuickLookHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9CE29401FAD3CBE223A9672 /* QuickLookHost.swift */; };
@@ -87,6 +88,7 @@
 		ADCDC4391F85BAB27DAB12D2 /* FileTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4782ABB2481E119B80157DEF /* FileTable.swift */; };
 		AE148200C57EA04A2F17BF57 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C597E692310630A9FD68C83 /* DesignSystem.swift */; };
 		B00080307FD8EA793F2CEAD7 /* NimbusError.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD46B92F934C6AADF654A9BA /* NimbusError.swift */; };
+		B33B762BA9D1403D850A9E62 /* SidebarSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8C0D0BC95A7D1919E7FB034 /* SidebarSelectionTests.swift */; };
 		B3DD7DD69B279684EA0D9497 /* ImportPreviewList.swift in Sources */ = {isa = PBXBuildFile; fileRef = A21C381CEE03583B4CADE2DA /* ImportPreviewList.swift */; };
 		B4C719D6E99C2E5961856594 /* ImportRemoteRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9424E2AE45C4242AFBB7A2D /* ImportRemoteRow.swift */; };
 		B547BE9FD937ABAB8296D8A8 /* TimedCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC429C15479FA55A4F70DA21 /* TimedCacheTests.swift */; };
@@ -197,6 +199,7 @@
 		4782ABB2481E119B80157DEF /* FileTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTable.swift; sourceTree = "<group>"; };
 		49A87D485E391F3534A28A3F /* MountInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountInspector.swift; sourceTree = "<group>"; };
 		509C7DB1AE1B3496F8DBC733 /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadge.swift; sourceTree = "<group>"; };
+		50D2F227ADA1BAED2F502D90 /* SidebarSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarSelection.swift; sourceTree = "<group>"; };
 		5322BA5BF672E9A04097F109 /* MountConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountConfiguration.swift; sourceTree = "<group>"; };
 		56DDC44A90929A9518155E77 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		574E6F3F62AE7BD0B43201D5 /* NimbusTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NimbusTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -242,6 +245,7 @@
 		B1813355BB10E9306891A015 /* DragDropCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragDropCoordinatorTests.swift; sourceTree = "<group>"; };
 		B4BBDEBA281F41466C04A187 /* AddRemoteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRemoteSheet.swift; sourceTree = "<group>"; };
 		B66BA5D854765E4D13BAFE5D /* SheetChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetChromeTests.swift; sourceTree = "<group>"; };
+		B8C0D0BC95A7D1919E7FB034 /* SidebarSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarSelectionTests.swift; sourceTree = "<group>"; };
 		B90D4E52BA97B181F32A18D8 /* BrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserView.swift; sourceTree = "<group>"; };
 		BC4F8A4196F233DFDE0DE17E /* AboutSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSection.swift; sourceTree = "<group>"; };
 		BCAC9985B428E97E63330C61 /* TimedCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimedCache.swift; sourceTree = "<group>"; };
@@ -385,6 +389,7 @@
 			children = (
 				F19EE6B53B75B300BEE33CD7 /* ContentView.swift */,
 				D5EB7927C6E50511B15E82C3 /* Sidebar.swift */,
+				50D2F227ADA1BAED2F502D90 /* SidebarSelection.swift */,
 				A475E8452858F0FAFE3C3CD0 /* Browser */,
 				30B4717C819C3B076A4CBDAA /* CopySync */,
 				1552D06ACA794AA7B6594C59 /* Mounts */,
@@ -605,6 +610,7 @@
 				EFDFD6B91C6E9C08C1FFDE89 /* SelectionIntentTests.swift */,
 				2A7B1EA1A669A9C652EB28CE /* SelectionTests.swift */,
 				B66BA5D854765E4D13BAFE5D /* SheetChromeTests.swift */,
+				B8C0D0BC95A7D1919E7FB034 /* SidebarSelectionTests.swift */,
 				F9ECF234179CA3F12952215A /* StatusBadgeTests.swift */,
 				C8EC5A7120D51A50AD5F8BDD /* StatusToggleTests.swift */,
 				FC429C15479FA55A4F70DA21 /* TimedCacheTests.swift */,
@@ -877,6 +883,7 @@
 				C4C1CE457BC2536A447DE1BB /* SheetChrome.swift in Sources */,
 				7556E68F8D67B85B04E1E136 /* ShimmerModifier.swift in Sources */,
 				25DA4AD53EF27768DC29591B /* Sidebar.swift in Sources */,
+				957D1790039B620F9C6F62ED /* SidebarSelection.swift in Sources */,
 				8003FB992907A684C2574B8C /* Spacing.swift in Sources */,
 				6FECFF9BD67D0EEC503B2DD1 /* StatusBadge.swift in Sources */,
 				F851328D953F638D4192726E /* StatusToggle.swift in Sources */,
@@ -922,6 +929,7 @@
 				8C0B4B7304F04D2ED4C68DBC /* SelectionIntentTests.swift in Sources */,
 				F9FD77DF27F29CDE9EFFFB9D /* SelectionTests.swift in Sources */,
 				D9AF1E4394AE9635984EFF17 /* SheetChromeTests.swift in Sources */,
+				B33B762BA9D1403D850A9E62 /* SidebarSelectionTests.swift in Sources */,
 				3C060FF052C454049745004C /* SnapshotHelpers.swift in Sources */,
 				1B9224D361708E4B5060A3B3 /* StatusBadgeTests.swift in Sources */,
 				198A7618316FAA1EB6805362 /* StatusToggleTests.swift in Sources */,
