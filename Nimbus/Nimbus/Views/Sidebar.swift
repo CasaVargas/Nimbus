@@ -1,44 +1,30 @@
 import SwiftUI
 
-enum SidebarItem: String, CaseIterable, Identifiable {
-    case remotes = "Remotes"
-    case mounts = "Mounts"
-    case transfers = "Transfers"
-    case copySync = "Copy / Sync"
-
-    var id: String { rawValue }
-
-    var icon: String {
-        switch self {
-        case .remotes: "cloud"
-        case .mounts: "externaldrive"
-        case .transfers: "arrow.up.arrow.down"
-        case .copySync: "doc.on.doc"
-        }
-    }
-}
-
 struct Sidebar: View {
-    @Binding var selection: SidebarItem?
+    @Binding var selection: SidebarSelection?
     @Environment(BookmarkStore.self) private var bookmarkStore
+    var onRemotesLoaded: ([String]) -> Void
     var onBookmarkSelected: ((String, String) -> Void)?
     var onBookmarkDrop: ((_ bundles: [NimbusFileBundle], _ bookmark: FolderBookmark) -> Void)?
 
     var body: some View {
         List(selection: $selection) {
+            RemotesSidebarSection(onRemotesLoaded: onRemotesLoaded)
+
             Section {
-                ForEach(SidebarItem.allCases) { item in
-                    Label(item.rawValue, systemImage: item.icon)
-                        .tag(item)
-                }
+                Label("Mounts", systemImage: "externaldrive")
+                    .tag(SidebarSelection.mounts)
+                Label("Transfers", systemImage: "arrow.up.arrow.down")
+                    .tag(SidebarSelection.transfers)
+                Label("Copy / Sync", systemImage: "doc.on.doc")
+                    .tag(SidebarSelection.copySync)
             }
 
             if !bookmarkStore.bookmarks.isEmpty {
                 Section("Bookmarks") {
                     ForEach(bookmarkStore.bookmarks) { bookmark in
-                        // Use HStack with .contentShape + .onTapGesture instead of Button.
-                        // Button-inside-List intercepts drag-and-drop events, preventing
-                        // .dropDestination from firing.
+                        // HStack + .onTapGesture (not Button): a Button inside a
+                        // List intercepts drag events and breaks .dropDestination.
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(bookmark.label)

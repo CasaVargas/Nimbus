@@ -1,15 +1,9 @@
 import SwiftUI
 import os
 
-// Value type pushed onto the NavigationStack path when the user browses a remote.
-struct BrowserDestination: Hashable {
-    let remoteName: String
-    var initialPath: String = ""
-}
-
 struct ContentView: View {
-    @State private var selection: SidebarItem? = .remotes
-    @State private var navigationPath = NavigationPath()
+    @State private var selection: SidebarSelection?
+    @State private var browseTarget: BrowseTarget?
     @State private var pendingSidebarCopy: CopyRequest?
     @Environment(AppSettings.self) private var settings
     @Environment(RcloneDaemon.self) private var daemon
@@ -22,23 +16,20 @@ struct ContentView: View {
             NavigationSplitView {
                 Sidebar(
                     selection: $selection,
+                    onRemotesLoaded: { names in
+                        selection = nextSelection(current: selection, remotes: names)
+                    },
                     onBookmarkSelected: { remote, path in
-                        selection = .remotes
-                        navigationPath.append(BrowserDestination(remoteName: remote, initialPath: path))
+                        selection = .remote(remote)
+                        browseTarget = BrowseTarget(remote: remote, path: path)
                     },
                     onBookmarkDrop: { bundles, bookmark in
-                        let refs = bundles.flatMap(\.refs)
-                        handleBookmarkDrop(refs: refs, bookmark: bookmark)
+                        handleBookmarkDrop(refs: bundles.flatMap(\.refs), bookmark: bookmark)
                     }
                 )
                 .frame(minWidth: 180)
             } detail: {
-                NavigationStack(path: $navigationPath) {
-                    detailView
-                        .navigationDestination(for: BrowserDestination.self) { destination in
-                            BrowserView(remoteName: destination.remoteName, initialPath: destination.initialPath)
-                        }
-                }
+                detailView
             }
             .frame(minWidth: 800, minHeight: 600)
             .toolbar {
@@ -50,7 +41,8 @@ struct ContentView: View {
                 }
             }
             .environment(\.openBrowser, OpenBrowserAction { remote in
-                navigationPath.append(BrowserDestination(remoteName: remote))
+                selection = .remote(remote)
+                browseTarget = BrowseTarget(remote: remote, path: "")
             })
             .sheet(item: $pendingSidebarCopy) { _ in
                 ConfirmCopySheet(request: $pendingSidebarCopy) { req in
@@ -99,10 +91,9 @@ struct ContentView: View {
     @ViewBuilder
     private var detailView: some View {
         switch selection {
-        case .remotes:
-            RemotesView(onBrowse: { remote in
-                navigationPath.append(BrowserDestination(remoteName: remote))
-            })
+        case .remote(let name):
+            BrowserView(remoteName: name, browseTarget: browseTarget)
+                .id(name)
         case .mounts:
             MountsView()
         case .transfers:
@@ -110,8 +101,12 @@ struct ContentView: View {
         case .copySync:
             CopySyncView()
         case nil:
-            Text("Select an item from the sidebar")
-                .foregroundStyle(.secondary)
+            EmptyState(
+                icon: "cloud.slash",
+                title: "No Remote Selected",
+                message: "Select a remote in the sidebar, or add one with the + button.",
+                action: nil
+            )
         }
     }
 }
