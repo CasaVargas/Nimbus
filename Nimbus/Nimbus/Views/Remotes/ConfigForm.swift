@@ -24,6 +24,21 @@ struct ConfigForm: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.l) {
+            // Identity header: the same badge + name the user just clicked in
+            // ProviderPicker, so the config step stays visually anchored to
+            // the chosen service.
+            HStack(spacing: DesignSystem.Spacing.m) {
+                ProviderBadge(provider: provider.prefix, size: 28)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(verbatim: provider.description)
+                        .font(DesignSystem.Typography.body)
+                        .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                    Text(verbatim: provider.name)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                }
+            }
+
             FormSection(title: "Remote", footer: nil) {
                 FormRow(label: "Name", help: "Used to reference this remote in the Browser.") {
                     TextField("e.g. gdrive", text: $name)

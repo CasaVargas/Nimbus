@@ -17,7 +17,9 @@ struct AddRemoteSheet: View {
     var body: some View {
         SheetChrome(
             title: "Add Remote",
-            subtitle: selected.map { LocalizedStringKey($0.name) },
+            // No subtitle: the ConfigForm identity header (badge + service
+            // name) carries the selected provider; the picker needs none.
+            subtitle: nil,
             body: {
                 if loadingProviders {
                     ProgressView()

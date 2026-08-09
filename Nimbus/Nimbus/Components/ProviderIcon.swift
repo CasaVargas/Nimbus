@@ -28,36 +28,30 @@ struct ProviderIcon: View {
     }
 }
 
-/// App-icon-style provider badge: a rounded square filled with the provider's
-/// brand color (subtle top-down gradient) with the glyph knocked out in white.
-/// Uniform across bundled brand logos and SF Symbol fallbacks so the picker
-/// grid reads as a cohesive set of "app icons".
+/// System-Settings-style provider badge: a flat, solid brand-color squircle
+/// with the glyph knocked out in white. Deliberately matches the macOS badge
+/// language (System Settings sidebar icons) — flat fill, hairline edge, no
+/// gradient, no glow. Uniform across bundled brand logos and SF Symbol
+/// fallbacks so a column of badges reads as one system.
 struct ProviderBadge: View {
     let provider: String
-    var size: CGFloat = 56
+    var size: CGFloat = 28
 
     var body: some View {
         let key = ProviderCatalog.canonicalKey(provider)
         let tint = ProviderCatalog.badgeTint(for: key)
-        RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [tint.opacity(0.95), tint.opacity(0.75)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
+        RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
+            .fill(tint)
             .overlay {
                 glyph(key: key)
-                    .frame(width: size * 0.52, height: size * 0.52)
+                    .frame(width: size * 0.58, height: size * 0.58)
                     .foregroundStyle(.white)
             }
-            .frame(width: size, height: size)
             .overlay(
-                RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
-                    .strokeBorder(.white.opacity(0.12), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
+                    .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
             )
-            .shadow(color: tint.opacity(0.35), radius: size * 0.10, y: size * 0.05)
+            .frame(width: size, height: size)
     }
 
     @ViewBuilder
