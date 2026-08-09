@@ -203,7 +203,8 @@ struct OnboardingView: View {
         // two overlapping .onChange tasks both pass the mountedIDs check before
         // either has reached mountConfig's first suspension point.
         for config in mountStore.configs
-            where !mountManager.mountedIDs.contains(config.id)
+            where config.backend == .nfs
+               && !mountManager.mountedIDs.contains(config.id)
                && !mountManager.inFlight.contains(config.id) {
             try? await mountManager.mountConfig(config)
         }

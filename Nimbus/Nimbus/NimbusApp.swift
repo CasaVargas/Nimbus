@@ -60,10 +60,9 @@ struct NimbusApp: App {
             }
             Divider()
             Button("Quit") {
-                Task {
-                    await shutdown()
-                    NSApp.terminate(nil)
-                }
+                // Cleanup happens in AppDelegate.applicationShouldTerminate
+                // via shutdownHandler — same path as ⌘Q and logout.
+                NSApp.terminate(nil)
             }
         }
 
@@ -76,21 +75,42 @@ struct NimbusApp: App {
     }
 
     private func startApp() async {
+        // Quit (⌘Q, logout, MenuBarExtra) must unmount volumes and stop the
+        // daemon before the process dies — otherwise a restart finds orphan
+        // `rclone serve nfs` children and stale NFS mounts.
+        let transfers = transferStore
+        let mounts = mountManager
+        let rclone = daemon
+        appDelegate.shutdownHandler = {
+            transfers.stopPolling()
+            await mounts.stopAll()
+            rclone.stop()
+        }
+
+        mountManager.rcloneBinaryPath = settings.rcloneBinaryPath
         await mountManager.cleanupStaleMounts()
         await daemon.start(binaryPath: settings.rcloneBinaryPath)
+
+        // A login-item launch races system startup (network, external
+        // volumes, Homebrew mounts). Retry a few times before giving up so
+        // "starts with macOS" reliably ends in a running daemon + mounts.
+        if appDelegate.wasLaunchedAtLogin {
+            var attempts = 0
+            while daemon.status != .connected && attempts < 3 {
+                attempts += 1
+                try? await Task.sleep(for: .seconds(5))
+                await daemon.retry(binaryPath: settings.rcloneBinaryPath)
+            }
+        }
 
         if daemon.status == .connected {
             transferStore.startPolling(client: daemon.client)
             mountManager.startHealthMonitor()
 
-            for config in mountConfigs.configs where config.autoMount {
-                if config.backend == .nfs {
-                    try? await mountManager.mountConfig(config)
-                }
-            }
+            mountManager.configs = mountConfigs.configs
+            await mountManager.restoreMounts(configs: mountConfigs.configs)
 
             // Phase 2c: refreshAll reconciles mount(8) state and FP domains against configs
-            mountManager.configs = mountConfigs.configs
             await mountManager.refreshAll()
 
             // Sync File Provider domains
