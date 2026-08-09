@@ -75,3 +75,19 @@ import Testing
     defer { try? FileManager.default.removeItem(at: src) }
     try await client.uploadFile(from: src, fs: "gdrive:", remote: "docs")
 }
+
+@Test func uploadFileSendsFsAndRemoteAsQueryParameters() async throws {
+    // rclone's operations/uploadfile reads fs/remote from the URL query
+    // ONLY; passing them as multipart form fields returns 400. Pin the
+    // query contract so a refactor can't silently regress uploads.
+    let client = makeTestClient()
+    let src = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try "hello".write(to: src, atomically: true, encoding: .utf8)
+    defer { try? FileManager.default.removeItem(at: src) }
+    try await client.uploadFile(from: src, fs: "gdrive:", remote: "docs/sub dir")
+
+    let url = try #require(MockURLProtocol.lastRequestURLs["operations/uploadfile"])
+    let items = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+    #expect(items.contains(URLQueryItem(name: "fs", value: "gdrive:")))
+    #expect(items.contains(URLQueryItem(name: "remote", value: "docs/sub dir")))
+}

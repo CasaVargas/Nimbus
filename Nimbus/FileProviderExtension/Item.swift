@@ -5,12 +5,15 @@ import UniformTypeIdentifiers
 /// Identifier contract: `NSFileProviderItemIdentifier.rawValue` is always
 /// `"<remoteName>:<fullPathFromRemoteRoot>"` (root itself is `.rootContainer`,
 /// never a synthesized `"remoteName:"` string). rclone's `operations/list`
-/// returns each entry's `Path` *relative to the directory that was listed*,
-/// not relative to the remote root — so callers must qualify `file.path`
-/// with the full path of the container that was enumerated
-/// (`containerPath`) before it's usable as a globally-unique identifier or
-/// as the `remote` argument to any other rclone RC call. This mirrors the
-/// `qualifiedRemotePath` convention `BrowserViewModel` uses on the app side.
+/// (and `operations/stat`) return each entry's `Path` relative to the ROOT
+/// of the `fs` argument — verified empirically against the RC API: listing
+/// `fs:"gdrive:" remote:"Documents/Adobe"` yields Paths like
+/// `"Documents/Adobe/<name>"`, container prefix included. `file.path` is
+/// therefore already the full path from the remote root and MUST NOT be
+/// re-qualified with the container path (doing so double-prefixes every
+/// child and breaks enumeration below the first level). A comment in
+/// `BrowserViewModel` claims container-relative Paths; its code works only
+/// because it feeds `item.path` back to rclone unmodified.
 final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable {
     let itemIdentifier: NSFileProviderItemIdentifier
     let parentItemIdentifier: NSFileProviderItemIdentifier
@@ -30,16 +33,14 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
     let fullPath: String
 
     /// - Parameters:
-    ///   - file: The raw rclone listing entry. `file.path` is relative to
-    ///     `containerPath`, per rclone's `operations/list` contract.
-    ///   - containerPath: Full path (from the remote root, no remote-name
-    ///     prefix) of the directory that was listed to produce `file`.
-    ///     Empty string for the remote root.
+    ///   - file: The raw rclone listing entry. `file.path` is already the
+    ///     full path from the remote root (rclone Paths are fs-root-relative;
+    ///     see the type doc comment).
     ///   - parentIdentifier: Identifier of the container that was listed —
-    ///     `.rootContainer` when `containerPath` is empty.
+    ///     `.rootContainer` for the remote root.
     ///   - remoteName: The rclone remote name (domain identifier).
-    init(from file: FileItem, containerPath: String, parentIdentifier: NSFileProviderItemIdentifier, remoteName: String) {
-        let fullPath = Self.joinPath(containerPath, file.path)
+    init(from file: FileItem, parentIdentifier: NSFileProviderItemIdentifier, remoteName: String) {
+        let fullPath = file.path
         self.fullPath = fullPath
         self.itemIdentifier = NSFileProviderItemIdentifier("\(remoteName):\(fullPath)")
         self.parentItemIdentifier = parentIdentifier
@@ -87,9 +88,4 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
         )
     }
 
-    /// Joins a container's full path with an entry path relative to it,
-    /// matching the `qualifiedRemotePath` logic in `BrowserViewModel`.
-    static func joinPath(_ containerPath: String, _ relativePath: String) -> String {
-        containerPath.isEmpty ? relativePath : "\(containerPath)/\(relativePath)"
-    }
 }

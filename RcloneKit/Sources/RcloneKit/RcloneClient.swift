@@ -109,7 +109,15 @@ public final class RcloneClient: @unchecked Sendable {
     /// desired remote name — otherwise it defaults to `localURL`'s last path
     /// component.
     public func uploadFile(from localURL: URL, fs: String, remote: String, filename: String? = nil) async throws {
-        let url = URL(string: "\(baseURL)/operations/uploadfile")!
+        // rclone reads `fs`/`remote` from the URL query ONLY — multipart
+        // form fields for them come back 400 "Didn't find key \"remote\""
+        // (verified against rclone rcd). The body carries just the file part.
+        var components = URLComponents(string: "\(baseURL)/operations/uploadfile")!
+        components.queryItems = [
+            URLQueryItem(name: "fs", value: fs),
+            URLQueryItem(name: "remote", value: remote),
+        ]
+        guard let url = components.url else { throw RcloneError.invalidResponse }
         let boundary = UUID().uuidString
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -120,11 +128,6 @@ public final class RcloneClient: @unchecked Sendable {
         let uploadFilename = filename ?? localURL.lastPathComponent
 
         var body = Data()
-        // fs parameter
-        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"fs\"\r\n\r\n\(fs)\r\n".data(using: .utf8)!)
-        // remote parameter (directory path)
-        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"remote\"\r\n\r\n\(remote)\r\n".data(using: .utf8)!)
-        // file content
         body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(uploadFilename)\"\r\nContent-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
         body.append(fileData)
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)

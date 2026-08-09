@@ -23,6 +23,14 @@ final class FileProviderBridge {
     private static let appGroupID = "group.app.casavargas.nimbus"
     private(set) var activeDomains: Set<String> = []
 
+    /// Bump whenever the extension's item-identifier scheme changes.
+    /// v2: identifiers are "<remote>:<fullPathFromRemoteRoot>" (previously
+    /// container-joined paths that double-prefixed subfolders). A mismatch
+    /// triggers reimportItems on every domain so Finder rebuilds its local
+    /// replica under the new identifiers instead of serving stale ones.
+    private static let itemSchemaVersion = 2
+    private static let itemSchemaKey = "fpItemSchemaVersion"
+
     /// Per-domain cache of basenames currently materialized to the FP cache.
     /// The materialized enumerator is domain-wide, not folder-scoped, so we
     /// key by remote only. TTL = 5s to avoid hammering FP on every scroll.
@@ -123,7 +131,31 @@ final class FileProviderBridge {
         }
         _ = await cleanupStaleDomains(activeRemotes: remotes)
         await refreshDomains()
+        await reimportIfSchemaChanged()
         await signalAllDomains()
+    }
+
+    /// One-shot migration: when the extension's identifier scheme has
+    /// changed since the replicas were built, ask the system to discard and
+    /// re-import every domain's items. Without this, Finder keeps asking
+    /// the extension to enumerate identifiers minted under the old scheme,
+    /// which now 404 through the whole retry ladder.
+    private func reimportIfSchemaChanged() async {
+        guard UserDefaults.standard.integer(forKey: Self.itemSchemaKey) != Self.itemSchemaVersion else {
+            return
+        }
+        do {
+            let domains = try await NSFileProviderManager.domains()
+            for domain in domains {
+                guard let manager = NSFileProviderManager(for: domain) else { continue }
+                try await manager.reimportItems(below: .rootContainer)
+                logger.info("Requested item re-import for \(domain.identifier.rawValue) (schema v\(Self.itemSchemaVersion))")
+            }
+            UserDefaults.standard.set(Self.itemSchemaVersion, forKey: Self.itemSchemaKey)
+        } catch {
+            // Leave the version unset so the next launch retries.
+            logger.warning("Schema re-import failed: \(error.localizedDescription)")
+        }
     }
 
     /// Tells all File Provider domains to re-enumerate their contents.

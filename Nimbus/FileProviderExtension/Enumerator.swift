@@ -57,7 +57,6 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
 
                 let records = SyncSnapshotStore.buildRecords(
                     from: files,
-                    containerPath: remotePath,
                     parentIdentifier: parentId,
                     remoteName: remoteName
                 )
@@ -106,7 +105,6 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
 
                 let records = SyncSnapshotStore.buildRecords(
                     from: files,
-                    containerPath: remotePath,
                     parentIdentifier: parentId,
                     remoteName: remoteName
                 )

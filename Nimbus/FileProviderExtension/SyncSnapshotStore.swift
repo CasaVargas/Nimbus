@@ -56,12 +56,11 @@ enum SyncSnapshotStore {
     /// `FileProviderItem`s Finder needs for `didUpdate`.
     static func buildRecords(
         from files: [FileItem],
-        containerPath: String,
         parentIdentifier: NSFileProviderItemIdentifier,
         remoteName: String
     ) -> [(item: FileProviderItem, record: SyncedItemRecord)] {
         files.map { file in
-            let item = FileProviderItem(from: file, containerPath: containerPath, parentIdentifier: parentIdentifier, remoteName: remoteName)
+            let item = FileProviderItem(from: file, parentIdentifier: parentIdentifier, remoteName: remoteName)
             let record = SyncedItemRecord(
                 identifier: item.itemIdentifier.rawValue,
                 name: file.name,

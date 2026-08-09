@@ -389,7 +389,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
             ? NSFileProviderItemIdentifier.rootContainer
             : NSFileProviderItemIdentifier("\(remoteName):\(parentPath)")
 
-        return FileProviderItem(from: file, containerPath: parentPath, parentIdentifier: parentId, remoteName: remoteName)
+        return FileProviderItem(from: file, parentIdentifier: parentId, remoteName: remoteName)
     }
 
     /// Inverse of `FileProviderItem`'s identifier construction — see the

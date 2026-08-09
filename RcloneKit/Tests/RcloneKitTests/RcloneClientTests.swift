@@ -5,6 +5,11 @@ import Testing
 final class MockURLProtocol: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var mockResponses: [String: (Data, Int)] = [:]
 
+    /// Last request URL seen per endpoint path, so tests can assert on
+    /// query parameters (rclone reads uploadfile's fs/remote from the
+    /// query only — a contract worth pinning).
+    nonisolated(unsafe) static var lastRequestURLs: [String: URL] = [:]
+
     static func register(endpoint: String, json: String, status: Int = 200) {
         mockResponses[endpoint] = (json.data(using: .utf8)!, status)
     }
@@ -19,6 +24,7 @@ final class MockURLProtocol: URLProtocol, @unchecked Sendable {
         }
 
         let path = url.path.hasPrefix("/") ? String(url.path.dropFirst()) : url.path
+        Self.lastRequestURLs[path] = url
         if let (data, status) = Self.mockResponses[path] {
             let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
