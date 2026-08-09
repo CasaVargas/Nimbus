@@ -50,8 +50,10 @@ struct MountRow: View {
     }
 
     private var displayName: String {
+        // File Provider mounts have no local mount point (Finder hosts them
+        // under CloudStorage) — the remote name is the identity users know.
         let leaf = (config.mountPoint as NSString).lastPathComponent
-        return leaf.isEmpty ? "Mount" : leaf
+        return leaf.isEmpty ? config.remoteNameOnly : leaf
     }
 
     private func icon(for state: StatusToggleState) -> String {

@@ -175,22 +175,36 @@ final class FileProviderBridge {
         }
     }
 
+    /// Domains flagged stale on the previous sync. A domain is only removed
+    /// after two consecutive syncs agree its remote is gone: a single
+    /// listremotes snapshot can be transiently partial (rclone rewrites
+    /// rclone.conf during OAuth token refresh, and a concurrent reader can
+    /// catch it mid-write) — and removing a domain destroys Finder's local
+    /// replica, which is not a mistake to make on flaky evidence.
+    private static let pendingStaleKey = "fpPendingStaleDomains"
+
     func cleanupStaleDomains(activeRemotes: [String]) async -> [String] {
         var removed: [String] = []
         do {
             let domains = try await NSFileProviderManager.domains()
+            let staleNow = Set(domains.map(\.identifier.rawValue)).subtracting(activeRemotes)
+            let pendingStale = Set(UserDefaults.standard.stringArray(forKey: Self.pendingStaleKey) ?? [])
             for domain in domains {
                 let id = domain.identifier.rawValue
-                if !activeRemotes.contains(id) {
-                    do {
-                        try await NSFileProviderManager.remove(domain)
-                        removed.append(id)
-                        logger.info("Cleaned up stale domain: \(id)")
-                    } catch {
-                        logger.warning("Failed to remove stale domain \(id): \(error)")
-                    }
+                guard staleNow.contains(id) else { continue }
+                guard pendingStale.contains(id) else {
+                    logger.info("Domain \(id) missing from remotes; flagged for removal if still missing next sync")
+                    continue
+                }
+                do {
+                    try await NSFileProviderManager.remove(domain)
+                    removed.append(id)
+                    logger.info("Cleaned up stale domain: \(id)")
+                } catch {
+                    logger.warning("Failed to remove stale domain \(id): \(error)")
                 }
             }
+            UserDefaults.standard.set(Array(staleNow).sorted(), forKey: Self.pendingStaleKey)
         } catch {
             logger.debug("File Provider not available: \(error.localizedDescription)")
         }

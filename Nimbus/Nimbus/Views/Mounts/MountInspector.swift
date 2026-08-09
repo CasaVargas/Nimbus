@@ -8,7 +8,10 @@ struct MountInspector: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
-            detail(label: "Mount Point", value: config.mountPoint)
+            detail(
+                label: "Mount Point",
+                value: config.mountPoint.isEmpty ? "Finder (CloudStorage)" : config.mountPoint
+            )
             detail(label: "Remote", value: config.remote)
             detail(label: "Backend", value: config.backend.displayName)
             detail(label: "VFS Mode", value: config.vfsMode.displayName)
