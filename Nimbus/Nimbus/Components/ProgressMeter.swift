@@ -2,7 +2,8 @@ import SwiftUI
 
 /// Linear progress bar with optional speed + ETA caption.
 /// Used in TransferRow where StatusBadge's ring is too small.
-/// Color tokens match StatusBadge's downloading state for visual continuity.
+/// Accent tint matches StatusBadge's downloading ring — progress is normal
+/// activity, not a warning, so it must not read orange.
 struct ProgressMeter: View {
     let progress: Double      // 0.0 ... 1.0 (clamped)
     let speed: Int64?         // bytes per second
@@ -12,16 +13,9 @@ struct ProgressMeter: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .fill(DesignSystem.Color.semantic.statusWarning.opacity(0.18))
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .fill(DesignSystem.Color.semantic.statusWarning)
-                        .frame(width: max(2, geo.size.width * clampedProgress))
-                }
-            }
-            .frame(height: 6)
+            ProgressView(value: clampedProgress)
+                .progressViewStyle(.linear)
+                .tint(DesignSystem.Color.semantic.accent)
 
             if speed != nil || eta != nil {
                 HStack(spacing: DesignSystem.Spacing.s) {

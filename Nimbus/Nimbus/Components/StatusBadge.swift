@@ -24,11 +24,15 @@ struct StatusBadge: View {
     var body: some View {
         Group {
             switch state {
-            case .local:              pill(text: "● Local",   tint: DesignSystem.Color.semantic.statusOK,        muted: false)
-            case .cloud:              pill(text: "☁︎ Cloud",   tint: DesignSystem.Color.semantic.textSecondary,  muted: true)
+            case .local:              pill(text: "Local",   systemImage: "checkmark.circle.fill",
+                                           tint: DesignSystem.Color.semantic.statusOK,       muted: false)
+            case .cloud:              pill(text: "Cloud",   systemImage: "cloud",
+                                           tint: DesignSystem.Color.semantic.textSecondary,  muted: true)
             case .downloading(let p): ring(progress: p)
-            case .evicted:            pill(text: "⌀ Evicted", tint: DesignSystem.Color.semantic.textTertiary,   muted: true)
-            case .error:              pill(text: "! Error",   tint: DesignSystem.Color.semantic.statusError,    muted: false)
+            case .evicted:            pill(text: "Evicted", systemImage: "icloud.slash",
+                                           tint: DesignSystem.Color.semantic.textTertiary,   muted: true)
+            case .error:              pill(text: "Error",   systemImage: "exclamationmark.triangle.fill",
+                                           tint: DesignSystem.Color.semantic.statusError,    muted: false)
             }
         }
         .accessibilityElement()
@@ -36,8 +40,8 @@ struct StatusBadge: View {
     }
 
     @ViewBuilder
-    private func pill(text: String, tint: Color, muted: Bool) -> some View {
-        Text(text)
+    private func pill(text: String, systemImage: String, tint: Color, muted: Bool) -> some View {
+        Label(text, systemImage: systemImage)
             .font(DesignSystem.Typography.caption2.weight(.medium))
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
@@ -49,10 +53,10 @@ struct StatusBadge: View {
     private func ring(progress: Double) -> some View {
         ZStack {
             Circle()
-                .stroke(DesignSystem.Color.semantic.statusWarning.opacity(0.22), lineWidth: 1.4)
+                .stroke(DesignSystem.Color.semantic.accent.opacity(0.22), lineWidth: 1.4)
             Circle()
                 .trim(from: 0, to: max(0, min(1, progress)))
-                .stroke(DesignSystem.Color.semantic.statusWarning,
+                .stroke(DesignSystem.Color.semantic.accent,
                          style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
                 .rotationEffect(.degrees(-90))
             // Inner down-arrow. Use Image+resizable, not the forbidden font-size helper.
@@ -60,7 +64,7 @@ struct StatusBadge: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 8, height: 8)
-                .foregroundStyle(DesignSystem.Color.semantic.statusWarning)
+                .foregroundStyle(DesignSystem.Color.semantic.accent)
         }
         .frame(width: 16, height: 16)
     }

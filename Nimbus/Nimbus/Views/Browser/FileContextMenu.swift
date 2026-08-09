@@ -23,19 +23,9 @@ struct FileContextMenu: View {
                 Label("Add to Bookmarks", systemImage: "folder.badge.star")
             }
         }
-        if !file.isDir {
-            Divider()
-            Button {
-                onAction(.download)
-            } label: {
-                Label("Download Now", systemImage: "arrow.down.circle")
-            }
-            Button {
-                onAction(.evict)
-            } label: {
-                Label("Remove Local Copy", systemImage: "cloud")
-            }
-        }
+        // Download Now / Remove Local Copy are intentionally absent until
+        // the NSFileProviderManager materialize/evict calls are wired —
+        // dead menu items erode trust faster than missing ones.
         Divider()
         Button("Rename") { onAction(.rename) }
         Divider()

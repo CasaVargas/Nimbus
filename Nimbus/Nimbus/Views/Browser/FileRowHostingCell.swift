@@ -19,10 +19,12 @@ final class FileRowHostingCell: NSTableCellView {
         let file: FileItem
         let remote: String
         let isSelected: Bool
+        let isEmphasized: Bool
         let transferStore: TransferStore?
         let fileProviderBridge: FileProviderBridge?
         var body: some View {
-            FileRowView(file: file, remote: remote, isSelected: isSelected)
+            FileRowView(file: file, remote: remote, isSelected: isSelected,
+                        isEmphasized: isEmphasized)
                 .environment(transferStore)
                 .environment(fileProviderBridge)
         }
@@ -35,11 +37,37 @@ final class FileRowHostingCell: NSTableCellView {
     var transferStore: TransferStore?
     var fileProviderBridge: FileProviderBridge?
 
+    /// Last configuration, kept so `backgroundStyle` changes (selection
+    /// emphasis flipping with window key state) can re-render the row with
+    /// the correct text inversion without a full table reload.
+    private var lastConfig: (file: FileItem, remote: String, isSelected: Bool)?
+
+    /// NSTableRowView sets `.emphasized` on its cells when the selection is
+    /// drawn vibrant (key window + focused table). That's the only state in
+    /// which FileRowView may invert its text to white.
+    ///
+    /// The re-render MUST be deferred: AppKit assigns `backgroundStyle`
+    /// during the row's layout pass, and mutating `rootView` there re-enters
+    /// layout ("not legal to call -layoutSubtreeIfNeeded…") and can livelock
+    /// the whole window. One runloop hop breaks the cycle; configure() is
+    /// idempotent so coalesced dispatches are harmless.
+    override var backgroundStyle: NSView.BackgroundStyle {
+        didSet {
+            guard oldValue != backgroundStyle, lastConfig != nil else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let c = self.lastConfig else { return }
+                self.configure(file: c.file, remote: c.remote, isSelected: c.isSelected)
+            }
+        }
+    }
+
     func configure(file: FileItem, remote: String, isSelected: Bool) {
         assert(transferStore != nil && fileProviderBridge != nil,
                "FileRowHostingCell.configure called without env objects — FileTableCoordinator must set transferStore/fileProviderBridge first")
+        lastConfig = (file, remote, isSelected)
         let root = FileRowHost(
             file: file, remote: remote, isSelected: isSelected,
+            isEmphasized: backgroundStyle == .emphasized,
             transferStore: transferStore, fileProviderBridge: fileProviderBridge
         )
         if let hosting {
@@ -65,5 +93,6 @@ final class FileRowHostingCell: NSTableCellView {
         // next use rebuilds it fresh with the new (remote, path) task id.
         hosting?.removeFromSuperview()
         hosting = nil
+        lastConfig = nil
     }
 }

@@ -43,6 +43,10 @@ struct Transfer: Identifiable {
     let origin: TransferOrigin
     let nimbusUUID: UUID
     var progress: Double = 0.0
+    /// Live throughput in bytes/sec from the last stats poll; nil when idle.
+    var speed: Int64?
+    /// Estimated seconds remaining, derived from speed + remaining bytes.
+    var eta: TimeInterval?
 }
 
 @Observable
@@ -116,6 +120,20 @@ final class TransferStore {
         }
     }
 
+    /// Stops the rclone job, then marks the transfer cancelled. A stop
+    /// failure (job already finished/cleaned up) still cancels locally —
+    /// the poll loop would have flipped it to completed/failed anyway.
+    func stop(jobId: Int, client: RcloneClient) async {
+        try? await client.stopJob(id: jobId)
+        cancelTransfer(jobId: jobId)
+    }
+
+    /// Removes one finished transfer from the list (row-level counterpart
+    /// of `clearCompleted`). Active transfers are not removable.
+    func remove(jobId: Int) {
+        transfers.removeAll { $0.id == jobId && !$0.status.isActive }
+    }
+
     func clearCompleted() {
         transfers.removeAll {
             switch $0.status {
@@ -154,6 +172,7 @@ final class TransferStore {
                     if let stats = try? await client.getStats(group: job.group) {
                         let progress = computeProgress(from: stats)
                         setProgress(progress, forJobId: transfer.id)
+                        updateRates(from: stats, forJobId: transfer.id)
                     }
                 }
 
@@ -170,6 +189,20 @@ final class TransferStore {
                 // Transient errors will cause retries on the next poll cycle.
                 logger.debug("Job \(transfer.id) status poll failed (may be cleaned up): \(error)")
             }
+        }
+    }
+
+    /// Publishes throughput + derived ETA for the row caption. rclone's
+    /// top-level stats carry `speed` but no aggregate ETA, so we derive it
+    /// from remaining bytes whenever bytes accounting is live.
+    private func updateRates(from stats: StatsResponse, forJobId id: Int) {
+        guard let idx = transfers.firstIndex(where: { $0.id == id }) else { return }
+        let speed = Int64(stats.speed)
+        transfers[idx].speed = speed > 0 ? speed : nil
+        if speed > 0, stats.totalBytes > 0, stats.bytes <= stats.totalBytes {
+            transfers[idx].eta = TimeInterval(stats.totalBytes - stats.bytes) / TimeInterval(speed)
+        } else {
+            transfers[idx].eta = nil
         }
     }
 

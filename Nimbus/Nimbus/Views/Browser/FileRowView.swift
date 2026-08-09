@@ -10,8 +10,16 @@ struct FileRowView: View {
     let file: FileItem
     let remote: String
     let isSelected: Bool
+    /// Whether the containing row's selection highlight is emphasized (key
+    /// window + focused table). NSTableView paints the highlight itself —
+    /// this view must NOT paint its own background; it only inverts text to
+    /// white over the vibrant highlight, exactly like Finder. Unemphasized
+    /// (inactive window) selection keeps normal label colors over gray.
+    var isEmphasized: Bool = true
 
     static let rowHeight: CGFloat = 24
+
+    private var invertsText: Bool { isSelected && isEmphasized }
 
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.s) {
@@ -20,29 +28,39 @@ struct FileRowView: View {
                 .accessibilityLabel("Cloud status")
 
             Image(systemName: file.isDir ? "folder.fill" : Self.iconName(for: file.name))
-                .foregroundStyle(file.isDir
-                                 ? DesignSystem.Color.semantic.statusInfo
-                                 : DesignSystem.Color.semantic.textSecondary)
+                .foregroundStyle(invertsText
+                                 ? Color.white
+                                 : (file.isDir
+                                    ? DesignSystem.Color.semantic.statusInfo
+                                    : DesignSystem.Color.semantic.textSecondary))
 
             Text(file.name)
                 .font(DesignSystem.Typography.body)
                 .lineLimit(1)
-                .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                .foregroundStyle(invertsText
+                                 ? Color.white
+                                 : DesignSystem.Color.semantic.textPrimary)
 
             Spacer(minLength: DesignSystem.Spacing.m)
 
             Text(file.isDir ? "--" : Self.formatSize(file.size))
                 .font(DesignSystem.Typography.callout)
-                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                .foregroundStyle(invertsText
+                                 ? Color.white.opacity(0.85)
+                                 : DesignSystem.Color.semantic.textSecondary)
                 .frame(width: 80, alignment: .trailing)
 
             Group {
                 if let date = file.modTime {
                     Text(date, style: .date)
-                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                        .foregroundStyle(invertsText
+                                         ? Color.white.opacity(0.85)
+                                         : DesignSystem.Color.semantic.textSecondary)
                 } else {
                     Text("--")
-                        .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                        .foregroundStyle(invertsText
+                                         ? Color.white.opacity(0.7)
+                                         : DesignSystem.Color.semantic.textTertiary)
                 }
             }
             .font(DesignSystem.Typography.callout)
@@ -51,11 +69,6 @@ struct FileRowView: View {
         .padding(.horizontal, DesignSystem.Spacing.s)
         .frame(height: Self.rowHeight)
         .contentShape(Rectangle())
-        .background(
-            isSelected
-            ? DesignSystem.Color.semantic.accent.opacity(0.18)
-            : Color.clear
-        )
     }
 
     static func iconName(for filename: String) -> String {
@@ -92,6 +105,9 @@ struct FileRowView: View {
                            fileID: nil, qualifiedRemotePath: "r:/a/report.pdf"),
             remote: "r", isSelected: true
         )
+        // The row no longer paints selection itself (NSTableView does), so
+        // the preview supplies the system highlight for the selected row.
+        .background(Color(nsColor: .selectedContentBackgroundColor))
     }
     .frame(width: 520)
 }

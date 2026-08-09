@@ -12,6 +12,7 @@ struct BrowserView: View {
     @Environment(BookmarkStore.self) private var bookmarkStore
     @Environment(TransferStore.self) private var transferStore
     @Environment(FileProviderBridge.self) private var fileProviderBridge
+    @Environment(RemoteStatusService.self) private var statusService
     @State private var viewModel: BrowserViewModel?
     @State private var pendingCopy: CopyRequest?
     @State private var quickLookHost = QuickLookHost()
@@ -94,6 +95,16 @@ struct BrowserView: View {
                     let refs = bundles.flatMap(\.refs)
                     return handleDrop(refs: refs, viewModel: viewModel)
                 }
+                .focusedSceneValue(\.browserActions, BrowserMenuActions(
+                    canGoBack: viewModel.canGoBack,
+                    canGoForward: viewModel.canGoForward,
+                    viewMode: viewModel.viewMode,
+                    goBack: { Task { await viewModel.goBack() } },
+                    goForward: { Task { await viewModel.goForward() } },
+                    newFolder: { viewModel.showNewFolderDialog = true },
+                    refresh: { Task { await viewModel.loadFiles() } },
+                    setViewMode: { viewModel.viewMode = $0 }
+                ))
             } else {
                 ProgressView("Loading...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -304,12 +315,14 @@ struct BrowserView: View {
                 icon: "key.slash",
                 title: "Sign In Required",
                 messageVerbatim: "\(remoteName): \(error.message)",
-                action: .init(label: "Reconnect Remote", perform: {
-                    // Navigate to Remotes screen — implementation can hook into a
-                    // navigation environment value if one exists; for Phase 1, a
-                    // simple no-op + log is acceptable.
-                    Logger(subsystem: "app.casavargas.nimbus", category: "browser")
-                        .info("Reconnect Remote tapped for \(remoteName)")
+                action: .init(label: "Try Again", perform: {
+                    // Re-probe the remote (refreshes token state via rclone)
+                    // and reload. If credentials are truly dead, the error
+                    // state returns with rclone's message.
+                    Task {
+                        await statusService.probe(remoteName)
+                        await viewModel.loadFiles()
+                    }
                 })
             )
         case .network:

@@ -277,11 +277,8 @@ extension FileTableCoordinator: FileTableKeyResponding {
         }
         add("Open", .open)
         if f.isDir { add("Add to Bookmarks", .bookmark) }
-        if !f.isDir {
-            menu.addItem(.separator())
-            add("Download Now", .download)
-            add("Remove Local Copy", .evict)
-        }
+        // Download Now / Remove Local Copy stay out of this menu (and out of
+        // FileContextMenu) until the NSFileProviderManager calls are wired.
         menu.addItem(.separator())
         add("Rename", .rename)
         add("Delete", .delete)

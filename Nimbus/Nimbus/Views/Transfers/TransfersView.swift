@@ -20,6 +20,7 @@ enum TransferFilter: String, CaseIterable, Identifiable {
 
 struct TransfersView: View {
     @Environment(TransferStore.self) private var transferStore
+    @Environment(RcloneDaemon.self) private var daemon
     @State private var filter: TransferFilter = .all
     @State private var showRecent = true
 
@@ -66,35 +67,64 @@ struct TransfersView: View {
                 Section {
                     ForEach(filteredActive) { transfer in
                         TransferRow(transfer: transfer)
+                            .contextMenu {
+                                Button("Cancel Transfer", systemImage: "xmark.circle") {
+                                    Task { await transferStore.stop(jobId: transfer.id, client: daemon.client) }
+                                }
+                            }
                     }
                 } header: {
                     sectionHeader("Active", count: filteredActive.count)
                 }
             }
             if !filteredCompleted.isEmpty {
-                Section(isExpanded: $showRecent) {
-                    ForEach(Array(filteredCompleted.prefix(50))) { transfer in
-                        TransferRow(transfer: transfer)
+                Section {
+                    if showRecent {
+                        ForEach(Array(filteredCompleted.prefix(50))) { transfer in
+                            TransferRow(transfer: transfer)
+                                .contextMenu {
+                                    Button("Remove from List", systemImage: "trash") {
+                                        transferStore.remove(jobId: transfer.id)
+                                    }
+                                }
+                        }
                     }
                 } header: {
-                    sectionHeader("Recent", count: filteredCompleted.count)
+                    // Custom header supplies its own disclosure — the system
+                    // Section(isExpanded:) chevron doesn't render for custom
+                    // headers in inset lists on macOS.
+                    Button {
+                        withAnimation(DesignSystem.Motion.snappy) { showRecent.toggle() }
+                    } label: {
+                        sectionHeader("Recent", count: filteredCompleted.count, disclosure: showRecent)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
         .listStyle(.inset)
     }
 
-    private func sectionHeader(_ title: String, count: Int) -> some View {
+    private func sectionHeader(_ title: String, count: Int, disclosure: Bool? = nil) -> some View {
         HStack {
             Text(verbatim: title)
                 .font(DesignSystem.Typography.captionEmphasized)
                 .textCase(.uppercase)
                 .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+            if let disclosure {
+                Image(systemName: "chevron.right")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 8, height: 8)
+                    .rotationEffect(.degrees(disclosure ? 90 : 0))
+                    .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+            }
             Spacer()
             Text(verbatim: "\(count)")
                 .font(DesignSystem.Typography.caption)
                 .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
         }
+        .contentShape(Rectangle())
     }
 
     private var filteredActive: [Transfer] {

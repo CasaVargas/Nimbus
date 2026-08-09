@@ -38,21 +38,24 @@ struct TransferRow: View {
         case .active:
             ProgressMeter(
                 progress: transfer.progress,
-                speed: nil,
-                eta: nil
+                speed: transfer.speed,
+                eta: transfer.eta
             )
         case .completed:
-            statusPill(text: "● Done", tint: DesignSystem.Color.semantic.statusOK)
+            statusPill(text: "Done", systemImage: "checkmark.circle.fill",
+                       tint: DesignSystem.Color.semantic.statusOK)
         case .failed(let message):
-            statusPill(text: "! Error", tint: DesignSystem.Color.semantic.statusError)
+            statusPill(text: "Error", systemImage: "exclamationmark.triangle.fill",
+                       tint: DesignSystem.Color.semantic.statusError)
                 .help(message)
         case .cancelled:
-            statusPill(text: "⌀ Cancelled", tint: DesignSystem.Color.semantic.textTertiary)
+            statusPill(text: "Cancelled", systemImage: "slash.circle",
+                       tint: DesignSystem.Color.semantic.textTertiary)
         }
     }
 
-    private func statusPill(text: String, tint: Color) -> some View {
-        Text(verbatim: text)
+    private func statusPill(text: String, systemImage: String, tint: Color) -> some View {
+        Label(text, systemImage: systemImage)
             .font(DesignSystem.Typography.caption.weight(.medium))
             .padding(.horizontal, 6)
             .padding(.vertical, 1)

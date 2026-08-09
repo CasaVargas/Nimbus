@@ -14,14 +14,16 @@ struct BrowserToolbar: ViewModifier {
         content.toolbar {
             ToolbarItemGroup(placement: .navigation) {
                 Button(action: onBack) {
-                    Image(systemName: "chevron.left")
+                    Label("Back", systemImage: "chevron.left")
                 }
                 .disabled(!canGoBack)
+                .help("Back (⌘[)")
 
                 Button(action: onForward) {
-                    Image(systemName: "chevron.right")
+                    Label("Forward", systemImage: "chevron.right")
                 }
                 .disabled(!canGoForward)
+                .help("Forward (⌘])")
             }
 
             ToolbarItemGroup(placement: .primaryAction) {

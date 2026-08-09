@@ -12,6 +12,7 @@ struct MountInspector: View {
             detail(label: "Remote", value: config.remote)
             detail(label: "Backend", value: config.backend.displayName)
             detail(label: "VFS Mode", value: config.vfsMode.displayName)
+            detail(label: "Mount at Launch", value: config.autoMount ? "On" : "Off")
             if let date = lastMountedAt {
                 detail(label: "Last Mounted", value: Self.formatter.string(from: date))
             }
