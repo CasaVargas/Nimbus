@@ -57,6 +57,15 @@ final class AppSettings {
         set { defaults.set(newValue, forKey: "sidebarCollapsed") }
     }
 
+    /// Remotes whose File Provider domain the user explicitly turned off.
+    /// The launch-time domain sync registers a domain for every rclone
+    /// remote EXCEPT these — without this set, toggling a domain off in
+    /// Mounts would silently come back on next launch.
+    var disabledFileProviderDomains: Set<String> {
+        get { Set(defaults.stringArray(forKey: "disabledFileProviderDomains") ?? []) }
+        set { defaults.set(Array(newValue).sorted(), forKey: "disabledFileProviderDomains") }
+    }
+
     var colorScheme: ColorScheme? {
         switch appearance {
         case .light: .light

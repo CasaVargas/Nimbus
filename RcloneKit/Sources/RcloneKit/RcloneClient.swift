@@ -101,7 +101,14 @@ public final class RcloneClient: @unchecked Sendable {
     /// Uploads a local file to a remote via rclone's `operations/uploadfile`
     /// endpoint using multipart form data. Safe from sandboxed callers since
     /// the extension reads the file and sends bytes over HTTP.
-    public func uploadFile(from localURL: URL, fs: String, remote: String) async throws {
+    ///
+    /// `remote` is the destination *directory*; the uploaded object's name
+    /// comes from the multipart part's `filename`, not necessarily from
+    /// `localURL`. Pass `filename` explicitly when the on-disk staging file's
+    /// name (e.g. a File Provider system temp name) doesn't match the
+    /// desired remote name — otherwise it defaults to `localURL`'s last path
+    /// component.
+    public func uploadFile(from localURL: URL, fs: String, remote: String, filename: String? = nil) async throws {
         let url = URL(string: "\(baseURL)/operations/uploadfile")!
         let boundary = UUID().uuidString
         var request = URLRequest(url: url)
@@ -110,7 +117,7 @@ public final class RcloneClient: @unchecked Sendable {
         request.timeoutInterval = 600
 
         let fileData = try Data(contentsOf: localURL)
-        let filename = localURL.lastPathComponent
+        let uploadFilename = filename ?? localURL.lastPathComponent
 
         var body = Data()
         // fs parameter
@@ -118,7 +125,7 @@ public final class RcloneClient: @unchecked Sendable {
         // remote parameter (directory path)
         body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"remote\"\r\n\r\n\(remote)\r\n".data(using: .utf8)!)
         // file content
-        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\nContent-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(uploadFilename)\"\r\nContent-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
         body.append(fileData)
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
 

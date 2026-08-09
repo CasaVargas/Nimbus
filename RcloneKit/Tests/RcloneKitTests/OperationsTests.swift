@@ -26,3 +26,52 @@ import Testing
     #expect(info.total == 1_000_000)
     #expect(info.used == 500_000)
 }
+
+@Test func purge() async throws {
+    let client = makeTestClient()
+    try await client.purge(fs: "gdrive:", remote: "old-folder")
+}
+
+@Test func moveFile() async throws {
+    let client = makeTestClient()
+    try await client.moveFile(srcFs: "gdrive:", srcRemote: "a.txt", dstFs: "gdrive:", dstRemote: "b.txt")
+}
+
+@Test func moveDirectory() async throws {
+    let client = makeTestClient()
+    try await client.moveDirectory(srcFs: "gdrive:old-dir", dstFs: "gdrive:new-dir")
+}
+
+@Test func stat() async throws {
+    let client = makeTestClient()
+    let item = try await client.stat(fs: "gdrive:", remote: "photo.jpg")
+    #expect(item.name == "photo.jpg")
+    #expect(item.isDir == false)
+}
+
+@Test func downloadFileWritesDestination() async throws {
+    let client = makeTestClient()
+    let dest = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: dest) }
+    try await client.downloadFile(fs: "gdrive:", remote: "photo.jpg", to: dest)
+    let data = try Data(contentsOf: dest)
+    #expect(!data.isEmpty)
+}
+
+@Test func uploadFileUsesExplicitFilenameOverride() async throws {
+    let client = makeTestClient()
+    let src = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try "hello".write(to: src, atomically: true, encoding: .utf8)
+    defer { try? FileManager.default.removeItem(at: src) }
+    // The staged local file's name deliberately doesn't match the desired
+    // remote filename — `filename:` must win.
+    try await client.uploadFile(from: src, fs: "gdrive:", remote: "docs", filename: "renamed.txt")
+}
+
+@Test func uploadFileDefaultsFilenameToLocalBasename() async throws {
+    let client = makeTestClient()
+    let src = FileManager.default.temporaryDirectory.appendingPathComponent("report.txt")
+    try "hello".write(to: src, atomically: true, encoding: .utf8)
+    defer { try? FileManager.default.removeItem(at: src) }
+    try await client.uploadFile(from: src, fs: "gdrive:", remote: "docs")
+}

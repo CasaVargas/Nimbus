@@ -12,9 +12,12 @@ struct FPDomainInfo: Equatable, Sendable {
 }
 
 /// Reconcile a snapshot of File Provider domains against the configured
-/// `.fileProvider` mounts. Domains whose identifier matches a config's
-/// `id` get added to `mountedIDs`. Configs without a matching domain are
-/// reported via `logger` (not auto-recreated — that's a different flow).
+/// `.fileProvider` mounts. Domains are registered under the bare remote
+/// name (`MountConfig.remoteNameOnly` — see FileProviderBridge call sites),
+/// so that, NOT `config.id`, is the matching key. Configs with a live
+/// domain land in `mountedIDs`; configs whose domain vanished are dropped
+/// from it and reported via `logger` (not auto-recreated — that's a
+/// different flow). NFS configs are ignored entirely.
 ///
 /// Pure function: testable without an `NSFileProviderManager` dependency.
 func reconcileFPDomains(
@@ -23,13 +26,13 @@ func reconcileFPDomains(
     mountedIDs: inout Set<String>,
     logger: (String) -> Void
 ) {
-    for domain in domains {
-        if let config = configs.first(where: { $0.id == domain.identifier }) {
+    for config in configs where config.backend == .fileProvider {
+        if domains.contains(where: { $0.identifier == config.remoteNameOnly }) {
             mountedIDs.insert(config.id)
+        } else {
+            mountedIDs.remove(config.id)
+            logger("FP config \(config.id) has no matching domain; not auto-recreating")
         }
-    }
-    for config in configs where !domains.contains(where: { $0.identifier == config.id }) {
-        logger("FP config \(config.id) has no matching domain; not auto-recreating")
     }
 }
 

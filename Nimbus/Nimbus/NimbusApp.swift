@@ -13,6 +13,11 @@ struct NimbusApp: App {
     @State private var bookmarkStore = BookmarkStore()
     @State private var launchAtLogin = LaunchAtLoginService()
 
+    /// Guards the parts of daemon-connect handling that must run once per
+    /// process (pollers, monitors); the rest of `onDaemonConnected` is
+    /// idempotent and reruns after every reconnect.
+    @State private var servicesStarted = false
+
     init() {
         DesignSystem.Lints.runStartupChecks()
         let d = RcloneDaemon()
@@ -34,11 +39,20 @@ struct NimbusApp: App {
                 .environment(statusService)
                 .preferredColorScheme(settings.colorScheme)
                 .task {
-                    await startApp()
+                    await bootstrap()
+                }
+                .task(id: daemon.status) {
+                    // Reruns whenever the daemon (re)connects — onboarding
+                    // retry, future settings-driven restarts — so mounts and
+                    // File Provider domains always resync to the live port.
+                    if daemon.status == .connected {
+                        await onDaemonConnected()
+                    }
                 }
         }
         .defaultSize(width: 1000, height: 700)
         .commands {
+            AppCommands()
             #if DEBUG
             CommandMenu("Debug") {
                 OpenBenchCommand()
@@ -74,7 +88,24 @@ struct NimbusApp: App {
         }
     }
 
-    private func startApp() async {
+    /// True when the process is the host of an XCTest/Swift Testing run.
+    /// The test host must NOT run production startup: spawning rclone,
+    /// sweeping mounts, or registering REAL File Provider domains from a
+    /// test run pollutes the developer's system — and the system-launched
+    /// Debug extension then holds the .appex busy, wedging the next build's
+    /// test launch ("test runner timed out while preparing to run tests").
+    private var isRunningTests: Bool {
+        let env = ProcessInfo.processInfo.environment
+        return env["XCTestConfigurationFilePath"] != nil
+            || env["XCTestBundlePath"] != nil
+            || env["XCTestSessionIdentifier"] != nil
+    }
+
+    /// One-shot process setup: shutdown hook, stale-mount sweep, first
+    /// daemon start. Everything that depends on a connected daemon lives in
+    /// `onDaemonConnected`, which the `.task(id: daemon.status)` reruns.
+    private func bootstrap() async {
+        guard !isRunningTests else { return }
         // Quit (⌘Q, logout, MenuBarExtra) must unmount volumes and stop the
         // daemon before the process dies — otherwise a restart finds orphan
         // `rclone serve nfs` children and stale NFS mounts.
@@ -102,38 +133,35 @@ struct NimbusApp: App {
                 await daemon.retry(binaryPath: settings.rcloneBinaryPath)
             }
         }
-
-        if daemon.status == .connected {
-            transferStore.startPolling(client: daemon.client)
-            mountManager.startHealthMonitor()
-
-            mountManager.configs = mountConfigs.configs
-            await mountManager.restoreMounts(configs: mountConfigs.configs)
-
-            // Phase 2c: refreshAll reconciles mount(8) state and FP domains against configs
-            await mountManager.refreshAll()
-
-            // Sync File Provider domains
-            do {
-                let remotes = try await daemon.client.listRemotes()
-                fileProviderBridge.syncState(remotes: remotes, port: daemon.port)
-                for remote in remotes {
-                    try? await fileProviderBridge.addDomain(identifier: remote, displayName: remote)
-                }
-                _ = await fileProviderBridge.cleanupStaleDomains(activeRemotes: remotes)
-                await fileProviderBridge.refreshDomains()
-                // Signal extensions to re-enumerate now that rclone is ready
-                await fileProviderBridge.signalAllDomains()
-            } catch {
-                // Non-fatal
-            }
-        }
     }
 
-    private func shutdown() async {
-        transferStore.stopPolling()
-        await mountManager.stopAll()
-        daemon.stop()
+    /// Runs after every daemon (re)connect. Idempotent: restoreMounts skips
+    /// live mounts, addDomain is a no-op for registered domains, and
+    /// syncState just rewrites the shared port/remotes snapshot.
+    private func onDaemonConnected() async {
+        guard !isRunningTests else { return }
+        if !servicesStarted {
+            servicesStarted = true
+            transferStore.startPolling(client: daemon.client)
+            mountManager.startHealthMonitor()
+        }
+
+        mountManager.configs = mountConfigs.configs
+        await mountManager.restoreMounts(configs: mountConfigs.configs)
+
+        // Phase 2c: refreshAll reconciles mount(8) state and FP domains against configs
+        await mountManager.refreshAll()
+
+        do {
+            let remotes = try await daemon.client.listRemotes()
+            await fileProviderBridge.syncAfterDaemonConnect(
+                remotes: remotes,
+                port: daemon.port,
+                disabledDomains: settings.disabledFileProviderDomains
+            )
+        } catch {
+            // Non-fatal — a later reconnect retriggers this task.
+        }
     }
 }
 

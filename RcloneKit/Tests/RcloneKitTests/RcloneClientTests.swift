@@ -71,7 +71,26 @@ private let _setupMocks: Void = {
     """#)
     MockURLProtocol.register(endpoint: "operations/mkdir", json: "{}")
     MockURLProtocol.register(endpoint: "operations/deletefile", json: "{}")
+    MockURLProtocol.register(endpoint: "operations/purge", json: "{}")
+    MockURLProtocol.register(endpoint: "operations/movefile", json: "{}")
+    MockURLProtocol.register(endpoint: "operations/uploadfile", json: "{}")
+    MockURLProtocol.register(endpoint: "operations/cat", json: "hello world")
     MockURLProtocol.register(endpoint: "operations/about", json: #"{"total": 1000000, "used": 500000, "free": 500000}"#)
+    MockURLProtocol.register(endpoint: "operations/stat", json: #"""
+    {
+        "item": {
+            "Path": "photo.jpg",
+            "Name": "photo.jpg",
+            "Size": 2048,
+            "MimeType": "image/jpeg",
+            "ModTime": "2026-03-31T10:00:00Z",
+            "IsDir": false
+        }
+    }
+    """#)
+
+    // sync
+    MockURLProtocol.register(endpoint: "sync/move", json: "{}")
 
     // error test endpoint
     MockURLProtocol.register(

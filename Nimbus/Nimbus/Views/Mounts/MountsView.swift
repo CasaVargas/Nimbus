@@ -10,6 +10,7 @@ struct MountsView: View {
     @Environment(MountConfigStore.self) private var configs
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(FileProviderBridge.self) private var fileProviderBridge
+    @Environment(AppSettings.self) private var settings
 
     @State private var viewModel: MountsViewModel?
     @State private var showingAddSheet = false
@@ -173,8 +174,12 @@ struct MountsView: View {
                 let name = config.remoteNameOnly
                 if isMountActive(config) {
                     try await fileProviderBridge.removeDomain(identifier: name)
+                    // Remember the choice — the launch-time domain sync
+                    // re-registers every remote it isn't told to skip.
+                    settings.disabledFileProviderDomains.insert(name)
                 } else {
                     try await fileProviderBridge.addDomain(identifier: name, displayName: name)
+                    settings.disabledFileProviderDomains.remove(name)
                 }
                 await fileProviderBridge.refreshDomains()
             }
@@ -190,6 +195,7 @@ struct MountsView: View {
                 try? await mountManager.unmountConfig(config)
             case .fileProvider:
                 try? await fileProviderBridge.removeDomain(identifier: config.remoteNameOnly)
+                settings.disabledFileProviderDomains.insert(config.remoteNameOnly)
                 await fileProviderBridge.refreshDomains()
             }
         }

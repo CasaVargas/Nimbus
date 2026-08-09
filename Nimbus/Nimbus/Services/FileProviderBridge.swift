@@ -38,16 +38,19 @@ final class FileProviderBridge {
     }
 
     func addDomain(identifier: String, displayName: String) async throws {
+        let existing = try await NSFileProviderManager.domains()
+        if existing.contains(where: { $0.identifier.rawValue == identifier }) {
+            // Already registered — leave it alone. Removing and re-adding
+            // (the old behavior) tears down the domain's local replica:
+            // every materialized file is evicted and pending local edits
+            // are discarded, on every app launch.
+            return
+        }
+
         let domain = NSFileProviderDomain(
             identifier: NSFileProviderDomainIdentifier(rawValue: identifier),
             displayName: displayName
         )
-
-        let existing = try await NSFileProviderManager.domains()
-        if existing.contains(where: { $0.identifier.rawValue == identifier }) {
-            try await NSFileProviderManager.remove(domain)
-        }
-
         try await NSFileProviderManager.add(domain)
         logger.info("Added File Provider domain: \(identifier)")
     }
@@ -105,6 +108,22 @@ final class FileProviderBridge {
             // Extension's sandbox container (always writable by unsandboxed main app)
             "\(extensionContainer)/Library/Application Support/shared-state.json",
         ]
+    }
+
+    /// Full domain sync for a freshly connected daemon: push port + remotes
+    /// to the extension, register a domain per remote (except user-disabled
+    /// ones), drop domains for remotes that no longer exist, refresh the
+    /// active set, and signal enumerators. Idempotent — safe to call again
+    /// after every daemon (re)start, which is exactly when the extension's
+    /// port knowledge goes stale.
+    func syncAfterDaemonConnect(remotes: [String], port: Int, disabledDomains: Set<String>) async {
+        syncState(remotes: remotes, port: port)
+        for remote in remotes where !disabledDomains.contains(remote) {
+            try? await addDomain(identifier: remote, displayName: remote)
+        }
+        _ = await cleanupStaleDomains(activeRemotes: remotes)
+        await refreshDomains()
+        await signalAllDomains()
     }
 
     /// Tells all File Provider domains to re-enumerate their contents.

@@ -14,7 +14,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
     required init(domain: NSFileProviderDomain) {
         self.domain = domain
-        let port = Self.readPort()
+        let port = FileProviderRetry.readPort()
         self.rclone = RcloneClient(port: port)
         logger.error("Extension init: domain=\(domain.identifier.rawValue), port=\(port)")
     }
@@ -22,12 +22,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     /// Re-reads the port from app group UserDefaults — the main app may have
     /// restarted on a different port since this extension process was spawned.
     private func refreshPort() {
-        let port = Self.readPort()
-        let currentPort = rclone.port
-        if port != currentPort {
-            logger.info("Port changed: \(currentPort) → \(port)")
-            rclone.updatePort(port)
-        }
+        FileProviderRetry.refreshPort(on: rclone, logger: logger)
     }
 
     func invalidate() {
@@ -52,17 +47,23 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let remoteName = domain.identifier.rawValue
         let logger = self.logger
         let handler = SendableBox(value: completionHandler)
+        let progress = Progress(totalUnitCount: 1)
 
-        Task { @Sendable in
+        let task = Task { @Sendable in
             do {
-                let item = try await Self.fetchItemStatic(rclone: rclone, identifier: identifier, remoteName: remoteName)
+                try Task.checkCancellation()
+                let item = try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "item(for:)") {
+                    try await Self.fetchItemStatic(rclone: rclone, identifier: identifier, remoteName: remoteName)
+                }
+                progress.completedUnitCount = 1
                 handler.value(item, nil)
             } catch {
                 logger.error("item(for:) failed: \(error)")
                 handler.value(nil, Self.mapToFileProviderError(error))
             }
         }
-        return Progress()
+        progress.cancellationHandler = { task.cancel() }
+        return progress
     }
 
     // MARK: - Enumeration
@@ -72,6 +73,14 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         request: NSFileProviderRequest
     ) throws -> any NSFileProviderEnumerator {
         refreshPort()
+
+        // `.workingSet` and `.trashContainer` are synthetic system
+        // containers, not real rclone paths — see `SystemContainerEnumerator`
+        // for why they're always empty.
+        if containerItemIdentifier == .workingSet || containerItemIdentifier == .trashContainer {
+            return SystemContainerEnumerator(containerIdentifier: containerItemIdentifier)
+        }
+
         return FileProviderEnumerator(
             containerIdentifier: containerItemIdentifier,
             rclone: rclone,
@@ -94,33 +103,46 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let handler = SendableBox(value: completionHandler)
         let remotePath = Self.extractPathStatic(from: itemIdentifier, remoteName: remoteName)
 
-        Task { @Sendable in
+        let progress = Progress(totalUnitCount: 1)
+        let task = Task { @Sendable in
             do {
-                // NSTemporaryDirectory() resolves inside the sandbox container.
-                // rclone (unsandboxed) can write here, and we can read it.
-                let downloadDir = URL(fileURLWithPath: NSTemporaryDirectory())
-                    .appendingPathComponent("FileProviderDownloads", isDirectory: true)
+                try Task.checkCancellation()
+
+                // Fetch metadata first so we know the transfer size up front
+                // (for progress) and can hand Finder the current item
+                // alongside the bytes without a second round trip.
+                let item = try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "fetchContents.stat") {
+                    try await Self.fetchItemStatic(rclone: rclone, identifier: itemIdentifier, remoteName: remoteName)
+                }
+                if let size = item.documentSize?.int64Value, size > 0 {
+                    progress.totalUnitCount = size
+                }
+
+                // `NSTemporaryDirectory()` resolves inside the extension's own
+                // sandbox container. Unlike the old `operations/copyfile`
+                // approach (which required the unsandboxed rclone process to
+                // write into our sandbox), `downloadFile` streams bytes over
+                // HTTP via `operations/cat` and this process writes them —
+                // rclone never needs filesystem access to our container.
+                let downloadDir = Self.tempDirectory().appendingPathComponent("Downloads", isDirectory: true)
                 try FileManager.default.createDirectory(at: downloadDir, withIntermediateDirectories: true)
 
                 let filename = (remotePath as NSString).lastPathComponent
                 let localURL = downloadDir.appendingPathComponent("\(UUID().uuidString)_\(filename)")
 
-                // Use copyfile — rclone writes to our sandbox tmp path
-                try await rclone.copyFile(
-                    srcFs: "\(remoteName):",
-                    srcRemote: remotePath,
-                    dstFs: "/",
-                    dstRemote: localURL.path
-                )
+                try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "fetchContents.download") {
+                    try await rclone.downloadFile(fs: "\(remoteName):", remote: remotePath, to: localURL)
+                }
 
-                let item = try await Self.fetchItemStatic(rclone: rclone, identifier: itemIdentifier, remoteName: remoteName)
+                progress.completedUnitCount = progress.totalUnitCount
                 handler.value(localURL, item, nil)
             } catch {
                 logger.error("fetchContents failed: \(error)")
                 handler.value(nil, nil, Self.mapToFileProviderError(error))
             }
         }
-        return Progress()
+        progress.cancellationHandler = { task.cancel() }
+        return progress
     }
 
     // MARK: - Create
@@ -140,37 +162,48 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let handler = SendableBox(value: completionHandler)
         let parentPath = Self.extractPathStatic(from: itemTemplate.parentItemIdentifier, remoteName: remoteName)
         let filename = itemTemplate.filename
-        let isFolder = itemTemplate.contentType == .folder
+        let isFolder = itemTemplate.contentType?.conforms(to: .directory) ?? false
         let localURL = url
 
-        Task { @Sendable in
+        let progress = Progress(totalUnitCount: Self.fileSizeOnDisk(localURL, orDefault: 1))
+        let task = Task { @Sendable in
             do {
+                try Task.checkCancellation()
                 let newPath = parentPath.isEmpty ? filename : "\(parentPath)/\(filename)"
 
                 if isFolder {
-                    try await rclone.mkdir(fs: "\(remoteName):", remote: newPath)
+                    try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "createItem.mkdir") {
+                        try await rclone.mkdir(fs: "\(remoteName):", remote: newPath)
+                    }
                 } else if let localURL {
-                    // rclone can read from our sandbox path since it's unsandboxed
-                    try await rclone.copyFile(
-                        srcFs: "/",
-                        srcRemote: localURL.path,
-                        dstFs: "\(remoteName):",
-                        dstRemote: newPath
-                    )
+                    // `uploadFile` streams bytes from our sandbox to rclone
+                    // over HTTP (multipart), so — unlike the old
+                    // `operations/copyfile` with `dstFs: "/"` — rclone never
+                    // needs to read from our sandbox container directly. The
+                    // destination filename is passed explicitly since the
+                    // system-staged `localURL` isn't guaranteed to be named
+                    // `filename`.
+                    try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "createItem.upload") {
+                        try await rclone.uploadFile(from: localURL, fs: "\(remoteName):", remote: parentPath, filename: filename)
+                    }
                 }
 
-                let item = try await Self.fetchItemStatic(
-                    rclone: rclone,
-                    identifier: NSFileProviderItemIdentifier("\(remoteName):\(newPath)"),
-                    remoteName: remoteName
-                )
+                let item = try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "createItem.stat") {
+                    try await Self.fetchItemStatic(
+                        rclone: rclone,
+                        identifier: NSFileProviderItemIdentifier("\(remoteName):\(newPath)"),
+                        remoteName: remoteName
+                    )
+                }
+                progress.completedUnitCount = progress.totalUnitCount
                 handler.value(item, [], false, nil)
             } catch {
                 logger.error("createItem failed: \(error)")
                 handler.value(nil, [], false, Self.mapToFileProviderError(error))
             }
         }
-        return Progress()
+        progress.cancellationHandler = { task.cancel() }
+        return progress
     }
 
     // MARK: - Modify
@@ -190,32 +223,67 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let logger = self.logger
         let handler = SendableBox(value: completionHandler)
         let currentPath = Self.extractPathStatic(from: item.itemIdentifier, remoteName: remoteName)
+        let newParentPath = Self.extractPathStatic(from: item.parentItemIdentifier, remoteName: remoteName)
+        let newFilename = item.filename
+        let isDirectory = item.contentType?.conforms(to: .directory) ?? false
+        let isRenameOrMove = changedFields.contains(.filename) || changedFields.contains(.parentItemIdentifier)
         let hasContentsChange = changedFields.contains(.contents)
         let contentsURL = newContents
 
-        Task { @Sendable in
+        let progress = Progress(totalUnitCount: hasContentsChange ? Self.fileSizeOnDisk(contentsURL, orDefault: 1) : 1)
+        let task = Task { @Sendable in
             do {
-                if hasContentsChange, let url = contentsURL {
-                    try await rclone.copyFile(
-                        srcFs: "/",
-                        srcRemote: url.path,
-                        dstFs: "\(remoteName):",
-                        dstRemote: currentPath
-                    )
+                try Task.checkCancellation()
+                var workingPath = currentPath
+
+                if isRenameOrMove {
+                    let destinationPath = newParentPath.isEmpty ? newFilename : "\(newParentPath)/\(newFilename)"
+                    if destinationPath != currentPath {
+                        try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "modifyItem.move") {
+                            if isDirectory {
+                                // rclone has no "rename a directory" RC verb —
+                                // `operations/movefile` only moves individual
+                                // files — so directory renames/moves go
+                                // through `sync/move` treating both the
+                                // current and destination paths as directory
+                                // roots (the `rclone move <src> <dst>` CLI
+                                // command's RC equivalent).
+                                try await rclone.moveDirectory(
+                                    srcFs: "\(remoteName):\(currentPath)",
+                                    dstFs: "\(remoteName):\(destinationPath)"
+                                )
+                            } else {
+                                try await rclone.moveFile(
+                                    srcFs: "\(remoteName):", srcRemote: currentPath,
+                                    dstFs: "\(remoteName):", dstRemote: destinationPath
+                                )
+                            }
+                        }
+                        workingPath = destinationPath
+                    }
                 }
 
-                let resultItem = try await Self.fetchItemStatic(
-                    rclone: rclone,
-                    identifier: NSFileProviderItemIdentifier("\(remoteName):\(currentPath)"),
-                    remoteName: remoteName
-                )
+                if hasContentsChange, let contentsURL {
+                    let uploadDir = (workingPath as NSString).deletingLastPathComponent
+                    let uploadFilename = (workingPath as NSString).lastPathComponent
+                    try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "modifyItem.upload") {
+                        try await rclone.uploadFile(from: contentsURL, fs: "\(remoteName):", remote: uploadDir, filename: uploadFilename)
+                    }
+                }
+
+                let newIdentifier = NSFileProviderItemIdentifier("\(remoteName):\(workingPath)")
+                let resultItem = try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "modifyItem.stat") {
+                    try await Self.fetchItemStatic(rclone: rclone, identifier: newIdentifier, remoteName: remoteName)
+                }
+                progress.completedUnitCount = progress.totalUnitCount
                 handler.value(resultItem, [], false, nil)
             } catch {
                 logger.error("modifyItem failed: \(error)")
                 handler.value(nil, [], false, Self.mapToFileProviderError(error))
             }
         }
-        return Progress()
+        progress.cancellationHandler = { task.cancel() }
+        return progress
     }
 
     // MARK: - Delete
@@ -234,21 +302,43 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let handler = SendableBox(value: completionHandler)
         let remotePath = Self.extractPathStatic(from: identifier, remoteName: remoteName)
 
-        Task { @Sendable in
+        let progress = Progress(totalUnitCount: 1)
+        let task = Task { @Sendable in
             do {
-                try await rclone.deleteFile(fs: "\(remoteName):", remote: remotePath)
+                try Task.checkCancellation()
+                try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "deleteItem") {
+                    // `deleteItem` only gets an identifier — a path — not the
+                    // `NSFileProviderItem`, so directory-ness has to be
+                    // determined authoritatively via `operations/stat`
+                    // immediately before deleting rather than guessed from
+                    // the identifier (which carries no type information) or
+                    // a possibly-stale local cache. `operations/deletefile`
+                    // fails on directories; those must go through
+                    // `operations/purge` instead.
+                    let stat = try await rclone.stat(fs: "\(remoteName):", remote: remotePath)
+                    if stat.isDir {
+                        try await rclone.purge(fs: "\(remoteName):", remote: remotePath)
+                    } else {
+                        try await rclone.deleteFile(fs: "\(remoteName):", remote: remotePath)
+                    }
+                }
+                progress.completedUnitCount = 1
                 handler.value(nil)
             } catch {
                 logger.error("deleteItem failed: \(error)")
                 handler.value(Self.mapToFileProviderError(error))
             }
         }
-        return Progress()
+        progress.cancellationHandler = { task.cancel() }
+        return progress
     }
 
     // MARK: - Error Mapping
 
     private static func mapToFileProviderError(_ error: Error) -> Error {
+        if error is CancellationError {
+            return CocoaError(.userCancelled)
+        }
         guard let rcloneError = error as? RcloneError else { return error }
         switch rcloneError {
         case .requestFailed(status: 404, _):
@@ -264,6 +354,11 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
     // MARK: - Temp Directory Management
 
+    /// Single shared root for everything this extension writes to disk
+    /// (currently just staged downloads). `invalidate()` removes exactly
+    /// this directory, so every write path must nest under it — a prior
+    /// version of `fetchContents` wrote to a differently-named directory
+    /// than the one `invalidate()` cleaned up, leaking staged downloads.
     private static func tempDirectory() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("app.casavargas.nimbus.FileProvider", isDirectory: true)
@@ -294,10 +389,19 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
             ? NSFileProviderItemIdentifier.rootContainer
             : NSFileProviderItemIdentifier("\(remoteName):\(parentPath)")
 
-        return FileProviderItem(from: file, parentIdentifier: parentId, remoteName: remoteName)
+        return FileProviderItem(from: file, containerPath: parentPath, parentIdentifier: parentId, remoteName: remoteName)
     }
 
+    /// Inverse of `FileProviderItem`'s identifier construction — see the
+    /// contract documented on `FileProviderItem`. `.rootContainer` must be
+    /// special-cased to `""` since its raw value
+    /// (`NSFileProviderRootContainerItemIdentifier`) never carries the
+    /// `"<remoteName>:"` prefix; without this, any path built from a
+    /// root-relative parent identifier (e.g. creating a new top-level item)
+    /// would be silently prefixed with that literal system string instead
+    /// of resolving to the remote root.
     private static func extractPathStatic(from identifier: NSFileProviderItemIdentifier, remoteName: String) -> String {
+        if identifier == .rootContainer { return "" }
         let raw = identifier.rawValue
         let prefix = "\(remoteName):"
         if raw.hasPrefix(prefix) {
@@ -306,45 +410,16 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         return raw
     }
 
-    private static let appGroupID = "group.app.casavargas.nimbus"
-
-    private static func readPort() -> Int {
-        let logger = Logger(subsystem: "app.casavargas.nimbus.FileProvider", category: "extension")
-
-        // Try UserDefaults first
-        if let defaults = UserDefaults(suiteName: appGroupID),
-           case let port = defaults.integer(forKey: "rclonePort"), port > 0 {
-            logger.debug("Read port \(port) from UserDefaults")
-            return port
-        }
-
-        // Try group container
-        if let containerURL = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: appGroupID
-        ) {
-            if let port = Self.readPortFromJSON(containerURL.appendingPathComponent("shared-state.json")) {
-                logger.debug("Read port \(port) from group container")
-                return port
-            }
-        }
-
-        // Try extension's own Application Support (main app writes here since it's unsandboxed)
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-        if let appSupport {
-            if let port = Self.readPortFromJSON(appSupport.appendingPathComponent("shared-state.json")) {
-                logger.debug("Read port \(port) from Application Support")
-                return port
-            }
-        }
-
-        logger.warning("App group port not found, using default 5572")
-        return 5572
-    }
-
-    private static func readPortFromJSON(_ url: URL) -> Int? {
-        guard let data = try? Data(contentsOf: url),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let port = json["rclonePort"] as? Int, port > 0 else { return nil }
-        return port
+    /// Best-effort file size lookup for wiring real `Progress.totalUnitCount`
+    /// values into upload paths. Falls back to `orDefault` (never `0`, so
+    /// `Progress` still reports meaningful, non-degenerate completion) when
+    /// the URL is `nil` or unreadable.
+    private static func fileSizeOnDisk(_ url: URL?, orDefault: Int64) -> Int64 {
+        guard let url,
+              let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let size = (attributes[.size] as? NSNumber)?.int64Value,
+              size > 0
+        else { return orDefault }
+        return size
     }
 }
