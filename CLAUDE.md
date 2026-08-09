@@ -71,11 +71,12 @@ File Provider extension (Nimbus/FileProviderExtension/) ────────
 
 ### File Provider Extension (`Nimbus/FileProviderExtension/`)
 
-- `FileProviderExtension.swift` — Main `NSFileProviderReplicatedExtension`
-- `FileProviderItem.swift` — File/folder representation
-- `FileProviderEnumerator.swift` — Directory enumeration
-- `SharedState.swift` — App group UserDefaults bridge
-- `DomainManager.swift` — Standalone CLI for domain registration
+- `Extension.swift` — Main `NSFileProviderReplicatedExtension` (item fetch, contents, create/modify/delete)
+- `Item.swift` — File/folder representation; identifiers are always `"<remoteName>:<fullPathFromRemoteRoot>"`
+- `Enumerator.swift` — Directory enumeration + snapshot-diff change tracking
+- `SystemContainerEnumerator.swift` — Empty enumerator for `.workingSet` / `.trashContainer`
+- `SyncSnapshotStore.swift` — Persisted per-container listing snapshots (sync anchors)
+- `RetrySupport.swift` — Shared retry helper; re-reads the daemon port (app group UserDefaults → group container JSON → extension container JSON) each attempt
 - Talks to the rclone daemon via RcloneKit
 
 ### RcloneKit (`RcloneKit/`)
