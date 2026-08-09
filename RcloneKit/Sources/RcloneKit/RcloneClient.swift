@@ -75,15 +75,29 @@ public final class RcloneClient: @unchecked Sendable {
     /// a local destination URL. Uses `operations/cat` which streams the
     /// file content as the HTTP response body — no local filesystem access
     /// by rclone is needed, making this safe for sandboxed callers.
-    public func downloadFile(fs: String, remote: String, to destination: URL) async throws {
-        let url = URL(string: "\(baseURL)/operations/cat")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 600
+    /// Characters safe to leave literal in the `/[fs]/path` download URL.
+    /// Everything else (spaces, brackets, colons, unicode, "•", …) gets
+    /// percent-encoded; rclone decodes the path server-side.
+    private static let downloadPathAllowed: CharacterSet = {
+        var set = CharacterSet.alphanumerics
+        set.insert(charactersIn: "-._~/")
+        return set
+    }()
 
-        let params: [String: Any] = ["fs": fs, "remote": remote]
-        request.httpBody = try JSONSerialization.data(withJSONObject: params)
+    public func downloadFile(fs: String, remote: String, to destination: URL) async throws {
+        // rclone's RC API has NO download method — operations/cat does not
+        // exist (404 "couldn't find method"). File content is served over
+        // plain HTTP when rcd runs with --rc-serve (RcloneDaemon passes it):
+        //   GET /[<fs>]/<path from fs root>
+        // Verified live against rclone rcd: GET /%5Bgdrive:%5D/file.pdf → 200.
+        let encFs = fs.addingPercentEncoding(withAllowedCharacters: Self.downloadPathAllowed) ?? fs
+        let encRemote = remote.addingPercentEncoding(withAllowedCharacters: Self.downloadPathAllowed) ?? remote
+        guard let url = URL(string: "\(baseURL)/%5B\(encFs)%5D/\(encRemote)") else {
+            throw RcloneError.invalidResponse
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 600
 
         let (data, response) = try await session.data(for: request)
 

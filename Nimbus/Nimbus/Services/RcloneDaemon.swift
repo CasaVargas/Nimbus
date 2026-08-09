@@ -48,6 +48,11 @@ final class RcloneDaemon {
             "--rc-no-auth",
             "--rc-addr", "127.0.0.1:\(availablePort)",
             "--rc-allow-origin=*",
+            // Serve remote objects at GET /[remote:]/path — the RC API has
+            // no download method (operations/cat does not exist), so this
+            // flag IS the download path for RcloneClient.downloadFile and
+            // therefore for File Provider materialization.
+            "--rc-serve",
         ]
         proc.standardOutput = FileHandle.nullDevice
         proc.standardError = FileHandle.nullDevice

@@ -80,7 +80,11 @@ private let _setupMocks: Void = {
     MockURLProtocol.register(endpoint: "operations/purge", json: "{}")
     MockURLProtocol.register(endpoint: "operations/movefile", json: "{}")
     MockURLProtocol.register(endpoint: "operations/uploadfile", json: "{}")
-    MockURLProtocol.register(endpoint: "operations/cat", json: "hello world")
+    // Downloads are GET /[fs]/path via --rc-serve (operations/cat does not
+    // exist in rclone's RC API). MockURLProtocol keys on the percent-decoded
+    // URL path, so this registration pins the download URL shape: a client
+    // regression to any other endpoint 404s the mock and fails the test.
+    MockURLProtocol.register(endpoint: "[gdrive:]/photo.jpg", json: "hello world")
     MockURLProtocol.register(endpoint: "operations/about", json: #"{"total": 1000000, "used": 500000, "free": 500000}"#)
     MockURLProtocol.register(endpoint: "operations/stat", json: #"""
     {
