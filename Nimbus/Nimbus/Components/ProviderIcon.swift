@@ -28,30 +28,44 @@ struct ProviderIcon: View {
     }
 }
 
-/// System-Settings-style provider badge: a flat, solid brand-color squircle
-/// with the glyph knocked out in white. Deliberately matches the macOS badge
-/// language (System Settings sidebar icons) — flat fill, hairline edge, no
-/// gradient, no glow. Uniform across bundled brand logos and SF Symbol
-/// fallbacks so a column of badges reads as one system.
+/// Provider badge in Apple's own two badge languages:
+/// - brands with a bundled full-color mark render it on a WHITE tile — the
+///   iOS-app-icon / Internet Accounts treatment. The tile stays white in
+///   dark mode (exactly like app icons), so dark marks keep contrast.
+/// - everything else keeps the flat solid brand-color squircle with a white
+///   template glyph — System Settings sidebar language.
+/// Both share shape, hairline edge, and sizing so a mixed column still
+/// reads as one system. No gradients, no glow, no hover scaling.
 struct ProviderBadge: View {
     let provider: String
     var size: CGFloat = 28
 
     var body: some View {
         let key = ProviderCatalog.canonicalKey(provider)
-        let tint = ProviderCatalog.badgeTint(for: key)
-        RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
-            .fill(tint)
-            .overlay {
-                glyph(key: key)
-                    .frame(width: size * 0.58, height: size * 0.58)
-                    .foregroundStyle(.white)
+        let shape = RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
+        Group {
+            if let asset = ProviderCatalog.multicolor[key] {
+                shape
+                    .fill(.white)
+                    .overlay {
+                        Image(asset)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: size * 0.62, height: size * 0.62)
+                    }
+                    .overlay(shape.strokeBorder(Color.black.opacity(0.12), lineWidth: 0.5))
+            } else {
+                shape
+                    .fill(ProviderCatalog.badgeTint(for: key))
+                    .overlay {
+                        glyph(key: key)
+                            .frame(width: size * 0.58, height: size * 0.58)
+                            .foregroundStyle(.white)
+                    }
+                    .overlay(shape.strokeBorder(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5))
             }
-            .overlay(
-                RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
-                    .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
-            )
-            .frame(width: size, height: size)
+        }
+        .frame(width: size, height: size)
     }
 
     @ViewBuilder
@@ -119,6 +133,35 @@ enum ProviderCatalog {
             return Color(red: r, green: g, blue: b)
         }
     }
+
+    /// Backends with a bundled FULL-COLOR brand mark (dashboard-icons set),
+    /// keyed by canonical backend → asset name. These render as-is on a
+    /// white tile (Internet Accounts / app-icon language). Backends absent
+    /// here keep the flat colored badge + white template glyph.
+    static let multicolor: [String: String] = [
+        "azureblob": "color-azure",
+        "azurefiles": "color-azure",
+        "b2": "color-b2",
+        "box": "color-box",
+        "drive": "color-drive",
+        "dropbox": "color-dropbox",
+        "filen": "color-filen",
+        "gcs": "color-gcs",
+        "gphotos": "color-gphotos",
+        "huaweidrive": "color-huaweidrive",
+        "iclouddrive": "color-iclouddrive",
+        "mega": "color-mega",
+        "netstorage": "color-netstorage",
+        "onedrive": "color-onedrive",
+        "oos": "color-oos",
+        "protondrive": "color-protondrive",
+        "s3": "color-s3",
+        "seafile": "color-seafile",
+        "storj": "color-storj",
+        "swift": "color-swift",
+        "yandex": "color-yandex",
+        "zoho": "color-zoho",
+    ]
 
     /// rclone backend name → bundled Simple Icons asset + official brand hex.
     static let brand: [String: Brand] = [
