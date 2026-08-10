@@ -245,7 +245,6 @@
 		9C4A7E78039C32E3BF6839CA /* Nimbus.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Nimbus.entitlements; sourceTree = "<group>"; };
 		9E059E24ADEB8ACBC1AE9096 /* BrowserToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserToolbar.swift; sourceTree = "<group>"; };
 		9E50D9C737FBBC708FF7A6F5 /* Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extension.swift; sourceTree = "<group>"; };
-		A0186DF6DCC0BD6FE9CA9574 /* Nimbus 2.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Nimbus 2.entitlements"; sourceTree = "<group>"; };
 		A21C381CEE03583B4CADE2DA /* ImportPreviewList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPreviewList.swift; sourceTree = "<group>"; };
 		A21CD08F98A42ACB20E40A27 /* Lints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lints.swift; sourceTree = "<group>"; };
 		A59C2F1C642178D0E5224A7D /* LaunchAtLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginService.swift; sourceTree = "<group>"; };
@@ -542,7 +541,6 @@
 			isa = PBXGroup;
 			children = (
 				E6FD1A3D6100AC0DBDCF1315 /* AppDelegate.swift */,
-				A0186DF6DCC0BD6FE9CA9574 /* Nimbus 2.entitlements */,
 				9C4A7E78039C32E3BF6839CA /* Nimbus.entitlements */,
 				F9A419551C6F4187C05A07F7 /* NimbusApp.swift */,
 				7BB7BF904027A9385B2D387E /* Components */,
@@ -765,8 +763,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				044B6629A6E71639423D11EE /* Nimbus */,
 				F9BA4D8A0DCA86712EBA5816 /* FileProviderExtension */,
+				044B6629A6E71639423D11EE /* Nimbus */,
 				2299FC464C06BA60E457F972 /* NimbusTests */,
 			);
 		};
