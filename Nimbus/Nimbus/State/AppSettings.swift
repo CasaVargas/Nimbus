@@ -4,6 +4,16 @@ enum Appearance: String, CaseIterable {
     case light, dark, system
 }
 
+/// App-wide preferences persisted to `UserDefaults.standard`.
+///
+/// Every persisted property is a *stored* `var` with a `didSet` that writes
+/// through to `defaults`, initialized from `defaults` in `init`. This is
+/// deliberate: the `@Observable` macro only instruments stored properties, so a
+/// computed property backed by `@ObservationIgnored` `defaults` would read and
+/// write correctly but emit **no** change notification — any SwiftUI view
+/// observing it (or a `$settings.foo` binding) would silently fail to update.
+/// (Property observers don't fire during `init`, so the initial reads below
+/// don't redundantly write back.)
 @Observable
 final class AppSettings {
     @ObservationIgnored
@@ -11,16 +21,21 @@ final class AppSettings {
 
     init() {
         appearance = Appearance(rawValue: defaults.string(forKey: "appearance") ?? "system") ?? .system
+        onboardingComplete = defaults.bool(forKey: "onboardingComplete")
+        rclonePort = defaults.object(forKey: "rclonePort") as? Int ?? 5572
+        rcloneBinaryPath = defaults.string(forKey: "rcloneBinaryPath") ?? Self.defaultRclonePath
+        bandwidthLimit = defaults.string(forKey: "bandwidthLimit") ?? ""
+        concurrentTransfers = defaults.object(forKey: "concurrentTransfers") as? Int ?? 4
+        sidebarCollapsed = defaults.bool(forKey: "sidebarCollapsed")
+        disabledFileProviderDomains = Set(defaults.stringArray(forKey: "disabledFileProviderDomains") ?? [])
     }
 
     var rclonePort: Int {
-        get { defaults.object(forKey: "rclonePort") as? Int ?? 5572 }
-        set { defaults.set(newValue, forKey: "rclonePort") }
+        didSet { defaults.set(rclonePort, forKey: "rclonePort") }
     }
 
     var rcloneBinaryPath: String {
-        get { defaults.string(forKey: "rcloneBinaryPath") ?? Self.defaultRclonePath }
-        set { defaults.set(newValue, forKey: "rcloneBinaryPath") }
+        didSet { defaults.set(rcloneBinaryPath, forKey: "rcloneBinaryPath") }
     }
 
     private static let defaultRclonePath: String = {
@@ -34,18 +49,15 @@ final class AppSettings {
     }()
 
     var bandwidthLimit: String {
-        get { defaults.string(forKey: "bandwidthLimit") ?? "" }
-        set { defaults.set(newValue, forKey: "bandwidthLimit") }
+        didSet { defaults.set(bandwidthLimit, forKey: "bandwidthLimit") }
     }
 
     var concurrentTransfers: Int {
-        get { defaults.object(forKey: "concurrentTransfers") as? Int ?? 4 }
-        set { defaults.set(newValue, forKey: "concurrentTransfers") }
+        didSet { defaults.set(concurrentTransfers, forKey: "concurrentTransfers") }
     }
 
     var onboardingComplete: Bool {
-        get { defaults.bool(forKey: "onboardingComplete") }
-        set { defaults.set(newValue, forKey: "onboardingComplete") }
+        didSet { defaults.set(onboardingComplete, forKey: "onboardingComplete") }
     }
 
     var appearance: Appearance {
@@ -53,8 +65,7 @@ final class AppSettings {
     }
 
     var sidebarCollapsed: Bool {
-        get { defaults.bool(forKey: "sidebarCollapsed") }
-        set { defaults.set(newValue, forKey: "sidebarCollapsed") }
+        didSet { defaults.set(sidebarCollapsed, forKey: "sidebarCollapsed") }
     }
 
     /// Remotes whose File Provider domain the user explicitly turned off.
@@ -62,8 +73,9 @@ final class AppSettings {
     /// remote EXCEPT these — without this set, toggling a domain off in
     /// Mounts would silently come back on next launch.
     var disabledFileProviderDomains: Set<String> {
-        get { Set(defaults.stringArray(forKey: "disabledFileProviderDomains") ?? []) }
-        set { defaults.set(Array(newValue).sorted(), forKey: "disabledFileProviderDomains") }
+        didSet {
+            defaults.set(Array(disabledFileProviderDomains).sorted(), forKey: "disabledFileProviderDomains")
+        }
     }
 
     var colorScheme: ColorScheme? {

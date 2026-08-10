@@ -6,6 +6,7 @@ struct OnboardingView: View {
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(MountConfigStore.self) private var mountStore
     @Environment(MountManager.self) private var mountManager
+    @Environment(FileProviderBridge.self) private var fileProviderBridge
 
     @State private var remotes: [String] = []
     @State private var showAddRemote = false
@@ -198,15 +199,30 @@ struct OnboardingView: View {
     }
 
     private func attemptAutoMount() async {
-        // If a new mount was added that isn't yet mounted, mount it now.
-        // Filtering on inFlight as well closes the double-dispatch race where
-        // two overlapping .onChange tasks both pass the mountedIDs check before
-        // either has reached mountConfig's first suspension point.
-        for config in mountStore.configs
-            where config.backend == .nfs
-               && !mountManager.mountedIDs.contains(config.id)
-               && !mountManager.inFlight.contains(config.id) {
-            try? await mountManager.mountConfig(config)
+        // Bring up each newly-added config that isn't live yet. Mirrors
+        // MountsView.toggle: NFS spins up an rclone serve + mount_nfs; File
+        // Provider registers a Finder domain. Both backends must be handled —
+        // AddMountSheet defaults to .fileProvider, and if this only mounted
+        // .nfs the onboarding card would flip to "mounted" while nothing was
+        // ever registered, so nothing appeared in Finder.
+        for config in mountStore.configs {
+            switch config.backend {
+            case .nfs:
+                // Filtering on inFlight as well closes the double-dispatch race
+                // where two overlapping .onChange tasks both pass the mountedIDs
+                // check before either reaches mountConfig's first suspension point.
+                guard !mountManager.mountedIDs.contains(config.id),
+                      !mountManager.inFlight.contains(config.id) else { continue }
+                try? await mountManager.mountConfig(config)
+            case .fileProvider:
+                let name = config.remoteNameOnly
+                guard !fileProviderBridge.activeDomains.contains(name) else { continue }
+                try? await fileProviderBridge.addDomain(identifier: name, displayName: name)
+                // The launch-time domain sync re-registers every remote it isn't
+                // told to skip; clear any stale skip flag so it stays registered.
+                settings.disabledFileProviderDomains.remove(name)
+                await fileProviderBridge.refreshDomains()
+            }
         }
     }
 }
@@ -217,5 +233,6 @@ struct OnboardingView: View {
         .environment(RcloneDaemon())
         .environment(MountConfigStore())
         .environment(MountManager())
+        .environment(FileProviderBridge())
         .frame(width: 700, height: 800)
 }

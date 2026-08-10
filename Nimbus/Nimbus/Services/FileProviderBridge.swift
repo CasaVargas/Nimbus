@@ -79,15 +79,22 @@ final class FileProviderBridge {
     }
 
     func syncState(remotes: [String], port: Int) {
-        // Write to UserDefaults
-        let defaults = UserDefaults(suiteName: Self.appGroupID)
-        defaults?.set(port, forKey: "rclonePort")
-        defaults?.set(remotes, forKey: "remotes")
-        defaults?.set(Date().timeIntervalSince1970, forKey: "updatedAt")
-
-        // Write JSON to every location the extension might find it:
-        // 1. Group container (works when app group is properly provisioned)
-        // 2. Extension's sandbox container (main app is unsandboxed so can write here)
+        // The main app is UNSANDBOXED (see Nimbus.entitlements), so it cannot
+        // write the app-group `UserDefaults` suite: that domain lives in the
+        // sandbox group container and cfprefsd rejects writes from an
+        // unsandboxed process ("requires user-preference-write or
+        // file-write-data sandbox access", "kCFPreferencesAnyUser … only
+        // allowed for System Containers, detaching from cfprefsd"). The failed
+        // attempt also detaches the prefs cache, so we don't make it — the
+        // shared state travels via the JSON files below, which is the
+        // transport the extension's `FileProviderRetry.readPort` relies on.
+        //
+        // Written to every location the extension might read from:
+        // 1. Group container — readable by the sandboxed extension via its
+        //    app-group entitlement; the unsandboxed main app writes the same
+        //    physical path directly.
+        // 2. Extension's sandbox container — always writable by the unsandboxed
+        //    main app; the path that works even if the group container doesn't.
         let state: [String: Any] = [
             "rclonePort": port,
             "remotes": remotes,
