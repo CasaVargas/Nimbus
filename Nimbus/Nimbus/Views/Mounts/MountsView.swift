@@ -27,14 +27,6 @@ struct MountsView: View {
                     Button("Add Mount", systemImage: "plus") { showingAddSheet = true }
                         .disabled(daemon.status != .connected || viewModel == nil)
                 }
-                ToolbarItem(placement: .secondaryAction) {
-                    Button("Refresh", systemImage: "arrow.clockwise") {
-                        Task {
-                            mountManager.configs = configs.configs
-                            await mountManager.refreshAll()
-                        }
-                    }
-                }
             }
             .task(id: daemon.status) {
                 guard daemon.status == .connected else { return }
@@ -150,12 +142,19 @@ struct MountsView: View {
     /// (NimbusApp auto-mount loop) working without needing them to call the new
     /// `mountConfig` wrapper.
     private func isMountActive(_ config: MountConfig) -> Bool {
-        if mountManager.mountedIDs.contains(config.id) { return true }
         switch config.backend {
         case .nfs:
+            if mountManager.mountedIDs.contains(config.id) { return true }
             return mountManager.activeMounts.contains { $0.mountPoint == config.mountPoint }
         case .fileProvider:
-            return fileProviderBridge.activeDomains.contains(config.remoteNameOnly)
+            // Drive the switch from the user's persisted intent, NOT the
+            // live `NSFileProviderManager.domains()` snapshot. That snapshot
+            // is eventually consistent (add/remove lag) and is also rewritten
+            // by the 10s health monitor and the daemon-reconnect sync, so
+            // reading it made the switch snap back and flip-flop right after
+            // a toggle. Intent is synchronous and stable; the actual domain
+            // registration is reconciled against it in the background.
+            return !settings.disabledFileProviderDomains.contains(config.remoteNameOnly)
         }
     }
 
@@ -172,14 +171,32 @@ struct MountsView: View {
                 }
             case .fileProvider:
                 let name = config.remoteNameOnly
-                if isMountActive(config) {
-                    try await fileProviderBridge.removeDomain(identifier: name)
-                    // Remember the choice — the launch-time domain sync
-                    // re-registers every remote it isn't told to skip.
+                let wasActive = isMountActive(config)
+                // Flip the persisted intent FIRST so the switch moves once,
+                // immediately. `NSFileProviderManager.add/remove` is
+                // eventually consistent, so waiting on it before updating the
+                // switch left the toggle looking stuck. The launch-time /
+                // reconnect domain sync also honors this set, so the choice
+                // survives a daemon restart.
+                if wasActive {
                     settings.disabledFileProviderDomains.insert(name)
                 } else {
-                    try await fileProviderBridge.addDomain(identifier: name, displayName: name)
                     settings.disabledFileProviderDomains.remove(name)
+                }
+                do {
+                    if wasActive {
+                        try await fileProviderBridge.removeDomain(identifier: name)
+                    } else {
+                        try await fileProviderBridge.addDomain(identifier: name, displayName: name)
+                    }
+                } catch {
+                    // Revert intent so the switch reflects reality, then surface.
+                    if wasActive {
+                        settings.disabledFileProviderDomains.remove(name)
+                    } else {
+                        settings.disabledFileProviderDomains.insert(name)
+                    }
+                    throw error
                 }
                 await fileProviderBridge.refreshDomains()
             }
