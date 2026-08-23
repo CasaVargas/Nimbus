@@ -12,12 +12,14 @@ struct Sidebar: View {
             RemotesSidebarSection(onRemotesLoaded: onRemotesLoaded)
 
             Section {
-                Label("Mounts", systemImage: "externaldrive")
+                Label("Finder", systemImage: "macwindow.badge.plus")
                     .tag(SidebarSelection.mounts)
                 Label("Transfers", systemImage: "arrow.up.arrow.down")
                     .tag(SidebarSelection.transfers)
-                Label("Copy / Sync", systemImage: "doc.on.doc")
+                Label("Copy & Sync", systemImage: "arrow.triangle.2.circlepath")
                     .tag(SidebarSelection.copySync)
+            } header: {
+                Text("Library")
             }
 
             if !bookmarkStore.bookmarks.isEmpty {
@@ -57,5 +59,52 @@ struct Sidebar: View {
         }
         .listStyle(.sidebar)
         .navigationTitle("Nimbus")
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            SidebarStatusBar()
+        }
+    }
+}
+
+private struct SidebarStatusBar: View {
+    @Environment(RcloneDaemon.self) private var daemon
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: DesignSystem.Spacing.s) {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 7, height: 7)
+                    .accessibilityHidden(true)
+                Text(statusText)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.m)
+            .frame(height: 34)
+            .background(.ultraThinMaterial)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("rclone status: \(statusText)")
+        }
+    }
+
+    private var statusText: String {
+        switch daemon.status {
+        case .idle: "Not connected"
+        case .starting: "Connecting…"
+        case .connected: "rclone connected"
+        case .error: "Connection issue"
+        }
+    }
+
+    private var statusColor: Color {
+        switch daemon.status {
+        case .idle: DesignSystem.Color.semantic.statusMuted
+        case .starting: DesignSystem.Color.semantic.statusWarning
+        case .connected: DesignSystem.Color.semantic.statusOK
+        case .error: DesignSystem.Color.semantic.statusError
+        }
     }
 }

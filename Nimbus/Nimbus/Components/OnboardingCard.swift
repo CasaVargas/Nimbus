@@ -68,7 +68,11 @@ struct OnboardingCard: View {
         .padding(DesignSystem.Spacing.l)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                .fill(DesignSystem.Color.semantic.surfaceSubtle)
+                .fill(DesignSystem.Color.semantic.surfaceElevated)
+                .overlay {
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                        .stroke(DesignSystem.Color.semantic.separator.opacity(0.55))
+                }
         )
         .accessibilityElement(children: .combine)
         .accessibilityHint(Text(accessibilityHint))

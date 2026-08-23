@@ -68,17 +68,29 @@ struct OnboardingView: View {
 
     private var hero: some View {
         VStack(spacing: DesignSystem.Spacing.m) {
-            Image(systemName: "cloud")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 64, height: 64)
-                .foregroundStyle(DesignSystem.Color.semantic.statusInfo)
+            ZStack {
+                Circle()
+                    .fill(.thinMaterial)
+                    .frame(width: 88, height: 88)
+                    .overlay {
+                        Circle().stroke(DesignSystem.Color.semantic.separator.opacity(0.7))
+                    }
+                Image(systemName: "cloud.fill")
+                    .font(.largeTitle)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(DesignSystem.Color.semantic.statusInfo)
+            }
+            .accessibilityHidden(true)
             Text("Welcome to Nimbus")
-                .font(DesignSystem.Typography.largeTitle.bold())
+                .font(DesignSystem.Typography.largeTitle)
+                .fontWeight(.semibold)
                 .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
             Text("Your cloud storage, managed natively.")
-                .font(DesignSystem.Typography.title)
+                .font(DesignSystem.Typography.body)
                 .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+            Label("Private by design · Powered by macOS File Provider", systemImage: "checkmark.shield")
+                .font(DesignSystem.Typography.caption)
+                .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
         }
         .padding(.bottom, DesignSystem.Spacing.l)
     }
@@ -128,7 +140,7 @@ struct OnboardingView: View {
         switch daemon.status {
         case .idle: return "Waiting to start…"
         case .starting: return "Connecting to rclone…"
-        case .connected: return "Rclone is ready."
+        case .connected: return "Secure cloud connection is ready."
         case .error(let message): return LocalizedStringKey(message)
         }
     }
@@ -147,24 +159,24 @@ struct OnboardingView: View {
             title: "Add a Remote",
             message: hasRemotes
                 ? LocalizedStringKey("Connected to \(remotes.first ?? "your provider").")
-                : LocalizedStringKey("Connect a cloud provider to get started."),
+                : LocalizedStringKey("Choose from Google Drive, OneDrive, S3, Dropbox, and more."),
             primaryAction: hasRemotes ? nil : .init(label: "Add Remote", perform: { showAddRemote = true }),
-            secondaryAction: hasRemotes ? .init(label: "Mount it for Finder →", perform: { showAddMount = true }) : nil
+            secondaryAction: hasRemotes ? .init(label: "Add it to Finder →", perform: { showAddMount = true }) : nil
         )
     }
 
     private var addMountCard: some View {
         OnboardingCard(
             state: hasMounts ? .complete : .actionRequired,
-            icon: "externaldrive",
-            title: "Mount Your Remote",
+            icon: "macwindow.badge.plus",
+            title: "Add It to Finder",
             message: hasMounts
                 ? (firstMountPath.isEmpty
-                    ? LocalizedStringKey("Remote mounted successfully.")
-                    : LocalizedStringKey("Mounted at \(firstMountPath)."))
-                : LocalizedStringKey("Mount the remote to access it in Finder."),
-            primaryAction: hasMounts ? nil : .init(label: "Add Mount", perform: { showAddMount = true }),
-            secondaryAction: hasMounts ? .init(label: "Browse it →", perform: { finish() }) : nil
+                    ? LocalizedStringKey("Your remote is available as a Finder location.")
+                    : LocalizedStringKey("Available at \(firstMountPath)."))
+                : LocalizedStringKey("Browse cloud files beside iCloud Drive. macOS downloads them on demand."),
+            primaryAction: hasMounts ? nil : .init(label: "Add to Finder", perform: { showAddMount = true }),
+            secondaryAction: hasMounts ? .init(label: "Open Nimbus →", perform: { finish() }) : nil
         )
     }
 
@@ -173,8 +185,8 @@ struct OnboardingView: View {
             state: .complete,
             icon: "checkmark.seal.fill",
             title: "You're All Set",
-            message: "Nimbus is ready to manage your cloud storage.",
-            primaryAction: .init(label: "Done", perform: { finish() }),
+            message: "Your cloud is connected and ready in Finder.",
+            primaryAction: .init(label: "Start Browsing", perform: { finish() }),
             secondaryAction: nil
         )
     }

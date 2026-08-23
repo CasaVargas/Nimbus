@@ -16,6 +16,7 @@ struct CopySyncView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.l) {
+                pageHeader
                 operationSection
                 if operation == .sync {
                     DestructiveCallout(
@@ -37,7 +38,7 @@ struct CopySyncView: View {
             .padding(DesignSystem.Spacing.xl)
             .frame(maxWidth: 720)
         }
-        .navigationTitle("Copy / Sync")
+        .navigationTitle("Copy & Sync")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: daemon.status) {
             guard daemon.status == .connected else { return }
@@ -46,6 +47,26 @@ struct CopySyncView: View {
             }
             await viewModel?.loadRemotes()
         }
+    }
+
+    private var pageHeader: some View {
+        HStack(spacing: DesignSystem.Spacing.m) {
+            Image(systemName: operation == .copy ? "doc.on.doc.fill" : "arrow.triangle.2.circlepath")
+                .font(DesignSystem.Typography.title)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(DesignSystem.Color.semantic.statusInfo)
+                .frame(width: 42, height: 42)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(operation == .copy ? "Copy between clouds" : "Keep two locations in sync")
+                    .font(DesignSystem.Typography.headline)
+                Text(operation == .copy
+                     ? "Existing destination files are preserved unless they share a name."
+                     : "The destination becomes an exact mirror of the source.")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+            }
+        }
+        .animation(DesignSystem.Motion.snappy, value: operation)
     }
 
     private var operationSection: some View {
@@ -84,12 +105,12 @@ struct CopySyncView: View {
     private var runRow: some View {
         HStack {
             Spacer()
-            Button(isRunning ? "Running…" : "Run") {
+            Button(isRunning ? "Starting…" : operation == .copy ? "Start Copy" : "Start Sync") {
                 Task { await run() }
             }
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .controlSize(.regular)
             .disabled(!isValid || isRunning)
         }
     }

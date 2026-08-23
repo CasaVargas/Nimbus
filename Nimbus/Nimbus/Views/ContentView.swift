@@ -35,7 +35,11 @@ struct ContentView: View {
             } detail: {
                 detailView
             }
+            .navigationSplitViewStyle(.balanced)
             .frame(minWidth: 800, minHeight: 600)
+            .background(DesignSystem.Color.semantic.surface)
+            .toolbarBackground(.visible, for: .windowToolbar)
+            .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
             .toolbar {
                 if case .error(let message) = daemon.status {
                     ToolbarItem(placement: .status) {

@@ -24,7 +24,7 @@ struct MountRow: View {
                 Text(verbatim: displayName)
                     .font(DesignSystem.Typography.body)
                     .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
-                Text(verbatim: "\(config.remote)  ·  \(config.backend.displayName)")
+                Text(verbatim: subtitle)
                     .font(DesignSystem.Typography.caption)
                     .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
             }
@@ -56,11 +56,30 @@ struct MountRow: View {
         return leaf.isEmpty ? config.remoteNameOnly : leaf
     }
 
+    private var subtitle: String {
+        switch config.backend {
+        case .fileProvider: return "\(config.remote)  ·  Available in Finder"
+        case .nfs: return "\(config.remote)  ·  Network volume"
+        }
+    }
+
     private func icon(for state: StatusToggleState) -> String {
         switch state {
-        case .on, .unmounting: return "externaldrive.fill"
-        case .off, .mounting: return "externaldrive"
-        case .error: return "externaldrive.badge.xmark"
+        case .on, .unmounting:
+            switch config.backend {
+            case .fileProvider: return "folder.fill"
+            case .nfs: return "externaldrive.fill"
+            }
+        case .off, .mounting:
+            switch config.backend {
+            case .fileProvider: return "folder"
+            case .nfs: return "externaldrive"
+            }
+        case .error:
+            switch config.backend {
+            case .fileProvider: return "folder.badge.questionmark"
+            case .nfs: return "externaldrive.badge.xmark"
+            }
         }
     }
 

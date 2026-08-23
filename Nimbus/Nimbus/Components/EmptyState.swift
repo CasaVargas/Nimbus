@@ -56,9 +56,11 @@ struct EmptyState: View {
                         .font(DesignSystem.Typography.body)
                 }
                 .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .controlSize(.regular)
             }
         }
+        .frame(maxWidth: 440)
+        .padding(DesignSystem.Spacing.xxl)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

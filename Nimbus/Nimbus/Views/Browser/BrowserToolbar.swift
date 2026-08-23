@@ -13,27 +13,30 @@ struct BrowserToolbar: ViewModifier {
     func body(content: Content) -> some View {
         content.toolbar {
             ToolbarItemGroup(placement: .navigation) {
-                Button(action: onBack) {
-                    Label("Back", systemImage: "chevron.left")
-                }
-                .disabled(!canGoBack)
-                .help("Back (⌘[)")
+                ControlGroup {
+                    Button(action: onBack) {
+                        Label("Back", systemImage: "chevron.left")
+                    }
+                    .disabled(!canGoBack)
+                    .help("Back (⌘[)")
 
-                Button(action: onForward) {
-                    Label("Forward", systemImage: "chevron.right")
+                    Button(action: onForward) {
+                        Label("Forward", systemImage: "chevron.right")
+                    }
+                    .disabled(!canGoForward)
+                    .help("Forward (⌘])")
                 }
-                .disabled(!canGoForward)
-                .help("Forward (⌘])")
+                .controlGroupStyle(.navigation)
             }
 
             ToolbarItemGroup(placement: .primaryAction) {
                 Button(action: onNewFolder) {
-                    Image(systemName: "folder.badge.plus")
+                    Label("New Folder", systemImage: "folder.badge.plus")
                 }
                 .help("New Folder")
 
                 Button(action: onRefresh) {
-                    Image(systemName: "arrow.clockwise")
+                    Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .help("Refresh")
 
@@ -43,11 +46,16 @@ struct BrowserToolbar: ViewModifier {
                 }
                 .pickerStyle(.segmented)
 
-                Picker("Sort", selection: $sortField) {
-                    ForEach(SortField.allCases, id: \.self) { field in
-                        Text(field.rawValue).tag(field)
+                Menu {
+                    Picker("Sort By", selection: $sortField) {
+                        ForEach(SortField.allCases, id: \.self) { field in
+                            Text(field.rawValue).tag(field)
+                        }
                     }
+                } label: {
+                    Label("Sort", systemImage: "arrow.up.arrow.down")
                 }
+                .help("Sort items")
             }
         }
     }

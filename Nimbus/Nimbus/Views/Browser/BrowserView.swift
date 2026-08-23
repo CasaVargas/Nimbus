@@ -223,23 +223,34 @@ struct BrowserView: View {
 
     private func breadcrumb(viewModel: BrowserViewModel) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
                 ForEach(Array(viewModel.pathComponents.enumerated()), id: \.offset) { index, component in
                     if index > 0 {
                         Image(systemName: "chevron.right")
                             .font(DesignSystem.Typography.caption)
                             .foregroundStyle(.secondary)
                     }
-                    Button(component.name) {
+                    Button {
                         Task { await viewModel.navigateTo(path: component.path) }
+                    } label: {
+                        if index == 0 {
+                            Label(component.name, systemImage: "cloud")
+                        } else {
+                            Text(component.name)
+                        }
                     }
                     .buttonStyle(.plain)
-                    .font(index == viewModel.pathComponents.count - 1 ? .body.bold() : .body)
+                    .font(index == viewModel.pathComponents.count - 1
+                          ? DesignSystem.Typography.bodyEmphasized
+                          : DesignSystem.Typography.body)
+                    .foregroundStyle(index == viewModel.pathComponents.count - 1 ? .primary : .secondary)
                 }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+            .padding(.horizontal, DesignSystem.Spacing.l)
+            .frame(height: 38)
         }
+        .background(DesignSystem.Color.semantic.surfaceSubtle.opacity(0.45))
+        .accessibilityLabel("Current folder")
     }
 
     private func handleOpen(_ file: FileItem, viewModel: BrowserViewModel) {

@@ -34,7 +34,11 @@ struct TransfersView: View {
                     action: nil
                 )
             } else {
-                list
+                VStack(spacing: 0) {
+                    activityHeader
+                    Divider()
+                    list
+                }
             }
         }
         .navigationTitle("Transfers")
@@ -59,6 +63,36 @@ struct TransfersView: View {
                 .disabled(filteredCompleted.isEmpty)
             }
         }
+    }
+
+    private var activityHeader: some View {
+        HStack(spacing: DesignSystem.Spacing.l) {
+            metric(value: filteredActive.count, label: "Active", tint: DesignSystem.Color.semantic.statusInfo)
+            Divider().frame(height: 28)
+            metric(value: transferStore.completedTransfers.count, label: "Completed", tint: DesignSystem.Color.semantic.statusOK)
+            Spacer()
+            if !filteredActive.isEmpty {
+                Label("Working in the background", systemImage: "bolt.horizontal.circle")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.l)
+        .frame(minHeight: 58)
+        .background(DesignSystem.Color.semantic.surfaceSubtle.opacity(0.45))
+    }
+
+    private func metric(value: Int, label: String, tint: Color) -> some View {
+        HStack(spacing: DesignSystem.Spacing.s) {
+            Text("\(value)")
+                .font(DesignSystem.Typography.titleEmphasized)
+                .foregroundStyle(tint)
+                .monospacedDigit()
+            Text(label)
+                .font(DesignSystem.Typography.caption)
+                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var list: some View {

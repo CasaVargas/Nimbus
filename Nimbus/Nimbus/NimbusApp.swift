@@ -50,6 +50,8 @@ struct NimbusApp: App {
                     }
                 }
         }
+        .windowToolbarStyle(.unified(showsTitle: false))
+        .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1000, height: 700)
         .commands {
             AppCommands()

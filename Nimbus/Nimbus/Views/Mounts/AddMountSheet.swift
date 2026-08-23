@@ -23,13 +23,13 @@ struct AddMountSheet: View {
 
     var body: some View {
         SheetChrome(
-            title: editing == nil ? "Add Mount" : "Edit Mount",
+            title: editing == nil ? "Add to Finder" : "Edit Finder Location",
             subtitle: editing.map { LocalizedStringKey($0.remoteNameOnly) },
             body: { form },
             actions: {
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button(editing == nil ? "Add" : "Save") {
+                Button(editing == nil ? "Add to Finder" : "Save") {
                     save()
                 }
                 .keyboardShortcut(.defaultAction)
@@ -64,7 +64,10 @@ struct AddMountSheet: View {
     @ViewBuilder
     private var form: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.l) {
-            FormSection(title: "Source", footer: nil) {
+            FormSection(
+                title: "Cloud Location",
+                footer: "Choose the remote you want to make available from Finder."
+            ) {
                 FormRow(label: "Remote", help: nil) {
                     Picker("Remote", selection: $selectedRemote) {
                         Text("Choose…").tag("")
@@ -96,27 +99,34 @@ struct AddMountSheet: View {
                     }
                 }
             }
-            FormSection(title: "Options", footer: nil) {
-                FormRow(label: "Backend", help: nil) {
+            FormSection(
+                title: "Integration",
+                footer: backend == .fileProvider
+                    ? "Recommended. macOS manages downloads, local storage, and Finder status."
+                    : "Advanced. Connects the remote as a traditional network volume."
+            ) {
+                FormRow(label: "Show Files Using", help: nil) {
                     Picker("Backend", selection: $backend) {
-                        Text("NFS").tag(MountBackend.nfs)
-                        Text("File Provider").tag(MountBackend.fileProvider)
+                        Text("Finder (Recommended)").tag(MountBackend.fileProvider)
+                        Text("Network Volume (NFS)").tag(MountBackend.nfs)
                     }
                     .labelsHidden()
-                    .frame(maxWidth: 200)
+                    .frame(maxWidth: 240)
                 }
-                FormRow(label: "VFS Mode", help: "How the mount handles reads and writes.") {
-                    Picker("VFS Mode", selection: $vfsMode) {
-                        Text("Read-only").tag(VFSMode.readOnly)
-                        Text("Read-write").tag(VFSMode.readWrite)
-                    }
-                    .labelsHidden()
-                    .frame(maxWidth: 200)
-                }
-                FormRow(label: "Mount at Launch", help: nil) {
-                    Toggle("", isOn: $autoMount)
-                        .toggleStyle(.switch)
+                if backend == .nfs {
+                    FormRow(label: "Access", help: "How the volume handles reads and writes.") {
+                        Picker("Access", selection: $vfsMode) {
+                            Text("Read-only").tag(VFSMode.readOnly)
+                            Text("Read and write").tag(VFSMode.readWrite)
+                        }
                         .labelsHidden()
+                        .frame(maxWidth: 240)
+                    }
+                    FormRow(label: "Connect at Login", help: nil) {
+                        Toggle("", isOn: $autoMount)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
                 }
             }
         }

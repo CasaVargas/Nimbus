@@ -10,6 +10,7 @@ struct FileGrid: View {
     @Bindable var selection: Selection<String>
     let onOpen: (FileItem) -> Void
     let onContextAction: (FileItem, FileAction) -> Void
+    @State private var hoveredID: String?
 
     private var sortedIDs: [String] { files.map(\.id) }
 
@@ -37,11 +38,19 @@ struct FileGrid: View {
     @ViewBuilder
     private func tile(for file: FileItem) -> some View {
         let isSelected = selection.ids.contains(file.id)
-        VStack(spacing: DesignSystem.Spacing.xs) {
+        VStack(spacing: DesignSystem.Spacing.s) {
             ZStack {
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                    .fill(DesignSystem.Color.semantic.surfaceSubtle)
+                    .fill(isSelected
+                          ? DesignSystem.Color.semantic.selection.opacity(0.16)
+                          : DesignSystem.Color.semantic.surfaceSubtle)
                     .frame(width: 76, height: 76)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                            .stroke(isSelected
+                                    ? DesignSystem.Color.semantic.selection.opacity(0.55)
+                                    : DesignSystem.Color.semantic.separator.opacity(hoveredID == file.id ? 0.7 : 0))
+                    }
                 Image(systemName: file.isDir ? "folder.fill" : iconName(for: file.name))
                     .resizable()
                     .scaledToFit()
@@ -55,6 +64,10 @@ struct FileGrid: View {
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 96)
+            Text(file.isDir ? "Folder" : fileType(for: file.name))
+                .font(DesignSystem.Typography.caption2)
+                .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                .lineLimit(1)
         }
         .padding(DesignSystem.Spacing.s)
         .background(
@@ -64,6 +77,11 @@ struct FileGrid: View {
                       : .clear)
         )
         .contentShape(Rectangle())
+        .onHover { hovering in
+            withAnimation(DesignSystem.Motion.snappy) {
+                hoveredID = hovering ? file.id : nil
+            }
+        }
         .gesture(TapGesture(count: 2).onEnded { onOpen(file) })
         .simultaneousGesture(TapGesture().onEnded {
             // Single-tap toggles selection. shift/cmd handling deferred to AppKit if needed.
@@ -103,5 +121,10 @@ struct FileGrid: View {
         case "txt", "md": return "doc.text"
         default: return "doc"
         }
+    }
+
+    private func fileType(for filename: String) -> String {
+        let ext = (filename as NSString).pathExtension
+        return ext.isEmpty ? "Document" : ext.uppercased()
     }
 }

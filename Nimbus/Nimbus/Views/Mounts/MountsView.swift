@@ -21,10 +21,10 @@ struct MountsView: View {
 
     var body: some View {
         content
-            .navigationTitle("Mounts")
+            .navigationTitle("Finder")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Add Mount", systemImage: "plus") { showingAddSheet = true }
+                    Button("Add to Finder", systemImage: "plus") { showingAddSheet = true }
                         .disabled(daemon.status != .connected || viewModel == nil)
                 }
             }
@@ -80,16 +80,46 @@ struct MountsView: View {
 
     @ViewBuilder
     private var content: some View {
-        if configs.configs.isEmpty {
-            EmptyState(
-                icon: "externaldrive",
-                title: "No Mounts Configured",
-                message: "Mount a remote to access it as a local volume.",
-                action: .init(label: "Add Mount", perform: { showingAddSheet = true })
-            )
-        } else {
-            list
+        VStack(spacing: 0) {
+            finderHeader
+            Divider()
+            if configs.configs.isEmpty {
+                EmptyState(
+                    icon: "macwindow.badge.plus",
+                    title: "Bring a Cloud into Finder",
+                    message: "Add a remote as a native Finder location. Files download on demand and stay managed by macOS.",
+                    action: .init(label: "Add to Finder", perform: { showingAddSheet = true })
+                )
+            } else {
+                list
+            }
         }
+    }
+
+    private var finderHeader: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.m) {
+            Image(systemName: "folder.badge.gearshape")
+                .font(DesignSystem.Typography.title)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(DesignSystem.Color.semantic.statusInfo)
+                .frame(width: 36, height: 36)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Finder Locations")
+                    .font(DesignSystem.Typography.headline)
+                Text("Cloud files appear in Finder and download only when you open them.")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+            }
+            Spacer()
+            if !configs.configs.isEmpty {
+                Text("\(configs.configs.count) configured")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.l)
+        .frame(minHeight: 64)
+        .background(DesignSystem.Color.semantic.surfaceSubtle.opacity(0.45))
     }
 
     private var list: some View {
@@ -100,7 +130,7 @@ struct MountsView: View {
                         config: config,
                         state: state(for: config),
                         onToggle: { Task { await toggle(config: config) } },
-                        onRevealInFinder: { revealInFinder(config: config) },
+                        onRevealInFinder: { Task { await revealInFinder(config: config) } },
                         onEdit: { editingConfig = config },
                         onDelete: { deletingConfig = config }
                     )
@@ -220,9 +250,16 @@ struct MountsView: View {
         deletingConfig = nil
     }
 
-    private func revealInFinder(config: MountConfig) {
-        NSWorkspace.shared.activateFileViewerSelecting(
-            [URL(fileURLWithPath: config.mountPoint)]
-        )
+    private func revealInFinder(config: MountConfig) async {
+        switch config.backend {
+        case .fileProvider:
+            if let url = await fileProviderBridge.urlForItem(remote: config.remoteNameOnly, path: "") {
+                NSWorkspace.shared.open(url)
+            }
+        case .nfs:
+            NSWorkspace.shared.activateFileViewerSelecting(
+                [URL(fileURLWithPath: config.mountPoint)]
+            )
+        }
     }
 }
