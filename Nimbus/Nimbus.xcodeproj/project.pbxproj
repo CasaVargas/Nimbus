@@ -87,6 +87,7 @@
 		A76AA1BCD875893B5F5BDDC0 /* Radius.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9DD7A0DC635154022B19D4 /* Radius.swift */; };
 		A913C369B67982D50F7AD437 /* AppearanceSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41F3DFFC42572098A760795D /* AppearanceSection.swift */; };
 		A979C070DA92EC52E67B28C8 /* RcloneKit in Frameworks */ = {isa = PBXBuildFile; productRef = E038A2CCB7EA233033D5CFCD /* RcloneKit */; };
+		AAB2773DD8816BB582370CEB /* AppSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3246BE2376A48EF376CA0FCC /* AppSettingsTests.swift */; };
 		AC3DC0F21A2CF793F855C4ED /* ProviderPickerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 959DAE54C1BE1841389ECEE2 /* ProviderPickerTests.swift */; };
 		ADCDC4391F85BAB27DAB12D2 /* FileTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4782ABB2481E119B80157DEF /* FileTable.swift */; };
 		AE148200C57EA04A2F17BF57 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C597E692310630A9FD68C83 /* DesignSystem.swift */; };
@@ -114,6 +115,7 @@
 		D872AC01934287E9DA989928 /* MountRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E61BE3E85906D683B22F88CA /* MountRowTests.swift */; };
 		D9AF1E4394AE9635984EFF17 /* SheetChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B66BA5D854765E4D13BAFE5D /* SheetChromeTests.swift */; };
 		DAD5B2624B34C841E8166756 /* ConfirmCopySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB914ACBFE020C15E4BF90AB /* ConfirmCopySheet.swift */; };
+		DBE01745297BBB0A6596F074 /* SettingsPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46F75B6C6B366C2114394D2A /* SettingsPreferences.swift */; };
 		DCF3A7B53E448200A6780F13 /* FileGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9500A98F5338D92B273CB2A3 /* FileGrid.swift */; };
 		DE9800A75CD27B8E6F8437F9 /* SyncSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B4EDE78A4EEDF0C9EE8A0E9 /* SyncSnapshotStore.swift */; };
 		E1D66F43A6DB298B4244F4C1 /* OnboardingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD21B96800F2631A8D3C2F30 /* OnboardingCard.swift */; };
@@ -197,6 +199,7 @@
 		30338A429B08B2109735E495 /* FormSectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormSectionTests.swift; sourceTree = "<group>"; };
 		313EDAEB0224DB7D4DC108F8 /* SelectionIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionIntent.swift; sourceTree = "<group>"; };
 		31C7C40D39EDA92229DFFC55 /* BenchScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchScene.swift; sourceTree = "<group>"; };
+		3246BE2376A48EF376CA0FCC /* AppSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsTests.swift; sourceTree = "<group>"; };
 		33EF539E47050429697CD58A /* OnboardingCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingCardTests.swift; sourceTree = "<group>"; };
 		357AE42AD3448C6FC4B5DF2F /* FileProviderExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FileProviderExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		3664099969BCEF740DAB5F4B /* RemoteStatusService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteStatusService.swift; sourceTree = "<group>"; };
@@ -205,6 +208,7 @@
 		3C597E692310630A9FD68C83 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		3CE2F8E812EA096D4E38C711 /* Enumerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Enumerator.swift; sourceTree = "<group>"; };
 		41F3DFFC42572098A760795D /* AppearanceSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSection.swift; sourceTree = "<group>"; };
+		46F75B6C6B366C2114394D2A /* SettingsPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPreferences.swift; sourceTree = "<group>"; };
 		4782ABB2481E119B80157DEF /* FileTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTable.swift; sourceTree = "<group>"; };
 		4910D3AF15B212612877784B /* AppCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCommands.swift; sourceTree = "<group>"; };
 		49A87D485E391F3534A28A3F /* MountInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountInspector.swift; sourceTree = "<group>"; };
@@ -532,6 +536,7 @@
 				7D2921088EDC82F0A95AEEAB /* BookmarkStore.swift */,
 				5322BA5BF672E9A04097F109 /* MountConfiguration.swift */,
 				DD46B92F934C6AADF654A9BA /* NimbusError.swift */,
+				46F75B6C6B366C2114394D2A /* SettingsPreferences.swift */,
 				0DD44EF54342043F83BC0D1B /* TransferStore.swift */,
 			);
 			path = State;
@@ -611,6 +616,7 @@
 			isa = PBXGroup;
 			children = (
 				C64BEDB5742B197BBB7C290D /* AccessibilityAuditTests.swift */,
+				3246BE2376A48EF376CA0FCC /* AppSettingsTests.swift */,
 				B1813355BB10E9306891A015 /* DragDropCoordinatorTests.swift */,
 				98BCCBB2AD76F950F78233DE /* EmptyStateTests.swift */,
 				75F5A8E026E6C2BD49858289 /* FileTablePerfTests.swift */,
@@ -763,8 +769,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				F9BA4D8A0DCA86712EBA5816 /* FileProviderExtension */,
 				044B6629A6E71639423D11EE /* Nimbus */,
+				F9BA4D8A0DCA86712EBA5816 /* FileProviderExtension */,
 				2299FC464C06BA60E457F972 /* NimbusTests */,
 			);
 		};
@@ -899,6 +905,7 @@
 				04EC499A7C0DF8F96188864B /* RemotesViewModel.swift in Sources */,
 				CA0E5E0F07A0AF378C3BA5E7 /* Selection.swift in Sources */,
 				F34A58B4A486A2186C914EEF /* SelectionIntent.swift in Sources */,
+				DBE01745297BBB0A6596F074 /* SettingsPreferences.swift in Sources */,
 				42AC237AAAA6C46413CF2BBB /* SettingsView.swift in Sources */,
 				C4C1CE457BC2536A447DE1BB /* SheetChrome.swift in Sources */,
 				7556E68F8D67B85B04E1E136 /* ShimmerModifier.swift in Sources */,
@@ -936,6 +943,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				591CB11FE3D80BAEE4C3C0AC /* AccessibilityAuditTests.swift in Sources */,
+				AAB2773DD8816BB582370CEB /* AppSettingsTests.swift in Sources */,
 				73624E8F2C5CA2884BBB6B04 /* DragDropCoordinatorTests.swift in Sources */,
 				4DBAB25E4B62DB8E0E86E49B /* EmptyStateTests.swift in Sources */,
 				7F2D61DC7E7CDD14F57173E7 /* FileTablePerfTests.swift in Sources */,
