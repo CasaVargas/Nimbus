@@ -5,6 +5,8 @@ import RcloneKit
 struct ImportConfigSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(RcloneDaemon.self) private var daemon
+    @Environment(AppSettings.self) private var settings
+    @Environment(FileProviderBridge.self) private var fileProviderBridge
 
     var onDismiss: (() -> Void)?
 
@@ -22,6 +24,7 @@ struct ImportConfigSheet: View {
     // Operation state
     @State private var isImporting = false
     @State private var error: NimbusError?
+    @State private var finderFailures: [RemoteIntegrationFailure] = []
 
     var body: some View {
         SheetChrome(
@@ -85,6 +88,20 @@ struct ImportConfigSheet: View {
             Button("OK", role: .cancel) { error = nil }
         } message: { err in
             Text(verbatim: err.message)
+        }
+        .alert(
+            "Remotes Imported, Finder Needs Attention",
+            isPresented: Binding(
+                get: { !finderFailures.isEmpty },
+                set: { if !$0 { finderFailures = [] } }
+            )
+        ) {
+            Button("Retry Finder Integration") {
+                Task { await retryFinderIntegration() }
+            }
+            Button("Done", role: .cancel) { dismiss() }
+        } message: {
+            Text(finderFailureMessage)
         }
     }
 
@@ -154,9 +171,13 @@ struct ImportConfigSheet: View {
                     type: remote.type,
                     parameters: remote.parameters
                 )
+                finderFailures += await NewRemoteIntegration(domainAdder: fileProviderBridge)
+                    .integrate(names: [effectiveName], addToFinder: settings.addNewRemotesToFinder)
             }
             onDismiss?()
-            dismiss()
+            if finderFailures.isEmpty {
+                dismiss()
+            }
         } catch {
             self.error = NimbusError.classify(error)
         }
@@ -167,5 +188,18 @@ struct ImportConfigSheet: View {
     private func isConflict(_ remote: ParsedRemote) -> Bool {
         let effectiveName = renames[remote.id].flatMap { $0.isEmpty ? nil : $0 } ?? remote.name
         return existingNames.contains(effectiveName)
+    }
+
+    private func retryFinderIntegration() async {
+        let failedNames = finderFailures.map(\.remoteName)
+        finderFailures = await NewRemoteIntegration(domainAdder: fileProviderBridge)
+            .integrate(names: failedNames, addToFinder: true)
+        if finderFailures.isEmpty {
+            dismiss()
+        }
+    }
+
+    private var finderFailureMessage: String {
+        finderFailures.map { "\($0.remoteName): \($0.message)" }.joined(separator: "\n")
     }
 }

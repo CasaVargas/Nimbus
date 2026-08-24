@@ -6,12 +6,15 @@ struct AddRemoteSheet: View {
     let onDismiss: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppSettings.self) private var settings
+    @Environment(FileProviderBridge.self) private var fileProviderBridge
     @State private var providers: [Provider] = []
     @State private var selected: Provider?
     @State private var name = ""
     @State private var values: [String: String] = [:]
     @State private var creating = false
     @State private var error: NimbusError?
+    @State private var finderFailures: [RemoteIntegrationFailure] = []
     @State private var loadingProviders = true
 
     var body: some View {
@@ -73,6 +76,20 @@ struct AddRemoteSheet: View {
         } message: { err in
             Text(verbatim: err.message)
         }
+        .alert(
+            "Remote Added, Finder Needs Attention",
+            isPresented: Binding(
+                get: { !finderFailures.isEmpty },
+                set: { if !$0 { finderFailures = [] } }
+            )
+        ) {
+            Button("Retry Finder Integration") {
+                Task { await retryFinderIntegration() }
+            }
+            Button("Done", role: .cancel) { dismiss() }
+        } message: {
+            Text(finderFailureMessage)
+        }
     }
 
     private var isValid: Bool {
@@ -90,9 +107,26 @@ struct AddRemoteSheet: View {
                 parameters: values
             )
             onDismiss()
-            dismiss()
+            finderFailures = await NewRemoteIntegration(domainAdder: fileProviderBridge)
+                .integrate(names: [name], addToFinder: settings.addNewRemotesToFinder)
+            if finderFailures.isEmpty {
+                dismiss()
+            }
         } catch {
             self.error = NimbusError.classify(error)
         }
+    }
+
+    private func retryFinderIntegration() async {
+        let failedNames = finderFailures.map(\.remoteName)
+        finderFailures = await NewRemoteIntegration(domainAdder: fileProviderBridge)
+            .integrate(names: failedNames, addToFinder: true)
+        if finderFailures.isEmpty {
+            dismiss()
+        }
+    }
+
+    private var finderFailureMessage: String {
+        finderFailures.map { "\($0.remoteName): \($0.message)" }.joined(separator: "\n")
     }
 }

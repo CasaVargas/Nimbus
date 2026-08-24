@@ -324,6 +324,8 @@ extension FileProviderBridge: FileProviderBridgeProtocol {
     }
 }
 
+extension FileProviderBridge: FileProviderDomainAdding {}
+
 /// Collects basenames from one page of an `NSFileProviderEnumerator`.
 /// The framework invokes `didEnumerate` zero or more times then exactly
 /// one of `finishEnumerating(upTo:)` or `finishEnumeratingWithError`.
