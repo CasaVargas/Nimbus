@@ -8,7 +8,7 @@ import Foundation
 struct TransferRowTests {
     private func makeActive() -> Transfer {
         Transfer(
-            id: 100,
+            jobID: 100,
             operation: .copy,
             srcFs: "gdrive:/Photos/IMG_4827.heic",
             dstFs: "s3:/Backup/IMG_4827.heic",

@@ -120,6 +120,8 @@ struct NimbusApp: App {
             rclone.stop()
         }
 
+        await transferStore.restoreHistory(retention: settings.transferHistoryRetention)
+
         mountManager.rcloneBinaryPath = settings.rcloneBinaryPath
         await mountManager.cleanupStaleMounts()
         await daemon.start(binaryPath: settings.rcloneBinaryPath)

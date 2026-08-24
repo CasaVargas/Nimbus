@@ -56,7 +56,7 @@ struct TransfersView: View {
             }
             ToolbarItem(placement: .secondaryAction) {
                 Button(role: .destructive) {
-                    transferStore.clearCompleted()
+                    Task { await transferStore.clearCompleted() }
                 } label: {
                     Label("Clear Completed", systemImage: "trash")
                 }
@@ -103,7 +103,9 @@ struct TransfersView: View {
                         TransferRow(transfer: transfer)
                             .contextMenu {
                                 Button("Cancel Transfer", systemImage: "xmark.circle") {
-                                    Task { await transferStore.stop(jobId: transfer.id, client: daemon.client) }
+                                    if let jobID = transfer.jobID {
+                                        Task { await transferStore.stop(jobId: jobID, client: daemon.client) }
+                                    }
                                 }
                             }
                     }
@@ -118,7 +120,7 @@ struct TransfersView: View {
                             TransferRow(transfer: transfer)
                                 .contextMenu {
                                     Button("Remove from List", systemImage: "trash") {
-                                        transferStore.remove(jobId: transfer.id)
+                                        Task { await transferStore.remove(id: transfer.id) }
                                     }
                                 }
                         }
