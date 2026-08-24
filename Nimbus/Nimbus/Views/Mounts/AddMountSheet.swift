@@ -1,6 +1,21 @@
 import SwiftUI
 import AppKit
 
+struct MountDraft: Equatable {
+    var vfsMode: VFSMode
+    var autoMount: Bool
+
+    static func make(settings: AppSettings, editing: MountConfig?) -> Self {
+        if let editing {
+            return Self(vfsMode: editing.vfsMode, autoMount: editing.autoMount)
+        }
+        return Self(
+            vfsMode: settings.newMountAccess == .readOnly ? .readOnly : .readWrite,
+            autoMount: settings.newMountAutoMount
+        )
+    }
+}
+
 /// Add / edit a mount configuration. Same sheet handles both flows: pass
 /// `editing: MountConfig?` to pre-fill state and lock the Remote picker.
 ///
@@ -10,6 +25,7 @@ import AppKit
 struct AddMountSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(MountConfigStore.self) private var configStore
+    @Environment(AppSettings.self) private var settings
 
     var viewModel: MountsViewModel
     var editing: MountConfig?
@@ -39,12 +55,13 @@ struct AddMountSheet: View {
         )
         .frame(minWidth: 540, minHeight: 420)
         .task {
+            let draft = MountDraft.make(settings: settings, editing: editing)
+            vfsMode = draft.vfsMode
+            autoMount = draft.autoMount
             if let editing {
                 selectedRemote = editing.remoteNameOnly
                 mountPoint = editing.mountPoint
-                vfsMode = editing.vfsMode
                 backend = editing.backend
-                autoMount = editing.autoMount
             }
         }
         .fileImporter(
