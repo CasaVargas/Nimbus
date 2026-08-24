@@ -57,6 +57,37 @@ struct NewRemoteIntegrationTests {
         #expect(result.disabledDomainNames == ["existing", "imported", "renamedImport"])
     }
 
+    @Test func disabledNewRemotesPersistAndReconnectFiltersOnlyThoseRemotes() async {
+        let defaults = isolatedDefaults()
+        let settings = AppSettings(defaults: defaults)
+        let domainAdder = DomainAdderSpy()
+        let service = NewRemoteIntegration(domainAdder: domainAdder)
+
+        let manualResult = await service.integrate(
+            names: ["manual"],
+            addToFinder: false,
+            disabledDomainNames: settings.disabledFileProviderDomains
+        )
+        settings.disabledFileProviderDomains = manualResult.disabledDomainNames
+
+        let importedResult = await service.integrate(
+            names: ["renamedImport"],
+            addToFinder: false,
+            disabledDomainNames: settings.disabledFileProviderDomains
+        )
+        settings.disabledFileProviderDomains = importedResult.disabledDomainNames
+
+        let reloadedSettings = AppSettings(defaults: defaults)
+        let eligible = fileProviderReconnectEligibleRemotes(
+            from: ["manual", "renamedImport", "enabled", "existing"],
+            excluding: reloadedSettings.disabledFileProviderDomains
+        )
+
+        #expect(domainAdder.names.isEmpty)
+        #expect(reloadedSettings.disabledFileProviderDomains == ["manual", "renamedImport"])
+        #expect(eligible == ["enabled", "existing"])
+    }
+
     @Test func failedRegistrationDoesNotPreventLaterRemoteRegistration() async {
         let domainAdder = DomainAdderSpy(failingNames: ["a"])
         let service = NewRemoteIntegration(domainAdder: domainAdder)
@@ -67,6 +98,13 @@ struct NewRemoteIntegrationTests {
         #expect(failures == [
             RemoteIntegrationFailure(remoteName: "a", message: "Finder unavailable"),
         ])
+    }
+
+    private func isolatedDefaults() -> UserDefaults {
+        let name = "NimbusTests.NewRemoteIntegration.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        return defaults
     }
 }
 

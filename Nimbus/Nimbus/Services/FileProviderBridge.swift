@@ -2,6 +2,13 @@ import FileProvider
 import Foundation
 import os
 
+func fileProviderReconnectEligibleRemotes(
+    from remotes: [String],
+    excluding disabledDomains: Set<String>
+) -> [String] {
+    remotes.filter { !disabledDomains.contains($0) }
+}
+
 /// Abstracts the File Provider bridge so callers (e.g. `QuickLookHost`) can be
 /// tested without standing up real `NSFileProviderManager` infrastructure.
 ///
@@ -133,7 +140,7 @@ final class FileProviderBridge {
     /// port knowledge goes stale.
     func syncAfterDaemonConnect(remotes: [String], port: Int, disabledDomains: Set<String>) async {
         syncState(remotes: remotes, port: port)
-        for remote in remotes where !disabledDomains.contains(remote) {
+        for remote in fileProviderReconnectEligibleRemotes(from: remotes, excluding: disabledDomains) {
             try? await addDomain(identifier: remote, displayName: remote)
         }
         _ = await cleanupStaleDomains(activeRemotes: remotes)
