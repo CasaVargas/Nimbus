@@ -12,6 +12,11 @@ struct RemoteIntegrationFailure: Identifiable, Equatable {
     var id: String { remoteName }
 }
 
+struct RemoteIntegrationResult: Equatable {
+    let failures: [RemoteIntegrationFailure]
+    let disabledDomainNames: Set<String>
+}
+
 @MainActor
 struct NewRemoteIntegration {
     let domainAdder: any FileProviderDomainAdding
@@ -30,5 +35,22 @@ struct NewRemoteIntegration {
             }
         }
         return failures
+    }
+
+    func integrate(
+        names: [String],
+        addToFinder: Bool,
+        disabledDomainNames: Set<String>
+    ) async -> RemoteIntegrationResult {
+        guard addToFinder else {
+            return RemoteIntegrationResult(
+                failures: [],
+                disabledDomainNames: disabledDomainNames.union(names)
+            )
+        }
+        return RemoteIntegrationResult(
+            failures: await integrate(names: names, addToFinder: true),
+            disabledDomainNames: disabledDomainNames
+        )
     }
 }

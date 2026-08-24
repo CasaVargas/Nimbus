@@ -25,6 +25,38 @@ struct NewRemoteIntegrationTests {
         #expect(failures.isEmpty)
     }
 
+    @Test func disabledDefaultKeepsNewManualRemoteOutOfReconnectRegistration() async {
+        let domainAdder = DomainAdderSpy()
+        let service = NewRemoteIntegration(domainAdder: domainAdder)
+        let disabledDomainNames: Set<String> = ["existing"]
+
+        let result = await service.integrate(
+            names: ["manual"],
+            addToFinder: false,
+            disabledDomainNames: disabledDomainNames
+        )
+
+        #expect(domainAdder.names.isEmpty)
+        #expect(result.failures.isEmpty)
+        #expect(result.disabledDomainNames == ["existing", "manual"])
+    }
+
+    @Test func disabledDefaultKeepsEveryNewImportedRemoteOutOfReconnectRegistration() async {
+        let domainAdder = DomainAdderSpy()
+        let service = NewRemoteIntegration(domainAdder: domainAdder)
+        let disabledDomainNames: Set<String> = ["existing"]
+
+        let result = await service.integrate(
+            names: ["imported", "renamedImport"],
+            addToFinder: false,
+            disabledDomainNames: disabledDomainNames
+        )
+
+        #expect(domainAdder.names.isEmpty)
+        #expect(result.failures.isEmpty)
+        #expect(result.disabledDomainNames == ["existing", "imported", "renamedImport"])
+    }
+
     @Test func failedRegistrationDoesNotPreventLaterRemoteRegistration() async {
         let domainAdder = DomainAdderSpy(failingNames: ["a"])
         let service = NewRemoteIntegration(domainAdder: domainAdder)

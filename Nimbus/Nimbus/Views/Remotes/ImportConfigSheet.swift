@@ -40,6 +40,13 @@ struct ImportConfigSheet: View {
                     )
                 } else {
                     VStack(spacing: 0) {
+                        if !finderFailures.isEmpty {
+                            FinderIntegrationWarning(failures: finderFailures) {
+                                Task { await retryFinderIntegration() }
+                            }
+                            .padding(DesignSystem.Spacing.m)
+                            Divider()
+                        }
                         fileHeader
                         Divider()
                         ImportPreviewList(
@@ -70,7 +77,7 @@ struct ImportConfigSheet: View {
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
-                .disabled(selected.isEmpty || isImporting || parsedRemotes.isEmpty)
+                .disabled(selected.isEmpty || isImporting || parsedRemotes.isEmpty || !finderFailures.isEmpty)
             }
         )
         .frame(minWidth: 540, minHeight: 420)
@@ -88,20 +95,6 @@ struct ImportConfigSheet: View {
             Button("OK", role: .cancel) { error = nil }
         } message: { err in
             Text(verbatim: err.message)
-        }
-        .alert(
-            "Remotes Imported, Finder Needs Attention",
-            isPresented: Binding(
-                get: { !finderFailures.isEmpty },
-                set: { if !$0 { finderFailures = [] } }
-            )
-        ) {
-            Button("Retry Finder Integration") {
-                Task { await retryFinderIntegration() }
-            }
-            Button("Done", role: .cancel) { dismiss() }
-        } message: {
-            Text(finderFailureMessage)
         }
     }
 
@@ -171,8 +164,13 @@ struct ImportConfigSheet: View {
                     type: remote.type,
                     parameters: remote.parameters
                 )
-                finderFailures += await NewRemoteIntegration(domainAdder: fileProviderBridge)
-                    .integrate(names: [effectiveName], addToFinder: settings.addNewRemotesToFinder)
+                let result = await NewRemoteIntegration(domainAdder: fileProviderBridge).integrate(
+                    names: [effectiveName],
+                    addToFinder: settings.addNewRemotesToFinder,
+                    disabledDomainNames: settings.disabledFileProviderDomains
+                )
+                settings.disabledFileProviderDomains = result.disabledDomainNames
+                finderFailures += result.failures
             }
             onDismiss?()
             if finderFailures.isEmpty {
@@ -197,9 +195,5 @@ struct ImportConfigSheet: View {
         if finderFailures.isEmpty {
             dismiss()
         }
-    }
-
-    private var finderFailureMessage: String {
-        finderFailures.map { "\($0.remoteName): \($0.message)" }.joined(separator: "\n")
     }
 }

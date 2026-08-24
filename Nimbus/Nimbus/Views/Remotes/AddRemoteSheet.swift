@@ -24,14 +24,21 @@ struct AddRemoteSheet: View {
             // name) carries the selected provider; the picker needs none.
             subtitle: nil,
             body: {
-                if loadingProviders {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, minHeight: 200)
-                } else if let selected {
-                    ConfigForm(provider: selected, name: $name, values: $values)
-                } else {
-                    ProviderPicker(providers: providers) { provider in
-                        self.selected = provider
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.m) {
+                    if !finderFailures.isEmpty {
+                        FinderIntegrationWarning(failures: finderFailures) {
+                            Task { await retryFinderIntegration() }
+                        }
+                    }
+                    if loadingProviders {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, minHeight: 200)
+                    } else if let selected {
+                        ConfigForm(provider: selected, name: $name, values: $values)
+                    } else {
+                        ProviderPicker(providers: providers) { provider in
+                            self.selected = provider
+                        }
                     }
                 }
             },
@@ -51,7 +58,7 @@ struct AddRemoteSheet: View {
                     }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
-                    .disabled(!isValid || creating)
+                    .disabled(!isValid || creating || !finderFailures.isEmpty)
                 }
             }
         )
@@ -76,20 +83,6 @@ struct AddRemoteSheet: View {
         } message: { err in
             Text(verbatim: err.message)
         }
-        .alert(
-            "Remote Added, Finder Needs Attention",
-            isPresented: Binding(
-                get: { !finderFailures.isEmpty },
-                set: { if !$0 { finderFailures = [] } }
-            )
-        ) {
-            Button("Retry Finder Integration") {
-                Task { await retryFinderIntegration() }
-            }
-            Button("Done", role: .cancel) { dismiss() }
-        } message: {
-            Text(finderFailureMessage)
-        }
     }
 
     private var isValid: Bool {
@@ -107,8 +100,13 @@ struct AddRemoteSheet: View {
                 parameters: values
             )
             onDismiss()
-            finderFailures = await NewRemoteIntegration(domainAdder: fileProviderBridge)
-                .integrate(names: [name], addToFinder: settings.addNewRemotesToFinder)
+            let result = await NewRemoteIntegration(domainAdder: fileProviderBridge).integrate(
+                names: [name],
+                addToFinder: settings.addNewRemotesToFinder,
+                disabledDomainNames: settings.disabledFileProviderDomains
+            )
+            settings.disabledFileProviderDomains = result.disabledDomainNames
+            finderFailures = result.failures
             if finderFailures.isEmpty {
                 dismiss()
             }
@@ -124,9 +122,5 @@ struct AddRemoteSheet: View {
         if finderFailures.isEmpty {
             dismiss()
         }
-    }
-
-    private var finderFailureMessage: String {
-        finderFailures.map { "\($0.remoteName): \($0.message)" }.joined(separator: "\n")
     }
 }

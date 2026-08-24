@@ -34,6 +34,7 @@
 		3642897EA12AD25B4106C0D7 /* TransferRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BBED5BF19EAACDD19F5A75D /* TransferRowTests.swift */; };
 		374E003E00317D2F7CE9D15F /* MountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C59D2ED20596903528EE7EB1 /* MountManager.swift */; };
 		3801D8D06D375A6F561DB98E /* FolderBrowserSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 095E1922A73E213289493473 /* FolderBrowserSheet.swift */; };
+		38208BCD482673A2FD3A8BC2 /* FinderIntegrationWarning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF0936F20DCF42A8B019C13 /* FinderIntegrationWarning.swift */; };
 		39953DEAD513CA4FA1A33DBF /* NewRemoteIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7226131B0502A42A3EE25653 /* NewRemoteIntegrationTests.swift */; };
 		3A2213D7E076AD922C03DA9C /* FileRowHostingCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 025E9AE6BB70AE2224D48C6F /* FileRowHostingCell.swift */; };
 		3B570AF7E92B487AA5A10BCE /* KeyboardCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE6352CE9D017F8C0445AE17 /* KeyboardCoordinatorTests.swift */; };
@@ -175,6 +176,7 @@
 		025E9AE6BB70AE2224D48C6F /* FileRowHostingCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileRowHostingCell.swift; sourceTree = "<group>"; };
 		0366C19B7D2EB46178EC2B31 /* CloudStatusColumn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudStatusColumn.swift; sourceTree = "<group>"; };
 		095E1922A73E213289493473 /* FolderBrowserSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderBrowserSheet.swift; sourceTree = "<group>"; };
+		0BF0936F20DCF42A8B019C13 /* FinderIntegrationWarning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderIntegrationWarning.swift; sourceTree = "<group>"; };
 		0D6672817A705472989CD40D /* TransfersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransfersView.swift; sourceTree = "<group>"; };
 		0DC9150CFA4799141AFE8FCC /* RcloneClientAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RcloneClientAdapter.swift; sourceTree = "<group>"; };
 		0DD44EF54342043F83BC0D1B /* TransferStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferStore.swift; sourceTree = "<group>"; };
@@ -372,6 +374,7 @@
 				B4BBDEBA281F41466C04A187 /* AddRemoteSheet.swift */,
 				9514C974E975323DC538A60E /* ConfigForm.swift */,
 				8B919CAFBCBF7D878493B03F /* EditRemoteSheet.swift */,
+				0BF0936F20DCF42A8B019C13 /* FinderIntegrationWarning.swift */,
 				2526A5E71E5C5ECDAD53597D /* ImportConfigSheet.swift */,
 				A21C381CEE03583B4CADE2DA /* ImportPreviewList.swift */,
 				D9424E2AE45C4242AFBB7A2D /* ImportRemoteRow.swift */,
@@ -876,6 +879,7 @@
 				844029015E27C6AE33F6BC56 /* FileTableCoordinator.swift in Sources */,
 				28FD7C593A7E82857AB82632 /* FileTableRepresentable.swift in Sources */,
 				CDFF0243B6962840E984F1EC /* FileTableView.swift in Sources */,
+				38208BCD482673A2FD3A8BC2 /* FinderIntegrationWarning.swift in Sources */,
 				3801D8D06D375A6F561DB98E /* FolderBrowserSheet.swift in Sources */,
 				B77CE9DC37BBD5AD88C123C4 /* FormSection.swift in Sources */,
 				BB433D456B5CF70AADD995A2 /* GeneralSection.swift in Sources */,
