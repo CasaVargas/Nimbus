@@ -25,5 +25,6 @@ dist-ssr
 
 # Project specific
 .superpowers/
+.worktrees/
 .build
 .swiftpm
