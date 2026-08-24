@@ -8,7 +8,19 @@ struct CopyRequest: Identifiable, Equatable {
     let sourceRemote: String
     let target: DropIntent.DropTarget
     let items: [DropIntent.Item]
-    var conflictPolicy: ConflictPolicy = .rename
+    var conflictPolicy: ConflictPolicy
+
+    init(
+        sourceRemote: String,
+        target: DropIntent.DropTarget,
+        items: [DropIntent.Item],
+        conflictPolicy: ConflictPolicy
+    ) {
+        self.sourceRemote = sourceRemote
+        self.target = target
+        self.items = items
+        self.conflictPolicy = conflictPolicy
+    }
 
     static func == (lhs: CopyRequest, rhs: CopyRequest) -> Bool {
         lhs.id == rhs.id

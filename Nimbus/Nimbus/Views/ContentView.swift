@@ -87,7 +87,8 @@ struct ContentView: View {
                 pendingSidebarCopy = CopyRequest(
                     sourceRemote: sourceRemote,
                     target: resolvedTarget,
-                    items: items
+                    items: items,
+                    conflictPolicy: settings.defaultConflictPolicy
                 )
             }
             // Within-remote / toFinder bookmark drops are no-ops in Phase 1.
