@@ -26,6 +26,32 @@ protocol TransferHistoryPersisting: Sendable {
     func quarantineCorruptFile() async
 }
 
+/// Owns the only save path. If an older disk write suspends, later terminal
+/// updates replace its pending snapshot and are written immediately after it.
+actor TransferHistoryWriter {
+    private let history: any TransferHistoryPersisting
+    private var latestSnapshot: [TransferRecord] = []
+    private var isWriting = false
+
+    init(history: any TransferHistoryPersisting) {
+        self.history = history
+    }
+
+    func save(_ records: [TransferRecord]) async throws {
+        latestSnapshot = records
+        guard !isWriting else { return }
+
+        isWriting = true
+        defer { isWriting = false }
+
+        while true {
+            let snapshot = latestSnapshot
+            try await history.save(snapshot)
+            guard snapshot != latestSnapshot else { return }
+        }
+    }
+}
+
 enum TransferHistoryFileError: Error {
     case corrupt
     case unsupportedVersion(Int)

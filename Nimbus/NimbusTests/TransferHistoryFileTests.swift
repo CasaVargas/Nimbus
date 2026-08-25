@@ -45,6 +45,61 @@ struct TransferHistoryFileTests {
         #expect(!FileManager.default.fileExists(atPath: url.path))
     }
 
+    @Test func corruptedRestoreQuarantinesAndPreservesOriginalBytes() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("NimbusTests.TransferHistory.\(UUID().uuidString)", isDirectory: true)
+        let url = directory.appendingPathComponent("transfer-history-v1.json")
+        let corruptData = Data("not JSON".utf8)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try corruptData.write(to: url)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let store = await MainActor.run {
+            TransferStore(history: TransferHistoryFile(url: url))
+        }
+
+        await store.restoreHistory(retention: .forever)
+
+        let names = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+        let quarantinedName = try #require(names.first { $0.hasPrefix("transfer-history-v1.corrupt-") })
+        let quarantinedURL = directory.appendingPathComponent(quarantinedName)
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+        #expect(try Data(contentsOf: quarantinedURL) == corruptData)
+    }
+
+    @Test func unsupportedFutureVersionIsPreservedDuringRestore() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("NimbusTests.TransferHistory.\(UUID().uuidString)", isDirectory: true)
+        let url = directory.appendingPathComponent("transfer-history-v1.json")
+        let futureData = Data(#"{"version":99,"records":[]}"#.utf8)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try futureData.write(to: url)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let store = await MainActor.run {
+            TransferStore(history: TransferHistoryFile(url: url))
+        }
+
+        await store.restoreHistory(retention: .forever)
+
+        #expect(FileManager.default.fileExists(atPath: url.path))
+        #expect(try Data(contentsOf: url) == futureData)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path).count == 1)
+    }
+
+    @Test func eachRetentionModeUsesItsDocumentedBoundary() {
+        let sixDaysOld = finishedRecord(completedAt: now.addingTimeInterval(-6 * 86_400))
+        let eightDaysOld = finishedRecord(completedAt: now.addingTimeInterval(-8 * 86_400))
+        let twentyNineDaysOld = finishedRecord(completedAt: now.addingTimeInterval(-29 * 86_400))
+        let thirtyOneDaysOld = finishedRecord(completedAt: now.addingTimeInterval(-31 * 86_400))
+        let records = [sixDaysOld, eightDaysOld, twentyNineDaysOld, thirtyOneDaysOld]
+
+        #expect(TransferHistoryPolicy.prune(records, retention: .sevenDays, now: now) == [sixDaysOld])
+        #expect(TransferHistoryPolicy.prune(records, retention: .thirtyDays, now: now) == [sixDaysOld, eightDaysOld, twentyNineDaysOld])
+        #expect(TransferHistoryPolicy.prune(records, retention: .forever, now: now) == records)
+        #expect(TransferHistoryPolicy.prune(records, retention: .untilQuit, now: now) == records)
+    }
+
     private func finishedRecord(completedAt: Date) -> TransferRecord {
         TransferRecord(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,

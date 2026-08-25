@@ -136,6 +136,7 @@ final class TransferStore {
     private(set) var transfers: [Transfer] = []
     private var pollingTask: Task<Void, Never>?
     private let history: any TransferHistoryPersisting
+    private let historyWriter: TransferHistoryWriter
     private var retention: TransferHistoryRetention
     private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "transfer-store")
 
@@ -144,6 +145,7 @@ final class TransferStore {
         retention: TransferHistoryRetention = .sevenDays
     ) {
         self.history = history
+        historyWriter = TransferHistoryWriter(history: history)
         self.retention = retention
     }
 
@@ -267,6 +269,12 @@ final class TransferStore {
         await persistRetainedHistory()
     }
 
+    /// App-facing settings boundary so retention changes take effect without
+    /// waiting for the next process launch.
+    func applyRetention(from settings: AppSettings) async {
+        await applyRetention(settings.transferHistoryRetention)
+    }
+
     func startPolling(client: RcloneClient) {
         pollingTask = Task {
             while !Task.isCancelled {
@@ -357,7 +365,7 @@ final class TransferStore {
 
     private func save(records: [TransferRecord]) async {
         do {
-            try await history.save(records)
+            try await historyWriter.save(records)
         } catch {
             logger.error("Unable to save transfer history: \(error.localizedDescription)")
         }

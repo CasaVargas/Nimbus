@@ -41,6 +41,9 @@ struct NimbusApp: App {
                 .task {
                     await bootstrap()
                 }
+                .onChange(of: settings.transferHistoryRetention) { _, _ in
+                    Task { await transferStore.applyRetention(from: settings) }
+                }
                 .task(id: daemon.status) {
                     // Reruns whenever the daemon (re)connects — onboarding
                     // retry, future settings-driven restarts — so mounts and
