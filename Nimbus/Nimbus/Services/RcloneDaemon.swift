@@ -22,28 +22,61 @@ final class RcloneDaemon {
     private var process: Process?
     private var healthTask: Task<Void, Never>?
     private var lifecycleID: UUID?
-    private var hasCleanedStaleDaemons = false
+    private var staleDaemonCleanupTask: Task<Void, Never>?
     private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "daemon")
+#if DEBUG
+    private let testStartupHooks: TestStartupHooks?
+#endif
 
     private static let portRange = 5572...5580
 
     init() {
         client = RcloneClient()
+#if DEBUG
+        testStartupHooks = nil
+#endif
     }
 
 #if DEBUG
+    struct TestStartupHooks {
+        let staleDaemonCleanup: () async -> Void
+        let availablePort: () async -> Int?
+        let rcloneVersion: (String) async -> String?
+        let healthCheck: () async -> Bool
+        let healthRetryDelay: (() async -> Void)?
+        let maxHealthCheckAttempts: Int
+
+        init(
+            staleDaemonCleanup: @escaping () async -> Void,
+            availablePort: @escaping () async -> Int?,
+            rcloneVersion: @escaping (String) async -> String?,
+            healthCheck: @escaping () async -> Bool = { false },
+            healthRetryDelay: (() async -> Void)? = nil,
+            maxHealthCheckAttempts: Int = 30
+        ) {
+            self.staleDaemonCleanup = staleDaemonCleanup
+            self.availablePort = availablePort
+            self.rcloneVersion = rcloneVersion
+            self.healthCheck = healthCheck
+            self.healthRetryDelay = healthRetryDelay
+            self.maxHealthCheckAttempts = maxHealthCheckAttempts
+        }
+    }
+
     /// Test fixture initializer. It is excluded from release builds.
     init(
         testStatus: Status,
         activeBinaryPath: String? = nil,
         rcloneVersion: String? = nil,
-        port: Int = 5572
+        port: Int = 5572,
+        testStartupHooks: TestStartupHooks? = nil
     ) {
         client = RcloneClient()
         status = testStatus
         self.activeBinaryPath = activeBinaryPath
         self.rcloneVersion = rcloneVersion
         self.port = port
+        self.testStartupHooks = testStartupHooks
     }
 #endif
 
@@ -53,14 +86,12 @@ final class RcloneDaemon {
         self.lifecycleID = lifecycleID
         status = .starting
 
-        // Kill any stale rclone daemons from previous app sessions
-        if !hasCleanedStaleDaemons {
-            hasCleanedStaleDaemons = true
-            await Self.killStaleRcloneDaemons(in: Self.portRange, logger: logger)
-            guard isCurrent(lifecycleID) else { return }
-        }
+        // Every launch shares this gate so restarts cannot race a prior
+        // session's still-running stale-daemon cleanup.
+        await waitForStaleDaemonCleanup()
+        guard isCurrent(lifecycleID) else { return }
 
-        guard let availablePort = await Self.findAvailablePort(in: Self.portRange) else {
+        guard let availablePort = await findAvailablePort() else {
             guard isCurrent(lifecycleID) else { return }
             status = .error("No available port in range \(Self.portRange)")
             return
@@ -100,13 +131,13 @@ final class RcloneDaemon {
             return
         }
 
-        let version = await Self.rcloneVersion(at: binaryPath)
+        let version = await readRcloneVersion(at: binaryPath)
         guard isCurrent(lifecycleID) else { return }
         rcloneVersion = version
 
-        let maxAttempts = 30
+        let maxAttempts = maximumHealthCheckAttempts
         for attempt in 1...maxAttempts {
-            if await client.healthCheck() {
+            if await healthCheck() {
                 guard isCurrent(lifecycleID) else { return }
                 status = .connected
                 logger.info("Rclone healthy after \(attempt) attempts")
@@ -117,9 +148,11 @@ final class RcloneDaemon {
                 status = .error("Rclone process exited unexpectedly")
                 return
             }
-            try? await Task.sleep(for: .milliseconds(500))
+            await waitForHealthRetry()
+            guard isCurrent(lifecycleID) else { return }
         }
 
+        guard isCurrent(lifecycleID) else { return }
         status = .error("Rclone failed to respond after \(maxAttempts) health checks")
     }
 
@@ -154,6 +187,71 @@ final class RcloneDaemon {
 
     private func isCurrent(_ lifecycleID: UUID) -> Bool {
         self.lifecycleID == lifecycleID
+    }
+
+    private func waitForStaleDaemonCleanup() async {
+        if staleDaemonCleanupTask == nil {
+            staleDaemonCleanupTask = Task { [weak self] in
+                guard let self else { return }
+                await self.performStaleDaemonCleanup()
+            }
+        }
+        await staleDaemonCleanupTask?.value
+    }
+
+    private func performStaleDaemonCleanup() async {
+#if DEBUG
+        if let cleanup = testStartupHooks?.staleDaemonCleanup {
+            await cleanup()
+            return
+        }
+#endif
+        await Self.killStaleRcloneDaemons(in: Self.portRange, logger: logger)
+    }
+
+    private func findAvailablePort() async -> Int? {
+#if DEBUG
+        if let availablePort = testStartupHooks?.availablePort {
+            return await availablePort()
+        }
+#endif
+        return await Self.findAvailablePort(in: Self.portRange)
+    }
+
+    private func readRcloneVersion(at binaryPath: String) async -> String? {
+#if DEBUG
+        if let rcloneVersion = testStartupHooks?.rcloneVersion {
+            return await rcloneVersion(binaryPath)
+        }
+#endif
+        return await Self.rcloneVersion(at: binaryPath)
+    }
+
+    private func healthCheck() async -> Bool {
+#if DEBUG
+        if let healthCheck = testStartupHooks?.healthCheck {
+            return await healthCheck()
+        }
+#endif
+        return await client.healthCheck()
+    }
+
+    private var maximumHealthCheckAttempts: Int {
+#if DEBUG
+        testStartupHooks?.maxHealthCheckAttempts ?? 30
+#else
+        30
+#endif
+    }
+
+    private func waitForHealthRetry() async {
+#if DEBUG
+        if let healthRetryDelay = testStartupHooks?.healthRetryDelay {
+            await healthRetryDelay()
+            return
+        }
+#endif
+        try? await Task.sleep(for: .milliseconds(500))
     }
 
     /// Kills any rclone rcd processes listening on ports in our range that were

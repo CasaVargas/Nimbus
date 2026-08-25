@@ -81,14 +81,23 @@ final class DiagnosticsService {
         guard
             parts.count == 2,
             parts[0] == "rclone",
-            parts[1].first == "v",
-            parts[1].count > 1,
-            parts[1].dropFirst().unicodeScalars.allSatisfy({
-                CharacterSet.alphanumerics.contains($0) || ".+-_".unicodeScalars.contains($0)
+            parts[1].first == "v"
+        else {
+            return "Unknown"
+        }
+
+        let numericComponents = parts[1].dropFirst().split(separator: ".", omittingEmptySubsequences: false)
+        guard
+            numericComponents.count == 3,
+            numericComponents.allSatisfy({ component in
+                !component.isEmpty && component.unicodeScalars.allSatisfy { scalar in
+                    (48...57).contains(scalar.value)
+                }
             })
         else {
             return "Unknown"
         }
-        return version
+
+        return String(parts[1])
     }
 }
