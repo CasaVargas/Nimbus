@@ -7,9 +7,9 @@ struct NimbusApp: App {
     @State private var statusService: RemoteStatusService
     @State private var mountManager = MountManager()
     @State private var fileProviderBridge = FileProviderBridge()
-    @State private var settings = AppSettings()
+    @State private var settings: AppSettings
     @State private var mountConfigs = MountConfigStore()
-    @State private var transferStore = TransferStore()
+    @State private var transferStore: TransferStore
     @State private var bookmarkStore = BookmarkStore()
     @State private var launchAtLogin = LaunchAtLoginService()
 
@@ -21,8 +21,15 @@ struct NimbusApp: App {
     init() {
         DesignSystem.Lints.runStartupChecks()
         let d = RcloneDaemon()
+        let settings = AppSettings()
         _daemon = State(initialValue: d)
         _statusService = State(initialValue: RemoteStatusService(client: d.client))
+        _settings = State(initialValue: settings)
+        _transferStore = State(initialValue: TransferStore(
+            retention: settings.transferHistoryRetention,
+            notifications: TransferNotificationService(),
+            notificationMode: settings.transferNotificationMode
+        ))
     }
 
     var body: some Scene {
@@ -43,6 +50,9 @@ struct NimbusApp: App {
                 }
                 .onChange(of: settings.transferHistoryRetention) { _, _ in
                     Task { await transferStore.applyRetention(from: settings) }
+                }
+                .onChange(of: settings.transferNotificationMode) { _, _ in
+                    transferStore.applyNotificationMode(from: settings)
                 }
                 .task(id: daemon.status) {
                     // Reruns whenever the daemon (re)connects — onboarding

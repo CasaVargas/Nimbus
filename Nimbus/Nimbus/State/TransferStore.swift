@@ -138,15 +138,21 @@ final class TransferStore {
     private let history: any TransferHistoryPersisting
     private let historyWriter: TransferHistoryWriter
     private var retention: TransferHistoryRetention
+    private let notifications: any TransferNotifying
+    private var notificationMode: TransferNotificationMode
     private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "transfer-store")
 
     init(
         history: any TransferHistoryPersisting = TransferHistoryFile(),
-        retention: TransferHistoryRetention = .sevenDays
+        retention: TransferHistoryRetention = .sevenDays,
+        notifications: any TransferNotifying = NoopTransferNotifier(),
+        notificationMode: TransferNotificationMode = .failuresOnly
     ) {
         self.history = history
         historyWriter = TransferHistoryWriter(history: history)
         self.retention = retention
+        self.notifications = notifications
+        self.notificationMode = notificationMode
     }
 
     var activeTransfers: [Transfer] {
@@ -196,6 +202,9 @@ final class TransferStore {
         if let index = transfers.firstIndex(where: { $0.status.isActive && $0.jobID == jobId }) {
             transfers[index].status = .completed
             transfers[index].completedAt = Date()
+            if let record = transfers[index].record {
+                await notifications.deliver(record, mode: notificationMode)
+            }
             await persistRetainedHistory()
         }
     }
@@ -204,6 +213,9 @@ final class TransferStore {
         if let index = transfers.firstIndex(where: { $0.status.isActive && $0.jobID == jobId }) {
             transfers[index].status = .failed(error)
             transfers[index].completedAt = Date()
+            if let record = transfers[index].record {
+                await notifications.deliver(record, mode: notificationMode)
+            }
             await persistRetainedHistory()
         }
     }
@@ -273,6 +285,14 @@ final class TransferStore {
     /// waiting for the next process launch.
     func applyRetention(from settings: AppSettings) async {
         await applyRetention(settings.transferHistoryRetention)
+    }
+
+    func applyNotificationMode(_ notificationMode: TransferNotificationMode) {
+        self.notificationMode = notificationMode
+    }
+
+    func applyNotificationMode(from settings: AppSettings) {
+        applyNotificationMode(settings.transferNotificationMode)
     }
 
     func startPolling(client: RcloneClient) {
