@@ -12,6 +12,9 @@ struct NimbusApp: App {
     @State private var transferStore: TransferStore
     @State private var bookmarkStore = BookmarkStore()
     @State private var launchAtLogin = LaunchAtLoginService()
+    @State private var diagnosticsService: DiagnosticsService
+    @State private var transferNotifier: TransferNotificationService
+    @State private var generalSettingsModel = GeneralSettingsModel()
 
     /// Guards the parts of daemon-connect handling that must run once per
     /// process (pollers, monitors); the rest of `onDaemonConnected` is
@@ -22,12 +25,15 @@ struct NimbusApp: App {
         DesignSystem.Lints.runStartupChecks()
         let d = RcloneDaemon()
         let settings = AppSettings()
+        let transferNotifier = TransferNotificationService()
         _daemon = State(initialValue: d)
         _statusService = State(initialValue: RemoteStatusService(client: d.client))
         _settings = State(initialValue: settings)
+        _diagnosticsService = State(initialValue: DiagnosticsService())
+        _transferNotifier = State(initialValue: transferNotifier)
         _transferStore = State(initialValue: TransferStore(
             retention: settings.transferHistoryRetention,
-            notifications: TransferNotificationService(),
+            notifications: transferNotifier,
             notificationMode: settings.transferNotificationMode
         ))
     }
@@ -44,6 +50,8 @@ struct NimbusApp: App {
                 .environment(bookmarkStore)
                 .environment(launchAtLogin)
                 .environment(statusService)
+                .environment(\.diagnosticsService, diagnosticsService)
+                .environment(\.transferNotifier, transferNotifier)
                 .preferredColorScheme(settings.colorScheme)
                 .task {
                     await bootstrap()
@@ -96,10 +104,12 @@ struct NimbusApp: App {
         }
 
         Settings {
-            SettingsView()
+            SettingsView(generalModel: generalSettingsModel)
                 .environment(settings)
                 .environment(daemon)
                 .environment(launchAtLogin)
+                .environment(\.diagnosticsService, diagnosticsService)
+                .environment(\.transferNotifier, transferNotifier)
         }
     }
 

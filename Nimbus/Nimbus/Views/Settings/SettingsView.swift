@@ -1,40 +1,51 @@
 import SwiftUI
 
-enum SettingsTab: Hashable {
-    case general, appearance, transfers, rclone, storage, about
+enum SettingsTab: String, CaseIterable, Hashable {
+    case general
+    case transfers
+    case advanced
+
+    var title: String {
+        switch self {
+        case .general: "General"
+        case .transfers: "Transfers"
+        case .advanced: "Advanced"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .general: "gearshape"
+        case .transfers: "arrow.up.arrow.down"
+        case .advanced: "slider.horizontal.3"
+        }
+    }
 }
 
 struct SettingsView: View {
+    private let generalModel: GeneralSettingsModel
     @State private var selectedTab: SettingsTab = .general
+
+    init(generalModel: GeneralSettingsModel = GeneralSettingsModel()) {
+        self.generalModel = generalModel
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            GeneralSection()
+            GeneralSettingsView(model: generalModel)
                 .tag(SettingsTab.general)
-                .tabItem { Label("General", systemImage: "gearshape") }
-
-            AppearanceSection()
-                .tag(SettingsTab.appearance)
-                .tabItem { Label("Appearance", systemImage: "paintbrush") }
+                .tabItem { Label(SettingsTab.general.title, systemImage: SettingsTab.general.systemImage) }
 
             TransferSettingsView()
                 .tag(SettingsTab.transfers)
-                .tabItem { Label("Transfers", systemImage: "arrow.up.arrow.down") }
+                .tabItem { Label(SettingsTab.transfers.title, systemImage: SettingsTab.transfers.systemImage) }
 
-            RcloneSection()
-                .tag(SettingsTab.rclone)
-                .tabItem { Label("Rclone", systemImage: "terminal") }
-
-            StorageUsageView()
-                .tag(SettingsTab.storage)
-                .tabItem { Label("Storage", systemImage: "internaldrive") }
-
-            AboutSection()
-                .tag(SettingsTab.about)
-                .tabItem { Label("About", systemImage: "info.circle") }
+            AdvancedSettingsView()
+                .tag(SettingsTab.advanced)
+                .tabItem { Label(SettingsTab.advanced.title, systemImage: SettingsTab.advanced.systemImage) }
         }
-        .padding(.top, DesignSystem.Spacing.s)
-        .frame(width: 640, height: 440)
+        .accessibilityIdentifier("settings-shell")
+        .frame(width: 680, height: 520)
         .background(DesignSystem.Color.semantic.surface)
     }
 }

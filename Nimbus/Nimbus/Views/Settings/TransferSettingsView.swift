@@ -60,7 +60,8 @@ enum TransferRuntimeSettings {
 struct TransferSettingsView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(RcloneDaemon.self) private var daemon
-    private let notifier: any TransferNotifying
+    @Environment(\.transferNotifier) private var environmentNotifier
+    private let notifier: (any TransferNotifying)?
     private let runtime: (any TransferRuntimeConfiguring)?
     private let initialBandwidthLimitDraft: String?
     private let initialNotificationAuthorizationStatus: NotificationAuthorizationStatus?
@@ -77,7 +78,7 @@ struct TransferSettingsView: View {
     @State private var isRequestingNotificationAuthorization = false
 
     init(
-        notifier: any TransferNotifying = TransferNotificationService(),
+        notifier: (any TransferNotifying)? = nil,
         runtime: (any TransferRuntimeConfiguring)? = nil,
         initialBandwidthLimitDraft: String? = nil,
         initialNotificationAuthorizationStatus: NotificationAuthorizationStatus? = nil
@@ -124,7 +125,7 @@ struct TransferSettingsView: View {
         .onAppear(perform: initializeBandwidthLimitDraft)
         .task {
             guard initialNotificationAuthorizationStatus == nil else { return }
-            notificationAuthorizationStatus = await notifier.authorizationStatus()
+            notificationAuthorizationStatus = await activeNotifier.authorizationStatus()
         }
     }
 
@@ -133,6 +134,10 @@ struct TransferSettingsView: View {
             get: { settings.transferNotificationMode },
             set: updateNotificationMode
         )
+    }
+
+    private var activeNotifier: any TransferNotifying {
+        notifier ?? environmentNotifier ?? TransferNotificationService()
     }
 
     private func initializeBandwidthLimitDraft() {
@@ -195,6 +200,7 @@ struct TransferSettingsView: View {
         guard mode != .off else { return }
 
         Task { @MainActor in
+            let notifier = activeNotifier
             let status = await notifier.authorizationStatus()
             notificationAuthorizationStatus = status
 

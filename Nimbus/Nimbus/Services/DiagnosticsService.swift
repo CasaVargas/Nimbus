@@ -44,7 +44,7 @@ final class DiagnosticsService {
             "Nimbus Version: \(info.nimbusVersion) (\(info.buildNumber))",
             "macOS Version: \(info.macOSVersion)",
             "Architecture: \(info.architecture)",
-            "rclone Version: \(safeRcloneVersion(daemon.rcloneVersion))",
+            "rclone Version: \(sanitizedRcloneVersion(daemon.rcloneVersion))",
             "Daemon Status: \(safeDaemonStatus(daemon.status))",
             "Daemon Port: \(daemon.port)",
         ].joined(separator: "\n")
@@ -66,16 +66,7 @@ final class DiagnosticsService {
         }
     }
 
-    private func safeDaemonStatus(_ status: RcloneDaemon.Status) -> String {
-        switch status {
-        case .idle: "Not running"
-        case .starting: "Starting"
-        case .connected: "Connected"
-        case .error: "Error"
-        }
-    }
-
-    private func safeRcloneVersion(_ version: String?) -> String {
+    func sanitizedRcloneVersion(_ version: String?) -> String {
         guard let version else { return "Unknown" }
         let parts = version.split(separator: " ")
         guard
@@ -99,5 +90,14 @@ final class DiagnosticsService {
         }
 
         return String(parts[1])
+    }
+
+    private func safeDaemonStatus(_ status: RcloneDaemon.Status) -> String {
+        switch status {
+        case .idle: "Not running"
+        case .starting: "Starting"
+        case .connected: "Connected"
+        case .error: "Error"
+        }
     }
 }
