@@ -17,7 +17,7 @@ struct SettingsView: View {
                 .tag(SettingsTab.appearance)
                 .tabItem { Label("Appearance", systemImage: "paintbrush") }
 
-            TransferSection()
+            TransferSettingsView()
                 .tag(SettingsTab.transfers)
                 .tabItem { Label("Transfers", systemImage: "arrow.up.arrow.down") }
 
