@@ -140,7 +140,13 @@ struct ContentView: View {
                 title: "rclone Isn't Running",
                 messageVerbatim: message,
                 action: .init(label: "Retry", perform: {
-                    Task { await daemon.retry(binaryPath: settings.rcloneBinaryPath) }
+                    Task {
+                        await daemon.retry(
+                            binaryPath: settings.rcloneBinaryPath,
+                            bandwidthLimit: settings.bandwidthLimit,
+                            concurrentTransfers: settings.concurrentTransfers
+                        )
+                    }
                 })
             )
         case .connected:

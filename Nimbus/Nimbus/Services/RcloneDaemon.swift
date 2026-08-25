@@ -80,7 +80,11 @@ final class RcloneDaemon {
     }
 #endif
 
-    func start(binaryPath: String = "/usr/local/bin/rclone") async {
+    func start(
+        binaryPath: String = "/usr/local/bin/rclone",
+        bandwidthLimit: String = "",
+        concurrentTransfers: Int = 4
+    ) async {
         guard status != .connected && status != .starting else { return }
         let lifecycleID = UUID()
         self.lifecycleID = lifecycleID
@@ -102,17 +106,11 @@ final class RcloneDaemon {
 
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: binaryPath)
-        proc.arguments = [
-            "rcd",
-            "--rc-no-auth",
-            "--rc-addr", "127.0.0.1:\(availablePort)",
-            "--rc-allow-origin=*",
-            // Serve remote objects at GET /[remote:]/path — the RC API has
-            // no download method (operations/cat does not exist), so this
-            // flag IS the download path for RcloneClient.downloadFile and
-            // therefore for File Provider materialization.
-            "--rc-serve",
-        ]
+        proc.arguments = Self.launchArguments(
+            port: availablePort,
+            bandwidthLimit: bandwidthLimit,
+            concurrentTransfers: concurrentTransfers
+        )
         proc.standardOutput = FileHandle.nullDevice
         proc.standardError = FileHandle.nullDevice
 
@@ -172,17 +170,52 @@ final class RcloneDaemon {
         status = .idle
     }
 
-    func retry(binaryPath: String = "/usr/local/bin/rclone") async {
-        await restart(binaryPath: binaryPath)
+    func retry(
+        binaryPath: String = "/usr/local/bin/rclone",
+        bandwidthLimit: String = "",
+        concurrentTransfers: Int = 4
+    ) async {
+        await restart(
+            binaryPath: binaryPath,
+            bandwidthLimit: bandwidthLimit,
+            concurrentTransfers: concurrentTransfers
+        )
     }
 
     func restartRequired(for configuredPath: String) -> Bool {
         status == .connected && activeBinaryPath != configuredPath
     }
 
-    func restart(binaryPath: String) async {
+    func restart(
+        binaryPath: String,
+        bandwidthLimit: String = "",
+        concurrentTransfers: Int = 4
+    ) async {
         stop()
-        await start(binaryPath: binaryPath)
+        await start(
+            binaryPath: binaryPath,
+            bandwidthLimit: bandwidthLimit,
+            concurrentTransfers: concurrentTransfers
+        )
+    }
+
+    /// Builds the rclone command line used for every daemon launch. The empty
+    /// persisted bandwidth preference is intentionally represented as rclone's
+    /// explicit `off` value, while transfer count is clamped to the UI range.
+    static func launchArguments(
+        port: Int,
+        bandwidthLimit: String,
+        concurrentTransfers: Int
+    ) -> [String] {
+        [
+            "rcd",
+            "--rc-no-auth",
+            "--rc-addr", "127.0.0.1:\(port)",
+            "--rc-allow-origin=*",
+            "--rc-serve",
+            "--bwlimit", bandwidthLimit.isEmpty ? "off" : bandwidthLimit,
+            "--transfers", String(min(max(concurrentTransfers, 1), 32)),
+        ]
     }
 
     private func isCurrent(_ lifecycleID: UUID) -> Bool {

@@ -9,7 +9,8 @@ struct TransferSettingsViewTests {
     @Test func rendersTransfersPane() throws {
         try SnapshotHelpers.assertHostedSnapshot(
             TransferSettingsView(notifier: NotificationAuthorizationFixture(status: .authorized))
-                .environment(settings()),
+                .environment(settings())
+                .environment(RcloneDaemon()),
             size: CGSize(width: 680, height: 520),
             named: "Settings-Transfers"
         )
@@ -24,7 +25,8 @@ struct TransferSettingsViewTests {
                 notifier: NotificationAuthorizationFixture(status: .authorized),
                 initialBandwidthLimitDraft: "10MB"
             )
-            .environment(settings),
+            .environment(settings)
+            .environment(RcloneDaemon()),
             size: CGSize(width: 680, height: 520),
             named: "Settings-Transfers-invalid-bandwidth"
         )
@@ -36,7 +38,8 @@ struct TransferSettingsViewTests {
                 notifier: NotificationAuthorizationFixture(status: .denied),
                 initialNotificationAuthorizationStatus: .denied
             )
-                .environment(settings()),
+                .environment(settings())
+                .environment(RcloneDaemon()),
             size: CGSize(width: 680, height: 520),
             named: "Settings-Transfers-notifications-denied"
         )

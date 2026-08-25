@@ -137,7 +137,11 @@ struct NimbusApp: App {
 
         mountManager.rcloneBinaryPath = settings.rcloneBinaryPath
         await mountManager.cleanupStaleMounts()
-        await daemon.start(binaryPath: settings.rcloneBinaryPath)
+        await daemon.start(
+            binaryPath: settings.rcloneBinaryPath,
+            bandwidthLimit: settings.bandwidthLimit,
+            concurrentTransfers: settings.concurrentTransfers
+        )
 
         // A login-item launch races system startup (network, external
         // volumes, Homebrew mounts). Retry a few times before giving up so
@@ -147,7 +151,11 @@ struct NimbusApp: App {
             while daemon.status != .connected && attempts < 3 {
                 attempts += 1
                 try? await Task.sleep(for: .seconds(5))
-                await daemon.retry(binaryPath: settings.rcloneBinaryPath)
+                await daemon.retry(
+                    binaryPath: settings.rcloneBinaryPath,
+                    bandwidthLimit: settings.bandwidthLimit,
+                    concurrentTransfers: settings.concurrentTransfers
+                )
             }
         }
     }

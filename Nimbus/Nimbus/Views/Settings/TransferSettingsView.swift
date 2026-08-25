@@ -1,4 +1,5 @@
 import Foundation
+import RcloneKit
 import SwiftUI
 
 enum BandwidthLimitValidator {
@@ -22,14 +23,54 @@ enum BandwidthLimitValidator {
     }
 }
 
+@MainActor
+protocol TransferRuntimeConfiguring {
+    func setBandwidthLimit(rate: String) async throws -> BandwidthLimitResponse
+    func setConcurrentTransfers(_ transfers: Int) async throws
+}
+
+extension RcloneClient: TransferRuntimeConfiguring {}
+
+/// Applies transfer preferences to the live daemon before persisting them.
+/// This ordering keeps UserDefaults and the active rclone process consistent:
+/// a failed RC call leaves the last known-good persisted preference untouched.
+@MainActor
+enum TransferRuntimeSettings {
+    static func applyBandwidthLimit(
+        _ bandwidthLimit: String,
+        settings: AppSettings,
+        runtime: any TransferRuntimeConfiguring
+    ) async throws {
+        let persistedValue = bandwidthLimit.trimmingCharacters(in: .whitespacesAndNewlines)
+        try await runtime.setBandwidthLimit(rate: persistedValue.isEmpty ? "off" : persistedValue)
+        settings.bandwidthLimit = persistedValue
+    }
+
+    static func applyConcurrentTransfers(
+        _ concurrentTransfers: Int,
+        settings: AppSettings,
+        runtime: any TransferRuntimeConfiguring
+    ) async throws {
+        let clampedValue = min(max(concurrentTransfers, 1), 32)
+        try await runtime.setConcurrentTransfers(clampedValue)
+        settings.concurrentTransfers = clampedValue
+    }
+}
+
 struct TransferSettingsView: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(RcloneDaemon.self) private var daemon
     private let notifier: any TransferNotifying
+    private let runtime: (any TransferRuntimeConfiguring)?
     private let initialBandwidthLimitDraft: String?
     private let initialNotificationAuthorizationStatus: NotificationAuthorizationStatus?
 
     @State private var bandwidthLimitDraft = ""
     @State private var bandwidthInvalid = false
+    @State private var bandwidthRuntimeError: String?
+    @State private var concurrentTransfersRuntimeError: String?
+    @State private var isApplyingBandwidthLimit = false
+    @State private var isApplyingConcurrentTransfers = false
     @State private var hasInitializedBandwidthDraft = false
     @State private var notificationAuthorizationStatus: NotificationAuthorizationStatus = .notDetermined
     @State private var notificationAuthorizationError: String?
@@ -37,10 +78,12 @@ struct TransferSettingsView: View {
 
     init(
         notifier: any TransferNotifying = TransferNotificationService(),
+        runtime: (any TransferRuntimeConfiguring)? = nil,
         initialBandwidthLimitDraft: String? = nil,
         initialNotificationAuthorizationStatus: NotificationAuthorizationStatus? = nil
     ) {
         self.notifier = notifier
+        self.runtime = runtime
         self.initialBandwidthLimitDraft = initialBandwidthLimitDraft
         self.initialNotificationAuthorizationStatus = initialNotificationAuthorizationStatus
         _notificationAuthorizationStatus = State(
@@ -54,9 +97,14 @@ struct TransferSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
                 TransferPerformanceSection(
-                    concurrentTransfers: concurrentTransfersBinding,
+                    concurrentTransfers: min(max(settings.concurrentTransfers, 1), 32),
+                    updateConcurrentTransfers: updateConcurrentTransfers,
+                    concurrentTransfersRuntimeError: concurrentTransfersRuntimeError,
+                    isApplyingConcurrentTransfers: isApplyingConcurrentTransfers,
                     bandwidthLimitDraft: $bandwidthLimitDraft,
                     bandwidthInvalid: bandwidthInvalid,
+                    bandwidthRuntimeError: bandwidthRuntimeError,
+                    isApplyingBandwidthLimit: isApplyingBandwidthLimit,
                     commitBandwidthLimit: commitBandwidthLimit
                 )
                 TransferBehaviorSection(
@@ -71,19 +119,13 @@ struct TransferSettingsView: View {
             .padding(DesignSystem.Spacing.xl)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .defaultScrollAnchor(.top)
         .accessibilityIdentifier("settings-transfers")
         .onAppear(perform: initializeBandwidthLimitDraft)
         .task {
             guard initialNotificationAuthorizationStatus == nil else { return }
             notificationAuthorizationStatus = await notifier.authorizationStatus()
         }
-    }
-
-    private var concurrentTransfersBinding: Binding<Int> {
-        Binding(
-            get: { min(max(settings.concurrentTransfers, 1), 32) },
-            set: { settings.concurrentTransfers = min(max($0, 1), 32) }
-        )
     }
 
     private var notificationModeBinding: Binding<TransferNotificationMode> {
@@ -109,7 +151,41 @@ struct TransferSettingsView: View {
 
         bandwidthLimitDraft = trimmed
         bandwidthInvalid = false
-        settings.bandwidthLimit = trimmed
+        bandwidthRuntimeError = nil
+        isApplyingBandwidthLimit = true
+
+        let runtime = runtime ?? daemon.client
+        Task { @MainActor in
+            defer { isApplyingBandwidthLimit = false }
+            do {
+                try await TransferRuntimeSettings.applyBandwidthLimit(
+                    trimmed,
+                    settings: settings,
+                    runtime: runtime
+                )
+            } catch {
+                bandwidthRuntimeError = "Couldn't apply bandwidth limit: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func updateConcurrentTransfers(_ concurrentTransfers: Int) {
+        concurrentTransfersRuntimeError = nil
+        isApplyingConcurrentTransfers = true
+
+        let runtime = runtime ?? daemon.client
+        Task { @MainActor in
+            defer { isApplyingConcurrentTransfers = false }
+            do {
+                try await TransferRuntimeSettings.applyConcurrentTransfers(
+                    concurrentTransfers,
+                    settings: settings,
+                    runtime: runtime
+                )
+            } catch {
+                concurrentTransfersRuntimeError = "Couldn't apply concurrent transfers: \(error.localizedDescription)"
+            }
+        }
     }
 
     private func updateNotificationMode(_ mode: TransferNotificationMode) {
@@ -136,9 +212,14 @@ struct TransferSettingsView: View {
 }
 
 private struct TransferPerformanceSection: View {
-    @Binding var concurrentTransfers: Int
+    let concurrentTransfers: Int
+    let updateConcurrentTransfers: (Int) -> Void
+    let concurrentTransfersRuntimeError: String?
+    let isApplyingConcurrentTransfers: Bool
     @Binding var bandwidthLimitDraft: String
     let bandwidthInvalid: Bool
+    let bandwidthRuntimeError: String?
+    let isApplyingBandwidthLimit: Bool
     let commitBandwidthLimit: () -> Void
     @FocusState private var isBandwidthLimitFocused: Bool
 
@@ -148,11 +229,21 @@ private struct TransferPerformanceSection: View {
             footer: "Higher concurrency improves throughput but uses more memory."
         ) {
             FormRow(label: "Concurrent Transfers", help: nil) {
-                Stepper(value: $concurrentTransfers, in: 1...32) {
+                Stepper(
+                    value: Binding(
+                        get: { concurrentTransfers },
+                        set: updateConcurrentTransfers
+                    ),
+                    in: 1...32
+                ) {
                     Text("\(concurrentTransfers)")
                 }
                 .frame(width: 140, alignment: .trailing)
+                .disabled(isApplyingConcurrentTransfers)
                 .accessibilityLabel("Concurrent Transfers")
+            }
+            if let concurrentTransfersRuntimeError {
+                runtimeError(concurrentTransfersRuntimeError)
             }
             FormRow(
                 label: "Bandwidth Limit",
@@ -162,6 +253,7 @@ private struct TransferPerformanceSection: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 180)
                     .focused($isBandwidthLimitFocused)
+                    .disabled(isApplyingBandwidthLimit)
                     .onSubmit(commitBandwidthLimit)
                     .onChange(of: isBandwidthLimitFocused) { _, isFocused in
                         if !isFocused {
@@ -182,7 +274,18 @@ private struct TransferPerformanceSection: View {
                     .accessibilityLabel("Bandwidth limit error: Enter a positive number, optionally followed by k, M, G, or T.")
                     .padding(.top, DesignSystem.Spacing.xs)
             }
+            if let bandwidthRuntimeError {
+                runtimeError(bandwidthRuntimeError)
+            }
         }
+    }
+
+    private func runtimeError(_ message: String) -> some View {
+        Text(verbatim: message)
+            .font(DesignSystem.Typography.caption)
+            .foregroundStyle(DesignSystem.Color.semantic.statusError)
+            .accessibilityLabel("Transfer setting error: \(message)")
+            .padding(.top, DesignSystem.Spacing.xs)
     }
 }
 
@@ -268,7 +371,6 @@ private struct NotificationAuthorizationStatusRow: View {
         }
         .font(DesignSystem.Typography.caption)
         .padding(.vertical, DesignSystem.Spacing.xs)
-        .accessibilityElement(children: .combine)
     }
 
     private var notificationSettingsURL: URL {

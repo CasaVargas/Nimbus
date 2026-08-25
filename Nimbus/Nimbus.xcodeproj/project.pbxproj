@@ -117,6 +117,7 @@
 		C23F68EB20BA2C41C25E8BF5 /* GeneralSettingsViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B27D0FC2F26DE97E5EE0C98B /* GeneralSettingsViewTests.swift */; };
 		C43A4C8EACB4C847D12E4E31 /* Lints.swift in Sources */ = {isa = PBXBuildFile; fileRef = A21CD08F98A42ACB20E40A27 /* Lints.swift */; };
 		C4C1CE457BC2536A447DE1BB /* SheetChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6C3E0E28CB14B1FC1F0F666 /* SheetChrome.swift */; };
+		C6CA6A911FF7130164568629 /* TransferRuntimeSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0BC5A8FE5E4FF067F76206A /* TransferRuntimeSettingsTests.swift */; };
 		C94C8DD95DA8BF42396D3779 /* TimedCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCAC9985B428E97E63330C61 /* TimedCache.swift */; };
 		CA0E5E0F07A0AF378C3BA5E7 /* Selection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C428B03536470F32946F2BB /* Selection.swift */; };
 		CA84245C980DE470FB035D8B /* RemoteStatusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3664099969BCEF740DAB5F4B /* RemoteStatusService.swift */; };
@@ -312,6 +313,7 @@
 		DCD1239B19EFBC711BD3068F /* FileContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileContextMenu.swift; sourceTree = "<group>"; };
 		DD46B92F934C6AADF654A9BA /* NimbusError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NimbusError.swift; sourceTree = "<group>"; };
 		E054B9B81CE216542BE82F5F /* RemotesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemotesViewModel.swift; sourceTree = "<group>"; };
+		E0BC5A8FE5E4FF067F76206A /* TransferRuntimeSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferRuntimeSettingsTests.swift; sourceTree = "<group>"; };
 		E2CE0C83256B3E94C72DD283 /* PathPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathPicker.swift; sourceTree = "<group>"; };
 		E3F17A62CC5244C028C56630 /* RemotesSidebarSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemotesSidebarSection.swift; sourceTree = "<group>"; };
 		E61BE3E85906D683B22F88CA /* MountRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountRowTests.swift; sourceTree = "<group>"; };
@@ -690,6 +692,7 @@
 				E861CBD9BFF217A344F26E9E /* TransferHistoryFileTests.swift */,
 				56966682DCD80E13741AEA06 /* TransferNotificationServiceTests.swift */,
 				7BBED5BF19EAACDD19F5A75D /* TransferRowTests.swift */,
+				E0BC5A8FE5E4FF067F76206A /* TransferRuntimeSettingsTests.swift */,
 				0583AC13082683C90F767904 /* TransferSettingsViewTests.swift */,
 				DBCD67F8F5D2E0A876CC4C72 /* TransferStorePersistenceTests.swift */,
 				17C527F7D5BE6B44A85632C9 /* Mocks */,
@@ -1036,6 +1039,7 @@
 				A955FFD33D76B51725905B91 /* TransferHistoryFileTests.swift in Sources */,
 				D3D13861BD413F1A3928E805 /* TransferNotificationServiceTests.swift in Sources */,
 				3642897EA12AD25B4106C0D7 /* TransferRowTests.swift in Sources */,
+				C6CA6A911FF7130164568629 /* TransferRuntimeSettingsTests.swift in Sources */,
 				8B58EFFCFEA9B6998B0E6CD4 /* TransferSettingsViewTests.swift in Sources */,
 				F00D57B1B55149EF5149A025 /* TransferStorePersistenceTests.swift in Sources */,
 			);

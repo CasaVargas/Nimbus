@@ -9,6 +9,7 @@ final class MockURLProtocol: URLProtocol, @unchecked Sendable {
     /// query parameters (rclone reads uploadfile's fs/remote from the
     /// query only — a contract worth pinning).
     nonisolated(unsafe) static var lastRequestURLs: [String: URL] = [:]
+    nonisolated(unsafe) static var lastRequestBodies: [String: Data] = [:]
 
     static func register(endpoint: String, json: String, status: Int = 200) {
         mockResponses[endpoint] = (json.data(using: .utf8)!, status)
@@ -25,6 +26,7 @@ final class MockURLProtocol: URLProtocol, @unchecked Sendable {
 
         let path = url.path.hasPrefix("/") ? String(url.path.dropFirst()) : url.path
         Self.lastRequestURLs[path] = url
+        Self.lastRequestBodies[path] = request.httpBody ?? readBody(from: request.httpBodyStream)
         if let (data, status) = Self.mockResponses[path] {
             let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
@@ -38,6 +40,22 @@ final class MockURLProtocol: URLProtocol, @unchecked Sendable {
     }
 
     override func stopLoading() {}
+
+    private func readBody(from stream: InputStream?) -> Data? {
+        guard let stream else { return nil }
+        stream.open()
+        defer { stream.close() }
+
+        var data = Data()
+        let bufferSize = 1_024
+        var buffer = [UInt8](repeating: 0, count: bufferSize)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: bufferSize)
+            guard count > 0 else { break }
+            data.append(buffer, count: count)
+        }
+        return data
+    }
 }
 
 // Register all mocks once at module load so parallel tests don't race
@@ -51,6 +69,7 @@ private let _setupMocks: Void = {
     MockURLProtocol.register(endpoint: "config/providers", json: #"{"providers": [{"Name": "s3", "Description": "Amazon S3", "Prefix": "s3", "Options": []}]}"#)
     MockURLProtocol.register(endpoint: "config/create", json: "{}")
     MockURLProtocol.register(endpoint: "config/delete", json: "{}")
+    MockURLProtocol.register(endpoint: "options/set", json: "{}")
 
     // operations
     MockURLProtocol.register(endpoint: "operations/list", json: #"""
@@ -108,6 +127,10 @@ private let _setupMocks: Void = {
         json: #"{"error": "directory not found", "path": "test/error-endpoint", "status": 404}"#,
         status: 404
     )
+    MockURLProtocol.register(
+        endpoint: "test/error-body-200",
+        json: #"{"error": "options rejected", "path": "options/set", "status": 500}"#
+    )
 }()
 
 func makeTestClient() -> RcloneClient {
@@ -156,6 +179,17 @@ func makeTestClient() -> RcloneClient {
     #expect(response.list.count == 2)
 }
 
+@Test func setConcurrentTransfersUsesTypedOptionsSetPayload() async throws {
+    let client = makeTestClient()
+
+    try await client.setConcurrentTransfers(7)
+
+    let body = try #require(MockURLProtocol.lastRequestBodies["options/set"])
+    let json = try JSONSerialization.jsonObject(with: body) as? [String: Any]
+    let main = try #require(json?["main"] as? [String: Int])
+    #expect(main["Transfers"] == 7)
+}
+
 @Test func callThrowsOnErrorStatus() async throws {
     let client = makeTestClient()
     do {
@@ -165,6 +199,21 @@ func makeTestClient() -> RcloneClient {
         if case .requestFailed(let status, let message) = error {
             #expect(status == 404)
             #expect(message.contains("directory not found"))
+        } else {
+            #expect(Bool(false), "Wrong error case: \(error)")
+        }
+    }
+}
+
+@Test func callThrowsOnEmbeddedErrorBodyEvenWithSuccessfulStatus() async throws {
+    let client = makeTestClient()
+    do {
+        let _: ListResponse = try await client.call("test/error-body-200")
+        #expect(Bool(false), "Should have thrown")
+    } catch let error as RcloneError {
+        if case .requestFailed(let status, let message) = error {
+            #expect(status == 500)
+            #expect(message == "options rejected")
         } else {
             #expect(Bool(false), "Wrong error case: \(error)")
         }

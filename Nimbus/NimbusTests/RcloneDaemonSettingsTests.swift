@@ -5,6 +5,30 @@ import Testing
 @Suite("RcloneDaemon settings")
 @MainActor
 struct RcloneDaemonSettingsTests {
+    @Test func launchArgumentsCarryPersistedTransferSettings() {
+        let arguments = RcloneDaemon.launchArguments(
+            port: 5572,
+            bandwidthLimit: "12M",
+            concurrentTransfers: 7
+        )
+
+        #expect(arguments.contains("--bwlimit"))
+        #expect(arguments.contains("12M"))
+        #expect(arguments.contains("--transfers"))
+        #expect(arguments.contains("7"))
+    }
+
+    @Test func emptyPersistedBandwidthLaunchesWithRcloneOff() {
+        let arguments = RcloneDaemon.launchArguments(
+            port: 5572,
+            bandwidthLimit: "",
+            concurrentTransfers: 4
+        )
+
+        let limitIndex = try! #require(arguments.firstIndex(of: "--bwlimit"))
+        #expect(arguments[arguments.index(after: limitIndex)] == "off")
+    }
+
     @Test func changingConfiguredPathRequiresRestart() {
         let daemon = makeConnectedDaemon(activePath: "/a/rclone")
 

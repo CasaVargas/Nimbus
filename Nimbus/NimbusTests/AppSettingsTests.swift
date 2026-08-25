@@ -22,6 +22,8 @@ struct AppSettingsTests {
         #expect(settings.defaultConflictPolicy == .rename)
         #expect(settings.transferNotificationMode == .failuresOnly)
         #expect(settings.transferHistoryRetention == .sevenDays)
+        #expect(settings.bandwidthLimit.isEmpty)
+        #expect(settings.concurrentTransfers == 4)
     }
 
     @Test func preferencesRoundTrip() {

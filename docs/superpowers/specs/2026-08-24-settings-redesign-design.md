@@ -77,6 +77,19 @@ About becomes a compact section in General rather than a top-level destination.
 
 Bandwidth validation accepts an empty value or a positive number with a supported k, M, G, or T suffix. Invalid drafts do not replace the last valid persisted value. The field commits on Return or focus loss.
 
+On a valid commit, Nimbus applies the value to the connected daemon first through
+`core/bwlimit`, then persists it only after rclone accepts the request. An empty
+preference is sent as rclone's `off` rate and persisted as an empty value. If the
+RC request fails, Nimbus leaves both the persisted preference and the active
+daemon setting at their prior values and shows a nonmodal inline error.
+
+Concurrent Transfers uses rclone's live `options/set` endpoint with
+`{"main":{"Transfers":count}}`. Nimbus persists the count only after that RC
+request succeeds. The option controls operations started after the update;
+existing jobs keep the concurrency they started with. Every daemon launch and
+retry also receives the persisted `--transfers` value and explicit `--bwlimit`
+value (`off` for unlimited), so a reconnect preserves the accepted settings.
+
 ### Behavior
 
 - **File Conflicts** — Rename, Skip, or Overwrite; default Rename.
@@ -164,6 +177,7 @@ If authorization is denied, retain the selected preference but display “Disabl
 
 - **Remote created, Finder registration fails:** keep the remote, show a non-blocking warning, and offer Retry Finder Integration. Never roll back the cloud configuration.
 - **Invalid bandwidth:** retain the draft and show inline validation; keep the last valid persisted value.
+- **Live transfer setting apply fails:** retain the last persisted daemon-accepted value and show a nonmodal inline error. Do not present an unapplied preference as active.
 - **Notification authorization denied:** show status and Open Notification Settings.
 - **Corrupt transfer history:** quarantine the file and recover with empty history.
 - **Cache scan fails:** show usage as unavailable and log the error.
