@@ -17,6 +17,21 @@ enum SnapshotHelpers {
         return bitmap.representation(using: .png, properties: [:]) ?? Data()
     }
 
+    /// Renders macOS controls that ImageRenderer cannot flatten, such as
+    /// toggles inside a ScrollView, through a real AppKit hosting view.
+    @MainActor
+    static func renderHostedPNG<V: View>(_ view: V, size: CGSize) -> Data {
+        let hostingView = NSHostingView(rootView: view)
+        hostingView.frame = CGRect(origin: .zero, size: size)
+        hostingView.layoutSubtreeIfNeeded()
+
+        guard let bitmap = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
+            return Data()
+        }
+        hostingView.cacheDisplay(in: hostingView.bounds, to: bitmap)
+        return bitmap.representation(using: .png, properties: [:]) ?? Data()
+    }
+
     /// Computes a 256-bit perceptual hash from PNG data.
     /// Downsamples the image to 16×16 grayscale, then sets each bit based on
     /// whether the pixel's luminance is above the image mean.
@@ -90,6 +105,27 @@ enum SnapshotHelpers {
         fileID: String = #fileID
     ) throws {
         let rendered = renderPNG(view, size: size)
+        try assertPNG(rendered, named: name, fileID: fileID)
+    }
+
+    /// Snapshot assertion for views that contain native AppKit-backed controls.
+    @MainActor
+    static func assertHostedSnapshot<V: View>(
+        _ view: V,
+        size: CGSize = CGSize(width: 240, height: 40),
+        named name: String,
+        fileID: String = #fileID
+    ) throws {
+        let rendered = renderHostedPNG(view, size: size)
+        try assertPNG(rendered, named: name, fileID: fileID)
+    }
+
+    @MainActor
+    private static func assertPNG(
+        _ rendered: Data,
+        named name: String,
+        fileID: String
+    ) throws {
         let fixturesDir = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()

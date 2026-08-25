@@ -113,6 +113,8 @@
 		BB433D456B5CF70AADD995A2 /* GeneralSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19EC56E2B7C399E6BF5ADA94 /* GeneralSection.swift */; };
 		BEB2919E1DEAAD9383F9C900 /* RcloneClientProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FCE75373125F37CCBC0B6AB /* RcloneClientProtocol.swift */; };
 		BFF22B953FB079BC7AE62130 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56DDC44A90929A9518155E77 /* AppSettings.swift */; };
+		C0A6FFAAAEEDDD8949B09B07 /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A68F31BEFF95EB831B0F3ABE /* GeneralSettingsView.swift */; };
+		C23F68EB20BA2C41C25E8BF5 /* GeneralSettingsViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B27D0FC2F26DE97E5EE0C98B /* GeneralSettingsViewTests.swift */; };
 		C43A4C8EACB4C847D12E4E31 /* Lints.swift in Sources */ = {isa = PBXBuildFile; fileRef = A21CD08F98A42ACB20E40A27 /* Lints.swift */; };
 		C4C1CE457BC2536A447DE1BB /* SheetChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6C3E0E28CB14B1FC1F0F666 /* SheetChrome.swift */; };
 		C94C8DD95DA8BF42396D3779 /* TimedCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCAC9985B428E97E63330C61 /* TimedCache.swift */; };
@@ -274,6 +276,7 @@
 		A21CD08F98A42ACB20E40A27 /* Lints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lints.swift; sourceTree = "<group>"; };
 		A59C2F1C642178D0E5224A7D /* LaunchAtLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginService.swift; sourceTree = "<group>"; };
 		A61E9E60ADF2BA2578D08760 /* BrowseTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseTarget.swift; sourceTree = "<group>"; };
+		A68F31BEFF95EB831B0F3ABE /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
 		A6C3E0E28CB14B1FC1F0F666 /* SheetChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetChrome.swift; sourceTree = "<group>"; };
 		ABB5DAED70D29021C9AF7060 /* FileTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTableView.swift; sourceTree = "<group>"; };
 		ADA1580276A631B918461D24 /* TransferRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferRow.swift; sourceTree = "<group>"; };
@@ -281,6 +284,7 @@
 		AF7DD3A807EA1EDFB8319331 /* MountDefaultsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountDefaultsTests.swift; sourceTree = "<group>"; };
 		B07A2E84E597DE37C122A15B /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
 		B1813355BB10E9306891A015 /* DragDropCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragDropCoordinatorTests.swift; sourceTree = "<group>"; };
+		B27D0FC2F26DE97E5EE0C98B /* GeneralSettingsViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsViewTests.swift; sourceTree = "<group>"; };
 		B4BBDEBA281F41466C04A187 /* AddRemoteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRemoteSheet.swift; sourceTree = "<group>"; };
 		B66BA5D854765E4D13BAFE5D /* SheetChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetChromeTests.swift; sourceTree = "<group>"; };
 		B8C0D0BC95A7D1919E7FB034 /* SidebarSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarSelectionTests.swift; sourceTree = "<group>"; };
@@ -599,6 +603,7 @@
 				BC4F8A4196F233DFDE0DE17E /* AboutSection.swift */,
 				41F3DFFC42572098A760795D /* AppearanceSection.swift */,
 				19EC56E2B7C399E6BF5ADA94 /* GeneralSection.swift */,
+				A68F31BEFF95EB831B0F3ABE /* GeneralSettingsView.swift */,
 				673EAFA8BD6B60893A5DDFDE /* RcloneSection.swift */,
 				8557E940D1B7790FDD7F35AD /* SettingsView.swift */,
 				19E2E1139EDDC520B6D6223F /* StorageUsageView.swift */,
@@ -654,6 +659,7 @@
 				98BCCBB2AD76F950F78233DE /* EmptyStateTests.swift */,
 				75F5A8E026E6C2BD49858289 /* FileTablePerfTests.swift */,
 				30338A429B08B2109735E495 /* FormSectionTests.swift */,
+				B27D0FC2F26DE97E5EE0C98B /* GeneralSettingsViewTests.swift */,
 				CE6352CE9D017F8C0445AE17 /* KeyboardCoordinatorTests.swift */,
 				AF7DD3A807EA1EDFB8319331 /* MountDefaultsTests.swift */,
 				27C10687F59D865FFB1CE1AF /* MountRestoreTests.swift */,
@@ -911,6 +917,7 @@
 				3801D8D06D375A6F561DB98E /* FolderBrowserSheet.swift in Sources */,
 				B77CE9DC37BBD5AD88C123C4 /* FormSection.swift in Sources */,
 				BB433D456B5CF70AADD995A2 /* GeneralSection.swift in Sources */,
+				C0A6FFAAAEEDDD8949B09B07 /* GeneralSettingsView.swift in Sources */,
 				912BAC08F7745480EA5992B8 /* ImportConfigSheet.swift in Sources */,
 				B3DD7DD69B279684EA0D9497 /* ImportPreviewList.swift in Sources */,
 				B4C719D6E99C2E5961856594 /* ImportRemoteRow.swift in Sources */,
@@ -994,6 +1001,7 @@
 				4DBAB25E4B62DB8E0E86E49B /* EmptyStateTests.swift in Sources */,
 				7F2D61DC7E7CDD14F57173E7 /* FileTablePerfTests.swift in Sources */,
 				4FA5B60B245C10D5BC4C3CDA /* FormSectionTests.swift in Sources */,
+				C23F68EB20BA2C41C25E8BF5 /* GeneralSettingsViewTests.swift in Sources */,
 				3B570AF7E92B487AA5A10BCE /* KeyboardCoordinatorTests.swift in Sources */,
 				FB5D8F7887C2D8639ACBDE33 /* MockRcloneClient.swift in Sources */,
 				278ABA60B7EFB1C857B45832 /* MountDefaultsTests.swift in Sources */,
