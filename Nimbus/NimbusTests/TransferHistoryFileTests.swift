@@ -67,11 +67,11 @@ struct TransferHistoryFileTests {
         #expect(try Data(contentsOf: quarantinedURL) == corruptData)
     }
 
-    @Test func unsupportedFutureVersionIsPreservedDuringRestore() async throws {
+    @Test func unsupportedFutureSchemaIsPreservedDuringRestore() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("NimbusTests.TransferHistory.\(UUID().uuidString)", isDirectory: true)
         let url = directory.appendingPathComponent("transfer-history-v1.json")
-        let futureData = Data(#"{"version":99,"records":[]}"#.utf8)
+        let futureData = Data(#"{"version":99,"entries":[]}"#.utf8)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try futureData.write(to: url)
         defer { try? FileManager.default.removeItem(at: directory) }

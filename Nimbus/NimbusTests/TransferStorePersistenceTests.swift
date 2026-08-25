@@ -64,18 +64,19 @@ struct TransferStorePersistenceTests {
         #expect(await history.savedRecords.isEmpty)
     }
 
-    @Test func overlappingTerminalUpdatesPersistTheLatestSnapshot() async throws {
-        let history = SuspendedFirstSaveHistory()
+    @Test func failedOlderSaveDrainsTheNewestQueuedSnapshot() async throws {
+        let history = SuspendedFirstSaveThenFailingHistory()
         let store = TransferStore(history: history)
         store.addTransfer(jobId: 1, operation: .copy, srcFs: "a:", dstFs: "b:")
         store.addTransfer(jobId: 2, operation: .copy, srcFs: "a:", dstFs: "b:")
 
         let firstCompletion = Task { await store.completeTransfer(jobId: 1) }
-        await history.waitForFirstSave()
+        #expect(await history.waitForFirstSave(timeout: .seconds(1)))
         await store.completeTransfer(jobId: 2)
         await history.releaseFirstSave()
         await firstCompletion.value
 
+        #expect(await history.saveCount == 2)
         let reloaded = try await history.load()
         #expect(Set(reloaded.compactMap(\.jobID)) == [1, 2])
     }
@@ -139,11 +140,11 @@ private actor HistorySpy: TransferHistoryPersisting {
     func quarantineCorruptFile() async {}
 }
 
-private actor SuspendedFirstSaveHistory: TransferHistoryPersisting {
+private actor SuspendedFirstSaveThenFailingHistory: TransferHistoryPersisting {
     private var records: [TransferRecord] = []
-    private var saveCount = 0
-    private var firstSaveStarted: CheckedContinuation<Void, Never>?
+    private(set) var saveCount = 0
     private var firstSaveRelease: CheckedContinuation<Void, Never>?
+    private var firstSaveWasReleased = false
 
     func load() async throws -> [TransferRecord] {
         records
@@ -152,26 +153,37 @@ private actor SuspendedFirstSaveHistory: TransferHistoryPersisting {
     func save(_ records: [TransferRecord]) async throws {
         saveCount += 1
         if saveCount == 1 {
-            firstSaveStarted?.resume()
-            firstSaveStarted = nil
             await withCheckedContinuation { continuation in
-                firstSaveRelease = continuation
+                if firstSaveWasReleased {
+                    continuation.resume()
+                } else {
+                    firstSaveRelease = continuation
+                }
             }
+            throw TestSaveError.firstSave
         }
         self.records = records
     }
 
     func quarantineCorruptFile() async {}
 
-    func waitForFirstSave() async {
-        if saveCount > 0 { return }
-        await withCheckedContinuation { continuation in
-            firstSaveStarted = continuation
+    func waitForFirstSave(timeout: Duration) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now + timeout
+        while saveCount == 0 {
+            guard clock.now < deadline else { return false }
+            await Task.yield()
         }
+        return true
     }
 
     func releaseFirstSave() {
+        firstSaveWasReleased = true
         firstSaveRelease?.resume()
         firstSaveRelease = nil
     }
+}
+
+private enum TestSaveError: Error {
+    case firstSave
 }

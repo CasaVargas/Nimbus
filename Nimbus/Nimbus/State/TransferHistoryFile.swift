@@ -46,7 +46,12 @@ actor TransferHistoryWriter {
 
         while true {
             let snapshot = latestSnapshot
-            try await history.save(snapshot)
+            do {
+                try await history.save(snapshot)
+            } catch {
+                guard snapshot != latestSnapshot else { throw error }
+                continue
+            }
             guard snapshot != latestSnapshot else { return }
         }
     }
@@ -63,6 +68,10 @@ struct TransferHistoryFile: TransferHistoryPersisting {
         let records: [TransferRecord]
     }
 
+    private struct VersionEnvelope: Decodable {
+        let version: Int
+    }
+
     private static let currentVersion = 1
     private let url: URL
 
@@ -74,17 +83,23 @@ struct TransferHistoryFile: TransferHistoryPersisting {
         guard FileManager.default.fileExists(atPath: url.path) else { return [] }
 
         let data = try Data(contentsOf: url)
-        let document: Document
+        let decoder = JSONDecoder()
+        let envelope: VersionEnvelope
         do {
-            document = try JSONDecoder().decode(Document.self, from: data)
+            envelope = try decoder.decode(VersionEnvelope.self, from: data)
         } catch {
             throw TransferHistoryFileError.corrupt
         }
 
-        guard document.version == Self.currentVersion else {
-            throw TransferHistoryFileError.unsupportedVersion(document.version)
+        guard envelope.version == Self.currentVersion else {
+            throw TransferHistoryFileError.unsupportedVersion(envelope.version)
         }
-        return document.records
+
+        do {
+            return try decoder.decode(Document.self, from: data).records
+        } catch {
+            throw TransferHistoryFileError.corrupt
+        }
     }
 
     func save(_ records: [TransferRecord]) async throws {
