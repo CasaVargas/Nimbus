@@ -55,7 +55,6 @@ private struct ApplicationSettingsSection: View {
                     .accessibilityLabel("Launch at login error: \(error)")
             }
         }
-        .onAppear { launchAtLogin.refresh() }
     }
 
     private var launchAtLoginBinding: Binding<Bool> {

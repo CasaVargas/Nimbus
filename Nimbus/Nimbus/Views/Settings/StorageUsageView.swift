@@ -8,34 +8,38 @@ protocol LocalCacheManaging: Sendable {
     func clearCache() async throws
 }
 
-struct FileProviderCacheStore: LocalCacheManaging {
-    private let cacheURL: URL?
+/// Manages only the File Provider extension's persisted sync snapshots.
+/// Finder owns materialized cloud-file storage and must never be scanned or
+/// removed by Nimbus.
+struct FileProviderSyncCacheStore: LocalCacheManaging {
+    private let snapshotDirectory: URL?
 
-    init(cacheURL: URL? = Self.defaultCacheURL) {
-        self.cacheURL = cacheURL
+    init(snapshotDirectory: URL? = Self.defaultSnapshotDirectory) {
+        self.snapshotDirectory = snapshotDirectory
     }
 
     func cachedBytes() async throws -> Int64 {
-        guard let cacheURL else { throw CacheStoreError.unavailable }
+        guard let snapshotDirectory else { throw CacheStoreError.unavailable }
 
         return try await Task.detached(priority: .utility) {
-            try Self.cacheSize(at: cacheURL)
+            try Self.cacheSize(at: snapshotDirectory)
         }.value
     }
 
     func clearCache() async throws {
-        guard let cacheURL else { throw CacheStoreError.unavailable }
+        guard let snapshotDirectory else { throw CacheStoreError.unavailable }
 
         try await Task.detached(priority: .utility) {
             let fileManager = FileManager.default
-            guard fileManager.fileExists(atPath: cacheURL.path) else { return }
-            try fileManager.removeItem(at: cacheURL)
+            guard fileManager.fileExists(atPath: snapshotDirectory.path) else { return }
+            try fileManager.removeItem(at: snapshotDirectory)
         }.value
     }
 
-    private static var defaultCacheURL: URL? {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("app.casavargas.nimbus.FileProvider")
+    private static var defaultSnapshotDirectory: URL? {
+        FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: "group.app.casavargas.nimbus"
+        )?.appendingPathComponent("FileProviderSync", isDirectory: true)
     }
 
     private static func cacheSize(at cacheURL: URL) throws -> Int64 {
@@ -71,9 +75,9 @@ private enum CacheStoreError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unavailable:
-            "Nimbus could not access the local cache."
+            "Nimbus could not access its local sync data."
         case .notDirectory:
-            "Nimbus local cache is not a directory."
+            "Nimbus local sync data is not a directory."
         }
     }
 }
@@ -96,7 +100,7 @@ final class GeneralSettingsModel {
     private(set) var isClearingCache = false
 
     init(
-        cacheStore: any LocalCacheManaging = FileProviderCacheStore(),
+        cacheStore: any LocalCacheManaging = FileProviderSyncCacheStore(),
         cacheUsage: CacheUsage = .loading
     ) {
         self.cacheStore = cacheStore
@@ -115,7 +119,7 @@ final class GeneralSettingsModel {
         do {
             cacheUsage = .available(try await cacheStore.cachedBytes())
         } catch {
-            logger.error("Cache scan failed: \(error.localizedDescription, privacy: .private)")
+            logger.error("Sync data scan failed: \(error.localizedDescription, privacy: .private)")
             cacheUsage = .failed(error.localizedDescription)
         }
     }
@@ -129,8 +133,10 @@ final class GeneralSettingsModel {
             try await cacheStore.clearCache()
             await refreshCacheUsage()
         } catch {
-            logger.error("Cache clear failed: \(error.localizedDescription, privacy: .private)")
-            clearCacheError = error.localizedDescription
+            let message = error.localizedDescription
+            logger.error("Sync data reset failed: \(message, privacy: .private)")
+            cacheUsage = .failed(message)
+            clearCacheError = message
         }
     }
 }
@@ -146,38 +152,32 @@ struct StorageUsageView: View {
     var body: some View {
         FormSection(
             title: "Local Storage",
-            footer: "Cached files speed up repeated access. Clearing removes only local copies; cloud files are unaffected."
+            footer: "Nimbus stores lightweight Finder sync data locally. Finder manages materialized cloud files separately."
         ) {
-            FormRow(label: "Cached Locally", help: nil) {
+            FormRow(label: "Finder Sync Data", help: nil) {
                 cacheUsageValue
             }
-            FormRow(label: "Clear Cache", help: nil) {
+            FormRow(label: "Clear Sync Data", help: nil) {
                 Button("Clear…", role: .destructive) {
                     showingClearConfirmation = true
                 }
                 .controlSize(.small)
                 .disabled(!canClearCache || model.isClearingCache)
-                .accessibilityLabel("Clear Cache")
-            }
-            if let clearCacheError = model.clearCacheError {
-                Text(verbatim: clearCacheError)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.statusError)
-                    .accessibilityLabel("Clear cache error: \(clearCacheError)")
+                .accessibilityLabel("Clear Finder Sync Data")
             }
         }
         .task { await model.loadCacheUsageIfNeeded() }
         .confirmationDialog(
-            "Remove all cached files?",
+            "Remove Nimbus sync data?",
             isPresented: $showingClearConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Clear Cache", role: .destructive) {
+            Button("Clear Sync Data", role: .destructive) {
                 Task { await model.clearCache() }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Cloud files are unaffected. Files will download again when accessed.")
+            Text("Finder-managed cloud files are unaffected. Nimbus rebuilds sync data as folders are enumerated.")
         }
     }
 
@@ -187,7 +187,7 @@ struct StorageUsageView: View {
         case .loading:
             ProgressView()
                 .controlSize(.small)
-                .accessibilityLabel("Calculating cached storage")
+                .accessibilityLabel("Calculating Finder sync storage")
         case .available(let bytes):
             Text(verbatim: bytes == 0 ? "Empty" : ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
                 .font(DesignSystem.Typography.body)
@@ -202,7 +202,7 @@ struct StorageUsageView: View {
             .font(DesignSystem.Typography.caption)
             .foregroundStyle(DesignSystem.Color.semantic.statusError)
             .frame(maxWidth: 280, alignment: .trailing)
-            .accessibilityLabel("Cache scan failed: \(error)")
+            .accessibilityLabel("Finder sync data unavailable: \(error)")
         }
     }
 

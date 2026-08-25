@@ -11,8 +11,10 @@ final class LaunchAtLoginService {
 
     private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "launchatlogin")
 
-    init() {
-        refresh()
+    init(refreshOnInit: Bool = true) {
+        if refreshOnInit {
+            refresh()
+        }
     }
 
     func refresh() {

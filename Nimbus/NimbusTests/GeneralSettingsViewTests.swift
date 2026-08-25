@@ -6,6 +6,19 @@ import Testing
 @Suite("General settings", .serialized)
 @MainActor
 struct GeneralSettingsViewTests {
+    @Test func clearCacheFailureReportsErrorWithoutSuccessUsage() async {
+        let model = GeneralSettingsModel(
+            cacheStore: CacheStoreFixture(clearError: "Sync data could not be cleared."),
+            cacheUsage: .available(4_194_304)
+        )
+
+        await model.clearCache()
+
+        #expect(model.cacheUsage == .failed("Sync data could not be cleared."))
+        #expect(model.clearCacheError == "Sync data could not be cleared.")
+        #expect(!model.isClearingCache)
+    }
+
     @Test func rendersGeneralPane() throws {
         let model = GeneralSettingsModel(
             cacheStore: CacheStoreFixture(bytes: 4_194_304),
@@ -14,7 +27,8 @@ struct GeneralSettingsViewTests {
         try SnapshotHelpers.assertHostedSnapshot(
             GeneralSettingsView(model: model)
                 .environment(AppSettings(defaults: isolatedDefaults()))
-                .environment(LaunchAtLoginService()),
+                .environment(LaunchAtLoginService(refreshOnInit: false))
+                .preferredColorScheme(.dark),
             size: CGSize(width: 680, height: 450),
             named: "Settings-General"
         )
@@ -28,7 +42,8 @@ struct GeneralSettingsViewTests {
         try SnapshotHelpers.assertHostedSnapshot(
             GeneralSettingsView(model: model)
                 .environment(AppSettings(defaults: isolatedDefaults()))
-                .environment(LaunchAtLoginService()),
+                .environment(LaunchAtLoginService(refreshOnInit: false))
+                .preferredColorScheme(.dark),
             size: CGSize(width: 680, height: 450),
             named: "Settings-General-cache-error"
         )
@@ -45,15 +60,24 @@ struct GeneralSettingsViewTests {
 private struct CacheStoreFixture: LocalCacheManaging {
     let bytes: Int64?
     let error: String?
+    let clearError: String?
 
     init(bytes: Int64) {
         self.bytes = bytes
         error = nil
+        clearError = nil
     }
 
     init(error: String) {
         bytes = nil
         self.error = error
+        clearError = nil
+    }
+
+    init(clearError: String) {
+        bytes = nil
+        error = nil
+        self.clearError = clearError
     }
 
     func cachedBytes() async throws -> Int64 {
@@ -63,7 +87,11 @@ private struct CacheStoreFixture: LocalCacheManaging {
         return bytes ?? 0
     }
 
-    func clearCache() async throws {}
+    func clearCache() async throws {
+        if let clearError {
+            throw CacheStoreFixtureError(message: clearError)
+        }
+    }
 }
 
 private struct CacheStoreFixtureError: LocalizedError {

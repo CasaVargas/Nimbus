@@ -6,6 +6,11 @@ enum SnapshotHelpers {
     /// Hamming-distance threshold for perceptual hash comparison. ~3% of 256 bits.
     static let hashTolerance = 8
 
+    /// Retained solely for hosted snapshots. Reusing one non-key window avoids
+    /// AppKit's back-to-back window setup race while keeping focus out of the
+    /// captured controls.
+    @MainActor private static var hostedWindow: NSWindow?
+
     /// Renders a SwiftUI view to a deterministic PNG `Data` blob via ImageRenderer.
     @MainActor
     static func renderPNG<V: View>(_ view: V, size: CGSize) -> Data {
@@ -22,14 +27,39 @@ enum SnapshotHelpers {
     @MainActor
     static func renderHostedPNG<V: View>(_ view: V, size: CGSize) -> Data {
         let hostingView = NSHostingView(rootView: view)
-        hostingView.frame = CGRect(origin: .zero, size: size)
-        hostingView.layoutSubtreeIfNeeded()
+        let window = hostedWindow ?? makeHostedWindow(size: size)
+        window.setContentSize(size)
+        window.contentView = hostingView
+
+        // Native SwiftUI controls finish configuring only once their hosting
+        // hierarchy is attached to and displayed by an AppKit window. Keep
+        // the window non-key so focus rings and active-control tint are not
+        // captured, then complete two deterministic display passes.
+        window.display()
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+        window.display()
 
         guard let bitmap = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
             return Data()
         }
         hostingView.cacheDisplay(in: hostingView.bounds, to: bitmap)
         return bitmap.representation(using: .png, properties: [:]) ?? Data()
+    }
+
+    @MainActor
+    private static func makeHostedWindow(size: CGSize) -> NSWindow {
+        let window = NSWindow(
+            contentRect: CGRect(origin: .zero, size: size),
+            styleMask: .borderless,
+            backing: .buffered,
+            defer: false
+        )
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.backgroundColor = .black
+        window.hasShadow = false
+        window.orderFront(nil)
+        hostedWindow = window
+        return window
     }
 
     /// Computes a 256-bit perceptual hash from PNG data.
