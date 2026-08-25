@@ -15,10 +15,14 @@ final class RcloneDaemon {
 
     private(set) var status: Status = .idle
     private(set) var port: Int = 5572
+    private(set) var activeBinaryPath: String?
+    private(set) var rcloneVersion: String?
     let client: RcloneClient
 
     private var process: Process?
     private var healthTask: Task<Void, Never>?
+    private var lifecycleID: UUID?
+    private var hasCleanedStaleDaemons = false
     private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "daemon")
 
     private static let portRange = 5572...5580
@@ -27,17 +31,41 @@ final class RcloneDaemon {
         client = RcloneClient()
     }
 
+#if DEBUG
+    /// Test fixture initializer. It is excluded from release builds.
+    init(
+        testStatus: Status,
+        activeBinaryPath: String? = nil,
+        rcloneVersion: String? = nil,
+        port: Int = 5572
+    ) {
+        client = RcloneClient()
+        status = testStatus
+        self.activeBinaryPath = activeBinaryPath
+        self.rcloneVersion = rcloneVersion
+        self.port = port
+    }
+#endif
+
     func start(binaryPath: String = "/usr/local/bin/rclone") async {
         guard status != .connected && status != .starting else { return }
+        let lifecycleID = UUID()
+        self.lifecycleID = lifecycleID
         status = .starting
 
         // Kill any stale rclone daemons from previous app sessions
-        await Self.killStaleRcloneDaemons(in: Self.portRange, logger: logger)
+        if !hasCleanedStaleDaemons {
+            hasCleanedStaleDaemons = true
+            await Self.killStaleRcloneDaemons(in: Self.portRange, logger: logger)
+            guard isCurrent(lifecycleID) else { return }
+        }
 
         guard let availablePort = await Self.findAvailablePort(in: Self.portRange) else {
+            guard isCurrent(lifecycleID) else { return }
             status = .error("No available port in range \(Self.portRange)")
             return
         }
+        guard isCurrent(lifecycleID) else { return }
         port = availablePort
         client.updatePort(availablePort)
 
@@ -59,20 +87,32 @@ final class RcloneDaemon {
 
         do {
             try proc.run()
+            guard isCurrent(lifecycleID) else {
+                proc.terminate()
+                return
+            }
             process = proc
+            activeBinaryPath = binaryPath
             logger.info("Started rclone on port \(availablePort), pid \(proc.processIdentifier)")
         } catch {
+            guard isCurrent(lifecycleID) else { return }
             status = .error("Failed to start rclone: \(error.localizedDescription)")
             return
         }
 
+        let version = await Self.rcloneVersion(at: binaryPath)
+        guard isCurrent(lifecycleID) else { return }
+        rcloneVersion = version
+
         let maxAttempts = 30
         for attempt in 1...maxAttempts {
             if await client.healthCheck() {
+                guard isCurrent(lifecycleID) else { return }
                 status = .connected
                 logger.info("Rclone healthy after \(attempt) attempts")
                 return
             }
+            guard isCurrent(lifecycleID) else { return }
             if !proc.isRunning {
                 status = .error("Rclone process exited unexpectedly")
                 return
@@ -84,6 +124,7 @@ final class RcloneDaemon {
     }
 
     func stop() {
+        lifecycleID = nil
         healthTask?.cancel()
         healthTask = nil
 
@@ -93,12 +134,26 @@ final class RcloneDaemon {
             logger.info("Stopped rclone daemon")
         }
         process = nil
+        activeBinaryPath = nil
+        rcloneVersion = nil
         status = .idle
     }
 
     func retry(binaryPath: String = "/usr/local/bin/rclone") async {
+        await restart(binaryPath: binaryPath)
+    }
+
+    func restartRequired(for configuredPath: String) -> Bool {
+        status == .connected && activeBinaryPath != configuredPath
+    }
+
+    func restart(binaryPath: String) async {
         stop()
         await start(binaryPath: binaryPath)
+    }
+
+    private func isCurrent(_ lifecycleID: UUID) -> Bool {
+        self.lifecycleID == lifecycleID
     }
 
     /// Kills any rclone rcd processes listening on ports in our range that were
@@ -142,6 +197,32 @@ final class RcloneDaemon {
                 }
             }
             return nil
+        }.value
+    }
+
+    /// Runs outside the main actor because `waitUntilExit()` blocks.
+    nonisolated private static func rcloneVersion(at binaryPath: String) async -> String? {
+        await Task.detached(priority: .utility) {
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: binaryPath)
+            proc.arguments = ["version"]
+            let pipe = Pipe()
+            proc.standardOutput = pipe
+            proc.standardError = FileHandle.nullDevice
+
+            do {
+                try proc.run()
+                proc.waitUntilExit()
+                guard proc.terminationStatus == 0 else { return nil }
+
+                let output = String(
+                    data: pipe.fileHandleForReading.readDataToEndOfFile(),
+                    encoding: .utf8
+                )
+                return output?.split(whereSeparator: \.isNewline).first.map(String.init)
+            } catch {
+                return nil
+            }
         }.value
     }
 
