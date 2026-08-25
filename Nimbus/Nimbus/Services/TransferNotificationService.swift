@@ -46,6 +46,15 @@ struct TransferNotificationService: TransferNotifying, Sendable {
         guard shouldDeliver(record.outcome, mode: mode) else { return }
 
         do {
+            let status = await center.authorizationStatus()
+            switch status {
+            case .authorized:
+                break
+            case .denied:
+                return
+            case .notDetermined:
+                guard try await center.requestAuthorization() else { return }
+            }
             try await center.add(request(for: record))
         } catch {
             logger.error("Unable to deliver transfer notification: \(error.localizedDescription)")

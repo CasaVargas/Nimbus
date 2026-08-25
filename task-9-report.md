@@ -18,9 +18,13 @@ It uses separate Performance and Behavior sections with native macOS form rows:
   `AppSettings`, so Nimbus applies them immediately through the established
   `NimbusApp` settings observers.
 - Enabling a notification mode checks the injected notification service and
-  requests authorization only when it is undetermined. A denied permission
-  retains the selected preference and exposes the separately focusable System
-  Settings recovery link; request failures remain visible inline.
+  requests authorization only when it is undetermined. The delivery boundary
+  also preflights the first qualifying notification, so the fresh-install
+  default of Failures Only still requests once before the first failed-transfer
+  notification if the picker was never touched. A denied permission retains the
+  selected preference and exposes the separately focusable System Settings
+  recovery link; request failures remain visible inline and never crash or
+  duplicate the terminal transfer handoff.
 
 Every daemon start and retry receives the persisted `--transfers` count and
 `--bwlimit` rate (`off` for unlimited), so the next daemon also reflects the
@@ -36,17 +40,12 @@ The focused macOS test command passed on 2026-08-25:
 ```sh
 xcodebuild -project Nimbus/Nimbus.xcodeproj -scheme Nimbus \
   -destination 'platform=macOS' \
-  -only-testing:NimbusTests/BandwidthLimitValidatorTests \
-  -only-testing:NimbusTests/TransferRuntimeSettingsTests \
-  -only-testing:NimbusTests/TransferSettingsViewTests \
-  -only-testing:NimbusTests/RcloneDaemonSettingsTests \
-  -only-testing:NimbusTests/AppSettingsTests test
+  -only-testing:NimbusTests/TransferNotificationServiceTests \
+  -only-testing:NimbusTests/TransferSettingsViewTests test
 ```
 
-It ran ten bandwidth validation cases, four transfer-runtime persistence tests,
-four daemon settings tests, AppSettings defaults coverage, and three hosted
-pane snapshots. The fixtures are deterministic dark-Aqua renders at 680 x 520
-points:
+It ran eleven notification-delivery cases and three hosted pane snapshots. The
+fixtures are deterministic dark-Aqua renders at 680 x 520 points:
 
 - `Settings-Transfers.png`
 - `Settings-Transfers-invalid-bandwidth.png`

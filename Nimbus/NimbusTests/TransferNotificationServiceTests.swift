@@ -4,17 +4,31 @@ import Testing
 
 @Suite("TransferNotificationService")
 struct TransferNotificationServiceTests {
-    @Test func failuresOnlySuppressesSuccess() async {
-        let center = NotificationCenterSpy()
+    @Test(arguments: [
+        NotificationAuthorizationStatus.notDetermined,
+        .denied,
+        .authorized
+    ])
+    func authorizationStatusReflectsCenterStatus(_ status: NotificationAuthorizationStatus) async {
+        let center = NotificationCenterSpy(authorizationStatus: status)
+        let service = TransferNotificationService(center: center)
+
+        #expect(await service.authorizationStatus() == status)
+    }
+
+    @Test func failuresOnlySuppressesSuccessWithoutPrompting() async {
+        let center = NotificationCenterSpy(authorizationStatus: .notDetermined)
         let service = TransferNotificationService(center: center)
 
         await service.deliver(completedRecord, mode: .failuresOnly)
 
         #expect(await center.requests.isEmpty)
+        #expect(await center.authorizationStatusCallCount == 0)
+        #expect(await center.requestAuthorizationCallCount == 0)
     }
 
-    @Test func failuresOnlyDeliversFailure() async {
-        let center = NotificationCenterSpy()
+    @Test func failuresOnlyDeliversFailureWhenAuthorized() async {
+        let center = NotificationCenterSpy(authorizationStatus: .authorized)
         let service = TransferNotificationService(center: center)
 
         await service.deliver(failedRecord, mode: .failuresOnly)
@@ -24,6 +38,59 @@ struct TransferNotificationServiceTests {
         #expect(requests.first?.body == "Copy transfer failed.")
         #expect(!requests.contains { $0.body.contains("source:private/path") })
         #expect(!requests.contains { $0.body.contains("destination:private/path") })
+    }
+
+    @Test func qualifyingDeliveryRequestsAuthorizationWhenUndetermined() async {
+        let center = NotificationCenterSpy(
+            authorizationStatus: .notDetermined,
+            requestAuthorizationResult: .success(true)
+        )
+        let service = TransferNotificationService(center: center)
+
+        await service.deliver(failedRecord, mode: .failuresOnly)
+
+        #expect(await center.authorizationStatusCallCount == 1)
+        #expect(await center.requestAuthorizationCallCount == 1)
+        #expect(await center.requests.count == 1)
+    }
+
+    @Test func deniedAuthorizationSkipsDelivery() async {
+        let center = NotificationCenterSpy(authorizationStatus: .denied)
+        let service = TransferNotificationService(center: center)
+
+        await service.deliver(failedRecord, mode: .failuresOnly)
+
+        #expect(await center.authorizationStatusCallCount == 1)
+        #expect(await center.requestAuthorizationCallCount == 0)
+        #expect(await center.requests.isEmpty)
+    }
+
+    @Test func deniedRequestResultSkipsDelivery() async {
+        let center = NotificationCenterSpy(
+            authorizationStatus: .notDetermined,
+            requestAuthorizationResult: .success(false)
+        )
+        let service = TransferNotificationService(center: center)
+
+        await service.deliver(failedRecord, mode: .failuresOnly)
+
+        #expect(await center.authorizationStatusCallCount == 1)
+        #expect(await center.requestAuthorizationCallCount == 1)
+        #expect(await center.requests.isEmpty)
+    }
+
+    @Test func authorizationRequestErrorSkipsDelivery() async {
+        let center = NotificationCenterSpy(
+            authorizationStatus: .notDetermined,
+            requestAuthorizationResult: .failure(NotificationCenterSpyError.requestFailed)
+        )
+        let service = TransferNotificationService(center: center)
+
+        await service.deliver(failedRecord, mode: .failuresOnly)
+
+        #expect(await center.authorizationStatusCallCount == 1)
+        #expect(await center.requestAuthorizationCallCount == 1)
+        #expect(await center.requests.isEmpty)
     }
 
     @Test @MainActor func completedTransitionDeliversExactlyOnce() async {
@@ -98,19 +165,41 @@ struct TransferNotificationServiceTests {
 }
 
 private actor NotificationCenterSpy: TransferNotificationCenter {
+    private let authorizationStatusValue: NotificationAuthorizationStatus
+    private let requestAuthorizationResult: Result<Bool, Error>
+    private let addResult: Result<Void, Error>
+    private(set) var authorizationStatusCallCount = 0
+    private(set) var requestAuthorizationCallCount = 0
     private(set) var requests: [TransferNotificationRequest] = []
 
+    init(
+        authorizationStatus: NotificationAuthorizationStatus = .authorized,
+        requestAuthorizationResult: Result<Bool, Error> = .success(true),
+        addResult: Result<Void, Error> = .success(())
+    ) {
+        self.authorizationStatusValue = authorizationStatus
+        self.requestAuthorizationResult = requestAuthorizationResult
+        self.addResult = addResult
+    }
+
     func authorizationStatus() async -> NotificationAuthorizationStatus {
-        .authorized
+        authorizationStatusCallCount += 1
+        return authorizationStatusValue
     }
 
     func requestAuthorization() async throws -> Bool {
-        true
+        requestAuthorizationCallCount += 1
+        return try requestAuthorizationResult.get()
     }
 
     func add(_ request: TransferNotificationRequest) async throws {
+        try addResult.get()
         requests.append(request)
     }
+}
+
+private enum NotificationCenterSpyError: Error {
+    case requestFailed
 }
 
 private actor TransferNotifierSpy: TransferNotifying {
