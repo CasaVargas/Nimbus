@@ -22,7 +22,12 @@ struct ConfigPageForm: View {
     /// this away and render the row unconditionally.
     let showAllOptionsIsMeaningful: Bool
 
-    @Binding var answers: [String: String]
+    // Read-only: every write goes through `onAnswerChanged` (see
+    // `binding(for:)` below), never by assigning back into this property, so
+    // it is a plain value rather than a `@Binding` that could be written
+    // through directly — bypassing `onAnswerChanged` and, with it, the
+    // `Exclusive` re-walk (C7).
+    let answers: [String: String]
     @Binding var showAllOptions: Bool
     @Binding var includeAdvanced: Bool
     let onAnswerChanged: (ConfigQuestion, String) -> Void

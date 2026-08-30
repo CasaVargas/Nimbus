@@ -91,7 +91,7 @@ struct AddRemoteSheet: View {
                 ConfigPageForm(
                     page: page,
                     showAllOptionsIsMeaningful: flow.isOAuthBackend == true,
-                    answers: Binding(get: { flow.answers }, set: { flow.answers = $0 }),
+                    answers: flow.answers,
                     showAllOptions: Binding(
                         get: { flow.showAllOptions },
                         set: { flow.showAllOptions = $0; Task { await flow.rewalk() } }
@@ -164,7 +164,23 @@ struct AddRemoteSheet: View {
     }
 
     private func nameCollides(_ flow: RemoteSetupFlow) -> Bool {
-        existingNames.contains(flow.name.trimmingCharacters(in: .whitespaces))
+        existingNames.contains(trimmedName(flow))
+    }
+
+    /// The single definition of what "trimmed" means for a remote name, so
+    /// the live collision check and the value actually committed to
+    /// `flow.name` before `begin()` can never disagree (C5).
+    private func trimmedName(_ flow: RemoteSetupFlow) -> String {
+        flow.name.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// `.finished` is the only boundary where submitting actually creates
+    /// the remote; `.oauth` walks to a browser sign-in and `.advancedGate`
+    /// just advances the walk, so the button must not claim "Add Remote"
+    /// for either (C4).
+    private func pageButtonLabel(_ page: ConfigPage) -> LocalizedStringKey {
+        if case .finished = page.boundary { return "Add Remote" }
+        return "Continue"
     }
 
     // MARK: - Actions
@@ -183,12 +199,24 @@ struct AddRemoteSheet: View {
                 .keyboardShortcut(.cancelAction)
 
                 if case .naming = flow.phase {
-                    Button("Continue") { Task { await flow.begin() } }
-                        .keyboardShortcut(.defaultAction)
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!isNameValid(flow))
-                } else if case .page = flow.phase {
-                    Button("Add Remote") { Task { await flow.submitPage() } }
+                    Button("Continue") {
+                        // Commit the trimmed value into the flow before
+                        // begin() sends it to rclone — the single point
+                        // where the name is finalized, so the collision
+                        // check (which already trims) and the name rclone
+                        // actually writes can never disagree (C5).
+                        flow.name = trimmedName(flow)
+                        Task { await flow.begin() }
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!isNameValid(flow))
+                } else if case .page(let page) = flow.phase {
+                    // "Add Remote" is only true on a `.finished` boundary —
+                    // an `.oauth` boundary walks to a browser sign-in, an
+                    // `.advancedGate` boundary just advances the walk;
+                    // neither creates anything yet (C4).
+                    Button(pageButtonLabel(page)) { Task { await flow.submitPage() } }
                         .keyboardShortcut(.defaultAction)
                         .buttonStyle(.borderedProminent)
                 }
@@ -226,7 +254,7 @@ struct AddRemoteSheet: View {
     }
 
     private func isNameValid(_ flow: RemoteSetupFlow) -> Bool {
-        let trimmed = flow.name.trimmingCharacters(in: .whitespaces)
+        let trimmed = trimmedName(flow)
         return !trimmed.isEmpty && !existingNames.contains(trimmed)
     }
 
@@ -235,9 +263,28 @@ struct AddRemoteSheet: View {
     private func loadProviders() async {
         do {
             providers = try await client.getProviders()
+        } catch {
+            // Fatal to this sheet: with no providers, there is nothing to
+            // pick, so the generic "Couldn't add remote" alert is accurate.
+            self.error = NimbusError.classify(error)
+            loadingProviders = false
+            return
+        }
+        do {
             existingNames = Set(try await client.listRemotes())
         } catch {
-            self.error = NimbusError.classify(error)
+            // Non-fatal: providers loaded fine, so the picker is still
+            // fully usable — proceeding silently here would leave
+            // duplicate-name detection permanently and invisibly off for
+            // the rest of the session. Surface it with a message specific
+            // to what actually broke, rather than reusing a generic error
+            // that would read as "the whole flow is broken" when it isn't
+            // (C6).
+            existingNames = []
+            self.error = NimbusError(
+                kind: .other,
+                message: "Couldn't check for existing remote names, so a duplicate name may not be caught until rclone rejects it. You can still continue."
+            )
         }
         loadingProviders = false
     }
