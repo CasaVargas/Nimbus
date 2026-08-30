@@ -23,6 +23,14 @@ struct ConfigFieldView: View {
         option.hide == 0
     }
 
+    /// An unanswered option is an EMPTY string, not "false". Falling back to
+    /// rclone's own default is what makes a default-true bool render ON when
+    /// the user has never touched it — `config/dump` only persists keys that
+    /// were explicitly set, so "absent" means "default", not "off".
+    static func isOn(_ raw: String, option: ProviderOption) -> Bool {
+        (raw.isEmpty ? option.defaultValue : raw).lowercased() == "true"
+    }
+
     private var placeholder: String {
         option.defaultStr.isEmpty ? option.defaultValue : option.defaultStr
     }
@@ -43,7 +51,7 @@ struct ConfigFieldView: View {
             .frame(maxWidth: 240)
         } else if option.type == "bool" {
             Toggle("", isOn: Binding(
-                get: { value.lowercased() == "true" },
+                get: { Self.isOn(value, option: option) },
                 set: { value = $0 ? "true" : "false" }
             ))
             .labelsHidden()
