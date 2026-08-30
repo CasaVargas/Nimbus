@@ -10,7 +10,6 @@
 		04EC499A7C0DF8F96188864B /* RemotesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E054B9B81CE216542BE82F5F /* RemotesViewModel.swift */; };
 		0547DBC2DAD79ADF6180EC83 /* BrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B90D4E52BA97B181F32A18D8 /* BrowserView.swift */; };
 		0706041D983EFF788C48B84C /* TokensTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A1CAF59AEE652F952B3F63C /* TokensTests.swift */; };
-		08E7462C33D968419FE1571D /* ConfigForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9514C974E975323DC538A60E /* ConfigForm.swift */; };
 		0C2B7B9D75C57619FD4A9B04 /* AboutSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC4F8A4196F233DFDE0DE17E /* AboutSection.swift */; };
 		12AF0C007C05EF5B007B0AD0 /* NimbusErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB2C2B81251C7B4B0282151 /* NimbusErrorTests.swift */; };
 		12FADF129EBFB2A4EE1FDE91 /* ProviderLogos.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F2402BED8CC66F92772AC9E4 /* ProviderLogos.xcassets */; };
@@ -248,7 +247,6 @@
 		91C86CE92CC40814A0659DB4 /* RemoteStatusServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteStatusServiceTests.swift; sourceTree = "<group>"; };
 		941B52BF2A1E8F0D27C9A987 /* MountRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountRow.swift; sourceTree = "<group>"; };
 		9500A98F5338D92B273CB2A3 /* FileGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGrid.swift; sourceTree = "<group>"; };
-		9514C974E975323DC538A60E /* ConfigForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigForm.swift; sourceTree = "<group>"; };
 		959DAE54C1BE1841389ECEE2 /* ProviderPickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderPickerTests.swift; sourceTree = "<group>"; };
 		96D748F5B10AFEA969C88CE3 /* TransferSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferSection.swift; sourceTree = "<group>"; };
 		98BCCBB2AD76F950F78233DE /* EmptyStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateTests.swift; sourceTree = "<group>"; };
@@ -373,7 +371,6 @@
 			children = (
 				B4BBDEBA281F41466C04A187 /* AddRemoteSheet.swift */,
 				0FBAA3F42058EB68CD5B9138 /* ConfigFieldView.swift */,
-				9514C974E975323DC538A60E /* ConfigForm.swift */,
 				75E75859C6C60BC7A4E87C81 /* ConfigPageForm.swift */,
 				8B919CAFBCBF7D878493B03F /* EditRemoteSheet.swift */,
 				2526A5E71E5C5ECDAD53597D /* ImportConfigSheet.swift */,
@@ -862,7 +859,6 @@
 				3FA68E784291944BDC50BD40 /* CloudStatusColumn.swift in Sources */,
 				79CD5B771150740985B6CFA1 /* Colors.swift in Sources */,
 				E89A322541CB8B98774B7765 /* ConfigFieldView.swift in Sources */,
-				08E7462C33D968419FE1571D /* ConfigForm.swift in Sources */,
 				B0AD368D3BC258AA033CD103 /* ConfigPageForm.swift in Sources */,
 				DAD5B2624B34C841E8166756 /* ConfirmCopySheet.swift in Sources */,
 				6259278BE2E32B337ED7DF95 /* ContentView.swift in Sources */,
