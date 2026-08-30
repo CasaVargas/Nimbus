@@ -557,11 +557,18 @@ struct RemoteSetupFlowTests {
     }
 
     @Test func rewalkPreservesUnrelatedAnswers() async throws {
+        // Must prove the preserved answer actually reaches the wire on the
+        // re-walk, not just that the dictionary still holds it — the walk
+        // only READS `answers` via `answer(for:)`, so a dictionary-only
+        // assertion would pass even if rewalk() were a no-op. scriptTrue
+        // therefore asks for access_key_id too, so the replay is forced to
+        // send it.
         let client = ScriptedConfigClient()
         client.scriptFalse = [.done]
         client.scriptTrue = [
             .question(question("provider", state: "s0", exclusive: true)),
-            .advancedGate(question("config_fs_advanced", state: "s1")),
+            .question(question("access_key_id", state: "s1")),
+            .advancedGate(question("config_fs_advanced", state: "s2")),
         ]
         let flow = RemoteSetupFlow(provider: provider("s3"), client: client)
         flow.name = "bucket"
@@ -570,8 +577,12 @@ struct RemoteSetupFlowTests {
 
         await flow.answerChanged(question("provider", state: "s0", exclusive: true), to: "Wasabi")
 
-        #expect(flow.answers["access_key_id"] == "AKIA")
-        #expect(flow.answers["provider"] == "Wasabi")
+        // Both values, on the wire — begin()'s own walk sent empty defaults
+        // for both fields (nothing was answered yet), so these exact calls
+        // can only have come from the triggered re-walk actually replaying
+        // the preserved "AKIA" alongside the newly-changed "Wasabi".
+        #expect(client.calls.contains("continue(s1=AKIA)"))
+        #expect(client.calls.contains("continue(s0=Wasabi)"))
     }
 
     @Test func cancelDuringSignInAbortsTheBlockingOAuthWaitAndCleansUp() async throws {
