@@ -26,6 +26,21 @@ struct ConfigPage: Equatable {
     let boundary: Boundary
 }
 
+/// Caps a single walk at the same number of turns the design's own rclone
+/// walk harness uses. A plain top-level constant (not a member of the
+/// `@MainActor` class below) so `StuckWalkError`, which is not actor-
+/// isolated, can read it without a cross-actor hop.
+private let maxWalkSteps = 200
+
+/// Safety valve against a daemon that never advances the walk (e.g. keeps
+/// returning the same state) — thrown once a walk exceeds `maxWalkSteps`
+/// rather than hammering rclone forever.
+private struct StuckWalkError: LocalizedError {
+    var errorDescription: String? {
+        "The remote setup walk did not finish after \(maxWalkSteps) steps."
+    }
+}
+
 /// Drives rclone's interactive config machine for one new remote.
 ///
 /// Every walk restarts from `startConfig` and replays `answers`, so the walk
@@ -60,15 +75,16 @@ final class RemoteSetupFlow {
     var showAllOptions = false
     var includeAdvanced = false
 
-    /// Test seam: forces the next walk to throw.
-    var injectedFailure: Error?
-
     private let client: any RemoteConfigDriving
     /// Nil until the first probe tells us which kind of backend this is.
     private(set) var isOAuthBackend: Bool?
-    /// True once a call has written the partial remote rclone creates on
-    /// `config/create` — gates cleanup so we never delete someone else's remote.
-    private var partialRemoteExists = false
+    /// The name a `config/create` call actually used the moment it wrote
+    /// rclone's partial remote stub, or nil once that stub has been cleaned
+    /// up (or never existed). Recording the name itself — not just a bool —
+    /// means cleanup always targets the remote a call actually touched, even
+    /// if `name` is edited afterward, instead of whatever `name` currently
+    /// holds.
+    private var partialRemoteName: String?
 
     /// Serializes walks: each call chains behind whichever one is already
     /// running, so `config/create`/delete calls from two walks can never
@@ -87,7 +103,14 @@ final class RemoteSetupFlow {
     /// stub away, and restart asking everything.
     private var askAll: Bool {
         if showAllOptions { return true }
-        return isOAuthBackend == false
+        // isOAuthBackend is nil only during the initial probe in begin(),
+        // which always passes askAll:false explicitly rather than consulting
+        // this property, so the nil branch is unreachable in practice — but
+        // false is the only safe default if it ever were hit: true would ask
+        // for client_id/client_secret before we even know which kind of
+        // backend this is.
+        guard let isOAuthBackend else { return false }
+        return !isOAuthBackend
     }
 
     // MARK: - Entry points
@@ -165,7 +188,18 @@ final class RemoteSetupFlow {
     }
 
     private func performSubmitPage() async {
-        guard case .page = phase else { return }
+        guard case .page(let page) = phase else { return }
+        if page.boundary == .finished {
+            // rclone already reported `.done` for this page — there is no
+            // boundary question left to answer, and the remote it describes
+            // is already fully written. Do NOT delete+recreate it to
+            // "finish" it: if that re-walk failed partway, `.failed` would
+            // be reached with the user's already-complete remote deleted
+            // and never rebuilt.
+            partialRemoteName = nil
+            phase = .finished
+            return
+        }
         phase = .creating
         do {
             let resumed = try await replayAnsweringBoundary(askAll: askAll)
@@ -201,13 +235,16 @@ final class RemoteSetupFlow {
     // MARK: - Walk
 
     private func start(askAll: Bool) async throws -> ConfigStep {
-        // Set before any throw: rclone writes the partial remote on the first
-        // config/create call, so a call that fails mid-flight may still have
-        // created the stub. Assume it exists and attempt cleanup — deleting a
-        // remote that was never created is a harmless no-op, leaking a stub is not.
-        partialRemoteExists = true
-        if let injectedFailure { throw injectedFailure }
-        return try await client.startConfig(name: name, type: provider.name, askAll: askAll)
+        // Capture the name this call actually uses, and record it BEFORE
+        // calling the client: rclone writes the partial remote on the first
+        // config/create call, so a call that throws may still have created
+        // the stub. Recording the exact name used means cleanup always
+        // targets the remote THIS call touched, even if `name` is edited
+        // afterward — deleting a remote that was never created is a
+        // harmless no-op, leaking or mistargeting a delete is not.
+        let currentName = name
+        partialRemoteName = currentName
+        return try await client.startConfig(name: currentName, type: provider.name, askAll: askAll)
     }
 
     /// Consumes plain questions into a page, stopping at the first boundary.
@@ -216,8 +253,14 @@ final class RemoteSetupFlow {
     private func advance(from first: ConfigStep, askAll: Bool) async {
         var collected: [ConfigQuestion] = []
         var step = first
+        var steps = 0
         do {
             while true {
+                steps += 1
+                guard steps <= maxWalkSteps else {
+                    await fail(StuckWalkError())
+                    return
+                }
                 switch step {
                 case .question(let q):
                     collected.append(q)
@@ -239,11 +282,11 @@ final class RemoteSetupFlow {
                         // every field this walk touched (if any) already
                         // carried a real, user-supplied answer rather than a
                         // placeholder default. The remote is genuinely
-                        // complete: clear the cleanup flag BEFORE publishing
-                        // `.finished`, so a cancel racing the finish
-                        // transition can never delete a remote the user just
-                        // successfully created.
-                        partialRemoteExists = false
+                        // complete: clear the cleanup target BEFORE
+                        // publishing `.finished`, so a cancel racing the
+                        // finish transition can never delete a remote the
+                        // user just successfully created.
+                        partialRemoteName = nil
                         phase = .finished
                     } else {
                         // This batch's fields were answered via `answer(for:)`,
@@ -251,7 +294,7 @@ final class RemoteSetupFlow {
                         // `answers` has nothing stored yet — i.e. the user
                         // hasn't reviewed this page. The remote that exists
                         // right now holds those defaults, not the user's
-                        // intent, so leave partialRemoteExists set: a cancel
+                        // intent, so leave partialRemoteName set: a cancel
                         // from this page must still delete it.
                         phase = .page(ConfigPage(questions: collected, boundary: .finished))
                     }
@@ -268,11 +311,17 @@ final class RemoteSetupFlow {
     /// re-derives the boundary from this fresh walk rather than trusting the
     /// `.page` that led here — that page's own `.boundary` can be stale (it
     /// may have been probed with placeholder answers), so this walk is the
-    /// only source of truth.
+    /// only source of truth. Never called for a `.finished`-boundary page —
+    /// `performSubmitPage` short-circuits those before reaching here.
     private func replayAnsweringBoundary(askAll: Bool) async throws -> ConfigStep {
         await cleanUpPartialRemote()
         var step = try await start(askAll: askAll)
+        var steps = 0
         while case .question(let q) = step {
+            steps += 1
+            guard steps <= maxWalkSteps else {
+                throw StuckWalkError()
+            }
             step = try await client.continueConfig(
                 name: name, type: provider.name, state: q.state,
                 result: answer(for: q), askAll: askAll
@@ -284,11 +333,12 @@ final class RemoteSetupFlow {
                 name: name, type: provider.name, state: q.state,
                 result: includeAdvanced ? "true" : "false", askAll: askAll
             )
-        case .oauth, .done, .question:
+        default:
             // OAuth can't be auto-answered here — it needs a live browser
-            // round-trip via signIn() — so hand it back unanswered. .done
-            // and .question (the while loop's own exit values) just pass
-            // the walk's natural end state back up to advance().
+            // round-trip via signIn() — so hand it back unanswered. `.done`
+            // is the only other value the while loop above can exit with
+            // (`.question` can't reach here: that's exactly what the loop
+            // condition excludes).
             return step
         }
     }
@@ -303,8 +353,8 @@ final class RemoteSetupFlow {
     }
 
     private func cleanUpPartialRemote() async {
-        guard partialRemoteExists, !name.isEmpty else { return }
-        await client.deletePartialRemote(name: name)
-        partialRemoteExists = false
+        guard let partialRemoteName else { return }
+        await client.deletePartialRemote(name: partialRemoteName)
+        self.partialRemoteName = nil
     }
 }

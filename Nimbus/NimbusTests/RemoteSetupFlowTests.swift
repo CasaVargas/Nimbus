@@ -6,38 +6,68 @@ import RcloneKit
 /// Scripts a sequence of `config/create` replies so the flow can be walked
 /// without a live rclone. Mirrors the fixture style in ProviderPickerTests:
 /// RcloneKit models are decode-only.
+///
+/// Scripts are keyed on `askAll` — `scriptFalse` for `askAll: false` calls,
+/// `scriptTrue` for `askAll: true` — because that asymmetry (an OAuth
+/// backend answering straight from `all:false`; a credential backend asking
+/// nothing until `all:true`) is the single most important behavior
+/// RemoteSetupFlow implements, and a client that ignores `askAll` can't
+/// model it (S4 in fix round 1's supplement).
 @MainActor
 private final class ScriptedConfigClient: RemoteConfigDriving {
-    var script: [ConfigStep] = []
+    var scriptFalse: [ConfigStep] = []
+    var scriptTrue: [ConfigStep] = []
+    /// When set, the next `startConfig` call throws this instead of
+    /// returning a step, then clears itself. Models a daemon/network failure
+    /// without adding test-only state to the production RemoteSetupFlow type.
+    var failNextStart: Error?
     private(set) var calls: [String] = []
     private(set) var deletedRemotes: [String] = []
-    private var cursor = 0
+    private var cursorFalse = 0
+    private var cursorTrue = 0
 
     func startConfig(name: String, type: String, askAll: Bool) async throws -> ConfigStep {
         calls.append("start(all:\(askAll))")
-        cursor = 0
-        return next()
+        if let failNextStart {
+            self.failNextStart = nil
+            throw failNextStart
+        }
+        if askAll { cursorTrue = 0 } else { cursorFalse = 0 }
+        return next(askAll: askAll)
     }
 
     func continueConfig(
         name: String, type: String, state: String, result: String, askAll: Bool
     ) async throws -> ConfigStep {
         calls.append("continue(\(state)=\(result))")
-        return next()
+        return next(askAll: askAll)
     }
 
     func deletePartialRemote(name: String) async {
         // Recorded into `calls` too (not just `deletedRemotes`) so ordering
-        // relative to start/continue calls is observable — see I2 in the
-        // fix-round-1 report.
+        // relative to start/continue calls is observable (I2).
         calls.append("delete(\(name))")
         deletedRemotes.append(name)
     }
 
-    private func next() -> ConfigStep {
-        guard cursor < script.count else { return .done }
-        defer { cursor += 1 }
-        return script[cursor]
+    private func next(askAll: Bool) -> ConfigStep {
+        if askAll {
+            guard cursorTrue < scriptTrue.count else {
+                // An over-walk past the scripted steps would otherwise
+                // silently look correct (a bare .done) — flag it instead (S4).
+                Issue.record("ScriptedConfigClient walked past the end of scriptTrue")
+                return .done
+            }
+            defer { cursorTrue += 1 }
+            return scriptTrue[cursorTrue]
+        } else {
+            guard cursorFalse < scriptFalse.count else {
+                Issue.record("ScriptedConfigClient walked past the end of scriptFalse")
+                return .done
+            }
+            defer { cursorFalse += 1 }
+            return scriptFalse[cursorFalse]
+        }
     }
 }
 
@@ -62,7 +92,9 @@ struct RemoteSetupFlowTests {
 
     @Test func batchesConsecutiveQuestionsIntoOnePage() async throws {
         let client = ScriptedConfigClient()
-        client.script = [
+        // all:false on sftp asks nothing (a stub); all:true asks for real.
+        client.scriptFalse = [.done]
+        client.scriptTrue = [
             .question(question("host", state: "s0")),
             .question(question("user", state: "s1")),
             .question(question("port", state: "s2")),
@@ -82,7 +114,7 @@ struct RemoteSetupFlowTests {
     @Test func oauthBackendSkipsStraightToSignIn() async throws {
         let client = ScriptedConfigClient()
         let oauthQuestion = question("config_is_local", state: "*oauth-islocal,,,")
-        client.script = [.oauth(oauthQuestion)]
+        client.scriptFalse = [.oauth(oauthQuestion)]
         let flow = RemoteSetupFlow(provider: provider("drive"), client: client)
         flow.name = "gdrive"
         await flow.begin()
@@ -93,12 +125,15 @@ struct RemoteSetupFlowTests {
         // Basic mode for an OAuth backend must use all:false — using all:true
         // would surface client_id/client_secret, the fields users must leave blank.
         #expect(client.calls.first == "start(all:false)")
+        // Nothing should have been deleted — the OAuth branch keeps its
+        // walk rather than probing, discarding, and restarting.
+        #expect(client.deletedRemotes.isEmpty)
     }
 
     @Test func signInAnswersOAuthQuestionAndFinishes() async throws {
         let client = ScriptedConfigClient()
         let oauthQuestion = question("config_is_local", state: "*oauth-islocal,,,")
-        client.script = [.oauth(oauthQuestion), .done]
+        client.scriptFalse = [.oauth(oauthQuestion), .done]
         let flow = RemoteSetupFlow(provider: provider("drive"), client: client)
         flow.name = "gdrive"
         await flow.begin()
@@ -116,7 +151,7 @@ struct RemoteSetupFlowTests {
         // transition in the UI).
         let client = ScriptedConfigClient()
         let oauthQuestion = question("config_is_local", state: "*oauth-islocal,,,")
-        client.script = [.oauth(oauthQuestion), .done]
+        client.scriptFalse = [.oauth(oauthQuestion), .done]
         let flow = RemoteSetupFlow(provider: provider("drive"), client: client)
         flow.name = "gdrive"
         await flow.begin()
@@ -131,22 +166,59 @@ struct RemoteSetupFlowTests {
 
     @Test func credentialBackendRestartsWithAskAllAfterEmptyProbe() async throws {
         let client = ScriptedConfigClient()
-        // all:false on sftp asks nothing and would write a stub remote.
-        client.script = [.done]
+        // all:false on sftp asks nothing and writes a stub remote.
+        client.scriptFalse = [.done]
+        // all:true is what actually asks for the host.
+        client.scriptTrue = [.question(question("host", state: "s0")), .done]
         let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
         flow.name = "myserver"
         await flow.begin()
 
         // Exact sequence, not just "contains": proves the stub was deleted
         // BEFORE the restart, not merely at some point during the walk (I2).
-        #expect(client.calls == ["start(all:false)", "delete(myserver)", "start(all:true)"])
-        // Terminal phase pinned so a garbage intermediate state can't pass.
+        #expect(client.calls == [
+            "start(all:false)", "delete(myserver)", "start(all:true)", "continue(s0=)",
+        ])
+        // Landed on the last page (boundary .finished), not some garbage
+        // intermediate state — and NOT yet .finished, since the user hasn't
+        // reviewed the "host" field this walk discovered using a default.
+        guard case .page(let page) = flow.phase, page.boundary == .finished else {
+            Issue.record("expected a .finished-boundary page, got \(flow.phase)")
+            return
+        }
+        #expect(page.questions.map(\.option.name) == ["host"])
+    }
+
+    @Test func finishedBoundaryPageSubmitDoesNotDeleteAndRecreate() async throws {
+        // S1: once advance() reaches `.done` with collected fields, rclone
+        // has already fully written the remote. submitPage() must NOT
+        // delete-and-rewalk to "finish" it — if that rewalk failed partway,
+        // the user's already-complete remote would simply be gone.
+        let client = ScriptedConfigClient()
+        client.scriptFalse = [.done]
+        client.scriptTrue = [.question(question("host", state: "s0")), .done]
+        let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
+        flow.name = "myserver"
+        await flow.begin()
+
+        guard case .page(let page) = flow.phase, page.boundary == .finished else {
+            Issue.record("expected a .finished-boundary page, got \(flow.phase)")
+            return
+        }
+        _ = page
+        let callsBeforeSubmit = client.calls.count
+
+        await flow.submitPage()
+
         #expect(flow.phase == .finished)
+        // No further client calls at all — confirms no delete+recreate ran.
+        #expect(client.calls.count == callsBeforeSubmit)
     }
 
     @Test func replaysStoredAnswersOnEveryWalk() async throws {
         let client = ScriptedConfigClient()
-        client.script = [
+        client.scriptFalse = [.done]
+        client.scriptTrue = [
             .question(question("host", state: "s0")),
             .advancedGate(question("config_fs_advanced", state: "s1")),
         ]
@@ -164,7 +236,8 @@ struct RemoteSetupFlowTests {
         // this can silently never apply if the boundary-answering code path
         // stops threading it through.
         let client = ScriptedConfigClient()
-        client.script = [
+        client.scriptFalse = [.done]
+        client.scriptTrue = [
             .question(question("host", state: "s0")),
             .advancedGate(question("config_fs_advanced", state: "s1")),
             .done,
@@ -181,7 +254,8 @@ struct RemoteSetupFlowTests {
 
     @Test func cancelDeletesThePartialRemote() async throws {
         let client = ScriptedConfigClient()
-        client.script = [.question(question("host", state: "s0")), .done]
+        client.scriptFalse = [.done]
+        client.scriptTrue = [.question(question("host", state: "s0")), .done]
         let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
         flow.name = "myserver"
         await flow.begin()
@@ -197,16 +271,36 @@ struct RemoteSetupFlowTests {
     }
 
     @Test func failedWalkDeletesThePartialRemote() async throws {
+        // S5: the failure is driven through the test double, not a
+        // production-only seam on RemoteSetupFlow.
         struct Boom: Error {}
         let client = ScriptedConfigClient()
+        client.failNextStart = Boom()
         let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
         flow.name = "myserver"
-        flow.injectedFailure = Boom()
         await flow.begin()
 
         guard case .failed = flow.phase else {
             Issue.record("expected .failed, got \(flow.phase)"); return
         }
         #expect(client.deletedRemotes.contains("myserver"))
+    }
+
+    @Test func walkAbortsAfterTooManyStepsInsteadOfLoopingForever() async throws {
+        // S3: a daemon that keeps returning the same state must not spin the
+        // walk forever hammering rclone. 205 identical entries comfortably
+        // exceeds the 200-step cap without running past the script's end
+        // (which ScriptedConfigClient itself now flags as a test failure).
+        let client = ScriptedConfigClient()
+        let stuckQuestion = question("host", state: "stuck")
+        client.scriptFalse = Array(repeating: ConfigStep.question(stuckQuestion), count: 205)
+        client.scriptTrue = client.scriptFalse
+        let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
+        flow.name = "myserver"
+        await flow.begin()
+
+        guard case .failed = flow.phase else {
+            Issue.record("expected .failed, got \(flow.phase)"); return
+        }
     }
 }
