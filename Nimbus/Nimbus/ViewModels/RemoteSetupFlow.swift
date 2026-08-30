@@ -188,18 +188,16 @@ final class RemoteSetupFlow {
     }
 
     private func performSubmitPage() async {
-        guard case .page(let page) = phase else { return }
-        if page.boundary == .finished {
-            // rclone already reported `.done` for this page — there is no
-            // boundary question left to answer, and the remote it describes
-            // is already fully written. Do NOT delete+recreate it to
-            // "finish" it: if that re-walk failed partway, `.failed` would
-            // be reached with the user's already-complete remote deleted
-            // and never rebuilt.
-            partialRemoteName = nil
-            phase = .finished
-            return
-        }
+        // Note this deliberately does NOT short-circuit a `.finished`-
+        // boundary page: its questions were answered by `answer(for:)`
+        // during discovery, which falls back to rclone's default whenever
+        // `answers` has nothing stored yet. The remote that currently exists
+        // is therefore a defaults-built byproduct, not the user's remote —
+        // this re-walk (via replayAnsweringBoundary → start, which deletes
+        // and recreates) is the only mechanism that applies what the user
+        // actually typed. (S1 in fix round 1's supplement proposed skipping
+        // this re-walk and was withdrawn once this was traced through.)
+        guard case .page = phase else { return }
         phase = .creating
         do {
             let resumed = try await replayAnsweringBoundary(askAll: askAll)
@@ -311,8 +309,9 @@ final class RemoteSetupFlow {
     /// re-derives the boundary from this fresh walk rather than trusting the
     /// `.page` that led here — that page's own `.boundary` can be stale (it
     /// may have been probed with placeholder answers), so this walk is the
-    /// only source of truth. Never called for a `.finished`-boundary page —
-    /// `performSubmitPage` short-circuits those before reaching here.
+    /// only source of truth — including for a `.finished` boundary, where
+    /// this replay is what applies the user's real answers over the
+    /// defaults the discovery walk used.
     private func replayAnsweringBoundary(askAll: Bool) async throws -> ConfigStep {
         await cleanUpPartialRemote()
         var step = try await start(askAll: askAll)

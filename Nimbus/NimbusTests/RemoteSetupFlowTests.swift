@@ -21,6 +21,11 @@ private final class ScriptedConfigClient: RemoteConfigDriving {
     /// returning a step, then clears itself. Models a daemon/network failure
     /// without adding test-only state to the production RemoteSetupFlow type.
     var failNextStart: Error?
+    /// Test seam for C2: when set, every `continueConfig` call awaits this
+    /// BEFORE recording the call or returning a step — so a test can
+    /// suspend a walk mid-flight, start a second concurrent operation, and
+    /// observe whether the two interleave.
+    var gate: (() async -> Void)?
     private(set) var calls: [String] = []
     private(set) var deletedRemotes: [String] = []
     private var cursorFalse = 0
@@ -39,6 +44,9 @@ private final class ScriptedConfigClient: RemoteConfigDriving {
     func continueConfig(
         name: String, type: String, state: String, result: String, askAll: Bool
     ) async throws -> ConfigStep {
+        if let gate {
+            await gate()
+        }
         calls.append("continue(\(state)=\(result))")
         return next(askAll: askAll)
     }
@@ -68,6 +76,42 @@ private final class ScriptedConfigClient: RemoteConfigDriving {
             defer { cursorFalse += 1 }
             return scriptFalse[cursorFalse]
         }
+    }
+}
+
+/// One-shot rendezvous used by the C2 concurrency test. `hook()` (called
+/// from inside the code under test, via `ScriptedConfigClient.gate`) signals
+/// arrival and then suspends until `release()` is called; `waitUntilArrived()`
+/// (called from the test body) suspends until `hook()` has been entered. An
+/// `actor` so both sides can call it safely from different Tasks without a
+/// hand-rolled lock.
+private actor Gate {
+    private var hasArrived = false
+    private var arrivedContinuation: CheckedContinuation<Void, Never>?
+    private var released = false
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+
+    func hook() async {
+        hasArrived = true
+        arrivedContinuation?.resume()
+        arrivedContinuation = nil
+        if released { return }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            releaseContinuation = continuation
+        }
+    }
+
+    func waitUntilArrived() async {
+        if hasArrived { return }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            arrivedContinuation = continuation
+        }
+    }
+
+    func release() {
+        released = true
+        releaseContinuation?.resume()
+        releaseContinuation = nil
     }
 }
 
@@ -189,11 +233,15 @@ struct RemoteSetupFlowTests {
         #expect(page.questions.map(\.option.name) == ["host"])
     }
 
-    @Test func finishedBoundaryPageSubmitDoesNotDeleteAndRecreate() async throws {
-        // S1: once advance() reaches `.done` with collected fields, rclone
-        // has already fully written the remote. submitPage() must NOT
-        // delete-and-rewalk to "finish" it — if that rewalk failed partway,
-        // the user's already-complete remote would simply be gone.
+    @Test func finishedBoundaryPageSubmitAppliesRealAnswersOverDefaults() async throws {
+        // S1 (proposed in fix round 1's supplement, then WITHDRAWN): a
+        // `.finished`-boundary page's fields were answered by `answer(for:)`
+        // during discovery, which falls back to rclone's default whenever
+        // `answers` has nothing stored yet — the remote that exists at that
+        // point is a defaults-built byproduct, not the user's remote.
+        // submitPage() MUST delete and re-walk to apply what the user
+        // actually typed; short-circuiting it (as S1 proposed) would keep
+        // the placeholder remote and silently discard the user's answer.
         let client = ScriptedConfigClient()
         client.scriptFalse = [.done]
         client.scriptTrue = [.question(question("host", state: "s0")), .done]
@@ -206,13 +254,12 @@ struct RemoteSetupFlowTests {
             return
         }
         _ = page
-        let callsBeforeSubmit = client.calls.count
+        flow.answers["host"] = "example.com"
 
         await flow.submitPage()
 
+        #expect(client.calls.contains("continue(s0=example.com)"))
         #expect(flow.phase == .finished)
-        // No further client calls at all — confirms no delete+recreate ran.
-        #expect(client.calls.count == callsBeforeSubmit)
     }
 
     @Test func replaysStoredAnswersOnEveryWalk() async throws {
@@ -302,5 +349,60 @@ struct RemoteSetupFlowTests {
         guard case .failed = flow.phase else {
             Issue.record("expected .failed, got \(flow.phase)"); return
         }
+    }
+
+    @Test func cancelQueuedBehindAnInFlightSubmitNeverInterleavesAndNoOpsOnceFinished() async throws {
+        // C2: a Cancel landing while a submit is still mid-flight must not
+        // interleave its calls with the submit's, and must not delete a
+        // remote the submit went on to finish creating. walkChain (enqueue)
+        // is what guarantees this — this drives it under real concurrency
+        // (two genuinely in-flight Tasks via a suspension gate), not merely
+        // sequential awaits, which would trivially never interleave on
+        // their own.
+        let client = ScriptedConfigClient()
+        client.scriptFalse = [.done]
+        client.scriptTrue = [
+            .question(question("host", state: "s0")),
+            .question(question("user", state: "s1")),
+            .done,
+        ]
+        let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
+        flow.name = "myserver"
+        await flow.begin()
+        guard case .page = flow.phase else {
+            Issue.record("expected .page, got \(flow.phase)"); return
+        }
+
+        let gate = Gate()
+        var continueCallsSinceGateInstalled = 0
+        client.gate = {
+            continueCallsSinceGateInstalled += 1
+            // Suspend the SECOND continueConfig call of the submit's
+            // re-walk (the first answers "host"), so cancel() is started
+            // genuinely mid-walk rather than before the walk begins.
+            if continueCallsSinceGateInstalled == 2 {
+                await gate.hook()
+            }
+        }
+
+        async let submitTask: Void = flow.submitPage()
+        await gate.waitUntilArrived()
+        let callsWhileSuspended = client.calls.count
+        let deletesBeforeCancel = client.deletedRemotes.count
+
+        async let cancelTask: Void = flow.cancel()
+        // Give cancel's task every opportunity to run if walkChain were
+        // (incorrectly) not enforcing exclusion.
+        for _ in 0..<5 { await Task.yield() }
+        #expect(client.calls.count == callsWhileSuspended)
+
+        await gate.release()
+        _ = await (submitTask, cancelTask)
+
+        #expect(flow.phase == .finished)
+        // cancel() only got its turn after submit had already resolved to
+        // .finished, so its own guard made it a no-op — no delete beyond
+        // whatever the submit itself made along the way.
+        #expect(client.deletedRemotes.count == deletesBeforeCancel)
     }
 }
