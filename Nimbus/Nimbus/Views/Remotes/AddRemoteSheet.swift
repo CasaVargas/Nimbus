@@ -130,6 +130,19 @@ struct AddRemoteSheet: View {
                 )
             }
         }
+        // oauthWaiting only means anything while parked in `.signingIn` (it
+        // gates whether OAuthStep shows the "Sign In" CTA or the
+        // waiting/Cancel state). The instant the walk LEAVES `.signingIn` —
+        // whether forward on success, or via a re-walk that lands back on
+        // `.signingIn` a SECOND time (an Exclusive answer change, or
+        // toggling "Show all options"/"Edit advanced config") — reset it.
+        // Without this, a second arrival at `.signingIn` inherits `true`
+        // from the earlier attempt: OAuthStep renders the waiting spinner
+        // with no Sign In button and no signIn() call in flight, which is a
+        // permanent dead end (C1).
+        .onChange(of: flow.phase) { _, newPhase in
+            if case .signingIn = newPhase { } else { oauthWaiting = false }
+        }
     }
 
     private func identityHeader(_ provider: Provider) -> some View {
@@ -180,19 +193,30 @@ struct AddRemoteSheet: View {
                         .buttonStyle(.borderedProminent)
                 }
             case .signingIn:
-                // No Back here: the OAuth step is reached directly from
-                // naming/loading with no intermediate page to return to, and
-                // Cancel (which fully discards the flow) covers backing out.
+                // No Back here: RemoteSetupFlow has no page-back transition
+                // to begin with — even when a `.page` (one whose boundary is
+                // `.oauth`, i.e. exactly the page where the user just typed
+                // client_id/client_secret) preceded this `.signingIn`, there
+                // is no state to return TO. Cancel (which discards the flow
+                // and returns to the picker) is the only way out (C3).
                 Button("Cancel") {
                     Task { await flow.cancel(); self.flow = nil }
                 }
                 .keyboardShortcut(.cancelAction)
-            case .creating, .finished:
-                // Both are transient, non-interactive states — .creating is
-                // mid-write to rclone.conf, .finished is asynchronously
-                // dismissing the sheet. Showing live destructive buttons on
-                // either is wrong even though cancel() itself now no-ops
-                // once .finished.
+            case .creating:
+                // Not a brief flicker: submitPage() deletes the stub and
+                // re-walks the whole machine, up to 200 round trips against
+                // the daemon. With no Cancel here, a stalled or wedged
+                // daemon leaves force-quitting Nimbus as the only way out.
+                // flow.cancel() is safe: performCancel() guards on
+                // `phase != .finished`, and cancel() aborts the in-flight
+                // walk rather than queuing behind it (C2).
+                Button("Cancel") {
+                    Task { await flow.cancel(); self.flow = nil }
+                }
+                .keyboardShortcut(.cancelAction)
+            case .finished:
+                // Genuinely momentary and self-dismissing — no buttons.
                 EmptyView()
             }
         } else {
