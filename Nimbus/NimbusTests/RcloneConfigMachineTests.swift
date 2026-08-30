@@ -22,6 +22,21 @@ private enum RcloneLocator {
 )
 struct RcloneConfigMachineTests {
 
+    /// A broken rclone invocation must never look like "no more questions" —
+    /// see `loopback` below.
+    private struct RcloneInvocationFailure: Error, CustomStringConvertible {
+        var description: String
+    }
+
+    /// Thread-safe accumulator for a background pipe-drain. `@unchecked
+    /// Sendable` because the semaphore in `loopback` below establishes a real
+    /// happens-before edge between the write and the read; the compiler can't
+    /// see that, matching how `RcloneKit` is `@unchecked Sendable` for the
+    /// same kind of externally-synchronized reason.
+    private final class DataBox: @unchecked Sendable {
+        var data = Data()
+    }
+
     private func loopback(_ configPath: String, _ args: [String]) throws -> [String: Any] {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: RcloneLocator.path!)
@@ -29,13 +44,50 @@ struct RcloneConfigMachineTests {
         var env = ProcessInfo.processInfo.environment
         env["RCLONE_CONFIG"] = configPath
         process.environment = env
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
         try process.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+
+        // Drain stdout and stderr concurrently. Reading them one at a time
+        // (as the original brief did, discarding stderr's Pipe unread) can
+        // deadlock: once either pipe's OS buffer fills, the child blocks
+        // writing to it while we're still blocked reading the other one.
+        let stderrBox = DataBox()
+        let stderrDrained = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .utility).async {
+            stderrBox.data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+            stderrDrained.signal()
+        }
+        let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+        stderrDrained.wait()
         process.waitUntilExit()
-        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+
+        // A crashed, misinvoked, or otherwise-broken rclone must fail loudly,
+        // not decay into "[:]" — which `walk` below reads identically to a
+        // legitimate "state machine finished, no more questions" response.
+        // That equivalence is exactly what let this canary false-green.
+        //
+        // The signal for "broken" is JSON-parseability, not exit code.
+        // rclone's RC endpoint always emits a well-formed JSON object on
+        // stdout, even when a step is rejected — e.g. answering the OAuth
+        // gate non-interactively fails with exit 1 and a perfectly valid
+        // `{"error": "...", "path": "...", "status": 500}` body. `walk`
+        // already treats that shape (no "State"/"Option") as a legitimate
+        // stop, exactly like a clean `{}` finish, and that's correct: it's
+        // rclone answering, just answering "no". A *broken* invocation
+        // (wrong flag, missing binary, a crash before rclone can print)
+        // leaves stdout empty or non-JSON — nothing else does, per rclone's
+        // own contract — so that's the one condition this throws on.
+        guard let json = (try? JSONSerialization.jsonObject(with: stdoutData)) as? [String: Any] else {
+            let stderrText = String(data: stderrBox.data, encoding: .utf8) ?? "<non-utf8 stderr>"
+            let stdoutPreview = String(data: stdoutData.prefix(200), encoding: .utf8) ?? "<non-utf8 stdout>"
+            throw RcloneInvocationFailure(
+                description: "rclone exited \(process.terminationStatus) for args \(args) and produced no parseable JSON object on stdout — first 200 bytes: \(stdoutPreview) — stderr: \(stderrText)"
+            )
+        }
+        return json
     }
 
     /// Walks the machine with default answers, returning the questions asked.
@@ -85,6 +137,16 @@ struct RcloneConfigMachineTests {
 
     @Test func askAllFalseReachesOAuthOnDriveAndAsksNothingOnSftp() throws {
         // The asymmetry the flow's strategy selection depends on.
+        //
+        // The sftp assertion below hinges on `.isEmpty` meaning "rclone
+        // legitimately asked nothing," not "the call to rclone failed."
+        // `walk` can only return without throwing if every `loopback` call
+        // it made produced a parseable rclone RC response (see `loopback`'s
+        // guard above) — so `try walk(...)` succeeding already proves rclone
+        // was actually invoked and actually answered; `.isEmpty` on that
+        // proven-real response is what then proves it answered "no
+        // questions". Both conditions are required to reach the assertion
+        // at all, not just the second one.
         #expect(try walk(type: "drive", askAll: false, answers: [:]).first == "config_is_local")
         #expect(try walk(type: "sftp", askAll: false, answers: [:]).isEmpty)
     }

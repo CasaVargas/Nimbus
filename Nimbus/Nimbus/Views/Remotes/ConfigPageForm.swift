@@ -99,3 +99,80 @@ struct ConfigPageForm: View {
         )
     }
 }
+
+// MARK: - Previews
+
+// Decode-only fixtures, same pattern as the tests: `ProviderOption` has no
+// public memberwise init, so options are built from the JSON shape rclone's
+// `config/create` replies carry.
+//
+// These previews exist to verify what the SNAPSHOT tests cannot. The headless
+// `ImageRenderer` behind `SnapshotHelpers` can't flatten TextField, SecureField
+// or switch-style Toggle (see GuidedAddRemoteSnapshotTests' header), so a
+// sensitive field's masking is simply invisible there. A hosted preview renders
+// the real AppKit controls, which is the only place that masking can be seen.
+private func previewQuestion(
+    _ name: String, help: String, sensitive: Bool = false, examples: [String] = []
+) -> ConfigQuestion {
+    let exampleList = examples
+        .map { #"{"Value":"\#($0)","Help":""}"# }
+        .joined(separator: ",")
+    let examplesJSON = examples.isEmpty ? "" : #", "Examples": [\#(exampleList)]"#
+    let json = #"""
+    {"Name": "\#(name)", "Help": "\#(help)", "Type": "string", "Required": false,
+     "IsPassword": false, "Advanced": false, "Sensitive": \#(sensitive), "Hide": 0,
+     "Exclusive": false, "Default": "", "DefaultStr": "", "Value": null\#(examplesJSON)}
+    """#
+    let option = try! JSONDecoder().decode(ProviderOption.self, from: Data(json.utf8))
+    return ConfigQuestion(option: option, state: "s")
+}
+
+private func previewGate() -> ConfigQuestion {
+    previewQuestion("config_fs_advanced", help: "")
+}
+
+/// Credential backend. `pass` is Sensitive, so it MUST render masked — and
+/// "Show all options" must be absent, because the flow already runs askAll:true
+/// for these backends and the toggle would be a destructive no-op.
+#Preview("Credential (SFTP)") {
+    ConfigPageForm(
+        page: ConfigPage(
+            questions: [
+                previewQuestion("host", help: "SSH host to connect to."),
+                previewQuestion("user", help: "SSH username."),
+                previewQuestion("pass", help: "SSH password.", sensitive: true),
+            ],
+            boundary: .advancedGate(previewGate())
+        ),
+        showAllOptionsIsMeaningful: false,
+        answers: ["host": "example.com", "user": "jon", "pass": "hunter2"],
+        showAllOptions: .constant(false),
+        includeAdvanced: .constant(false),
+        onAnswerChanged: { _, _ in }
+    )
+    .frame(width: 520)
+    .padding()
+}
+
+/// OAuth backend with the toggle shown. `client_secret` is Sensitive and must
+/// render masked; `scope` carries Examples and must render as a Picker.
+#Preview("OAuth, show-all on") {
+    ConfigPageForm(
+        page: ConfigPage(
+            questions: [
+                previewQuestion("client_id", help: "OAuth Client Id. Leave blank normally."),
+                previewQuestion("client_secret", help: "OAuth Client Secret.", sensitive: true),
+                previewQuestion("scope", help: "Scope rclone should use.",
+                                examples: ["drive", "drive.readonly"]),
+            ],
+            boundary: .advancedGate(previewGate())
+        ),
+        showAllOptionsIsMeaningful: true,
+        answers: ["client_secret": "s3cr3t"],
+        showAllOptions: .constant(true),
+        includeAdvanced: .constant(false),
+        onAnswerChanged: { _, _ in }
+    )
+    .frame(width: 520)
+    .padding()
+}

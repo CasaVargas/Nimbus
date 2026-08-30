@@ -43,3 +43,33 @@ struct OAuthStep: View {
         .accessibilityLabel(Text(verbatim: "Sign in to \(provider.description)"))
     }
 }
+
+// Previews use the same decode-only fixture pattern as the tests: `Provider`
+// has no public memberwise init, so it is built from the JSON shape rclone's
+// `config/providers` returns.
+private func previewProvider(_ name: String, _ description: String) -> Provider {
+    let json = #"{"Name":"\#(name)","Description":"\#(description)","Prefix":"\#(name)","Options":[]}"#
+    return try! JSONDecoder().decode(Provider.self, from: Data(json.utf8))
+}
+
+#Preview("Sign in") {
+    OAuthStep(
+        provider: previewProvider("drive", "Google Drive"),
+        isWaiting: false,
+        onSignIn: {},
+        onCancel: {}
+    )
+    .frame(width: 520)
+    .padding()
+}
+
+#Preview("Waiting for browser") {
+    OAuthStep(
+        provider: previewProvider("drive", "Google Drive"),
+        isWaiting: true,
+        onSignIn: {},
+        onCancel: {}
+    )
+    .frame(width: 520)
+    .padding()
+}
