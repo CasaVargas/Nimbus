@@ -181,3 +181,44 @@ import Testing
     #expect(bw.rate == "5M")
     #expect(bw.bytesPerSecond == 5_242_880)
 }
+
+@Test func providerOptionDecodesSensitivityAndBranchingFields() throws {
+    let json = #"""
+    {
+        "Name": "secret_access_key", "Help": "AWS Secret Access Key.",
+        "Type": "string", "Required": false, "IsPassword": false,
+        "Advanced": false, "Sensitive": true, "Hide": 0,
+        "Exclusive": false, "Default": "", "DefaultStr": "", "Value": null
+    }
+    """#
+    let option = try JSONDecoder().decode(ProviderOption.self, from: Data(json.utf8))
+    #expect(option.sensitive == true)
+    #expect(option.hide == 0)
+    #expect(option.exclusive == false)
+    #expect(option.isPassword == false)
+}
+
+@Test func providerOptionDefaultsMissingNewFields() throws {
+    // Older rclone builds and hand-written fixtures omit these keys.
+    let json = #"""
+    {"Name": "region", "Help": "", "Type": "string", "Required": false,
+     "IsPassword": false, "Advanced": false}
+    """#
+    let option = try JSONDecoder().decode(ProviderOption.self, from: Data(json.utf8))
+    #expect(option.sensitive == false)
+    #expect(option.hide == 0)
+    #expect(option.exclusive == false)
+    #expect(option.defaultStr == "")
+}
+
+@Test func providerOptionDecodesExclusiveExampleField() throws {
+    let json = #"""
+    {"Name": "provider", "Help": "Choose your S3 provider.", "Type": "string",
+     "Required": false, "IsPassword": false, "Advanced": false,
+     "Exclusive": true, "Sensitive": false, "Hide": 0,
+     "Examples": [{"Value": "AWS", "Help": "Amazon Web Services"}]}
+    """#
+    let option = try JSONDecoder().decode(ProviderOption.self, from: Data(json.utf8))
+    #expect(option.exclusive == true)
+    #expect(option.examples?.first?.value == "AWS")
+}
