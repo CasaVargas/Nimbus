@@ -27,6 +27,10 @@ private final class ScriptedConfigClient: RemoteConfigDriving {
     }
 
     func deletePartialRemote(name: String) async {
+        // Recorded into `calls` too (not just `deletedRemotes`) so ordering
+        // relative to start/continue calls is observable — see I2 in the
+        // fix-round-1 report.
+        calls.append("delete(\(name))")
         deletedRemotes.append(name)
     }
 
@@ -77,15 +81,52 @@ struct RemoteSetupFlowTests {
 
     @Test func oauthBackendSkipsStraightToSignIn() async throws {
         let client = ScriptedConfigClient()
-        client.script = [.oauth(question("config_is_local", state: "*oauth-islocal,,,"))]
+        let oauthQuestion = question("config_is_local", state: "*oauth-islocal,,,")
+        client.script = [.oauth(oauthQuestion)]
         let flow = RemoteSetupFlow(provider: provider("drive"), client: client)
         flow.name = "gdrive"
         await flow.begin()
 
-        #expect(flow.phase == .signingIn)
+        // .signingIn must carry the oauth question forward — losing it means
+        // signIn() has no state to answer and the walk dead-ends (I3).
+        #expect(flow.phase == .signingIn(oauthQuestion))
         // Basic mode for an OAuth backend must use all:false — using all:true
         // would surface client_id/client_secret, the fields users must leave blank.
         #expect(client.calls.first == "start(all:false)")
+    }
+
+    @Test func signInAnswersOAuthQuestionAndFinishes() async throws {
+        let client = ScriptedConfigClient()
+        let oauthQuestion = question("config_is_local", state: "*oauth-islocal,,,")
+        client.script = [.oauth(oauthQuestion), .done]
+        let flow = RemoteSetupFlow(provider: provider("drive"), client: client)
+        flow.name = "gdrive"
+        await flow.begin()
+        #expect(flow.phase == .signingIn(oauthQuestion))
+
+        await flow.signIn()
+
+        #expect(client.calls.contains("continue(*oauth-islocal,,,=true)"))
+        #expect(flow.phase == .finished)
+    }
+
+    @Test func successfulOAuthCreateSurvivesALaterCancel() async throws {
+        // C1: a successful create must not be deletable by a cancel that
+        // lands afterward (e.g. Escape racing the dismiss-on-finish
+        // transition in the UI).
+        let client = ScriptedConfigClient()
+        let oauthQuestion = question("config_is_local", state: "*oauth-islocal,,,")
+        client.script = [.oauth(oauthQuestion), .done]
+        let flow = RemoteSetupFlow(provider: provider("drive"), client: client)
+        flow.name = "gdrive"
+        await flow.begin()
+        await flow.signIn()
+        #expect(flow.phase == .finished)
+
+        await flow.cancel()
+
+        #expect(client.deletedRemotes.isEmpty)
+        #expect(flow.phase == .finished)
     }
 
     @Test func credentialBackendRestartsWithAskAllAfterEmptyProbe() async throws {
@@ -96,10 +137,11 @@ struct RemoteSetupFlowTests {
         flow.name = "myserver"
         await flow.begin()
 
-        #expect(client.calls.contains("start(all:false)"))
-        #expect(client.calls.contains("start(all:true)"))
-        // The stub written by the probe must be deleted before restarting.
-        #expect(client.deletedRemotes.contains("myserver"))
+        // Exact sequence, not just "contains": proves the stub was deleted
+        // BEFORE the restart, not merely at some point during the walk (I2).
+        #expect(client.calls == ["start(all:false)", "delete(myserver)", "start(all:true)"])
+        // Terminal phase pinned so a garbage intermediate state can't pass.
+        #expect(flow.phase == .finished)
     }
 
     @Test func replaysStoredAnswersOnEveryWalk() async throws {
@@ -117,15 +159,41 @@ struct RemoteSetupFlowTests {
         #expect(client.calls.contains("continue(s0=example.com)"))
     }
 
+    @Test func includeAdvancedTrueAnswersTheAdvancedGateWithTrue() async throws {
+        // M1: pin that includeAdvanced actually reaches rclone as "true" —
+        // this can silently never apply if the boundary-answering code path
+        // stops threading it through.
+        let client = ScriptedConfigClient()
+        client.script = [
+            .question(question("host", state: "s0")),
+            .advancedGate(question("config_fs_advanced", state: "s1")),
+            .done,
+        ]
+        let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
+        flow.name = "myserver"
+        await flow.begin()
+        flow.includeAdvanced = true
+        await flow.submitPage()
+
+        #expect(client.calls.contains("continue(s1=true)"))
+        #expect(flow.phase == .finished)
+    }
+
     @Test func cancelDeletesThePartialRemote() async throws {
         let client = ScriptedConfigClient()
         client.script = [.question(question("host", state: "s0")), .done]
         let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
         flow.name = "myserver"
         await flow.begin()
+        // I1: begin() on a credential backend already deletes the empty-probe
+        // stub, so asserting `deletedRemotes.contains` is vacuously true
+        // before cancel() ever runs. Capture the count first and require
+        // cancel() to strictly increase it.
+        let deletesBeforeCancel = client.deletedRemotes.count
+
         await flow.cancel()
 
-        #expect(client.deletedRemotes.contains("myserver"))
+        #expect(client.deletedRemotes.count > deletesBeforeCancel)
     }
 
     @Test func failedWalkDeletesThePartialRemote() async throws {
