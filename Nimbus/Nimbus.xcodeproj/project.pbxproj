@@ -82,6 +82,7 @@
 		9687B9F94CCD65BEC93661D0 /* ProgressMeterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 698951C956253067F50F6B75 /* ProgressMeterTests.swift */; };
 		98842DE504040C086A7C06A3 /* RemoteSetupFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34DF6C9B19D75151DA05A33D /* RemoteSetupFlow.swift */; };
 		98FF3F799F1DA307D9BF9E53 /* SidebarRemoteRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F99D135D9BA8782CC5F5E56 /* SidebarRemoteRow.swift */; };
+		9FA8AB902AF9A34ED1BE2310 /* OAuthStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AB817DDF23D8ABF18B43C3F /* OAuthStep.swift */; };
 		A0711627A70DE50CB302CBA1 /* TransfersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D6672817A705472989CD40D /* TransfersView.swift */; };
 		A1D8E4098247475DF132F4F0 /* AppCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4910D3AF15B212612877784B /* AppCommands.swift */; };
 		A2C445BFC1D91129614EB77D /* QuickLookHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9CE29401FAD3CBE223A9672 /* QuickLookHost.swift */; };
@@ -94,6 +95,7 @@
 		ADCDC4391F85BAB27DAB12D2 /* FileTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4782ABB2481E119B80157DEF /* FileTable.swift */; };
 		AE148200C57EA04A2F17BF57 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C597E692310630A9FD68C83 /* DesignSystem.swift */; };
 		B00080307FD8EA793F2CEAD7 /* NimbusError.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD46B92F934C6AADF654A9BA /* NimbusError.swift */; };
+		B0AD368D3BC258AA033CD103 /* ConfigPageForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75E75859C6C60BC7A4E87C81 /* ConfigPageForm.swift */; };
 		B33B762BA9D1403D850A9E62 /* SidebarSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8C0D0BC95A7D1919E7FB034 /* SidebarSelectionTests.swift */; };
 		B3DD7DD69B279684EA0D9497 /* ImportPreviewList.swift in Sources */ = {isa = PBXBuildFile; fileRef = A21C381CEE03583B4CADE2DA /* ImportPreviewList.swift */; };
 		B4C719D6E99C2E5961856594 /* ImportRemoteRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9424E2AE45C4242AFBB7A2D /* ImportRemoteRow.swift */; };
@@ -219,6 +221,7 @@
 		5322BA5BF672E9A04097F109 /* MountConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountConfiguration.swift; sourceTree = "<group>"; };
 		56DDC44A90929A9518155E77 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		574E6F3F62AE7BD0B43201D5 /* NimbusTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NimbusTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5AB817DDF23D8ABF18B43C3F /* OAuthStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthStep.swift; sourceTree = "<group>"; };
 		5B0E08F04AB87582552B4653 /* ProviderIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderIcon.swift; sourceTree = "<group>"; };
 		5B4EDE78A4EEDF0C9EE8A0E9 /* SyncSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSnapshotStore.swift; sourceTree = "<group>"; };
 		5CCCEBA204DCFCEBF2063D66 /* Colors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Colors.swift; sourceTree = "<group>"; };
@@ -228,6 +231,7 @@
 		698951C956253067F50F6B75 /* ProgressMeterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressMeterTests.swift; sourceTree = "<group>"; };
 		6BD5589C957FFEFEDDF3563A /* KeyboardCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardCoordinator.swift; sourceTree = "<group>"; };
 		6EFB6DB3EF366558FF0BAF07 /* RcloneConfParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RcloneConfParser.swift; sourceTree = "<group>"; };
+		75E75859C6C60BC7A4E87C81 /* ConfigPageForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigPageForm.swift; sourceTree = "<group>"; };
 		75F5A8E026E6C2BD49858289 /* FileTablePerfTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTablePerfTests.swift; sourceTree = "<group>"; };
 		773187DDF62D87927128DCAC /* EmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyState.swift; sourceTree = "<group>"; };
 		7BBED5BF19EAACDD19F5A75D /* TransferRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferRowTests.swift; sourceTree = "<group>"; };
@@ -370,10 +374,12 @@
 				B4BBDEBA281F41466C04A187 /* AddRemoteSheet.swift */,
 				0FBAA3F42058EB68CD5B9138 /* ConfigFieldView.swift */,
 				9514C974E975323DC538A60E /* ConfigForm.swift */,
+				75E75859C6C60BC7A4E87C81 /* ConfigPageForm.swift */,
 				8B919CAFBCBF7D878493B03F /* EditRemoteSheet.swift */,
 				2526A5E71E5C5ECDAD53597D /* ImportConfigSheet.swift */,
 				A21C381CEE03583B4CADE2DA /* ImportPreviewList.swift */,
 				D9424E2AE45C4242AFBB7A2D /* ImportRemoteRow.swift */,
+				5AB817DDF23D8ABF18B43C3F /* OAuthStep.swift */,
 				807D46990D982B5DE50BE2BD /* ProviderPicker.swift */,
 				E3F17A62CC5244C028C56630 /* RemotesSidebarSection.swift */,
 				D546B42FD06CE92B26FB9A23 /* RemoteStatus.swift */,
@@ -857,6 +863,7 @@
 				79CD5B771150740985B6CFA1 /* Colors.swift in Sources */,
 				E89A322541CB8B98774B7765 /* ConfigFieldView.swift in Sources */,
 				08E7462C33D968419FE1571D /* ConfigForm.swift in Sources */,
+				B0AD368D3BC258AA033CD103 /* ConfigPageForm.swift in Sources */,
 				DAD5B2624B34C841E8166756 /* ConfirmCopySheet.swift in Sources */,
 				6259278BE2E32B337ED7DF95 /* ContentView.swift in Sources */,
 				F20DC020AE748305501AE6DC /* CopySyncView.swift in Sources */,
@@ -893,6 +900,7 @@
 				278E2D760830C431C685CF0B /* NimbusApp.swift in Sources */,
 				B00080307FD8EA793F2CEAD7 /* NimbusError.swift in Sources */,
 				CAF8A4396F7EEB736BD84E8F /* NimbusFileRef.swift in Sources */,
+				9FA8AB902AF9A34ED1BE2310 /* OAuthStep.swift in Sources */,
 				E1D66F43A6DB298B4244F4C1 /* OnboardingCard.swift in Sources */,
 				66686A62291C3FC31EFD0607 /* OnboardingView.swift in Sources */,
 				21E72894D5B09900044349EC /* PathPicker.swift in Sources */,
