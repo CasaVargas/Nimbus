@@ -21,11 +21,13 @@ private final class ScriptedConfigClient: RemoteConfigDriving {
     /// returning a step, then clears itself. Models a daemon/network failure
     /// without adding test-only state to the production RemoteSetupFlow type.
     var failNextStart: Error?
-    /// Test seam for C2: when set, every `continueConfig` call awaits this
-    /// BEFORE recording the call or returning a step — so a test can
+    /// Test seam for C2/NB-1: when set, every `continueConfig` call awaits
+    /// this BEFORE recording the call or returning a step — so a test can
     /// suspend a walk mid-flight, start a second concurrent operation, and
-    /// observe whether the two interleave.
-    var gate: (() async -> Void)?
+    /// observe whether the two interleave, or cancel the suspended walk and
+    /// observe the suspension abort (throwing) rather than needing an
+    /// explicit release.
+    var gate: (() async throws -> Void)?
     private(set) var calls: [String] = []
     private(set) var deletedRemotes: [String] = []
     private var cursorFalse = 0
@@ -45,7 +47,7 @@ private final class ScriptedConfigClient: RemoteConfigDriving {
         name: String, type: String, state: String, result: String, askAll: Bool
     ) async throws -> ConfigStep {
         if let gate {
-            await gate()
+            try await gate()
         }
         calls.append("continue(\(state)=\(result))")
         return next(askAll: askAll)
@@ -79,26 +81,47 @@ private final class ScriptedConfigClient: RemoteConfigDriving {
     }
 }
 
-/// One-shot rendezvous used by the C2 concurrency test. `hook()` (called
-/// from inside the code under test, via `ScriptedConfigClient.gate`) signals
-/// arrival and then suspends until `release()` is called; `waitUntilArrived()`
-/// (called from the test body) suspends until `hook()` has been entered. An
-/// `actor` so both sides can call it safely from different Tasks without a
-/// hand-rolled lock.
+/// One-shot rendezvous used by the concurrency tests. `hook()` (called from
+/// inside the code under test, via `ScriptedConfigClient.gate`) signals
+/// arrival and then suspends until EITHER `release()` is called, OR the
+/// calling Task is cancelled — in which case it throws `CancellationError`,
+/// mirroring how a real network call (URLSession's async APIs) behaves when
+/// its Task is cancelled. That's exactly the mechanism NB-1's fix
+/// (`walkChain?.cancel()`) relies on in production, so the test double must
+/// model it rather than only ever unblocking via an explicit release.
+/// `waitUntilArrived()` (called from the test body) suspends until `hook()`
+/// has been entered. An `actor` so both sides can call it safely from
+/// different Tasks without a hand-rolled lock.
 private actor Gate {
     private var hasArrived = false
     private var arrivedContinuation: CheckedContinuation<Void, Never>?
     private var released = false
     private var releaseContinuation: CheckedContinuation<Void, Never>?
 
-    func hook() async {
+    func hook() async throws {
         hasArrived = true
         arrivedContinuation?.resume()
         arrivedContinuation = nil
-        if released { return }
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            releaseContinuation = continuation
+        if !released {
+            await withTaskCancellationHandler {
+                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                    if released {
+                        continuation.resume()
+                    } else {
+                        releaseContinuation = continuation
+                    }
+                }
+            } onCancel: {
+                Task { await self.unblockForCancellation() }
+            }
         }
+        try Task.checkCancellation()
+    }
+
+    private func unblockForCancellation() {
+        released = true
+        releaseContinuation?.resume()
+        releaseContinuation = nil
     }
 
     func waitUntilArrived() async {
@@ -108,6 +131,10 @@ private actor Gate {
         }
     }
 
+    /// Unblocks `hook()` normally (no cancellation, no throw). Not currently
+    /// exercised by any test below — every scenario here needs cancellation
+    /// semantics — but kept as the non-cancellation counterpart so a future
+    /// test can suspend a walk and let it proceed rather than abort it.
     func release() {
         released = true
         releaseContinuation?.resume()
@@ -165,7 +192,7 @@ struct RemoteSetupFlowTests {
 
         // .signingIn must carry the oauth question forward — losing it means
         // signIn() has no state to answer and the walk dead-ends (I3).
-        #expect(flow.phase == .signingIn(oauthQuestion))
+        #expect(flow.phase == .signingIn(oauthQuestion, askAll: false))
         // Basic mode for an OAuth backend must use all:false — using all:true
         // would surface client_id/client_secret, the fields users must leave blank.
         #expect(client.calls.first == "start(all:false)")
@@ -181,11 +208,35 @@ struct RemoteSetupFlowTests {
         let flow = RemoteSetupFlow(provider: provider("drive"), client: client)
         flow.name = "gdrive"
         await flow.begin()
-        #expect(flow.phase == .signingIn(oauthQuestion))
+        #expect(flow.phase == .signingIn(oauthQuestion, askAll: false))
 
         await flow.signIn()
 
         #expect(client.calls.contains("continue(*oauth-islocal,,,=true)"))
+        #expect(flow.phase == .finished)
+    }
+
+    @Test func signInCarriesTheAskAllValueFromWhenSigningInWasEntered() async throws {
+        // NB-4: performSignIn() must use the askAll captured when .signingIn
+        // was entered, not recompute it live. scriptTrue is deliberately
+        // left empty: if signIn() wrongly used askAll:true (e.g. because the
+        // user toggled "Show all options" while parked in .signingIn),
+        // continueConfig would walk past the end of scriptTrue and
+        // ScriptedConfigClient flags that as a test failure via Issue.record.
+        let client = ScriptedConfigClient()
+        let oauthQuestion = question("config_is_local", state: "*oauth-islocal,,,")
+        client.scriptFalse = [.oauth(oauthQuestion), .done]
+        let flow = RemoteSetupFlow(provider: provider("drive"), client: client)
+        flow.name = "gdrive"
+        await flow.begin()
+        #expect(flow.phase == .signingIn(oauthQuestion, askAll: false))
+
+        // Toggle "Show all options" while still parked in .signingIn — this
+        // must not change which askAll signIn()'s continueConfig call uses.
+        flow.showAllOptions = true
+
+        await flow.signIn()
+
         #expect(flow.phase == .finished)
     }
 
@@ -351,14 +402,12 @@ struct RemoteSetupFlowTests {
         }
     }
 
-    @Test func cancelQueuedBehindAnInFlightSubmitNeverInterleavesAndNoOpsOnceFinished() async throws {
-        // C2: a Cancel landing while a submit is still mid-flight must not
-        // interleave its calls with the submit's, and must not delete a
-        // remote the submit went on to finish creating. walkChain (enqueue)
-        // is what guarantees this — this drives it under real concurrency
-        // (two genuinely in-flight Tasks via a suspension gate), not merely
-        // sequential awaits, which would trivially never interleave on
-        // their own.
+    @Test func cancelAbortsAnInFlightSubmitInsteadOfWaitingForIt() async throws {
+        // C2 + NB-1: cancel() must ABORT the in-flight walk, not politely
+        // wait for it to finish first — waiting is exactly what left the
+        // Cancel button inert during a blocking signIn() (NB-1). This proves
+        // the same abort-not-wait behavior for a submitPage() walk: cancel()
+        // must not let it run to completion before taking its own turn.
         let client = ScriptedConfigClient()
         client.scriptFalse = [.done]
         client.scriptTrue = [
@@ -378,31 +427,58 @@ struct RemoteSetupFlowTests {
         client.gate = {
             continueCallsSinceGateInstalled += 1
             // Suspend the SECOND continueConfig call of the submit's
-            // re-walk (the first answers "host"), so cancel() is started
+            // re-walk (the first answers "host"), so cancel() lands
             // genuinely mid-walk rather than before the walk begins.
             if continueCallsSinceGateInstalled == 2 {
-                await gate.hook()
+                try await gate.hook()
             }
         }
 
         async let submitTask: Void = flow.submitPage()
         await gate.waitUntilArrived()
-        let callsWhileSuspended = client.calls.count
         let deletesBeforeCancel = client.deletedRemotes.count
 
-        async let cancelTask: Void = flow.cancel()
-        // Give cancel's task every opportunity to run if walkChain were
-        // (incorrectly) not enforcing exclusion.
-        for _ in 0..<5 { await Task.yield() }
-        #expect(client.calls.count == callsWhileSuspended)
+        // cancel() must resolve on its own — this test never calls
+        // gate.release() — proving it aborted the blocking continueConfig
+        // call via cancellation rather than waiting for submit to finish.
+        await flow.cancel()
+        _ = await submitTask
 
-        await gate.release()
-        _ = await (submitTask, cancelTask)
+        #expect(flow.phase == .naming)
+        // The aborted submit quietly stopped without reaching .finished (so
+        // it never cleared the cleanup target itself); cancel()'s own
+        // cleanup is what deletes the remote.
+        #expect(client.deletedRemotes.count > deletesBeforeCancel)
+    }
 
-        #expect(flow.phase == .finished)
-        // cancel() only got its turn after submit had already resolved to
-        // .finished, so its own guard made it a no-op — no delete beyond
-        // whatever the submit itself made along the way.
-        #expect(client.deletedRemotes.count == deletesBeforeCancel)
+    @Test func cancelDuringSignInAbortsTheBlockingOAuthWaitAndCleansUp() async throws {
+        // NB-1: the Cancel button in .signingIn must actually work. Before
+        // this fix, cancel() queued behind signIn()'s blocking continueConfig
+        // call — which can legitimately hang forever waiting on the user's
+        // browser — and never got a turn. cancel() must abort that in-flight
+        // call instead of waiting for it.
+        let client = ScriptedConfigClient()
+        let oauthQuestion = question("config_is_local", state: "*oauth-islocal,,,")
+        client.scriptFalse = [.oauth(oauthQuestion)]
+        let flow = RemoteSetupFlow(provider: provider("drive"), client: client)
+        flow.name = "gdrive"
+        await flow.begin()
+        #expect(flow.phase == .signingIn(oauthQuestion, askAll: false))
+
+        let gate = Gate()
+        client.gate = { try await gate.hook() }
+
+        async let signInTask: Void = flow.signIn()
+        await gate.waitUntilArrived()
+
+        // cancel() must resolve on its own — this test never calls
+        // gate.release() — proving it aborted signIn()'s blocking wait
+        // rather than waiting for it (which, absent a browser completing
+        // OAuth, could be forever).
+        await flow.cancel()
+        _ = await signInTask
+
+        #expect(flow.phase == .naming)
+        #expect(client.deletedRemotes.contains("gdrive"))
     }
 }

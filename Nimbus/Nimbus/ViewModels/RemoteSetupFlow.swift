@@ -61,8 +61,12 @@ final class RemoteSetupFlow {
         case loading
         case page(ConfigPage)
         /// Waiting on rclone's browser OAuth round-trip. Carries the
-        /// `*oauth-islocal` question so `signIn()` has the state to answer.
-        case signingIn(ConfigQuestion)
+        /// `*oauth-islocal` question so `signIn()` has the state to answer,
+        /// and the `askAll` the walk used to reach this state — `signIn()`
+        /// must reuse it rather than recompute the live `askAll` property,
+        /// or toggling "Show all options" while parked here would pair the
+        /// original `all:false` start with an `all:true` continue (NB-4).
+        case signingIn(ConfigQuestion, askAll: Bool)
         case creating
         case finished
         case failed(String)
@@ -140,6 +144,14 @@ final class RemoteSetupFlow {
     }
 
     func cancel() async {
+        // Abort the in-flight walk before queueing our own turn. Without
+        // this, cancel() waits behind a signIn() that rclone can block on
+        // for minutes — or forever, if the user never finishes in the
+        // browser — leaving the Cancel button inert, which the spec
+        // explicitly forbids (NB-1). Serialization still holds: we cancel,
+        // then wait for the aborted walk to unwind before doing our own
+        // cleanup, so no delete races a live create.
+        walkChain?.cancel()
         await enqueue { await self.performCancel() }
     }
 
@@ -160,6 +172,13 @@ final class RemoteSetupFlow {
     private func performBegin() async {
         phase = .loading
         do {
+            // Clean up any stub left by a prior begin()/rewalk() before
+            // starting fresh, matching performRewalk's same defensive
+            // cleanup. Unreachable today (nothing currently calls begin()
+            // a second time on the same flow instance), but closes the gap
+            // before it can be reached — e.g. a second begin() from
+            // .page/.signingIn after a rename (NB-3).
+            await cleanUpPartialRemote()
             let first = try await start(askAll: false)
             switch first {
             case .oauth:
@@ -224,13 +243,15 @@ final class RemoteSetupFlow {
     }
 
     private func performSignIn() async {
-        guard case .signingIn(let question) = phase else { return }
+        // Uses the askAll captured on .signingIn, not the live `askAll`
+        // property — see the case's doc comment (NB-4).
+        guard case .signingIn(let question, let signInAskAll) = phase else { return }
         do {
             let next = try await client.continueConfig(
                 name: name, type: provider.name, state: question.state,
-                result: "true", askAll: askAll
+                result: "true", askAll: signInAskAll
             )
-            await advance(from: next, askAll: askAll)
+            await advance(from: next, askAll: signInAskAll)
         } catch {
             await fail(error)
         }
@@ -257,7 +278,14 @@ final class RemoteSetupFlow {
         // afterward — deleting a remote that was never created is a
         // harmless no-op, leaking or mistargeting a delete is not.
         let currentName = name
-        partialRemoteName = currentName
+        // Don't record an empty name as the cleanup target — the previous
+        // `partialRemoteExists: Bool` shape guarded this with `!name.isEmpty`
+        // at cleanup time; restoring the equivalent here (at record time)
+        // means `partialRemoteName` can never hold "" and later trigger a
+        // `deletePartialRemote(name: "")` call (NB-2).
+        if !currentName.isEmpty {
+            partialRemoteName = currentName
+        }
         return try await client.startConfig(name: currentName, type: provider.name, askAll: askAll)
     }
 
@@ -284,7 +312,7 @@ final class RemoteSetupFlow {
                     )
                 case .oauth(let q):
                     phase = collected.isEmpty
-                        ? .signingIn(q)
+                        ? .signingIn(q, askAll: askAll)
                         : .page(ConfigPage(questions: collected, boundary: .oauth(q)))
                     return
                 case .advancedGate(let q):
@@ -363,8 +391,27 @@ final class RemoteSetupFlow {
     }
 
     private func fail(_ error: Error) async {
+        guard !isCancellation(error) else {
+            // cancel() aborted the in-flight walk (walkChain?.cancel(), see
+            // cancel()'s doc comment) — this is cancel() doing its job, not
+            // a failure to surface. Leave `partialRemoteName` set so
+            // performCancel's own cleanup, queued right behind this walk on
+            // walkChain, can still delete the remote once it gets its turn
+            // (NB-1).
+            return
+        }
         await cleanUpPartialRemote()
         phase = .failed(NimbusError.classify(error).message)
+    }
+
+    /// True for a thrown `CancellationError`, a `URLError.cancelled` (how a
+    /// cancelled URLSession call — the production client's real transport —
+    /// surfaces cancellation), or simply the enclosing Task already being
+    /// cancelled regardless of the specific error shape.
+    private func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
+        return Task.isCancelled
     }
 
     private func cleanUpPartialRemote() async {
