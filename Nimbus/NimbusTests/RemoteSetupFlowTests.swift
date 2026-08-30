@@ -131,10 +131,10 @@ private actor Gate {
         }
     }
 
-    /// Unblocks `hook()` normally (no cancellation, no throw). Not currently
-    /// exercised by any test below — every scenario here needs cancellation
-    /// semantics — but kept as the non-cancellation counterpart so a future
-    /// test can suspend a walk and let it proceed rather than abort it.
+    /// Unblocks `hook()` normally (no cancellation, no throw). Used by
+    /// `rewalkQueuedBehindAnotherRewalkNeverInterleavesItsCalls`, the one
+    /// test below where both walks are meant to run to completion rather
+    /// than be cancelled.
     func release() {
         released = true
         releaseContinuation?.resume()
@@ -512,6 +512,66 @@ struct RemoteSetupFlowTests {
         // it never cleared the cleanup target itself); cancel()'s own
         // cleanup is what deletes the remote.
         #expect(client.deletedRemotes.count > deletesBeforeCancel)
+    }
+
+    @Test func exclusiveAnswerTriggersRewalk() async throws {
+        // s3's `provider` option is Exclusive: answering it changes which
+        // fields follow (AWS vs. Wasabi ask for different things), so the
+        // page the walk already rendered is stale and must be re-walked.
+        let client = ScriptedConfigClient()
+        // all:false on s3 asks nothing and writes a stub, same as sftp.
+        client.scriptFalse = [.done]
+        client.scriptTrue = [
+            .question(question("provider", state: "s0", exclusive: true)),
+            .advancedGate(question("config_fs_advanced", state: "s1")),
+        ]
+        let flow = RemoteSetupFlow(provider: provider("s3"), client: client)
+        flow.name = "bucket"
+        await flow.begin()
+
+        let before = client.calls.filter { $0.hasPrefix("start(") }.count
+        await flow.answerChanged(question("provider", state: "s0", exclusive: true), to: "AWS")
+        let after = client.calls.filter { $0.hasPrefix("start(") }.count
+
+        #expect(after > before)
+        #expect(flow.answers["provider"] == "AWS")
+    }
+
+    @Test func nonExclusiveAnswerDoesNotRewalk() async throws {
+        let client = ScriptedConfigClient()
+        client.scriptFalse = [.done]
+        client.scriptTrue = [
+            .question(question("access_key_id", state: "s0")),
+            .advancedGate(question("config_fs_advanced", state: "s1")),
+        ]
+        let flow = RemoteSetupFlow(provider: provider("s3"), client: client)
+        flow.name = "bucket"
+        await flow.begin()
+
+        let before = client.calls.filter { $0.hasPrefix("start(") }.count
+        await flow.answerChanged(question("access_key_id", state: "s0"), to: "AKIA")
+        let after = client.calls.filter { $0.hasPrefix("start(") }.count
+
+        #expect(after == before)
+        #expect(flow.answers["access_key_id"] == "AKIA")
+    }
+
+    @Test func rewalkPreservesUnrelatedAnswers() async throws {
+        let client = ScriptedConfigClient()
+        client.scriptFalse = [.done]
+        client.scriptTrue = [
+            .question(question("provider", state: "s0", exclusive: true)),
+            .advancedGate(question("config_fs_advanced", state: "s1")),
+        ]
+        let flow = RemoteSetupFlow(provider: provider("s3"), client: client)
+        flow.name = "bucket"
+        await flow.begin()
+        flow.answers["access_key_id"] = "AKIA"
+
+        await flow.answerChanged(question("provider", state: "s0", exclusive: true), to: "Wasabi")
+
+        #expect(flow.answers["access_key_id"] == "AKIA")
+        #expect(flow.answers["provider"] == "Wasabi")
     }
 
     @Test func cancelDuringSignInAbortsTheBlockingOAuthWaitAndCleansUp() async throws {

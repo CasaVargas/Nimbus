@@ -143,6 +143,15 @@ final class RemoteSetupFlow {
         await enqueue { await self.performSignIn() }
     }
 
+    /// Records an answer. Answers to `Exclusive` options branch the remaining
+    /// question set, so the current page is stale and the walk restarts;
+    /// everything else just updates the dictionary in place.
+    func answerChanged(_ question: ConfigQuestion, to value: String) async {
+        answers[question.option.name] = value
+        guard question.option.exclusive else { return }
+        await rewalk()
+    }
+
     func cancel() async {
         // Abort the in-flight walk before queueing our own turn. Without
         // this, cancel() waits behind a signIn() that rclone can block on
