@@ -10,6 +10,16 @@ import RcloneKit
 /// first phase, not this sheet's first screen — Back from `.naming`
 /// discards the flow and returns to the picker.
 struct AddRemoteSheet: View {
+    /// Title and message travel together, decided once at the point
+    /// something fails, so an alert can never present a title that
+    /// contradicts its own body — e.g. "Couldn't add remote" over a message
+    /// that says the add can still proceed. Same principle as `trimmedName`
+    /// being the one place "trimmed" is defined (C6 round 2).
+    private struct SheetAlert: Equatable {
+        let title: LocalizedStringKey
+        let message: String
+    }
+
     let client: RcloneClient
     let onDismiss: () -> Void
 
@@ -17,7 +27,7 @@ struct AddRemoteSheet: View {
     @State private var providers: [Provider] = []
     @State private var flow: RemoteSetupFlow?
     @State private var existingNames: Set<String> = []
-    @State private var error: NimbusError?
+    @State private var alert: SheetAlert?
     @State private var loadingProviders = true
     /// Whether the current `.signingIn` sub-state has actually started
     /// rclone's blocking sign-in call (vs. showing the "Sign In" CTA).
@@ -37,16 +47,16 @@ struct AddRemoteSheet: View {
         .frame(width: 560, height: 560)
         .task { await loadProviders() }
         .alert(
-            "Couldn't add remote",
+            alert?.title ?? "Couldn't add remote",
             isPresented: Binding(
-                get: { error != nil },
-                set: { if !$0 { error = nil } }
+                get: { alert != nil },
+                set: { if !$0 { alert = nil } }
             ),
-            presenting: error
+            presenting: alert
         ) { _ in
-            Button("OK", role: .cancel) { error = nil }
-        } message: { err in
-            Text(verbatim: err.message)
+            Button("OK", role: .cancel) { alert = nil }
+        } message: { current in
+            Text(verbatim: current.message)
         }
     }
 
@@ -265,8 +275,11 @@ struct AddRemoteSheet: View {
             providers = try await client.getProviders()
         } catch {
             // Fatal to this sheet: with no providers, there is nothing to
-            // pick, so the generic "Couldn't add remote" alert is accurate.
-            self.error = NimbusError.classify(error)
+            // pick, so "Couldn't add remote" is an accurate title.
+            alert = SheetAlert(
+                title: "Couldn't add remote",
+                message: NimbusError.classify(error).message
+            )
             loadingProviders = false
             return
         }
@@ -276,13 +289,13 @@ struct AddRemoteSheet: View {
             // Non-fatal: providers loaded fine, so the picker is still
             // fully usable — proceeding silently here would leave
             // duplicate-name detection permanently and invisibly off for
-            // the rest of the session. Surface it with a message specific
-            // to what actually broke, rather than reusing a generic error
-            // that would read as "the whole flow is broken" when it isn't
-            // (C6).
+            // the rest of the session. Title and message are set together
+            // here so they can't contradict each other the way a shared
+            // "Couldn't add remote" title did over a body saying the add
+            // could still proceed (C6 round 2).
             existingNames = []
-            self.error = NimbusError(
-                kind: .other,
+            alert = SheetAlert(
+                title: "Duplicate check unavailable",
                 message: "Couldn't check for existing remote names, so a duplicate name may not be caught until rclone rejects it. You can still continue."
             )
         }
