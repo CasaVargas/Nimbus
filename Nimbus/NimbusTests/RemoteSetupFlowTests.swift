@@ -350,6 +350,69 @@ struct RemoteSetupFlowTests {
         #expect(flow.phase == .finished)
     }
 
+    @Test func rewalkQueuedBehindAnotherRewalkNeverInterleavesItsCalls() async throws {
+        // C2's core property, restored after fix round 3's rewrite of the
+        // old interleaving test left only cancellation-based coverage:
+        // two walks against the same remote must never interleave their
+        // config/create calls. Neither walk here is cancelled — both queue
+        // and run to completion — so this is the one test that actually
+        // exercises `enqueue`'s `await previous?.value` chaining rather
+        // than the cancellation path. Task 5 triggers a rewalk() on every
+        // branching answer and Task 8 wires one to the "Show all options"
+        // toggle; two rapid rewalks would race exactly like this if
+        // `enqueue` didn't serialize them.
+        //
+        // Verified this test actually depends on that chaining by removing
+        // `await previous?.value` from `enqueue` once, confirming this test
+        // failed (the second rewalk's calls appeared before the first
+        // finished), then restoring it — see fix round 4's report.
+        let client = ScriptedConfigClient()
+        client.scriptFalse = [.done]
+        client.scriptTrue = [
+            .question(question("host", state: "s0")),
+            .question(question("user", state: "s1")),
+            .done,
+        ]
+        let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
+        flow.name = "myserver"
+        await flow.begin()
+        guard case .page = flow.phase else {
+            Issue.record("expected .page, got \(flow.phase)"); return
+        }
+        let callsBeforeRewalks = client.calls.count
+
+        let gate = Gate()
+        var continueCallsSinceGateInstalled = 0
+        client.gate = {
+            continueCallsSinceGateInstalled += 1
+            // Suspend the FIRST rewalk's SECOND continueConfig call
+            // (answering "user"), so the second rewalk() starts genuinely
+            // mid-walk rather than before the first one begins.
+            if continueCallsSinceGateInstalled == 2 {
+                try await gate.hook()
+            }
+        }
+
+        async let firstRewalk: Void = flow.rewalk()
+        await gate.waitUntilArrived()
+        let callsWhileFirstIsSuspended = client.calls.count
+
+        async let secondRewalk: Void = flow.rewalk()
+        // Give the second rewalk's task every opportunity to run if
+        // walkChain were (incorrectly) not enforcing exclusion.
+        for _ in 0..<5 { await Task.yield() }
+        #expect(client.calls.count == callsWhileFirstIsSuspended)
+
+        await gate.release()
+        _ = await (firstRewalk, secondRewalk)
+
+        // The two walks' calls appear as two clean, non-interleaved runs —
+        // not, e.g., both walks' deletes followed by both walks' starts.
+        let afterBothRewalks = Array(client.calls[callsBeforeRewalks...])
+        let oneWalk = ["delete(myserver)", "start(all:true)", "continue(s0=)", "continue(s1=)"]
+        #expect(afterBothRewalks == oneWalk + oneWalk)
+    }
+
     @Test func cancelDeletesThePartialRemote() async throws {
         let client = ScriptedConfigClient()
         client.scriptFalse = [.done]
