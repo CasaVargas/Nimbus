@@ -153,6 +153,12 @@ private let _setupMocks: Void = {
         json: #"{"error": "directory not found", "path": "test/error-endpoint", "status": 404}"#,
         status: 404
     )
+
+    // Dedicated endpoint for mockCapturesRequestBody — config/create is also
+    // hit by RemotesTests.swift's bare createRemote() test, which would race
+    // with lastRequestBodies["config/create"] if this test asserted on that
+    // shared path instead.
+    MockURLProtocol.register(endpoint: "test/body-capture", json: "{}")
 }()
 
 func makeTestClient() -> RcloneClient {
@@ -255,9 +261,15 @@ struct MockHarnessTests {
     @Test func mockCapturesRequestBody() async throws {
         MockURLProtocol.resetQueues()
         let client = makeTestClient()
-        try await client.createRemote(name: "bodytest", type: "s3", parameters: ["region": "us-east-1"])
+        // A dedicated endpoint no other test touches: the point of this test is
+        // that lastRequestBodies captures a POST body off httpBodyStream, which
+        // must not depend on another test's traffic to a shared path.
+        let _: [String: String] = try await client.call(
+            "test/body-capture",
+            params: ["name": "bodytest", "type": "s3"]
+        )
 
-        let body = try #require(MockURLProtocol.lastRequestBodies["config/create"])
+        let body = try #require(MockURLProtocol.lastRequestBodies["test/body-capture"])
         let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
         #expect(json["name"] as? String == "bodytest")
         #expect(json["type"] as? String == "s3")
