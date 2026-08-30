@@ -22,10 +22,9 @@ import Testing
     #expect(providers[0].name == "s3")
 }
 
-@Test func createRemote() async throws {
-    let client = makeTestClient()
-    try await client.createRemote(name: "myremote", type: "s3", parameters: ["region": "us-east-1"])
-}
+// createRemote() lives in ConfigSessionTests.swift's ConfigSession suite —
+// it POSTs to config/create, which that suite owns to avoid racing
+// MockURLProtocol's shared response queues.
 
 @Test func deleteRemote() async throws {
     let client = makeTestClient()

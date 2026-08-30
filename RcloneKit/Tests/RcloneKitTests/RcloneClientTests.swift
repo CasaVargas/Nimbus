@@ -27,9 +27,16 @@ final class MockURLProtocol: URLProtocol, @unchecked Sendable {
         responseQueues[endpoint, default: []].append((json.data(using: .utf8)!, status))
     }
 
-    static func resetQueues() {
-        responseQueues.removeAll()
-        lastRequestBodies.removeAll()
+    /// Clears queued responses and the captured body for ONE endpoint.
+    ///
+    /// Deliberately NOT global. `.serialized` orders tests within a single
+    /// suite; two different `.serialized` suites still run concurrently with
+    /// each other, so a global clear lets one suite wipe another suite's
+    /// queued responses mid-test. Scope every reset to the endpoint the
+    /// calling test actually owns.
+    static func reset(endpoint: String) {
+        responseQueues[endpoint] = nil
+        lastRequestBodies[endpoint] = nil
     }
 
     /// URLProtocol hands POST bodies over as a stream, not `httpBody`.
@@ -241,7 +248,7 @@ struct MockHarnessTests {
     }
 
     @Test func mockQueueReturnsResponsesInOrder() async throws {
-        MockURLProtocol.resetQueues()
+        MockURLProtocol.reset(endpoint: "rc/noop")
         MockURLProtocol.enqueue(endpoint: "rc/noop", json: #"{"n": 1}"#)
         MockURLProtocol.enqueue(endpoint: "rc/noop", json: #"{"n": 2}"#)
 
@@ -259,7 +266,7 @@ struct MockHarnessTests {
     }
 
     @Test func mockCapturesRequestBody() async throws {
-        MockURLProtocol.resetQueues()
+        MockURLProtocol.reset(endpoint: "test/body-capture")
         let client = makeTestClient()
         // A dedicated endpoint no other test touches: the point of this test is
         // that lastRequestBodies captures a POST body off httpBodyStream, which

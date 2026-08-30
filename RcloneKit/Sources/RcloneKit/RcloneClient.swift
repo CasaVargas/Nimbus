@@ -9,7 +9,11 @@ public final class RcloneClient: @unchecked Sendable {
         self.session = session ?? {
             let config = URLSessionConfiguration.default
             config.timeoutIntervalForRequest = 30
-            config.timeoutIntervalForResource = 300
+            // 900, not 300: an OAuth config/create blocks while rclone waits
+            // on the browser callback, and timeoutIntervalForResource is the
+            // hard ceiling for the whole transfer regardless of any
+            // per-request timeoutInterval.
+            config.timeoutIntervalForResource = 900
             return URLSession(configuration: config)
         }()
     }
