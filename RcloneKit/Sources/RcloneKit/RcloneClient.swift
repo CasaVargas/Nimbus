@@ -26,14 +26,22 @@ public final class RcloneClient: @unchecked Sendable {
         "http://127.0.0.1:\(port)"
     }
 
+    /// - Parameter timeout: Per-request override for the session's default
+    ///   30s request timeout. Pass a larger value for endpoints that are
+    ///   inherently slow on big accounts (e.g. `operations/about` computing
+    ///   quota on a large Google Workspace drive).
     public func call<T: Decodable & Sendable>(
         _ endpoint: String,
-        params: [String: any Sendable] = [:]
+        params: [String: any Sendable] = [:],
+        timeout: TimeInterval? = nil
     ) async throws -> T {
         let url = URL(string: "\(baseURL)/\(endpoint)")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let timeout {
+            request.timeoutInterval = timeout
+        }
 
         if !params.isEmpty {
             request.httpBody = try JSONSerialization.data(withJSONObject: params)

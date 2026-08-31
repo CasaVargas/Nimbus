@@ -104,6 +104,9 @@ extension RcloneClient {
     }
 
     public func about(fs: String) async throws -> AboutResponse {
-        try await call("operations/about", params: ["fs": fs])
+        // Quota computation is slow on large Google Workspace / shared drives
+        // (empirically ~15-20s, longer under concurrent startup load), so the
+        // default 30s request timeout is too tight. Give it generous headroom.
+        try await call("operations/about", params: ["fs": fs], timeout: 120)
     }
 }
