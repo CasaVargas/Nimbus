@@ -80,7 +80,7 @@ docs/superpowers/             # Design specs and implementation plans
 ## License
 
 Not chosen yet. There is no LICENSE file, so until one is added all rights are
-reserved by CasaVargas LLC.
+reserved by Casa Vargas LLC.
 
 ---
 
