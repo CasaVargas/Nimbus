@@ -63,7 +63,10 @@ enum SnapshotHelpers {
 
         controller.view.needsLayout = true
         window.contentView?.needsLayout = true
-        window.makeKeyAndOrderFront(nil)
+        // orderFront, not makeKeyAndOrderFront: taking key status away from
+        // the shared hosted window changes the active-control tint of every
+        // hosted snapshot that runs after this one (order-dependent flakes).
+        window.orderFront(nil)
         RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
         controller.view.needsLayout = true
         window.contentView?.needsLayout = true
@@ -80,6 +83,7 @@ enum SnapshotHelpers {
             return Data()
         }
         frameView.cacheDisplay(in: frameView.bounds, to: bitmap)
+        window.orderOut(nil)
         return bitmap.representation(using: .png, properties: [:]) ?? Data()
     }
 
