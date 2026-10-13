@@ -9,10 +9,52 @@ final class MockURLProtocol: URLProtocol, @unchecked Sendable {
     /// query parameters (rclone reads uploadfile's fs/remote from the
     /// query only — a contract worth pinning).
     nonisolated(unsafe) static var lastRequestURLs: [String: URL] = [:]
-    nonisolated(unsafe) static var lastRequestBodies: [String: Data] = [:]
 
     static func register(endpoint: String, json: String, status: Int = 200) {
         mockResponses[endpoint] = (json.data(using: .utf8)!, status)
+    }
+
+    /// FIFO queues per endpoint, checked before `mockResponses`. Lets one
+    /// test script a *sequence* of replies from a single endpoint — required
+    /// for config/create, which returns a different question each call.
+    nonisolated(unsafe) static var responseQueues: [String: [(Data, Int)]] = [:]
+
+    /// Last request body seen per endpoint path. URLProtocol nils out
+    /// `request.httpBody` for POSTs, so this is read from `httpBodyStream`.
+    nonisolated(unsafe) static var lastRequestBodies: [String: Data] = [:]
+
+    static func enqueue(endpoint: String, json: String, status: Int = 200) {
+        responseQueues[endpoint, default: []].append((json.data(using: .utf8)!, status))
+    }
+
+    /// Clears queued responses and the captured body for ONE endpoint.
+    ///
+    /// Deliberately NOT global. `.serialized` orders tests within a single
+    /// suite; two different `.serialized` suites still run concurrently with
+    /// each other, so a global clear lets one suite wipe another suite's
+    /// queued responses mid-test. Scope every reset to the endpoint the
+    /// calling test actually owns.
+    static func reset(endpoint: String) {
+        responseQueues[endpoint] = nil
+        lastRequestBodies[endpoint] = nil
+    }
+
+    /// URLProtocol hands POST bodies over as a stream, not `httpBody`.
+    private static func readBody(_ request: URLRequest) -> Data? {
+        if let body = request.httpBody { return body }
+        guard let stream = request.httpBodyStream else { return nil }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        let bufferSize = 4096
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        defer { buffer.deallocate() }
+        while stream.hasBytesAvailable {
+            let read = stream.read(buffer, maxLength: bufferSize)
+            if read <= 0 { break }
+            data.append(buffer, count: read)
+        }
+        return data
     }
 
     override class func canInit(with request: URLRequest) -> Bool { true }
@@ -26,8 +68,16 @@ final class MockURLProtocol: URLProtocol, @unchecked Sendable {
 
         let path = url.path.hasPrefix("/") ? String(url.path.dropFirst()) : url.path
         Self.lastRequestURLs[path] = url
-        Self.lastRequestBodies[path] = request.httpBody ?? readBody(from: request.httpBodyStream)
-        if let (data, status) = Self.mockResponses[path] {
+        if let body = Self.readBody(request) { Self.lastRequestBodies[path] = body }
+
+        let queued: (Data, Int)? = {
+            guard var queue = Self.responseQueues[path], !queue.isEmpty else { return nil }
+            let head = queue.removeFirst()
+            Self.responseQueues[path] = queue
+            return head
+        }()
+
+        if let (data, status) = queued ?? Self.mockResponses[path] {
             let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: data)
@@ -41,21 +91,6 @@ final class MockURLProtocol: URLProtocol, @unchecked Sendable {
 
     override func stopLoading() {}
 
-    private func readBody(from stream: InputStream?) -> Data? {
-        guard let stream else { return nil }
-        stream.open()
-        defer { stream.close() }
-
-        var data = Data()
-        let bufferSize = 1_024
-        var buffer = [UInt8](repeating: 0, count: bufferSize)
-        while stream.hasBytesAvailable {
-            let count = stream.read(&buffer, maxLength: bufferSize)
-            guard count > 0 else { break }
-            data.append(buffer, count: count)
-        }
-        return data
-    }
 }
 
 // Register all mocks once at module load so parallel tests don't race
@@ -131,6 +166,12 @@ private let _setupMocks: Void = {
         endpoint: "test/error-body-200",
         json: #"{"error": "options rejected", "path": "options/set", "status": 500}"#
     )
+
+    // Dedicated endpoint for mockCapturesRequestBody — config/create is also
+    // hit by RemotesTests.swift's bare createRemote() test, which would race
+    // with lastRequestBodies["config/create"] if this test asserted on that
+    // shared path instead.
+    MockURLProtocol.register(endpoint: "test/body-capture", json: "{}")
 }()
 
 func makeTestClient() -> RcloneClient {
@@ -142,12 +183,6 @@ func makeTestClient() -> RcloneClient {
 }
 
 // MARK: - Client Tests
-
-@Test func healthCheckSuccess() async throws {
-    let client = makeTestClient()
-    let healthy = await client.healthCheck()
-    #expect(healthy == true)
-}
 
 @Test func healthCheckFailure() async throws {
     // Port 9999 — rc/noop is registered but the URL won't match since port differs
@@ -217,5 +252,65 @@ func makeTestClient() -> RcloneClient {
         } else {
             #expect(Bool(false), "Wrong error case: \(error)")
         }
+    }
+}
+
+// MARK: - Mock Harness Tests
+//
+// Serialized: MockURLProtocol.responseQueues / lastRequestBodies are shared
+// statics keyed by endpoint path. Swift Testing runs non-serialized
+// free-function tests in parallel, so two tests hitting the same endpoint
+// (e.g. config/create) can overwrite each other's queued/captured state.
+// `.serialized` is a suite trait, so these live in a dedicated suite rather
+// than as bare @Test free functions.
+//
+// healthCheckSuccess() lives here too, not in "Client Tests" above: it also
+// resolves against "rc/noop" through the same mock, so as a bare free
+// function it can run concurrently with mockQueueReturnsResponsesInOrder and
+// silently dequeue one of that test's queued responses (confirmed by
+// repeated runs of the full suite — deterministic, not a rare flake).
+// Moving it into this serialized suite removes the race without touching
+// its body.
+@Suite("MockHarness", .serialized)
+struct MockHarnessTests {
+    @Test func healthCheckSuccess() async throws {
+        let client = makeTestClient()
+        let healthy = await client.healthCheck()
+        #expect(healthy == true)
+    }
+
+    @Test func mockQueueReturnsResponsesInOrder() async throws {
+        MockURLProtocol.reset(endpoint: "rc/noop")
+        MockURLProtocol.enqueue(endpoint: "rc/noop", json: #"{"n": 1}"#)
+        MockURLProtocol.enqueue(endpoint: "rc/noop", json: #"{"n": 2}"#)
+
+        struct Counted: Decodable, Sendable { let n: Int }
+        let client = makeTestClient()
+
+        let first: Counted = try await client.call("rc/noop")
+        let second: Counted = try await client.call("rc/noop")
+        #expect(first.n == 1)
+        #expect(second.n == 2)
+
+        // Queue exhausted → falls back to the static registration.
+        let third: [String: String] = try await client.call("rc/noop")
+        #expect(third.isEmpty)
+    }
+
+    @Test func mockCapturesRequestBody() async throws {
+        MockURLProtocol.reset(endpoint: "test/body-capture")
+        let client = makeTestClient()
+        // A dedicated endpoint no other test touches: the point of this test is
+        // that lastRequestBodies captures a POST body off httpBodyStream, which
+        // must not depend on another test's traffic to a shared path.
+        let _: [String: String] = try await client.call(
+            "test/body-capture",
+            params: ["name": "bodytest", "type": "s3"]
+        )
+
+        let body = try #require(MockURLProtocol.lastRequestBodies["test/body-capture"])
+        let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(json["name"] as? String == "bodytest")
+        #expect(json["type"] as? String == "s3")
     }
 }

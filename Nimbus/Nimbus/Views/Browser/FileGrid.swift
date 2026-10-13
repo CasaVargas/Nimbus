@@ -5,20 +5,34 @@ import RcloneKit
 /// Selection<String> drives selection state and .draggable produces
 /// NimbusFileRef payloads for cross-remote drag.
 struct FileGrid: View {
+    enum Layout {
+        static let cellWidth: CGFloat = 112
+        static let iconSize: CGFloat = 48
+        static let horizontalSpacing: CGFloat = DesignSystem.Spacing.s
+        static let verticalSpacing: CGFloat = DesignSystem.Spacing.m
+        static let column = GridItem(
+            .adaptive(minimum: cellWidth, maximum: cellWidth),
+            spacing: horizontalSpacing,
+            alignment: .top
+        )
+    }
+
     let files: [FileItem]
     let remote: String
     @Bindable var selection: Selection<String>
     let onOpen: (FileItem) -> Void
     let onContextAction: (FileItem, FileAction) -> Void
-    @State private var hoveredID: String?
-
     private var sortedIDs: [String] { files.map(\.id) }
 
-    private let columns = [GridItem(.adaptive(minimum: 96), spacing: DesignSystem.Spacing.m)]
+    private let columns = [Layout.column]
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: DesignSystem.Spacing.m) {
+            LazyVGrid(
+                columns: columns,
+                alignment: .leading,
+                spacing: Layout.verticalSpacing
+            ) {
                 ForEach(files) { file in
                     tile(for: file)
                         .draggable(bundle(for: file)) {
@@ -31,57 +45,16 @@ struct FileGrid: View {
                         }
                 }
             }
-            .padding(DesignSystem.Spacing.m)
+            .padding(.horizontal, DesignSystem.Spacing.l)
+            .padding(.vertical, DesignSystem.Spacing.m)
         }
     }
 
     @ViewBuilder
     private func tile(for file: FileItem) -> some View {
         let isSelected = selection.ids.contains(file.id)
-        VStack(spacing: DesignSystem.Spacing.s) {
-            ZStack {
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                    .fill(isSelected
-                          ? DesignSystem.Color.semantic.selection.opacity(0.16)
-                          : DesignSystem.Color.semantic.surfaceSubtle)
-                    .frame(width: 76, height: 76)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                            .stroke(isSelected
-                                    ? DesignSystem.Color.semantic.selection.opacity(0.55)
-                                    : DesignSystem.Color.semantic.separator.opacity(hoveredID == file.id ? 0.7 : 0))
-                    }
-                Image(systemName: file.isDir ? "folder.fill" : iconName(for: file.name))
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 44, height: 44)
-                    .foregroundStyle(file.isDir
-                                     ? DesignSystem.Color.semantic.statusInfo
-                                     : DesignSystem.Color.semantic.textSecondary)
-            }
-            Text(file.name)
-                .font(DesignSystem.Typography.caption)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 96)
-            Text(file.isDir ? "Folder" : fileType(for: file.name))
-                .font(DesignSystem.Typography.caption2)
-                .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
-                .lineLimit(1)
-        }
-        .padding(DesignSystem.Spacing.s)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                .fill(isSelected
-                      ? DesignSystem.Color.semantic.accent.opacity(0.18)
-                      : .clear)
-        )
+        FileGridTile(file: file, isSelected: isSelected)
         .contentShape(Rectangle())
-        .onHover { hovering in
-            withAnimation(DesignSystem.Motion.snappy) {
-                hoveredID = hovering ? file.id : nil
-            }
-        }
         .gesture(TapGesture(count: 2).onEnded { onOpen(file) })
         .simultaneousGesture(TapGesture().onEnded {
             // Single-tap toggles selection. shift/cmd handling deferred to AppKit if needed.
@@ -104,13 +77,13 @@ struct FileGrid: View {
 
     @ViewBuilder
     private func tilePreview(for file: FileItem) -> some View {
-        Image(systemName: file.isDir ? "folder.fill" : iconName(for: file.name))
+        Image(systemName: file.isDir ? "folder.fill" : Self.iconName(for: file.name))
             .font(DesignSystem.Typography.largeTitle)
             .foregroundStyle(DesignSystem.Color.semantic.statusInfo)
             .padding()
     }
 
-    private func iconName(for filename: String) -> String {
+    static func iconName(for filename: String) -> String {
         let ext = (filename as NSString).pathExtension.lowercased()
         switch ext {
         case "pdf": return "doc.fill"
@@ -123,8 +96,43 @@ struct FileGrid: View {
         }
     }
 
-    private func fileType(for filename: String) -> String {
-        let ext = (filename as NSString).pathExtension
-        return ext.isEmpty ? "Document" : ext.uppercased()
+}
+
+struct FileGridTile: View {
+    let file: FileItem
+    let isSelected: Bool
+    @State private var isHovered = false
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: file.isDir ? "folder.fill" : FileGrid.iconName(for: file.name))
+                .resizable()
+                .scaledToFit()
+                .frame(width: FileGrid.Layout.iconSize, height: FileGrid.Layout.iconSize)
+                .foregroundStyle(file.isDir
+                                 ? DesignSystem.Color.semantic.statusInfo
+                                 : DesignSystem.Color.semantic.textSecondary)
+                .frame(height: 54)
+
+            Text(file.name)
+                .font(DesignSystem.Typography.caption)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                .frame(maxWidth: .infinity, minHeight: 30, alignment: .top)
+        }
+        .frame(width: FileGrid.Layout.cellWidth)
+        .padding(.vertical, DesignSystem.Spacing.s)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.pill, style: .continuous)
+                .fill(isSelected
+                      ? DesignSystem.Color.semantic.selection.opacity(0.22)
+                      : (isHovered ? DesignSystem.Color.semantic.surfaceSubtle : .clear))
+        )
+        .onHover { hovering in
+            withAnimation(DesignSystem.Motion.snappy) {
+                isHovered = hovering
+            }
+        }
     }
 }

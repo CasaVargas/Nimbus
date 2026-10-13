@@ -73,6 +73,13 @@ final class RemoteStatusService {
         if authSignals.contains(where: { message.contains($0) }) {
             return .authNeeded
         }
+        // A request timeout is NOT a hard failure — `operations/about` can be
+        // genuinely slow on large accounts, and the remote is still configured
+        // and authenticated. Painting a red error dot here is a false alarm, so
+        // fall back to the neutral "unknown" state instead.
+        if let urlError = error as? URLError, urlError.code == .timedOut {
+            return .unknown
+        }
         return .error(reason: error.localizedDescription)
     }
 }

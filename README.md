@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="legacy/tauri/src-tauri/icons/128x128@2x.png" width="128" height="128" alt="Nimbus icon">
-</p>
-
 <h1 align="center">Nimbus</h1>
 
 <p align="center">
@@ -11,7 +7,6 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS%2015%2B-blue" alt="macOS 15+">
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
 ---
@@ -84,7 +79,8 @@ docs/superpowers/             # Design specs and implementation plans
 
 ## License
 
-MIT
+Not chosen yet. There is no LICENSE file, so until one is added all rights are
+reserved by Casa Vargas LLC.
 
 ---
 

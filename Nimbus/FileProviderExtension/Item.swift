@@ -55,7 +55,7 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
         } else {
             self.contentType = UTType(filenameExtension: (file.name as NSString).pathExtension) ?? .data
             self.documentSize = NSNumber(value: file.size)
-            self.capabilities = [.allowsReading, .allowsWriting, .allowsRenaming, .allowsDeleting, .allowsEvicting]
+            self.capabilities = [.allowsReading, .allowsWriting, .allowsRenaming, .allowsDeleting]
         }
 
         let versionData: Data

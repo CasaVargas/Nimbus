@@ -9,7 +9,11 @@ public final class RcloneClient: @unchecked Sendable {
         self.session = session ?? {
             let config = URLSessionConfiguration.default
             config.timeoutIntervalForRequest = 30
-            config.timeoutIntervalForResource = 300
+            // 900, not 300: an OAuth config/create blocks while rclone waits
+            // on the browser callback, and timeoutIntervalForResource is the
+            // hard ceiling for the whole transfer regardless of any
+            // per-request timeoutInterval.
+            config.timeoutIntervalForResource = 900
             return URLSession(configuration: config)
         }()
     }
@@ -22,9 +26,14 @@ public final class RcloneClient: @unchecked Sendable {
         "http://127.0.0.1:\(port)"
     }
 
+    /// - Parameter timeout: Per-request override for the session's default
+    ///   30s request timeout. Pass a larger value for endpoints that are
+    ///   inherently slow on big accounts (e.g. `operations/about` computing
+    ///   quota on a large Google Workspace drive).
     public func call<T: Decodable & Sendable>(
         _ endpoint: String,
-        params: [String: any Sendable] = [:]
+        params: [String: any Sendable] = [:],
+        timeout: TimeInterval? = nil
     ) async throws -> T {
         let body: Data
         if !params.isEmpty {
@@ -32,7 +41,7 @@ public final class RcloneClient: @unchecked Sendable {
         } else {
             body = "{}".data(using: .utf8)!
         }
-        return try await post(endpoint, body: body)
+        return try await post(endpoint, body: body, timeout: timeout)
     }
 
     public func call<T: Decodable & Sendable, Parameters: Encodable & Sendable>(
@@ -44,12 +53,16 @@ public final class RcloneClient: @unchecked Sendable {
 
     private func post<T: Decodable & Sendable>(
         _ endpoint: String,
-        body: Data
+        body: Data,
+        timeout: TimeInterval? = nil
     ) async throws -> T {
         let url = URL(string: "\(baseURL)/\(endpoint)")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let timeout {
+            request.timeoutInterval = timeout
+        }
         request.httpBody = body
 
         let (data, response) = try await session.data(for: request)

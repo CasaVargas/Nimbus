@@ -87,8 +87,8 @@ struct EditRemoteSheet: View {
     /// but skips the Remote section.
     @ViewBuilder
     private func configurationOnlyForm(provider: Provider) -> some View {
-        let nonAdvanced = provider.options.filter { !$0.advanced }
-        let advanced = provider.options.filter { $0.advanced }
+        let nonAdvanced = provider.options.filter { !$0.advanced }.filter(ConfigFieldView.shouldRender)
+        let advanced = provider.options.filter { $0.advanced }.filter(ConfigFieldView.shouldRender)
 
         if !nonAdvanced.isEmpty {
             // option.name / option.help are runtime strings from rclone; same Phase 2a
@@ -116,36 +116,7 @@ struct EditRemoteSheet: View {
             label: LocalizedStringKey(option.name),
             help: option.help.isEmpty ? nil : LocalizedStringKey(option.help)
         ) {
-            field(for: option)
-        }
-    }
-
-    @ViewBuilder
-    private func field(for option: ProviderOption) -> some View {
-        if option.isPassword {
-            SecureField(option.defaultValue, text: binding(for: option.name))
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 240)
-        } else if let examples = option.examples, !examples.isEmpty {
-            Picker("", selection: binding(for: option.name)) {
-                Text("Choose…").tag("")
-                ForEach(examples, id: \.value) { ex in
-                    Text(verbatim: ex.value).tag(ex.value)
-                }
-            }
-            .labelsHidden()
-            .frame(maxWidth: 240)
-        } else if option.type == "bool" {
-            Toggle("", isOn: Binding(
-                get: { (values[option.name] ?? option.defaultValue).lowercased() == "true" },
-                set: { values[option.name] = $0 ? "true" : "false" }
-            ))
-            .labelsHidden()
-            .toggleStyle(.switch)
-        } else {
-            TextField(option.defaultValue, text: binding(for: option.name))
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 240)
+            ConfigFieldView(option: option, value: binding(for: option.name))
         }
     }
 

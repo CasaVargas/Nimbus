@@ -137,7 +137,7 @@ public struct Provider: Codable, Sendable {
     }
 }
 
-public struct ProviderOption: Codable, Sendable, Identifiable {
+public struct ProviderOption: Codable, Sendable, Identifiable, Equatable {
     public let name: String
     public let help: String
     public let defaultValue: String
@@ -147,6 +147,17 @@ public struct ProviderOption: Codable, Sendable, Identifiable {
     public let isPassword: Bool
     public let advanced: Bool
     public let examples: [ProviderExample]?
+    /// rclone marks credential-ish fields `Sensitive` separately from
+    /// `IsPassword`. Both must render as SecureField.
+    public let sensitive: Bool
+    /// Non-zero means rclone considers the option internal; don't render it.
+    public let hide: Int
+    /// True when the answer branches the remaining question set (s3's
+    /// `provider`, `env_auth`). Answering one of these invalidates the
+    /// current page and forces a re-walk.
+    public let exclusive: Bool
+    /// rclone's pre-rendered default string, used as the field placeholder.
+    public let defaultStr: String
 
     public var id: String { name }
 
@@ -160,6 +171,10 @@ public struct ProviderOption: Codable, Sendable, Identifiable {
         case isPassword = "IsPassword"
         case advanced = "Advanced"
         case examples = "Examples"
+        case sensitive = "Sensitive"
+        case hide = "Hide"
+        case exclusive = "Exclusive"
+        case defaultStr = "DefaultStr"
     }
 
     public init(from decoder: Decoder) throws {
@@ -171,6 +186,10 @@ public struct ProviderOption: Codable, Sendable, Identifiable {
         isPassword = try container.decode(Bool.self, forKey: .isPassword)
         advanced = try container.decode(Bool.self, forKey: .advanced)
         examples = try container.decodeIfPresent([ProviderExample].self, forKey: .examples)
+        sensitive = (try? container.decode(Bool.self, forKey: .sensitive)) ?? false
+        hide = (try? container.decode(Int.self, forKey: .hide)) ?? 0
+        exclusive = (try? container.decode(Bool.self, forKey: .exclusive)) ?? false
+        defaultStr = (try? container.decode(String.self, forKey: .defaultStr)) ?? ""
 
         if let s = try? container.decode(String.self, forKey: .defaultValue) {
             defaultValue = s
@@ -194,7 +213,7 @@ public struct ProviderOption: Codable, Sendable, Identifiable {
     }
 }
 
-public struct ProviderExample: Codable, Sendable {
+public struct ProviderExample: Codable, Sendable, Equatable {
     public let value: String
     public let help: String
 
