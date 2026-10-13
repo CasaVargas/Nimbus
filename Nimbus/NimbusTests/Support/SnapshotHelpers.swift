@@ -73,13 +73,9 @@ enum SnapshotHelpers {
             return Data()
         }
 
-        let pdfData = frameView.dataWithPDF(inside: frameView.bounds)
-        if let image = NSImage(data: pdfData),
-           let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            let bitmap = NSBitmapImageRep(cgImage: cgImage)
-            return bitmap.representation(using: .png, properties: [:]) ?? Data()
-        }
-
+        // cacheDisplay, not dataWithPDF: the hosted SwiftUI content is
+        // layer-backed and does not participate in PDF drawing, so the PDF
+        // path captures only the window chrome (an empty dark frame).
         guard let bitmap = frameView.bitmapImageRepForCachingDisplay(in: frameView.bounds) else {
             return Data()
         }
