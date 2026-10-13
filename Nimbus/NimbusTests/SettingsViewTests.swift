@@ -10,6 +10,21 @@ struct SettingsViewTests {
         #expect(SettingsTab.allCases == [.general, .transfers, .advanced])
     }
 
+    @Test func sceneRootAppliesLightAppearanceFromSettings() {
+        let settings = settings()
+        settings.appearance = .light
+        let recorder = ColorSchemeRecorder()
+
+        _ = SnapshotHelpers.renderHostedPNG(
+            SceneAppearanceRoot(settings: settings) {
+                ColorSchemeProbe(recorder: recorder)
+            },
+            size: CGSize(width: 40, height: 40)
+        )
+
+        #expect(recorder.colorScheme == .light)
+    }
+
     @Test func rendersThreePaneShell() throws {
         let settings = settings()
         let daemon = RcloneDaemon(
@@ -23,14 +38,20 @@ struct SettingsViewTests {
             cacheUsage: .available(4_194_304)
         )
 
-        try SnapshotHelpers.assertHostedSnapshot(
-            SettingsView(generalModel: model)
-                .environment(settings)
-                .environment(daemon)
-                .environment(LaunchAtLoginService(refreshOnInit: false))
-                .environment(\.transferNotifier, NotificationAuthorizationFixture(status: .authorized))
-                .environment(\.diagnosticsService, diagnosticsService),
-            size: CGSize(width: 680, height: 520),
+        try SnapshotHelpers.assertWindowSnapshot(
+            SceneAppearanceRoot(settings: settings) {
+                SettingsView(generalModel: model)
+                    .environment(daemon)
+                    .environment(LaunchAtLoginService(refreshOnInit: false))
+                    .environment(\.transferNotifier, NotificationAuthorizationFixture(status: .authorized))
+                    .environment(\.diagnosticsService, diagnosticsService)
+            },
+            contentSize: CGSize(width: 680, height: 520),
+            configureWindow: { window in
+                window.toolbarStyle = .preference
+                window.titleVisibility = .hidden
+                window.titlebarAppearsTransparent = true
+            },
             named: "Settings-Shell"
         )
     }
@@ -51,6 +72,24 @@ struct SettingsViewTests {
         let defaults = UserDefaults(suiteName: name)!
         defaults.removePersistentDomain(forName: name)
         return AppSettings(defaults: defaults)
+    }
+}
+
+@MainActor
+private final class ColorSchemeRecorder {
+    var colorScheme: ColorScheme?
+}
+
+private struct ColorSchemeProbe: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let recorder: ColorSchemeRecorder
+
+    var body: some View {
+        Color.clear
+            .frame(width: 1, height: 1)
+            .task(id: colorScheme) {
+                recorder.colorScheme = colorScheme
+            }
     }
 }
 

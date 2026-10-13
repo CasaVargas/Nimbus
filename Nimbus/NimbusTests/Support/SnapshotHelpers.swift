@@ -10,6 +10,7 @@ enum SnapshotHelpers {
     /// AppKit's back-to-back window setup race while keeping focus out of the
     /// captured controls.
     @MainActor private static var hostedWindow: NSWindow?
+    @MainActor private static var chromeWindow: NSWindow?
 
     /// Renders a SwiftUI view to a deterministic PNG `Data` blob via ImageRenderer.
     @MainActor
@@ -46,6 +47,46 @@ enum SnapshotHelpers {
         return bitmap.representation(using: .png, properties: [:]) ?? Data()
     }
 
+    /// Renders a full NSWindow frame, including titlebar and toolbar-hosted
+    /// tab controls, for views whose native chrome lives outside contentView.
+    @MainActor
+    static func renderWindowPNG<V: View>(
+        _ view: V,
+        contentSize: CGSize,
+        configureWindow: (NSWindow) -> Void = { _ in }
+    ) -> Data {
+        let controller = NSHostingController(rootView: view.frame(width: contentSize.width, height: contentSize.height))
+        let window = chromeWindow ?? makeChromeWindow(contentSize: contentSize)
+        window.setContentSize(contentSize)
+        window.contentViewController = controller
+        configureWindow(window)
+
+        controller.view.needsLayout = true
+        window.contentView?.needsLayout = true
+        window.makeKeyAndOrderFront(nil)
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+        controller.view.needsLayout = true
+        window.contentView?.needsLayout = true
+        window.display()
+
+        guard let frameView = window.contentView?.superview else {
+            return Data()
+        }
+
+        let pdfData = frameView.dataWithPDF(inside: frameView.bounds)
+        if let image = NSImage(data: pdfData),
+           let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            let bitmap = NSBitmapImageRep(cgImage: cgImage)
+            return bitmap.representation(using: .png, properties: [:]) ?? Data()
+        }
+
+        guard let bitmap = frameView.bitmapImageRepForCachingDisplay(in: frameView.bounds) else {
+            return Data()
+        }
+        frameView.cacheDisplay(in: frameView.bounds, to: bitmap)
+        return bitmap.representation(using: .png, properties: [:]) ?? Data()
+    }
+
     @MainActor
     private static func makeHostedWindow(size: CGSize) -> NSWindow {
         let window = NSWindow(
@@ -59,6 +100,26 @@ enum SnapshotHelpers {
         window.hasShadow = false
         window.orderFront(nil)
         hostedWindow = window
+        return window
+    }
+
+    @MainActor
+    private static func makeChromeWindow(contentSize: CGSize) -> NSWindow {
+        let window = NSWindow(
+            contentRect: CGRect(origin: .zero, size: contentSize),
+            styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.backgroundColor = .windowBackgroundColor
+        window.hasShadow = false
+        window.isReleasedWhenClosed = false
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.toolbarStyle = .preference
+        window.orderFront(nil)
+        chromeWindow = window
         return window
     }
 
@@ -147,6 +208,22 @@ enum SnapshotHelpers {
         fileID: String = #fileID
     ) throws {
         let rendered = renderHostedPNG(view, size: size)
+        try assertPNG(rendered, named: name, fileID: fileID)
+    }
+
+    @MainActor
+    static func assertWindowSnapshot<V: View>(
+        _ view: V,
+        contentSize: CGSize,
+        configureWindow: (NSWindow) -> Void = { _ in },
+        named name: String,
+        fileID: String = #fileID
+    ) throws {
+        let rendered = renderWindowPNG(
+            view,
+            contentSize: contentSize,
+            configureWindow: configureWindow
+        )
         try assertPNG(rendered, named: name, fileID: fileID)
     }
 

@@ -40,19 +40,19 @@ struct NimbusApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(daemon)
-                .environment(mountManager)
-                .environment(fileProviderBridge)
-                .environment(settings)
-                .environment(mountConfigs)
-                .environment(transferStore)
-                .environment(bookmarkStore)
-                .environment(launchAtLogin)
-                .environment(statusService)
-                .environment(\.diagnosticsService, diagnosticsService)
-                .environment(\.transferNotifier, transferNotifier)
-                .preferredColorScheme(settings.colorScheme)
+            SceneAppearanceRoot(settings: settings) {
+                ContentView()
+                    .environment(daemon)
+                    .environment(mountManager)
+                    .environment(fileProviderBridge)
+                    .environment(mountConfigs)
+                    .environment(transferStore)
+                    .environment(bookmarkStore)
+                    .environment(launchAtLogin)
+                    .environment(statusService)
+                    .environment(\.diagnosticsService, diagnosticsService)
+                    .environment(\.transferNotifier, transferNotifier)
+            }
                 .task {
                     await bootstrap()
                 }
@@ -104,12 +104,13 @@ struct NimbusApp: App {
         }
 
         Settings {
-            SettingsView(generalModel: generalSettingsModel)
-                .environment(settings)
-                .environment(daemon)
-                .environment(launchAtLogin)
-                .environment(\.diagnosticsService, diagnosticsService)
-                .environment(\.transferNotifier, transferNotifier)
+            SceneAppearanceRoot(settings: settings) {
+                SettingsView(generalModel: generalSettingsModel)
+                    .environment(daemon)
+                    .environment(launchAtLogin)
+                    .environment(\.diagnosticsService, diagnosticsService)
+                    .environment(\.transferNotifier, transferNotifier)
+            }
         }
     }
 
@@ -197,6 +198,22 @@ struct NimbusApp: App {
         } catch {
             // Non-fatal — a later reconnect retriggers this task.
         }
+    }
+}
+
+struct SceneAppearanceRoot<Content: View>: View {
+    private let settings: AppSettings
+    private let content: Content
+
+    init(settings: AppSettings, @ViewBuilder content: () -> Content) {
+        self.settings = settings
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .environment(settings)
+            .preferredColorScheme(settings.colorScheme)
     }
 }
 
