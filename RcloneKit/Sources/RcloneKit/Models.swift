@@ -274,6 +274,33 @@ public struct BandwidthLimitResponse: Codable, Sendable {
     public let rate: String
 }
 
+/// Typed request for rclone's `options/set` RC endpoint.
+///
+/// rclone exposes global command flags under the `main` object, using the
+/// flag's exported Go name. `Transfers` is the live equivalent of
+/// `--transfers` and applies to work started after the update.
+public struct SetTransfersOptionsRequest: Encodable, Sendable {
+    public let main: Main
+
+    public init(transfers: Int) {
+        main = Main(transfers: transfers)
+    }
+
+    public struct Main: Encodable, Sendable {
+        public let transfers: Int
+
+        public init(transfers: Int) {
+            self.transfers = transfers
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case transfers = "Transfers"
+        }
+    }
+}
+
+public struct OptionsSetResponse: Codable, Sendable {}
+
 // MARK: - Storage Info
 
 public struct AboutResponse: Codable, Sendable {
@@ -323,8 +350,8 @@ public struct JobListResponse: Codable, Sendable {
 
 public struct RcloneErrorResponse: Codable, Sendable {
     public let error: String
-    public let path: String
-    public let status: Int
+    public let path: String?
+    public let status: Int?
 }
 
 public enum RcloneError: Error, LocalizedError, Sendable {

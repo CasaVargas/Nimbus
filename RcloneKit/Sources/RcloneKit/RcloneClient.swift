@@ -35,6 +35,27 @@ public final class RcloneClient: @unchecked Sendable {
         params: [String: any Sendable] = [:],
         timeout: TimeInterval? = nil
     ) async throws -> T {
+        let body: Data
+        if !params.isEmpty {
+            body = try JSONSerialization.data(withJSONObject: params)
+        } else {
+            body = "{}".data(using: .utf8)!
+        }
+        return try await post(endpoint, body: body, timeout: timeout)
+    }
+
+    public func call<T: Decodable & Sendable, Parameters: Encodable & Sendable>(
+        _ endpoint: String,
+        parameters: Parameters
+    ) async throws -> T {
+        try await post(endpoint, body: JSONEncoder().encode(parameters))
+    }
+
+    private func post<T: Decodable & Sendable>(
+        _ endpoint: String,
+        body: Data,
+        timeout: TimeInterval? = nil
+    ) async throws -> T {
         let url = URL(string: "\(baseURL)/\(endpoint)")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -42,12 +63,7 @@ public final class RcloneClient: @unchecked Sendable {
         if let timeout {
             request.timeoutInterval = timeout
         }
-
-        if !params.isEmpty {
-            request.httpBody = try JSONSerialization.data(withJSONObject: params)
-        } else {
-            request.httpBody = "{}".data(using: .utf8)
-        }
+        request.httpBody = body
 
         let (data, response) = try await session.data(for: request)
 
@@ -58,7 +74,7 @@ public final class RcloneClient: @unchecked Sendable {
         guard (200...299).contains(httpResponse.statusCode) else {
             if let errorResponse = try? JSONDecoder().decode(RcloneErrorResponse.self, from: data) {
                 throw RcloneError.requestFailed(
-                    status: errorResponse.status,
+                    status: errorResponse.status ?? httpResponse.statusCode,
                     message: errorResponse.error
                 )
             }
@@ -66,6 +82,15 @@ public final class RcloneClient: @unchecked Sendable {
             throw RcloneError.requestFailed(
                 status: httpResponse.statusCode,
                 message: body
+            )
+        }
+
+        // Some RC endpoints report an API error with a successful HTTP status.
+        // Detect that shape before decoding an endpoint-specific response.
+        if let errorResponse = try? JSONDecoder().decode(RcloneErrorResponse.self, from: data) {
+            throw RcloneError.requestFailed(
+                status: errorResponse.status ?? httpResponse.statusCode,
+                message: errorResponse.error
             )
         }
 

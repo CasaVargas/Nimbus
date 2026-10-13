@@ -9,6 +9,7 @@ struct BrowserView: View {
     /// navigates to `path` on the live view model (no view recreation).
     var browseTarget: BrowseTarget?
     @Environment(RcloneDaemon.self) private var daemon
+    @Environment(AppSettings.self) private var settings
     @Environment(BookmarkStore.self) private var bookmarkStore
     @Environment(TransferStore.self) private var transferStore
     @Environment(FileProviderBridge.self) private var fileProviderBridge
@@ -205,7 +206,8 @@ struct BrowserView: View {
                 pendingCopy = CopyRequest(
                     sourceRemote: sourceRemote,
                     target: resolvedTarget,
-                    items: items
+                    items: items,
+                    conflictPolicy: settings.defaultConflictPolicy
                 )
                 return true
             case .withinRemote, .toFinder:

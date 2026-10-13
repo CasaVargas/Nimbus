@@ -148,7 +148,13 @@ struct OnboardingView: View {
     private var daemonRetryAction: OnboardingCard.ActionConfig? {
         guard case .error = daemon.status else { return nil }
         return .init(label: "Retry", perform: {
-            Task { await daemon.retry(binaryPath: settings.rcloneBinaryPath) }
+            Task {
+                await daemon.retry(
+                    binaryPath: settings.rcloneBinaryPath,
+                    bandwidthLimit: settings.bandwidthLimit,
+                    concurrentTransfers: settings.concurrentTransfers
+                )
+            }
         })
     }
 

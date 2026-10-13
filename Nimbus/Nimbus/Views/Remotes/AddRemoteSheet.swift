@@ -24,6 +24,8 @@ struct AddRemoteSheet: View {
     let onDismiss: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppSettings.self) private var settings
+    @Environment(FileProviderBridge.self) private var fileProviderBridge
     @State private var providers: [Provider] = []
     @State private var flow: RemoteSetupFlow?
     @State private var existingNames: Set<String> = []
@@ -34,6 +36,11 @@ struct AddRemoteSheet: View {
     /// Reset every time a fresh flow is created so a later attempt never
     /// inherits a previous attempt's waiting state.
     @State private var oauthWaiting = false
+    /// Finder integration failures for the remote just created. Non-empty
+    /// keeps the sheet open on `.finished` so the user can retry or close
+    /// instead of silently losing the "add to Finder" step.
+    @State private var finderFailures: [RemoteIntegrationFailure] = []
+    @State private var integrationStarted = false
 
     var body: some View {
         SheetChrome(
@@ -72,6 +79,8 @@ struct AddRemoteSheet: View {
         } else {
             ProviderPicker(providers: providers) { provider in
                 oauthWaiting = false
+                finderFailures = []
+                integrationStarted = false
                 self.flow = RemoteSetupFlow(provider: provider, client: client)
             }
         }
@@ -125,12 +134,15 @@ struct AddRemoteSheet: View {
                     onCancel: { Task { await flow.cancel(); self.flow = nil } }
                 )
             case .finished:
-                ProgressView()
-                    .frame(maxWidth: .infinity, minHeight: 160)
-                    .task {
-                        onDismiss()
-                        dismiss()
+                if finderFailures.isEmpty {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 160)
+                        .task { await finishRemoteCreation(flow) }
+                } else {
+                    FinderIntegrationWarning(failures: finderFailures) {
+                        Task { await retryFinderIntegration() }
                     }
+                }
             case .failed(let message):
                 EmptyState(
                     icon: "exclamationmark.triangle",
@@ -254,8 +266,13 @@ struct AddRemoteSheet: View {
                 }
                 .keyboardShortcut(.cancelAction)
             case .finished:
-                // Genuinely momentary and self-dismissing — no buttons.
-                EmptyView()
+                if finderFailures.isEmpty {
+                    // Genuinely momentary and self-dismissing — no buttons.
+                    EmptyView()
+                } else {
+                    Button("Close") { dismiss() }
+                        .keyboardShortcut(.cancelAction)
+                }
             }
         } else {
             Button("Cancel") { dismiss() }
@@ -266,6 +283,36 @@ struct AddRemoteSheet: View {
     private func isNameValid(_ flow: RemoteSetupFlow) -> Bool {
         let trimmed = trimmedName(flow)
         return !trimmed.isEmpty && !existingNames.contains(trimmed)
+    }
+
+    // MARK: - Finder integration
+
+    /// Runs once per created remote: refreshes the caller, applies the
+    /// "add new remotes to Finder" default, and dismisses unless Finder
+    /// integration failed, in which case the warning takes over the sheet.
+    private func finishRemoteCreation(_ flow: RemoteSetupFlow) async {
+        guard !integrationStarted else { return }
+        integrationStarted = true
+        onDismiss()
+        let result = await NewRemoteIntegration(domainAdder: fileProviderBridge).integrate(
+            names: [flow.name],
+            addToFinder: settings.addNewRemotesToFinder,
+            disabledDomainNames: settings.disabledFileProviderDomains
+        )
+        settings.disabledFileProviderDomains = result.disabledDomainNames
+        finderFailures = result.failures
+        if finderFailures.isEmpty {
+            dismiss()
+        }
+    }
+
+    private func retryFinderIntegration() async {
+        let failedNames = finderFailures.map(\.remoteName)
+        finderFailures = await NewRemoteIntegration(domainAdder: fileProviderBridge)
+            .integrate(names: failedNames, addToFinder: true)
+        if finderFailures.isEmpty {
+            dismiss()
+        }
     }
 
     // MARK: - Loading

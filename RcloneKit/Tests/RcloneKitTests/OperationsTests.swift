@@ -2,6 +2,28 @@ import Foundation
 import Testing
 @testable import RcloneKit
 
+private final class UploadCaptureURLProtocol: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var capturedRequest: URLRequest?
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        Self.capturedRequest = request
+        let response = HTTPURLResponse(
+            url: request.url ?? URL(string: "http://127.0.0.1")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: nil
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data("{}".utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
 @Test func listFiles() async throws {
     let client = makeTestClient()
     let files = try await client.listFiles(fs: "gdrive:", remote: "")
@@ -80,13 +102,17 @@ import Testing
     // rclone's operations/uploadfile reads fs/remote from the URL query
     // ONLY; passing them as multipart form fields returns 400. Pin the
     // query contract so a refactor can't silently regress uploads.
-    let client = makeTestClient()
+    UploadCaptureURLProtocol.capturedRequest = nil
+    let config = URLSessionConfiguration.ephemeral
+    config.protocolClasses = [UploadCaptureURLProtocol.self]
+    let session = URLSession(configuration: config)
+    let client = RcloneClient(port: 5572, session: session)
     let src = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try "hello".write(to: src, atomically: true, encoding: .utf8)
     defer { try? FileManager.default.removeItem(at: src) }
     try await client.uploadFile(from: src, fs: "gdrive:", remote: "docs/sub dir")
 
-    let url = try #require(MockURLProtocol.lastRequestURLs["operations/uploadfile"])
+    let url = try #require(UploadCaptureURLProtocol.capturedRequest?.url)
     let items = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
     #expect(items.contains(URLQueryItem(name: "fs", value: "gdrive:")))
     #expect(items.contains(URLQueryItem(name: "remote", value: "docs/sub dir")))

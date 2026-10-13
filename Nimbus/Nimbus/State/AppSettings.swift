@@ -17,9 +17,10 @@ enum Appearance: String, CaseIterable {
 @Observable
 final class AppSettings {
     @ObservationIgnored
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         appearance = Appearance(rawValue: defaults.string(forKey: "appearance") ?? "system") ?? .system
         onboardingComplete = defaults.bool(forKey: "onboardingComplete")
         rclonePort = defaults.object(forKey: "rclonePort") as? Int ?? 5572
@@ -28,6 +29,12 @@ final class AppSettings {
         concurrentTransfers = defaults.object(forKey: "concurrentTransfers") as? Int ?? 4
         sidebarCollapsed = defaults.bool(forKey: "sidebarCollapsed")
         disabledFileProviderDomains = Set(defaults.stringArray(forKey: "disabledFileProviderDomains") ?? [])
+        addNewRemotesToFinder = defaults.object(forKey: "addNewRemotesToFinder") as? Bool ?? true
+        newMountAccess = MountAccessDefault(rawValue: defaults.string(forKey: "newMountAccess") ?? "") ?? .readWrite
+        newMountAutoMount = defaults.bool(forKey: "newMountAutoMount")
+        defaultConflictPolicy = ConflictPolicy(rawValue: defaults.string(forKey: "defaultConflictPolicy") ?? "") ?? .rename
+        transferNotificationMode = TransferNotificationMode(rawValue: defaults.string(forKey: "transferNotificationMode") ?? "") ?? .failuresOnly
+        transferHistoryRetention = TransferHistoryRetention(rawValue: defaults.string(forKey: "transferHistoryRetention") ?? "") ?? .sevenDays
     }
 
     var rclonePort: Int {
@@ -76,6 +83,30 @@ final class AppSettings {
         didSet {
             defaults.set(Array(disabledFileProviderDomains).sorted(), forKey: "disabledFileProviderDomains")
         }
+    }
+
+    var addNewRemotesToFinder: Bool {
+        didSet { defaults.set(addNewRemotesToFinder, forKey: "addNewRemotesToFinder") }
+    }
+
+    var newMountAccess: MountAccessDefault {
+        didSet { defaults.set(newMountAccess.rawValue, forKey: "newMountAccess") }
+    }
+
+    var newMountAutoMount: Bool {
+        didSet { defaults.set(newMountAutoMount, forKey: "newMountAutoMount") }
+    }
+
+    var defaultConflictPolicy: ConflictPolicy {
+        didSet { defaults.set(defaultConflictPolicy.rawValue, forKey: "defaultConflictPolicy") }
+    }
+
+    var transferNotificationMode: TransferNotificationMode {
+        didSet { defaults.set(transferNotificationMode.rawValue, forKey: "transferNotificationMode") }
+    }
+
+    var transferHistoryRetention: TransferHistoryRetention {
+        didSet { defaults.set(transferHistoryRetention.rawValue, forKey: "transferHistoryRetention") }
     }
 
     var colorScheme: ColorScheme? {

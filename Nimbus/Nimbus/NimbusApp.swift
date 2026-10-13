@@ -7,11 +7,14 @@ struct NimbusApp: App {
     @State private var statusService: RemoteStatusService
     @State private var mountManager = MountManager()
     @State private var fileProviderBridge = FileProviderBridge()
-    @State private var settings = AppSettings()
+    @State private var settings: AppSettings
     @State private var mountConfigs = MountConfigStore()
-    @State private var transferStore = TransferStore()
+    @State private var transferStore: TransferStore
     @State private var bookmarkStore = BookmarkStore()
     @State private var launchAtLogin = LaunchAtLoginService()
+    @State private var diagnosticsService: DiagnosticsService
+    @State private var transferNotifier: TransferNotificationService
+    @State private var generalSettingsModel = GeneralSettingsModel()
 
     /// Guards the parts of daemon-connect handling that must run once per
     /// process (pollers, monitors); the rest of `onDaemonConnected` is
@@ -21,25 +24,43 @@ struct NimbusApp: App {
     init() {
         DesignSystem.Lints.runStartupChecks()
         let d = RcloneDaemon()
+        let settings = AppSettings()
+        let transferNotifier = TransferNotificationService()
         _daemon = State(initialValue: d)
         _statusService = State(initialValue: RemoteStatusService(client: d.client))
+        _settings = State(initialValue: settings)
+        _diagnosticsService = State(initialValue: DiagnosticsService())
+        _transferNotifier = State(initialValue: transferNotifier)
+        _transferStore = State(initialValue: TransferStore(
+            retention: settings.transferHistoryRetention,
+            notifications: transferNotifier,
+            notificationMode: settings.transferNotificationMode
+        ))
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(daemon)
-                .environment(mountManager)
-                .environment(fileProviderBridge)
-                .environment(settings)
-                .environment(mountConfigs)
-                .environment(transferStore)
-                .environment(bookmarkStore)
-                .environment(launchAtLogin)
-                .environment(statusService)
-                .preferredColorScheme(settings.colorScheme)
+            SceneAppearanceRoot(settings: settings) {
+                ContentView()
+                    .environment(daemon)
+                    .environment(mountManager)
+                    .environment(fileProviderBridge)
+                    .environment(mountConfigs)
+                    .environment(transferStore)
+                    .environment(bookmarkStore)
+                    .environment(launchAtLogin)
+                    .environment(statusService)
+                    .environment(\.diagnosticsService, diagnosticsService)
+                    .environment(\.transferNotifier, transferNotifier)
+            }
                 .task {
                     await bootstrap()
+                }
+                .onChange(of: settings.transferHistoryRetention) { _, _ in
+                    Task { await transferStore.applyRetention(from: settings) }
+                }
+                .onChange(of: settings.transferNotificationMode) { _, _ in
+                    transferStore.applyNotificationMode(from: settings)
                 }
                 .task(id: daemon.status) {
                     // Reruns whenever the daemon (re)connects — onboarding
@@ -83,10 +104,13 @@ struct NimbusApp: App {
         }
 
         Settings {
-            SettingsView()
-                .environment(settings)
-                .environment(daemon)
-                .environment(launchAtLogin)
+            SceneAppearanceRoot(settings: settings) {
+                SettingsView(generalModel: generalSettingsModel)
+                    .environment(daemon)
+                    .environment(launchAtLogin)
+                    .environment(\.diagnosticsService, diagnosticsService)
+                    .environment(\.transferNotifier, transferNotifier)
+            }
         }
     }
 
@@ -120,9 +144,15 @@ struct NimbusApp: App {
             rclone.stop()
         }
 
+        await transferStore.restoreHistory(retention: settings.transferHistoryRetention)
+
         mountManager.rcloneBinaryPath = settings.rcloneBinaryPath
         await mountManager.cleanupStaleMounts()
-        await daemon.start(binaryPath: settings.rcloneBinaryPath)
+        await daemon.start(
+            binaryPath: settings.rcloneBinaryPath,
+            bandwidthLimit: settings.bandwidthLimit,
+            concurrentTransfers: settings.concurrentTransfers
+        )
 
         // A login-item launch races system startup (network, external
         // volumes, Homebrew mounts). Retry a few times before giving up so
@@ -132,7 +162,11 @@ struct NimbusApp: App {
             while daemon.status != .connected && attempts < 3 {
                 attempts += 1
                 try? await Task.sleep(for: .seconds(5))
-                await daemon.retry(binaryPath: settings.rcloneBinaryPath)
+                await daemon.retry(
+                    binaryPath: settings.rcloneBinaryPath,
+                    bandwidthLimit: settings.bandwidthLimit,
+                    concurrentTransfers: settings.concurrentTransfers
+                )
             }
         }
     }
@@ -164,6 +198,22 @@ struct NimbusApp: App {
         } catch {
             // Non-fatal — a later reconnect retriggers this task.
         }
+    }
+}
+
+struct SceneAppearanceRoot<Content: View>: View {
+    private let settings: AppSettings
+    private let content: Content
+
+    init(settings: AppSettings, @ViewBuilder content: () -> Content) {
+        self.settings = settings
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .environment(settings)
+            .preferredColorScheme(settings.colorScheme)
     }
 }
 

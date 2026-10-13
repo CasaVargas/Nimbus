@@ -5,6 +5,8 @@ import RcloneKit
 struct ImportConfigSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(RcloneDaemon.self) private var daemon
+    @Environment(AppSettings.self) private var settings
+    @Environment(FileProviderBridge.self) private var fileProviderBridge
 
     var onDismiss: (() -> Void)?
 
@@ -22,6 +24,7 @@ struct ImportConfigSheet: View {
     // Operation state
     @State private var isImporting = false
     @State private var error: NimbusError?
+    @State private var finderFailures: [RemoteIntegrationFailure] = []
 
     var body: some View {
         SheetChrome(
@@ -37,6 +40,13 @@ struct ImportConfigSheet: View {
                     )
                 } else {
                     VStack(spacing: 0) {
+                        if !finderFailures.isEmpty {
+                            FinderIntegrationWarning(failures: finderFailures) {
+                                Task { await retryFinderIntegration() }
+                            }
+                            .padding(DesignSystem.Spacing.m)
+                            Divider()
+                        }
                         fileHeader
                         Divider()
                         ImportPreviewList(
@@ -67,7 +77,7 @@ struct ImportConfigSheet: View {
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
-                .disabled(selected.isEmpty || isImporting || parsedRemotes.isEmpty)
+                .disabled(selected.isEmpty || isImporting || parsedRemotes.isEmpty || !finderFailures.isEmpty)
             }
         )
         .frame(minWidth: 540, minHeight: 420)
@@ -154,9 +164,18 @@ struct ImportConfigSheet: View {
                     type: remote.type,
                     parameters: remote.parameters
                 )
+                let result = await NewRemoteIntegration(domainAdder: fileProviderBridge).integrate(
+                    names: [effectiveName],
+                    addToFinder: settings.addNewRemotesToFinder,
+                    disabledDomainNames: settings.disabledFileProviderDomains
+                )
+                settings.disabledFileProviderDomains = result.disabledDomainNames
+                finderFailures += result.failures
             }
             onDismiss?()
-            dismiss()
+            if finderFailures.isEmpty {
+                dismiss()
+            }
         } catch {
             self.error = NimbusError.classify(error)
         }
@@ -167,5 +186,14 @@ struct ImportConfigSheet: View {
     private func isConflict(_ remote: ParsedRemote) -> Bool {
         let effectiveName = renames[remote.id].flatMap { $0.isEmpty ? nil : $0 } ?? remote.name
         return existingNames.contains(effectiveName)
+    }
+
+    private func retryFinderIntegration() async {
+        let failedNames = finderFailures.map(\.remoteName)
+        finderFailures = await NewRemoteIntegration(domainAdder: fileProviderBridge)
+            .integrate(names: failedNames, addToFinder: true)
+        if finderFailures.isEmpty {
+            dismiss()
+        }
     }
 }
