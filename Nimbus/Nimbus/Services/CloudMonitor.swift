@@ -6,7 +6,8 @@ import RcloneKit
 /// fresh. Lives at app scope so the menu bar is right while the main window
 /// is closed; the sidebar, Home and the companion all read it.
 ///
-/// Refreshing = reload the list from rclone, then probe every cloud. It runs
+/// Refreshing = reload the list from rclone, signal the File Provider
+/// working sets (server-side changes reach Finder), then probe every cloud. It runs
 /// on daemon connect, every `periodicInterval`, when anything posts
 /// `.nimbusRemotesChanged`, and when the companion opens with stale data.
 /// Concurrent callers share one run instead of stacking probes.
@@ -53,6 +54,10 @@ final class CloudMonitor {
             return model.error == nil ? model.remotes : nil
         }, status: status, afterLoad: { remotes in
             await recordCapabilities(of: remotes, client: client)
+            // Every refresh is also Finder's chance to pick up server-side
+            // changes: the working-set signal makes the extension re-list
+            // the folders it knows about.
+            await FileProviderBridge.signalWorkingSets()
         })
         monitor.observer = NotificationCenter.default.addObserver(
             forName: .nimbusRemotesChanged, object: nil, queue: .main

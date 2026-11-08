@@ -110,7 +110,12 @@ struct BrowserView: View {
                     goBack: { Task { await viewModel.goBack() } },
                     goForward: { Task { await viewModel.goForward() } },
                     newFolder: { viewModel.showNewFolderDialog = true },
-                    refresh: { Task { await viewModel.loadFiles() } },
+                    refresh: {
+                        Task { await viewModel.loadFiles() }
+                        // ⌘R refreshes this cloud in Finder too.
+                        let remote = remoteName
+                        Task { await FileProviderBridge.signalWorkingSets(remote: remote) }
+                    },
                     setViewMode: { viewModel.viewMode = $0 }
                 ))
             } else {
