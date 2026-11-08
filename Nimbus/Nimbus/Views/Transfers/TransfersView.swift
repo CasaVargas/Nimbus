@@ -19,6 +19,9 @@ enum TransferFilter: String, CaseIterable, Identifiable {
 }
 
 struct TransfersView: View {
+    /// When set, only transfers that read from or write to this remote are
+    /// listed (the volume pane's Transfers tab).
+    var remoteFilter: String? = nil
     @Environment(TransferStore.self) private var transferStore
     @Environment(RcloneDaemon.self) private var daemon
     @State private var filter: TransferFilter = .all
@@ -26,11 +29,13 @@ struct TransfersView: View {
 
     var body: some View {
         Group {
-            if transferStore.transfers.isEmpty {
+            if scopedTransfers.isEmpty {
                 EmptyState(
                     icon: "arrow.up.arrow.down",
-                    title: "No Transfers",
-                    message: "Cross-remote copies and syncs appear here.",
+                    title: remoteFilter == nil ? "No Transfers" : "No Transfers Yet",
+                    message: remoteFilter == nil
+                        ? "Cross-remote copies and syncs appear here."
+                        : "Copies and syncs that touch this volume appear here.",
                     action: nil
                 )
             } else {
@@ -41,7 +46,7 @@ struct TransfersView: View {
                 }
             }
         }
-        .navigationTitle("Transfers")
+        .navigationTitle(remoteFilter ?? "Transfers")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -173,7 +178,13 @@ struct TransfersView: View {
         }
     }
 
+    private var scopedTransfers: [Transfer] {
+        guard let remoteFilter else { return transferStore.transfers }
+        return transferStore.transfers.filter { $0.involves(remote: remoteFilter) }
+    }
+
     private func applyFilter(_ transfers: [Transfer]) -> [Transfer] {
+        let transfers = remoteFilter.map { name in transfers.filter { $0.involves(remote: name) } } ?? transfers
         switch filter {
         case .all: return transfers
         case .crossRemoteDrops: return transfers.filter { $0.origin == .crossRemoteDrop }

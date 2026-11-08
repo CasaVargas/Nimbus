@@ -32,6 +32,15 @@ enum TransferOrigin: String, Codable, Sendable {
     case copySyncJob
 }
 
+extension Transfer {
+    /// True when `remote` is the source or destination fs of this transfer.
+    /// Matches on the `"<remote>:"` prefix so "Drive" never claims "Drive2:".
+    func involves(remote: String) -> Bool {
+        let prefix = "\(remote):"
+        return srcFs.hasPrefix(prefix) || dstFs.hasPrefix(prefix)
+    }
+}
+
 struct Transfer: Identifiable {
     var id: UUID { nimbusUUID }
     /// rclone's ID is transient and must never identify a Nimbus row.

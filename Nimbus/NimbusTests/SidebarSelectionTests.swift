@@ -30,8 +30,6 @@ struct SidebarSelectionTests {
 
     @Test func nonRemoteSelectionPassesThroughUnchanged() {
         for remotes in [[], ["a", "b"]] as [[String]] {
-            #expect(nextSelection(current: .mounts, remotes: remotes) == .mounts)
-            #expect(nextSelection(current: .transfers, remotes: remotes) == .transfers)
             #expect(nextSelection(current: .copySync, remotes: remotes) == .copySync)
         }
     }

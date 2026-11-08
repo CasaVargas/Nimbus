@@ -4,8 +4,6 @@ import Foundation
 /// detail pane to that remote's browser; the other cases map to their views.
 enum SidebarSelection: Hashable {
     case remote(String)
-    case mounts
-    case transfers
     case copySync
 }
 
@@ -14,7 +12,7 @@ enum SidebarSelection: Hashable {
 /// Non-remote selections are never altered.
 func nextSelection(current: SidebarSelection?, remotes: [String]) -> SidebarSelection? {
     switch current {
-    case .mounts, .transfers, .copySync:
+    case .copySync:
         return current
     case .remote(let name):
         if remotes.contains(name) { return .remote(name) }

@@ -54,10 +54,6 @@ struct AppCommands: Commands {
                 .keyboardShortcut("]")
                 .disabled(!(browser?.canGoForward ?? false))
             Divider()
-            Button("Mounts") { sidebarSelection?.wrappedValue = .mounts }
-                .keyboardShortcut("2", modifiers: [.command, .shift])
-            Button("Transfers") { sidebarSelection?.wrappedValue = .transfers }
-                .keyboardShortcut("3", modifiers: [.command, .shift])
             Button("Copy / Sync") { sidebarSelection?.wrappedValue = .copySync }
                 .keyboardShortcut("4", modifiers: [.command, .shift])
         }

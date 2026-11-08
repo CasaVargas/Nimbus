@@ -29,6 +29,8 @@ struct AddMountSheet: View {
 
     var viewModel: MountsViewModel
     var editing: MountConfig?
+    /// Preselected remote when opened from a volume's Finder tab.
+    var initialRemote: String? = nil
 
     @State private var selectedRemote = ""
     @State private var mountPoint = ""
@@ -62,6 +64,8 @@ struct AddMountSheet: View {
                 selectedRemote = editing.remoteNameOnly
                 mountPoint = editing.mountPoint
                 backend = editing.backend
+            } else if let initialRemote {
+                selectedRemote = initialRemote
             }
         }
         .fileImporter(

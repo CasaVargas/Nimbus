@@ -8,6 +8,10 @@ struct BrowserView: View {
     /// When this changes and its `remote` matches `remoteName`, the browser
     /// navigates to `path` on the live view model (no view recreation).
     var browseTarget: BrowseTarget?
+    /// False while another volume tab is in front: the browser's toolbar
+    /// items and menu actions step aside so ⌘N can't create folders from
+    /// the Settings tab.
+    var showsToolbar: Bool = true
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(AppSettings.self) private var settings
     @Environment(BookmarkStore.self) private var bookmarkStore
@@ -76,7 +80,7 @@ struct BrowserView: View {
                             .background(.ultraThinMaterial)
                     }
                 }
-                .modifier(BrowserToolbar(
+                .modifier(Conditional(enabled: showsToolbar, modifier: BrowserToolbar(
                     viewMode: Binding(
                         get: { viewModel.viewMode },
                         set: { viewModel.viewMode = $0 }
@@ -91,12 +95,12 @@ struct BrowserView: View {
                     onForward: { Task { await viewModel.goForward() } },
                     onNewFolder: { viewModel.showNewFolderDialog = true },
                     onRefresh: { Task { await viewModel.loadFiles() } }
-                ))
+                )))
                 .dropDestination(for: NimbusFileBundle.self) { bundles, _ in
                     let refs = bundles.flatMap(\.refs)
                     return handleDrop(refs: refs, viewModel: viewModel)
                 }
-                .focusedSceneValue(\.browserActions, BrowserMenuActions(
+                .focusedSceneValue(\.browserActions, !showsToolbar ? nil : BrowserMenuActions(
                     canGoBack: viewModel.canGoBack,
                     canGoForward: viewModel.canGoForward,
                     viewMode: viewModel.viewMode,

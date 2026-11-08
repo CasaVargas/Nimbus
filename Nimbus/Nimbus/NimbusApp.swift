@@ -15,6 +15,7 @@ struct NimbusApp: App {
     @State private var diagnosticsService: DiagnosticsService
     @State private var transferNotifier: TransferNotificationService
     @State private var generalSettingsModel = GeneralSettingsModel()
+    @State private var providerDirectory = ProviderDirectory()
 
     /// Guards the parts of daemon-connect handling that must run once per
     /// process (pollers, monitors); the rest of `onDaemonConnected` is
@@ -50,6 +51,7 @@ struct NimbusApp: App {
                     .environment(bookmarkStore)
                     .environment(launchAtLogin)
                     .environment(statusService)
+                    .environment(providerDirectory)
                     .environment(\.diagnosticsService, diagnosticsService)
                     .environment(\.transferNotifier, transferNotifier)
             }
@@ -183,6 +185,7 @@ struct NimbusApp: App {
         }
 
         mountManager.configs = mountConfigs.configs
+        Task { await providerDirectory.load(client: daemon.client) }
         await mountManager.restoreMounts(configs: mountConfigs.configs)
 
         // Phase 2c: refreshAll reconciles mount(8) state and FP domains against configs

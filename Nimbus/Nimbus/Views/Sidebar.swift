@@ -1,9 +1,10 @@
 import SwiftUI
+import RcloneKit
 
 struct Sidebar: View {
     @Binding var selection: SidebarSelection?
     @Environment(BookmarkStore.self) private var bookmarkStore
-    var onRemotesLoaded: ([String]) -> Void
+    var onRemotesLoaded: ([Remote]) -> Void
     var onBookmarkSelected: ((String, String) -> Void)?
     var onBookmarkDrop: ((_ bundles: [NimbusFileBundle], _ bookmark: FolderBookmark) -> Void)?
 
@@ -12,14 +13,10 @@ struct Sidebar: View {
             RemotesSidebarSection(onRemotesLoaded: onRemotesLoaded)
 
             Section {
-                Label("Finder", systemImage: "macwindow.badge.plus")
-                    .tag(SidebarSelection.mounts)
-                Label("Transfers", systemImage: "arrow.up.arrow.down")
-                    .tag(SidebarSelection.transfers)
                 Label("Copy & Sync", systemImage: "arrow.triangle.2.circlepath")
                     .tag(SidebarSelection.copySync)
             } header: {
-                Text("Library")
+                Text("Tools")
             }
 
             if !bookmarkStore.bookmarks.isEmpty {

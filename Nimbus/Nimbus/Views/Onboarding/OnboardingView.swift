@@ -159,7 +159,7 @@ struct OnboardingView: View {
                 ? LocalizedStringKey("Connected to \(remotes.first ?? "your provider").")
                 : LocalizedStringKey("Choose from Google Drive, OneDrive, S3, Dropbox, and more."),
             primaryAction: hasRemotes ? nil : .init(label: "Add Remote", perform: { showAddRemote = true }),
-            secondaryAction: hasRemotes ? .init(label: "Add it to Finder →", perform: { showAddMount = true }) : nil
+            secondaryAction: hasRemotes ? .init(label: "Show it in Finder", perform: { showAddMount = true }) : nil
         )
     }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import RcloneKit
 import os
 
 struct ContentView: View {
@@ -6,8 +7,11 @@ struct ContentView: View {
     @State private var browseTarget: BrowseTarget?
     @State private var pendingSidebarCopy: CopyRequest?
     /// Last remote list reported by the sidebar — distinguishes "no remotes
-    /// configured yet" from "remotes exist, none selected" in the detail pane.
-    @State private var remoteNames: [String] = []
+    /// configured yet" from "remotes exist, none selected" in the detail pane,
+    /// and supplies the `Remote` the volume pane renders.
+    @State private var remotes: [Remote] = []
+    /// Source remote to preselect when Copy & Sync opens from a volume.
+    @State private var copySyncSource: String?
     @Environment(AppSettings.self) private var settings
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(TransferStore.self) private var transferStore
@@ -19,9 +23,9 @@ struct ContentView: View {
             NavigationSplitView {
                 Sidebar(
                     selection: $selection,
-                    onRemotesLoaded: { names in
-                        remoteNames = names
-                        selection = nextSelection(current: selection, remotes: names)
+                    onRemotesLoaded: { list in
+                        remotes = list
+                        selection = nextSelection(current: selection, remotes: list.map(\.name))
                     },
                     onBookmarkSelected: { remote, path in
                         selection = .remote(remote)
@@ -102,18 +106,23 @@ struct ContentView: View {
     private var detailView: some View {
         switch selection {
         case .remote(let name):
-            BrowserView(
-                remoteName: name,
-                initialPath: browseTarget?.remote == name ? (browseTarget?.path ?? "") : "",
-                browseTarget: browseTarget
-            )
-            .id(name)
-        case .mounts:
-            MountsView()
-        case .transfers:
-            TransfersView()
+            if let remote = remotes.first(where: { $0.name == name }) {
+                VolumeView(
+                    remote: remote,
+                    browseTarget: browseTarget,
+                    onSync: { source in
+                        copySyncSource = source
+                        selection = .copySync
+                    }
+                )
+                .id(name)
+            } else {
+                ProgressView()
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         case .copySync:
-            CopySyncView()
+            CopySyncView(initialSource: copySyncSource)
         case nil:
             noSelectionView
         }
@@ -150,18 +159,18 @@ struct ContentView: View {
                 })
             )
         case .connected:
-            if remoteNames.isEmpty {
+            if remotes.isEmpty {
                 EmptyState(
                     icon: "cloud.slash",
-                    title: "No Remotes Yet",
-                    message: "Add your first remote with the + button in the sidebar.",
+                    title: "No Volumes Yet",
+                    message: "Add your first cloud with the + button in the sidebar.",
                     action: nil
                 )
             } else {
                 EmptyState(
                     icon: "cloud.slash",
-                    title: "No Remote Selected",
-                    message: "Select a remote in the sidebar to browse it.",
+                    title: "No Volume Selected",
+                    message: "Select a volume in the sidebar.",
                     action: nil
                 )
             }
