@@ -18,6 +18,10 @@ struct TransferRecord: Codable, Identifiable, Equatable, Sendable {
     let completedAt: Date
     let outcome: TransferOutcome
     let origin: TransferOrigin
+    /// Backup runs only (history file version 2).
+    var backupID: UUID? = nil
+    var title: String? = nil
+    var summary: BackupRunSummary? = nil
 }
 
 protocol TransferHistoryPersisting: Sendable {
@@ -72,7 +76,10 @@ struct TransferHistoryFile: TransferHistoryPersisting {
         let version: Int
     }
 
-    private static let currentVersion = 1
+    /// Version 2 adds the backup fields and the `.backup` origin. A file
+    /// without backup records is still written as version 1, so an older
+    /// Nimbus keeps reading history that has nothing new in it.
+    private static let readableVersions: Set<Int> = [1, 2]
     private let url: URL
 
     init(url: URL = Self.defaultURL) {
@@ -91,7 +98,7 @@ struct TransferHistoryFile: TransferHistoryPersisting {
             throw TransferHistoryFileError.corrupt
         }
 
-        guard envelope.version == Self.currentVersion else {
+        guard Self.readableVersions.contains(envelope.version) else {
             throw TransferHistoryFileError.unsupportedVersion(envelope.version)
         }
 
@@ -108,7 +115,8 @@ struct TransferHistoryFile: TransferHistoryPersisting {
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(Document(version: Self.currentVersion, records: records))
+        let version = records.contains { $0.backupID != nil || $0.origin == .backup } ? 2 : 1
+        let data = try encoder.encode(Document(version: version, records: records))
         try data.write(to: url, options: .atomic)
     }
 

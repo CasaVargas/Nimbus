@@ -50,4 +50,23 @@ struct TransferRowTests {
             named: "TransferRow-failed"
         )
     }
+
+    @Test func rendersBackupTitle() throws {
+        var t = makeActive()
+        t = Transfer(
+            jobID: 101, operation: .sync, srcFs: "/Users/j/Documents", dstFs: "b2:mac-backup/Documents",
+            startedAt: t.startedAt, completedAt: Date(timeIntervalSince1970: 1_700_000_120),
+            status: .completed, origin: .backup, nimbusUUID: t.nimbusUUID,
+            backup: Transfer.BackupContext(
+                backupID: UUID(uuidString: "00000000-0000-0000-0000-0000000000B1")!,
+                title: "Documents to B2", trigger: .scheduled,
+                isMirrorWithVersions: true, hadRemovalLimit: true
+            )
+        )
+        try SnapshotHelpers.assertSnapshot(
+            TransferRow(transfer: t),
+            size: CGSize(width: 560, height: 56),
+            named: "TransferRow-backup"
+        )
+    }
 }

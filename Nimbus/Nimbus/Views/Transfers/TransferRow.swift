@@ -67,6 +67,7 @@ struct TransferRow: View {
     }
 
     private var iconName: String {
+        if transfer.backup != nil { return "clock.arrow.circlepath" }
         switch transfer.operation {
         case .copy: return "doc.on.doc"
         case .sync: return "arrow.triangle.2.circlepath"
@@ -75,6 +76,7 @@ struct TransferRow: View {
     }
 
     private var displayName: String {
+        if let title = transfer.backup?.title, !title.isEmpty { return title }
         // dstFs is typically "remote:path/to/file"; show the leaf name.
         let leaf = (transfer.dstFs as NSString).lastPathComponent
         return leaf.isEmpty ? transfer.dstFs : leaf
