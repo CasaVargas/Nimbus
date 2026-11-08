@@ -3,14 +3,16 @@ import RcloneKit
 import os
 import UniformTypeIdentifiers
 
-private struct SendableBox<T>: @unchecked Sendable {
+struct SendableBox<T>: @unchecked Sendable {
     let value: T
 }
 
 final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     let domain: NSFileProviderDomain
     let rclone: RcloneClient
-    private let logger = Logger(subsystem: "app.casavargas.nimbus.FileProvider", category: "extension")
+    let logger = Logger(subsystem: "app.casavargas.nimbus.FileProvider", category: "extension")
+    /// Thumbnail downloads for this cloud, at most three at a time.
+    let thumbnailLimiter = AsyncLimiter(limit: 3)
 
     required init(domain: NSFileProviderDomain) {
         self.domain = domain
@@ -21,7 +23,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
     /// Re-reads the port from app group UserDefaults — the main app may have
     /// restarted on a different port since this extension process was spawned.
-    private func refreshPort() {
+    func refreshPort() {
         FileProviderRetry.refreshPort(on: rclone, logger: logger)
     }
 
@@ -358,7 +360,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
     // MARK: - Error Mapping
 
-    private static func mapToFileProviderError(_ error: Error) -> Error {
+    static func mapToFileProviderError(_ error: Error) -> Error {
         if error is CancellationError {
             return CocoaError(.userCancelled)
         }
@@ -382,7 +384,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     /// this directory, so every write path must nest under it — a prior
     /// version of `fetchContents` wrote to a differently-named directory
     /// than the one `invalidate()` cleaned up, leaking staged downloads.
-    private static func tempDirectory() -> URL {
+    static func tempDirectory() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("app.casavargas.nimbus.FileProvider", isDirectory: true)
     }
@@ -423,7 +425,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     /// root-relative parent identifier (e.g. creating a new top-level item)
     /// would be silently prefixed with that literal system string instead
     /// of resolving to the remote root.
-    private static func extractPathStatic(from identifier: NSFileProviderItemIdentifier, remoteName: String) -> String {
+    static func extractPathStatic(from identifier: NSFileProviderItemIdentifier, remoteName: String) -> String {
         if identifier == .rootContainer { return "" }
         let raw = identifier.rawValue
         let prefix = "\(remoteName):"
