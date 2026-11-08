@@ -1,7 +1,7 @@
 # Backups — Design
 
 **Date:** 2026-11-08
-**Status:** Draft for review. No code yet.
+**Status:** Approved 2026-11-08 with the defaults below (open questions resolved to the spec's proposals). Phase 1 in progress on `feat/backups-phase1`.
 **Roadmap:** item 2 of the competitive research's recommended order (Tolaria
 `nimbus/nimbus-competitive-feature-gaps-research.md`), and the north star's phase 4 "scheduled syncs".
 **Builds on:** `Views/CopySync/` (the one-off copy/sync screen), `State/TransferStore.swift`,
@@ -560,7 +560,7 @@ Each phase is its own PR, works on its own, and leaves `main` shippable.
 - **Destination quota.** A backup that fills the destination fails with the provider's error.
   Home's existing "almost full" suggestion covers the warning side.
 
-## Open questions for review
+## Open questions (resolved 2026-11-08: approved with the spec's defaults)
 
 1. **Default mode for a new backup.** The spec defaults to **Mirror with versions on**: it reads as
    "a backup" to most people and versions make removals recoverable. **Add only** is safer when
