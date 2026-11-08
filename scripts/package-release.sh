@@ -26,8 +26,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP="$ROOT_DIR/Nimbus/build/Build/Products/Release/Nimbus.app"
-APPEX="$APP/Contents/PlugIns/FileProviderExtension.appex"
+BUILT_APP="$ROOT_DIR/Nimbus/build/Build/Products/Release/Nimbus.app"
 DIST_DIR="${NIMBUS_DIST_DIR:-$ROOT_DIR/dist}"
 SIGN_IDENTITY="${NIMBUS_SIGN_IDENTITY:-}"
 NOTARY_PROFILE="${NIMBUS_NOTARY_PROFILE:-}"
@@ -38,10 +37,18 @@ if [ "${NIMBUS_SKIP_BUILD:-0}" != "1" ]; then
   bash "$ROOT_DIR/scripts/build-release.sh"
 fi
 
-if [ ! -d "$APP" ]; then
-  echo "error: $APP not found. Run scripts/build-release.sh first." >&2
+if [ ! -d "$BUILT_APP" ]; then
+  echo "error: $BUILT_APP not found. Run scripts/build-release.sh first." >&2
   exit 1
 fi
+
+# Work on a copy. The build products stay exactly as Xcode left them, so an
+# incremental rebuild never sees a half re-signed bundle.
+STAGE="$(mktemp -d "${TMPDIR:-/tmp}/nimbus-dmg.XXXXXX")"
+trap 'rm -rf "$STAGE"' EXIT
+ditto "$BUILT_APP" "$STAGE/Nimbus.app"
+APP="$STAGE/Nimbus.app"
+APPEX="$APP/Contents/PlugIns/FileProviderExtension.appex"
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")"
@@ -51,13 +58,31 @@ VOLNAME="Nimbus $VERSION"
 mkdir -p "$DIST_DIR"
 rm -f "$DMG" "$DMG.sha256"
 
-# Writes the bundle's current entitlements to $2 with the debugging-only
-# get-task-allow key removed. Apple's notary service rejects any executable
-# that requests it, and Xcode injects it into non-archive builds.
+# Writes the bundle's current entitlements to $2 minus the keys a Developer
+# ID build must not carry:
+#   - com.apple.security.get-task-allow: debugging only; the notary service
+#     rejects any executable that requests it.
+#   - com.apple.application-identifier and com.apple.developer.team-identifier:
+#     restricted entitlements that only a provisioning profile can authorize.
+#     Xcode's automatic (Apple Development) signing adds them together with a
+#     development profile. Re-signed with a Developer ID certificate, that
+#     profile no longer matches and launchd refuses to spawn the app
+#     ("Launchd job spawn failed", no crash log). 0.9.0 shipped that way.
+# The app group entitlement stays: on macOS it needs no profile.
 release_entitlements() {
   local bundle="$1" out="$2"
   codesign -d --entitlements :- "$bundle" 2>/dev/null > "$out"
-  /usr/libexec/PlistBuddy -c 'Delete :com.apple.security.get-task-allow' "$out" 2>/dev/null || true
+  local key
+  for key in com.apple.security.get-task-allow com.apple.application-identifier com.apple.developer.team-identifier; do
+    /usr/libexec/PlistBuddy -c "Delete :$key" "$out" 2>/dev/null || true
+  done
+}
+
+# Removes the development provisioning profile Xcode embedded, for the same
+# reason: it names Apple Development certificates and a device list, neither
+# of which applies to a Developer ID build.
+drop_dev_profile() {
+  rm -f "$1/Contents/embedded.provisionprofile"
 }
 
 if [ -n "$SIGN_IDENTITY" ]; then
@@ -67,7 +92,9 @@ if [ -n "$SIGN_IDENTITY" ]; then
   # contains it. Entitlements are re-applied from the build minus
   # get-task-allow; --options runtime enables the hardened runtime that
   # notarization requires.
+  drop_dev_profile "$APP"
   if [ -d "$APPEX" ]; then
+    drop_dev_profile "$APPEX"
     release_entitlements "$APPEX" "$ENT_DIR/appex.plist"
     codesign --force --timestamp --options runtime \
       --entitlements "$ENT_DIR/appex.plist" \
@@ -78,19 +105,36 @@ if [ -n "$SIGN_IDENTITY" ]; then
     --entitlements "$ENT_DIR/app.plist" \
     --sign "$SIGN_IDENTITY" "$APP"
   codesign --verify --deep --strict --verbose=2 "$APP"
-  if codesign -d --entitlements :- "$APP" 2>/dev/null | grep -q get-task-allow; then
-    echo "error: get-task-allow is still present after re-signing" >&2
+  for key in get-task-allow application-identifier team-identifier; do
+    if codesign -d --entitlements :- "$APP" 2>/dev/null | grep -q "$key"; then
+      echo "error: $key is still present after re-signing" >&2
+      exit 1
+    fi
+  done
+  if [ -e "$APP/Contents/embedded.provisionprofile" ]; then
+    echo "error: embedded.provisionprofile is still present" >&2
     exit 1
   fi
+  # The real test: a Developer ID build must spawn. Launch it headless for a
+  # moment and make sure launchd accepted it, then quit it again.
+  log "Launch check"
+  if ! open -g -a "$APP" --args -NSQuitAlwaysKeepsWindows NO; then
+    echo "error: the re-signed app failed to launch" >&2
+    exit 1
+  fi
+  sleep 4
+  if ! pgrep -x Nimbus >/dev/null; then
+    echo "error: the re-signed app did not stay running" >&2
+    exit 1
+  fi
+  pkill -x Nimbus || true
+  sleep 1
   rm -rf "$ENT_DIR"
 else
   log "NIMBUS_SIGN_IDENTITY not set; leaving the app with its build signature"
 fi
 
 log "Creating $DMG"
-STAGE="$(mktemp -d "${TMPDIR:-/tmp}/nimbus-dmg.XXXXXX")"
-trap 'rm -rf "$STAGE"' EXIT
-ditto "$APP" "$STAGE/Nimbus.app"
 ln -s /Applications "$STAGE/Applications"
 hdiutil create \
   -volname "$VOLNAME" \

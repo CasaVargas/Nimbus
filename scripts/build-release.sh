@@ -10,6 +10,12 @@ cd "$PROJECT_DIR"
 echo "==> Regenerating Xcode project from project.yml"
 xcodegen generate
 
+# Always start from clean Release products. The packager used to re-sign the
+# app in place here, and an incremental rebuild then embedded a Developer ID
+# signed extension inside an Apple Development signed app and failed with
+# "Embedded binary is not signed with the same certificate as the parent app".
+rm -rf build/Build/Products/Release
+
 echo "==> Building Nimbus (Release)"
 # CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO keeps Xcode from adding the
 # get-task-allow debugging entitlement that a plain `build` (as opposed to an
