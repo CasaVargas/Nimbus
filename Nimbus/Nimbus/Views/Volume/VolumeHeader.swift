@@ -5,6 +5,8 @@ import RcloneKit
 /// the three verbs that matter. Reference: Disk Utility's volume header.
 struct VolumeHeader: View {
     let remote: Remote
+    /// Backend type for the badge; an alias passes the type it points at.
+    var badgeType: String? = nil
     let providerName: String
     let quota: StorageQuota?
     let status: RemoteStatus
@@ -15,7 +17,7 @@ struct VolumeHeader: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: DesignSystem.Spacing.m) {
-            ProviderBadge(provider: remote.type, size: 44)
+            ProviderBadge(provider: badgeType ?? remote.type, size: 44)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -35,7 +37,7 @@ struct VolumeHeader: View {
             HStack(spacing: DesignSystem.Spacing.s) {
                 Button(isInFinder ? "Open in Finder" : "Show in Finder", action: onPrimary)
                     .buttonStyle(.borderedProminent)
-                Button("Sync…", action: onSync)
+                Button("Copy To…", action: onSync)
                     .buttonStyle(.bordered)
                 Button("Edit", action: onEdit)
                     .buttonStyle(.bordered)
@@ -56,8 +58,7 @@ struct VolumeHeader: View {
             }
         }
         switch status {
-        case .authNeeded: parts.append("Sign in required")
-        case .error: parts.append("Connection error")
+        case .authNeeded, .unreachable, .error: parts.append(status.shortText)
         case .unknown, .connected: parts.append(isInFinder ? "Shown in Finder" : "Not in Finder")
         }
         return parts.joined(separator: " · ")

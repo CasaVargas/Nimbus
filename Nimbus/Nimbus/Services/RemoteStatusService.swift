@@ -15,10 +15,27 @@ final class RemoteStatusService {
     /// probe makes. Absent when the backend reports nothing usable.
     private(set) var quotas: [String: StorageQuota] = [:]
 
-    private let client: RemoteProbeClient
+    /// When each remote last answered a probe. Persisted so Home can say
+    /// "Last connected Friday" for a NAS that is only reachable at home.
+    private(set) var lastConnected: [String: Date]
 
-    init(client: RemoteProbeClient) {
+    private let client: RemoteProbeClient
+    private let defaults: UserDefaults
+    private let now: @Sendable () -> Date
+    private static let lastConnectedKey = "remoteLastConnected"
+
+    init(client: RemoteProbeClient, defaults: UserDefaults = .standard,
+         now: @escaping @Sendable () -> Date = { Date() }) {
         self.client = client
+        self.defaults = defaults
+        self.now = now
+        let stored = defaults.dictionary(forKey: Self.lastConnectedKey) as? [String: Date] ?? [:]
+        lastConnected = stored
+    }
+
+    private func recordConnected(_ name: String) {
+        lastConnected[name] = now()
+        defaults.set(lastConnected, forKey: Self.lastConnectedKey)
     }
 
     /// Pre-flight marker — sets statuses[name] = .unknown synchronously
@@ -38,6 +55,7 @@ final class RemoteStatusService {
             let about = try await client.about(fs: "\(name):")
             statuses[name] = .connected
             quotas[name] = StorageQuota(about: about)
+            recordConnected(name)
         } catch {
             statuses[name] = Self.classify(error)
             quotas.removeValue(forKey: name)
@@ -75,6 +93,9 @@ final class RemoteStatusService {
     func clear(_ name: String) {
         statuses.removeValue(forKey: name)
         quotas.removeValue(forKey: name)
+        if lastConnected.removeValue(forKey: name) != nil {
+            defaults.set(lastConnected, forKey: Self.lastConnectedKey)
+        }
     }
 
     /// Classifies a probe failure into a RemoteStatus. Pulled out as a
@@ -90,6 +111,21 @@ final class RemoteStatusService {
         let authSignals = ["oauth", "token", "unauthorized", "forbidden", "sign in", "401", "403"]
         if authSignals.contains(where: { message.contains($0) }) {
             return .authNeeded
+        }
+        // Host-level failures mean "not reachable from here right now" (a
+        // NAS off the home network, a server that is down), not a broken
+        // configuration. Home words these differently, so split them out.
+        if let urlError = error as? URLError,
+           [.cannotConnectToHost, .cannotFindHost, .dnsLookupFailed, .notConnectedToInternet,
+            .networkConnectionLost].contains(urlError.code) {
+            return .unreachable(reason: error.localizedDescription)
+        }
+        let unreachableSignals = [
+            "connection refused", "no route to host", "network is unreachable",
+            "no such host", "host is down", "i/o timeout", "connection timed out",
+        ]
+        if unreachableSignals.contains(where: { message.contains($0) }) {
+            return .unreachable(reason: error.localizedDescription)
         }
         // A request timeout is NOT a hard failure — `operations/about` can be
         // genuinely slow on large accounts, and the remote is still configured

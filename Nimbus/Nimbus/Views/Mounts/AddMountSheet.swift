@@ -129,13 +129,13 @@ struct AddMountSheet: View {
                 FormRow(label: "Show Files Using", help: nil) {
                     Picker("Backend", selection: $backend) {
                         Text("Finder (Recommended)").tag(MountBackend.fileProvider)
-                        Text("Network Volume (NFS)").tag(MountBackend.nfs)
+                        Text("Network Drive (NFS)").tag(MountBackend.nfs)
                     }
                     .labelsHidden()
                     .frame(maxWidth: 240)
                 }
                 if backend == .nfs {
-                    FormRow(label: "Access", help: "How the volume handles reads and writes.") {
+                    FormRow(label: "Access", help: "Whether Nimbus can change files here or only read them.") {
                         Picker("Access", selection: $vfsMode) {
                             Text("Read-only").tag(VFSMode.readOnly)
                             Text("Read and write").tag(VFSMode.readWrite)

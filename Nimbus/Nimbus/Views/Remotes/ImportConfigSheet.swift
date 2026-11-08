@@ -28,14 +28,14 @@ struct ImportConfigSheet: View {
 
     var body: some View {
         SheetChrome(
-            title: "Import rclone Config",
+            title: "Import from rclone.conf",
             subtitle: fileURL.map { LocalizedStringKey($0.lastPathComponent) },
             body: {
                 if parsedRemotes.isEmpty {
                     EmptyState(
                         icon: "square.and.arrow.down",
                         title: "No File Selected",
-                        message: "Choose an rclone configuration file to import remotes from.",
+                        message: "Choose an rclone.conf file. Nimbus adds each cloud in it.",
                         action: .init(label: "Choose File…", perform: { pickFile() })
                     )
                 } else {

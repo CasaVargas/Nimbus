@@ -53,17 +53,17 @@ struct RemoteStatusServiceTests {
         #expect(service.statuses["gdrive"] == .authNeeded)
     }
 
-    @Test func probeSetsErrorOnGenericFailure() async {
+    @Test func probeSetsUnreachableOnConnectionRefused() async {
         let client = MockRcloneClient()
         client.aboutResults["s3:"] = .failure(
             RcloneError.requestFailed(status: 500, message: "couldn't fetch info: connection refused")
         )
         let service = RemoteStatusService(client: client)
         await service.probe("s3")
-        if case .error(let reason) = service.statuses["s3"] {
+        if case .unreachable(let reason) = service.statuses["s3"] {
             #expect(reason.contains("connection refused"))
         } else {
-            Issue.record("Expected .error, got \(String(describing: service.statuses["s3"]))")
+            Issue.record("Expected .unreachable, got \(String(describing: service.statuses["s3"]))")
         }
     }
 
@@ -104,5 +104,44 @@ struct RemoteStatusServiceTests {
     @Test func classifyDetectsAuthOnForbiddenSubstring() {
         let err = RcloneError.requestFailed(status: 500, message: "got 'forbidden' from backend")
         #expect(RemoteStatusService.classify(err) == .authNeeded)
+    }
+    @Test func classifyKeepsConfigFailuresAsError() {
+        let err = RcloneError.requestFailed(status: 500, message: "didn't find section in config file")
+        if case .error = RemoteStatusService.classify(err) {} else {
+            Issue.record("expected .error, got \(RemoteStatusService.classify(err))")
+        }
+    }
+
+    @Test func classifyMapsCannotConnectToUnreachable() {
+        let err = URLError(.cannotConnectToHost)
+        if case .unreachable = RemoteStatusService.classify(err) {} else {
+            Issue.record("expected .unreachable, got \(RemoteStatusService.classify(err))")
+        }
+    }
+
+    @Test func successfulProbeRecordsAndPersistsLastConnected() async throws {
+        let defaults = try #require(UserDefaults(suiteName: "RemoteStatusServiceTests.\(UUID())"))
+        let stamp = Date(timeIntervalSince1970: 1_800_000_000)
+        let client = MockRcloneClient()
+        client.aboutResults["nas:"] = .success(MockRcloneClient.emptyAbout())
+        let service = RemoteStatusService(client: client, defaults: defaults, now: { stamp })
+        await service.probe("nas")
+        #expect(service.lastConnected["nas"] == stamp)
+        let reloaded = RemoteStatusService(client: client, defaults: defaults)
+        #expect(reloaded.lastConnected["nas"] == stamp)
+        reloaded.clear("nas")
+        #expect(RemoteStatusService(client: client, defaults: defaults).lastConnected["nas"] == nil)
+    }
+
+    @Test func failedProbeKeepsPreviousLastConnected() async throws {
+        let defaults = try #require(UserDefaults(suiteName: "RemoteStatusServiceTests.\(UUID())"))
+        let stamp = Date(timeIntervalSince1970: 1_800_000_000)
+        let client = MockRcloneClient()
+        client.aboutResults["nas:"] = .success(MockRcloneClient.emptyAbout())
+        let service = RemoteStatusService(client: client, defaults: defaults, now: { stamp })
+        await service.probe("nas")
+        client.aboutResults["nas:"] = .failure(RcloneError.requestFailed(status: 500, message: "dial tcp: no route to host"))
+        await service.probe("nas")
+        #expect(service.lastConnected["nas"] == stamp)
     }
 }

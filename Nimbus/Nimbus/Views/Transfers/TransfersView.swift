@@ -11,7 +11,7 @@ enum TransferFilter: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .all: return "All"
-        case .crossRemoteDrops: return "Cross-remote Drops"
+        case .crossRemoteDrops: return "Drops Between Clouds"
         case .manualCopies: return "Manual Copies"
         case .syncJobs: return "Sync Jobs"
         }
@@ -34,7 +34,7 @@ struct TransfersView: View {
                     icon: "arrow.up.arrow.down",
                     title: remoteFilter == nil ? "No Transfers" : "No Transfers Yet",
                     message: remoteFilter == nil
-                        ? "Cross-remote copies and syncs appear here."
+                        ? "Copies between clouds appear here."
                         : "Copies and syncs that touch this volume appear here.",
                     action: nil
                 )

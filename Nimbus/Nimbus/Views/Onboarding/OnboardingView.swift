@@ -113,7 +113,7 @@ struct OnboardingView: View {
         OnboardingCard(
             state: daemonCardState,
             icon: "bolt",
-            title: "Rclone Daemon",
+            title: "Connection Engine",
             message: daemonCardMessage,
             primaryAction: daemonRetryAction,
             secondaryAction: nil
@@ -131,8 +131,8 @@ struct OnboardingView: View {
     private var daemonCardMessage: LocalizedStringKey {
         switch daemon.status {
         case .idle: return "Waiting to start…"
-        case .starting: return "Connecting to rclone…"
-        case .connected: return "Secure cloud connection is ready."
+        case .starting: return "Starting…"
+        case .connected: return "Ready to connect to your clouds."
         case .error(let message): return LocalizedStringKey(message)
         }
     }
@@ -154,11 +154,11 @@ struct OnboardingView: View {
         OnboardingCard(
             state: hasRemotes ? .complete : .actionRequired,
             icon: "cloud",
-            title: "Add a Remote",
+            title: "Add a Cloud",
             message: hasRemotes
                 ? LocalizedStringKey("Connected to \(remotes.first ?? "your provider").")
                 : LocalizedStringKey("Choose from Google Drive, OneDrive, S3, Dropbox, and more."),
-            primaryAction: hasRemotes ? nil : .init(label: "Add Remote", perform: { showAddRemote = true }),
+            primaryAction: hasRemotes ? nil : .init(label: "Add Cloud", perform: { showAddRemote = true }),
             secondaryAction: hasRemotes ? .init(label: "Show it in Finder", perform: { showAddMount = true }) : nil
         )
     }
@@ -170,7 +170,7 @@ struct OnboardingView: View {
             title: "Add It to Finder",
             message: hasMounts
                 ? (firstMountPath.isEmpty
-                    ? LocalizedStringKey("Your remote is available as a Finder location.")
+                    ? LocalizedStringKey("Your cloud is available as a Finder location.")
                     : LocalizedStringKey("Available at \(firstMountPath)."))
                 : LocalizedStringKey("Browse cloud files beside iCloud Drive. macOS downloads them on demand."),
             primaryAction: hasMounts ? nil : .init(label: "Add to Finder", perform: { showAddMount = true }),

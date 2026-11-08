@@ -130,4 +130,40 @@ struct ConfigSessionTests {
         #expect(json["type"] as? String == "s3")
         #expect((json["parameters"] as? [String: Any])?["region"] as? String == "us-east-1")
     }
+    // config/update walks (re-sign-in). Same suite so the serialized
+    // ordering covers this endpoint too; nothing else enqueues on it.
+    @Test func startUpdateUsesConfigUpdateWithoutType() async throws {
+        MockURLProtocol.reset(endpoint: "config/update")
+        MockURLProtocol.enqueue(
+            endpoint: "config/update",
+            json: machineJSON(state: "*oauth-confirm,teamdrive,oauth,", option: optionJSON(name: "config_refresh_token"))
+        )
+        let step = try await makeTestClient().startUpdate(name: "gd")
+        guard case .oauth(let q) = step else {
+            Issue.record("expected .oauth, got \(step)"); return
+        }
+        #expect(q.option.name == "config_refresh_token")
+        let body = try #require(MockURLProtocol.lastRequestBodies["config/update"])
+        let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(json["name"] as? String == "gd")
+        #expect(json["type"] == nil)
+        let opt = try #require(json["opt"] as? [String: Any])
+        #expect(opt["all"] as? Bool == false)
+        #expect(opt["continue"] == nil)
+    }
+
+    @Test func continueUpdateCarriesCursor() async throws {
+        MockURLProtocol.reset(endpoint: "config/update")
+        MockURLProtocol.enqueue(endpoint: "config/update", json: machineJSON(state: "", option: nil))
+        let step = try await makeTestClient().continueUpdate(
+            name: "gd", state: "*oauth-islocal,teamdrive,oauth,", result: "true"
+        )
+        #expect(step == .done)
+        let body = try #require(MockURLProtocol.lastRequestBodies["config/update"])
+        let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let opt = try #require(json["opt"] as? [String: Any])
+        #expect(opt["continue"] as? Bool == true)
+        #expect(opt["state"] as? String == "*oauth-islocal,teamdrive,oauth,")
+        #expect(opt["result"] as? String == "true")
+    }
 }

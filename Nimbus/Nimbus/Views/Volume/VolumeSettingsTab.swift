@@ -48,10 +48,10 @@ struct VolumeSettingsTab: View {
                     .padding(.top, DesignSystem.Spacing.xs)
                 }
 
-                FormSection(title: "Remove", footer: "Removes this volume from Nimbus and from rclone's configuration. Files in the cloud are not affected.") {
+                FormSection(title: "Remove", footer: "Nimbus forgets how to reach this cloud. Files stored in the cloud aren't affected.") {
                     HStack {
                         Spacer()
-                        Button("Remove Volume…", role: .destructive) { confirmRemove = true }
+                        Button("Remove Cloud…", role: .destructive) { confirmRemove = true }
                             .disabled(isRemoving)
                     }
                 }
@@ -68,7 +68,7 @@ struct VolumeSettingsTab: View {
             Button("Remove", role: .destructive) { Task { await remove() } }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This removes the remote configuration. Files on the cloud are not affected.")
+            Text("Nimbus forgets how to reach this cloud. Files stored in the cloud aren't affected.")
         }
     }
 

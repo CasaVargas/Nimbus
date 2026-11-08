@@ -8,6 +8,8 @@ struct SidebarRemoteRow: View {
     let remote: Remote
     let status: RemoteStatus
     var quota: StorageQuota? = nil
+    /// Backend type for the icon; an alias passes the type it points at.
+    var iconType: String? = nil
     let onEdit: () -> Void
     let onDelete: () -> Void
     let onReconnect: () -> Void
@@ -15,7 +17,7 @@ struct SidebarRemoteRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: DesignSystem.Spacing.s) {
-                ProviderIcon(provider: remote.type, size: 18)
+                ProviderIcon(provider: iconType ?? remote.type, size: 18)
                     .frame(width: 20)
 
                 Text(remote.name)
@@ -38,19 +40,19 @@ struct SidebarRemoteRow: View {
         .contextMenu {
             Button("Edit…", action: onEdit)
             if case .authNeeded = status {
-                Button("Reconnect", action: onReconnect)
+                Button("Check Again", action: onReconnect)
             }
             Divider()
-            Button("Delete…", role: .destructive, action: onDelete)
+            Button("Remove…", role: .destructive, action: onDelete)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(remote.name), \(status.accessibilityLabel)")
         .accessibilityActions {
             Button("Edit", action: onEdit)
             if case .authNeeded = status {
-                Button("Reconnect", action: onReconnect)
+                Button("Check Again", action: onReconnect)
             }
-            Button("Delete", action: onDelete)
+            Button("Remove", action: onDelete)
         }
     }
 }
