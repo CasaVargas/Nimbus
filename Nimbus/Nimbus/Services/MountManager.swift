@@ -303,7 +303,7 @@ final class MountManager {
         do {
             nsDomains = try await NSFileProviderManager.domains()
         } catch {
-            logger.warning("refreshAll: getDomains failed: \(error.localizedDescription)")
+            logger.warning("refreshAll: getDomains failed: \(FileProviderErrorText.describe(error), privacy: .public)")
             return
         }
         let domainInfos = nsDomains.map {
