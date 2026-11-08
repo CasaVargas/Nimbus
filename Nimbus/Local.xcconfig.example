@@ -1,0 +1,12 @@
+// Per-developer build settings. Copy this file to Nimbus/Local.xcconfig
+// (gitignored) and edit the values. Nimbus/Config/Base.xcconfig includes it
+// when present.
+//
+// DEVELOPMENT_TEAM is your Apple Developer Team ID (developer.apple.com,
+// Account, Membership details). A team is needed to build a signed app that
+// can register the File Provider extension and use the shared app group.
+// Without one, build unsigned:
+//
+//   xcodebuild ... CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+DEVELOPMENT_TEAM = YOURTEAMID
