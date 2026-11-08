@@ -51,6 +51,7 @@ struct FileInspector: View {
             CloudStatusColumn(file: file, remote: remote, style: .pill)
         }
         KeepOnThisMacRow(remote: remote, file: file)
+        ShareLinkRow(remote: remote, file: file)
         keyValues([
             ("Kind", Self.kind(of: file)),
             ("Size", file.isDir ? "--" : FileRowView.formatSize(file.size)),
@@ -237,6 +238,100 @@ struct KeepOnThisMacRow: View {
     }
 }
 
+/// The inspector's **Share** row: copy a public link to the selected item.
+/// S3 and B2 links are pre-signed and always expire, so those get an
+/// expiry choice; other services decide expiry themselves.
+struct ShareLinkRow: View {
+    let remote: String
+    let file: FileItem
+
+    @Environment(RcloneDaemon.self) private var daemon
+    @Environment(CloudMonitor.self) private var monitor
+    @State private var expiry = "7d"
+    @State private var state: ShareState = .idle
+
+    enum ShareState: Equatable { case idle, working, copied, failed(String) }
+
+    private var canShare: Bool { CloudCapabilities.shared?.canShare(cloud: remote) ?? false }
+    private var backendType: String {
+        let cloud = monitor.remotes.first { $0.name == remote }
+        return cloud.map { CloudNaming.resolvedType(of: $0, in: monitor.remotes) } ?? ""
+    }
+    private var presigned: Bool { ["s3", "b2"].contains(backendType) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            HStack {
+                Button {
+                    copy()
+                } label: {
+                    Label("Copy Share Link", systemImage: "link")
+                }
+                .disabled(!canShare || state == .working)
+                if presigned && canShare {
+                    Spacer(minLength: DesignSystem.Spacing.s)
+                    Picker("Expires", selection: $expiry) {
+                        Text("1 day").tag("1d")
+                        Text("7 days").tag("7d")
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .fixedSize()
+                    .accessibilityLabel("Link expires after")
+                }
+            }
+            .controlSize(.small)
+            Text(verbatim: caption)
+                .font(DesignSystem.Typography.caption)
+                .foregroundStyle(captionColor)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(DesignSystem.Spacing.s)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                .fill(DesignSystem.Color.semantic.surfaceSubtle)
+        )
+        .onChange(of: file.path) { state = .idle }
+    }
+
+    private var caption: String {
+        switch state {
+        case .copied: return presigned ? "Link copied. It stops working after \(expiry == "1d" ? "1 day" : "7 days")." : "Link copied."
+        case .failed(let message): return message
+        case .working: return "Making a link…"
+        case .idle:
+            return canShare ? "Anyone with the link can open it." : "This service doesn't make share links."
+        }
+    }
+
+    private var captionColor: Color {
+        switch state {
+        case .copied: DesignSystem.Color.semantic.statusOK
+        case .failed: DesignSystem.Color.semantic.statusError
+        default: DesignSystem.Color.semantic.textSecondary
+        }
+    }
+
+    private func copy() {
+        state = .working
+        Task {
+            do {
+                guard let url = try await daemon.client.publicLink(
+                    fs: "\(remote):", remote: file.path, expire: presigned ? expiry : nil) else {
+                    state = .failed("The service didn't return a link.")
+                    return
+                }
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(url.absoluteString, forType: .string)
+                state = .copied
+            } catch {
+                let first = error.localizedDescription.split(whereSeparator: \.isNewline).first.map(String.init)
+                state = .failed("Couldn't make a link: \(first ?? error.localizedDescription)")
+            }
+        }
+    }
+}
+
 #if DEBUG
 #Preview("Keep on this Mac") {
     let file = FileItem(path: "Photos/Half Dome.heic", name: "Half Dome.heic", size: 8_400_000,
@@ -244,10 +339,13 @@ struct KeepOnThisMacRow: View {
                         qualifiedRemotePath: "Personal:Photos/Half Dome.heic")
     VStack(spacing: 12) {
         KeepOnThisMacRow(remote: "Personal", file: file)
+        ShareLinkRow(remote: "Personal", file: file)
     }
     .padding()
     .frame(width: FileInspector.width)
     .environment(FileProviderBridge())
     .environment(AppSettings(defaults: UserDefaults(suiteName: "KeepPreview")!))
+    .environment(RcloneDaemon())
+    .environment(CloudMonitor(loadRemotes: { [] }, status: RemoteStatusService(client: RcloneDaemon().client)))
 }
 #endif
