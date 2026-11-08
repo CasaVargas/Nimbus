@@ -16,6 +16,8 @@ struct NimbusApp: App {
     @State private var transferNotifier: TransferNotificationService
     @State private var generalSettingsModel = GeneralSettingsModel()
     @State private var providerDirectory = ProviderDirectory()
+    @State private var cloudMonitor: CloudMonitor
+    @State private var router = AppRouter()
 
     /// Guards the parts of daemon-connect handling that must run once per
     /// process (pollers, monitors); the rest of `onDaemonConnected` is
@@ -28,7 +30,9 @@ struct NimbusApp: App {
         let settings = AppSettings()
         let transferNotifier = TransferNotificationService()
         _daemon = State(initialValue: d)
-        _statusService = State(initialValue: RemoteStatusService(client: d.client))
+        let status = RemoteStatusService(client: d.client)
+        _statusService = State(initialValue: status)
+        _cloudMonitor = State(initialValue: CloudMonitor.live(client: d.client, status: status))
         _settings = State(initialValue: settings)
         _diagnosticsService = State(initialValue: DiagnosticsService())
         _transferNotifier = State(initialValue: transferNotifier)
@@ -40,9 +44,11 @@ struct NimbusApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: AppRouter.mainWindowID) {
             SceneAppearanceRoot(settings: settings) {
                 ContentView()
+                    .environment(cloudMonitor)
+                    .environment(router)
                     .environment(daemon)
                     .environment(mountManager)
                     .environment(fileProviderBridge)
@@ -89,21 +95,27 @@ struct NimbusApp: App {
         BenchScene()
         #endif
 
-        MenuBarExtra("Nimbus", systemImage: "cloud") {
-            Button("Show Nimbus") {
-                NSApp.setActivationPolicy(.regular)
-                NSApp.activate(ignoringOtherApps: true)
-                if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
-                    window.makeKeyAndOrderFront(nil)
-                }
+        MenuBarExtra {
+            SceneAppearanceRoot(settings: settings) {
+                CompanionView()
+                    .environment(daemon)
+                    .environment(statusService)
+                    .environment(transferStore)
+                    .environment(providerDirectory)
+                    .environment(launchAtLogin)
+                    .environment(cloudMonitor)
+                    .environment(router)
             }
-            Divider()
-            Button("Quit") {
-                // Cleanup happens in AppDelegate.applicationShouldTerminate
-                // via shutdownHandler — same path as ⌘Q and logout.
-                NSApp.terminate(nil)
-            }
+        } label: {
+            CompanionMenuBarLabel()
+                .environment(settings)
+                .environment(daemon)
+                .environment(statusService)
+                .environment(transferStore)
+                .environment(providerDirectory)
+                .environment(cloudMonitor)
         }
+        .menuBarExtraStyle(.window)
 
         Settings {
             SceneAppearanceRoot(settings: settings) {
@@ -193,7 +205,11 @@ struct NimbusApp: App {
             servicesStarted = true
             transferStore.startPolling(client: daemon.client)
             mountManager.startHealthMonitor()
+            cloudMonitor.startPeriodicRefresh()
         }
+        // Every (re)connect reloads the cloud list and probes each cloud, so
+        // Home, the sidebar and the menu bar start from fresh status.
+        Task { await cloudMonitor.refresh() }
 
         mountManager.configs = mountConfigs.configs
         Task { await providerDirectory.load(client: daemon.client) }

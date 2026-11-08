@@ -4,7 +4,6 @@ import RcloneKit
 struct Sidebar: View {
     @Binding var selection: SidebarSelection?
     @Environment(BookmarkStore.self) private var bookmarkStore
-    var onRemotesLoaded: ([Remote]) -> Void
     var onBookmarkSelected: ((String, String) -> Void)?
     var onBookmarkDrop: ((_ bundles: [NimbusFileBundle], _ bookmark: FolderBookmark) -> Void)?
 
@@ -13,7 +12,7 @@ struct Sidebar: View {
             Label("Home", systemImage: "house")
                 .tag(SidebarSelection.home)
 
-            RemotesSidebarSection(onRemotesLoaded: onRemotesLoaded)
+            RemotesSidebarSection()
 
             Section {
                 Label("Copy Between Clouds", systemImage: "arrow.triangle.2.circlepath")

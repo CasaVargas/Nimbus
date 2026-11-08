@@ -6,16 +6,20 @@ struct ContentView: View {
     @State private var selection: SidebarSelection? = .home
     @State private var browseTarget: BrowseTarget?
     @State private var pendingSidebarCopy: CopyRequest?
-    /// Last remote list reported by the sidebar — distinguishes "no remotes
-    /// configured yet" from "remotes exist, none selected" in the detail pane,
-    /// and supplies the `Remote` the volume pane renders.
-    @State private var remotes: [Remote] = []
+    /// A Home sign-in the menu bar asked for, handed to HomeView.
+    @State private var pendingSignIn: String?
+    /// A volume tab the menu bar asked for ("Show Transfers").
+    @State private var requestedVolumeTab: VolumeTab?
     /// Source remote to preselect when Copy & Sync opens from a volume.
     @State private var copySyncSource: String?
     @State private var copySyncSourcePath: String?
     @Environment(AppSettings.self) private var settings
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(TransferStore.self) private var transferStore
+    @Environment(CloudMonitor.self) private var monitor
+    @Environment(AppRouter.self) private var router
+
+    private var remotes: [Remote] { monitor.remotes }
 
     var body: some View {
         if !settings.onboardingComplete {
@@ -24,10 +28,6 @@ struct ContentView: View {
             NavigationSplitView {
                 Sidebar(
                     selection: $selection,
-                    onRemotesLoaded: { list in
-                        remotes = list
-                        selection = nextSelection(current: selection, remotes: list.map(\.name))
-                    },
                     onBookmarkSelected: { remote, path in
                         selection = .remote(remote)
                         browseTarget = BrowseTarget(remote: remote, path: path)
@@ -54,6 +54,15 @@ struct ContentView: View {
                 }
             }
             .focusedSceneValue(\.sidebarSelection, $selection)
+            .onChange(of: monitor.remotes.map(\.name)) { _, names in
+                // Only after a real load: a not-yet-loaded empty list must
+                // never bounce the user off the cloud they had open.
+                guard monitor.hasLoaded else { return }
+                selection = nextSelection(current: selection, remotes: names)
+            }
+            .onChange(of: router.pending, initial: true) { handleRoute() }
+            .onAppear { router.isMainWindowOpen = true }
+            .onDisappear { router.isMainWindowOpen = false }
             .environment(\.openBrowser, OpenBrowserAction { remote in
                 selection = .remote(remote)
                 browseTarget = BrowseTarget(remote: remote, path: "")
@@ -77,6 +86,26 @@ struct ContentView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// Acts on menu bar requests addressed to the window. Add Cloud is left
+    /// for the sidebar section, which owns that sheet.
+    private func handleRoute() {
+        guard let route = router.take(where: { $0 != .addCloud }) else { return }
+        switch route {
+        case .home:
+            selection = .home
+        case .cloud(let name):
+            selection = .remote(name)
+        case .transfers(let name):
+            requestedVolumeTab = .transfers
+            selection = .remote(name)
+        case .signIn(let name):
+            selection = .home
+            pendingSignIn = name
+        case .addCloud:
+            break
         }
     }
 
@@ -109,6 +138,7 @@ struct ContentView: View {
         case .home, nil:
             HomeView(
                 remotes: remotes,
+                pendingSignIn: $pendingSignIn,
                 onOpenCloud: { selection = .remote($0) },
                 onCopyBetweenClouds: {
                     copySyncSource = nil
@@ -121,6 +151,7 @@ struct ContentView: View {
                 VolumeView(
                     remote: remote,
                     allRemotes: remotes,
+                    requestedTab: $requestedVolumeTab,
                     browseTarget: browseTarget,
                     onSync: { source, path in
                         copySyncSource = source

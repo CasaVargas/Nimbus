@@ -225,7 +225,7 @@ enum HomePreviewData {
 
 #Preview("Busy, narrow", traits: .fixedLayout(width: 700, height: 760)) {
     let rows = [HomePreviewData.personal, HomePreviewData.dropbox]
-    HomeContent(summary: HomePreviewData.summary(rows, overall: .busy(.init(progress: 0.4, sentence: "Copying 3 items to Dropbox"))),
+    HomeContent(summary: HomePreviewData.summary(rows, overall: .busy(.init(progress: 0.4, sentence: "Copying 3 items to Dropbox", direction: .up, focusCloud: "Dropbox", eta: 120))),
                 activity: HomePreviewData.activity, providerCount: 72)
 }
 

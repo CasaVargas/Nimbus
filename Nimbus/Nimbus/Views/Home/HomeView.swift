@@ -6,6 +6,8 @@ import RcloneKit
 /// it. Everything it says comes from `CloudSummaryBuilder`.
 struct HomeView: View {
     let remotes: [Remote]
+    /// A cloud the menu bar asked to sign in again; consumed on arrival.
+    @Binding var pendingSignIn: String?
     let onOpenCloud: (String) -> Void
     let onCopyBetweenClouds: () -> Void
 
@@ -16,24 +18,14 @@ struct HomeView: View {
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(FileProviderBridge.self) private var fileProviderBridge
     @Environment(MountConfigStore.self) private var mountConfigs
+    @Environment(AppRouter.self) private var router
 
     @State private var reconnecting: CloudSummary.Row?
     @State private var finderError: NimbusError?
 
     private var summary: CloudSummary {
-        CloudSummaryBuilder.build(
-            remotes: remotes,
-            statuses: statusService.statuses,
-            quotas: statusService.quotas,
-            activeTransfers: transferStore.activeTransfers,
-            isInFinder: { FinderIntegration.isShown(remote: $0, settings: settings) },
-            providerName: { CloudNaming.providerName(forType: $0, directory: providers) },
-            lastConnected: statusService.lastConnected,
-            dismissedSuggestions: settings.dismissedSuggestions,
-            daemon: daemon.status,
-            now: Date(),
-            resolveType: { CloudNaming.resolvedType(of: $0, in: remotes) }
-        )
+        CloudSummaryBuilder.live(remotes: remotes, status: statusService, transfers: transferStore,
+                                 providers: providers, settings: settings, daemon: daemon)
     }
 
     var body: some View {
@@ -50,7 +42,7 @@ struct HomeView: View {
                 openInFinder: { name in Task { await FinderIntegration.open(remote: name, bridge: fileProviderBridge) } },
                 signIn: { reconnecting = $0 },
                 copyBetweenClouds: onCopyBetweenClouds,
-                addCloud: { NotificationCenter.default.post(name: .nimbusAddCloudRequested, object: nil) },
+                addCloud: { router.pending = .addCloud },
                 restartEngine: restartEngine
             )
         )
@@ -61,7 +53,7 @@ struct HomeView: View {
                 Button("Copy Between Clouds…", action: onCopyBetweenClouds)
                     .disabled(remotes.count < 1)
                 Button {
-                    NotificationCenter.default.post(name: .nimbusAddCloudRequested, object: nil)
+                    router.pending = .addCloud
                 } label: {
                     Label("Add Cloud", systemImage: "plus")
                         .labelStyle(.titleAndIcon)
@@ -69,6 +61,11 @@ struct HomeView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(daemon.status != .connected)
             }
+        }
+        .onChange(of: pendingSignIn, initial: true) { _, name in
+            guard let name else { return }
+            pendingSignIn = nil
+            reconnecting = summary.rows.first { $0.name == name }
         }
         .sheet(item: $reconnecting) { row in
             ReconnectSheet(
