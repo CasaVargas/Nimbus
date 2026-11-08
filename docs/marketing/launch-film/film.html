@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nimbus — Where do you even start?</title>
+<style>
+  :root {
+    --ink: #f5f5f7;
+    --dim: #86868b;
+    --font: -apple-system, "SF Pro Display", "SF Pro", "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #000; overflow: hidden; }
+  body { width: 1920px; height: 1080px; font-family: var(--font); color: var(--ink);
+         -webkit-font-smoothing: antialiased; }
+  #stage { position: absolute; inset: 0; overflow: hidden; background: #000; }
+  .layer { position: absolute; left: 0; top: 0; will-change: transform, opacity, filter; opacity: 0; }
+  .center { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+
+  .headline { font-size: 104px; font-weight: 600; letter-spacing: -0.035em; line-height: 1.05;
+              white-space: nowrap; text-align: center; }
+  .sub { font-size: 44px; font-weight: 500; letter-spacing: -0.02em; color: var(--dim); white-space: nowrap; }
+  .caption { font-size: 56px; font-weight: 600; letter-spacing: -0.03em; white-space: nowrap; text-align: center; }
+  .caption .soft { color: var(--dim); }
+
+  #glow { position: absolute; inset: -20%; opacity: 0;
+          background:
+            radial-gradient(40% 35% at 50% 58%, rgba(64, 120, 255, 0.28), transparent 70%),
+            radial-gradient(30% 30% at 30% 40%, rgba(150, 90, 255, 0.16), transparent 70%),
+            radial-gradient(30% 30% at 72% 38%, rgba(0, 200, 255, 0.12), transparent 70%); }
+
+  #cloud { position: absolute; inset: 0; transform-origin: 50% 50%; }
+  .name { position: absolute; white-space: nowrap; font-weight: 600; letter-spacing: -0.02em;
+          color: var(--ink); opacity: 0; will-change: transform, opacity; }
+  .logo { position: absolute; opacity: 0; will-change: transform, opacity;
+          border-radius: 22%; background: #fff; display: grid; place-items: center;
+          box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+  .logo img { width: 66%; height: 66%; object-fit: contain; }
+
+  #icon img { width: 100%; height: 100%; display: block; }
+  #icon { width: 240px; height: 240px; filter: drop-shadow(0 30px 80px rgba(70, 130, 255, .45)); }
+
+  .window { position: absolute; border-radius: 18px; overflow: hidden; background: #1e1e1e;
+            box-shadow: 0 50px 140px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.10), inset 0 1px 0 rgba(255,255,255,.08); }
+  .titlebar { height: 40px; background: #2a2a2c; display: flex; align-items: center; padding: 0 16px; gap: 9px;
+              border-bottom: 1px solid rgba(0,0,0,.6); position: relative; }
+  .titlebar i { width: 13px; height: 13px; border-radius: 50%; display: block; }
+  .titlebar i:nth-child(1) { background: #ff5f57; } .titlebar i:nth-child(2) { background: #febc2e; } .titlebar i:nth-child(3) { background: #28c840; }
+  .titlebar span { position: absolute; left: 0; right: 0; text-align: center; font-size: 14px; font-weight: 600; color: #c7c7cc; }
+  .window img.screen { display: block; width: 100%; }
+
+  #menubar { position: absolute; left: 0; right: 0; top: 0; height: 34px; opacity: 0;
+             background: rgba(40, 40, 46, .72); backdrop-filter: blur(20px);
+             display: flex; align-items: center; justify-content: flex-end; gap: 22px; padding: 0 22px;
+             font-size: 15px; font-weight: 500; color: #e5e5ea; border-bottom: 1px solid rgba(255,255,255,.06); }
+  #menubar .glyph { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 5px;
+                    background: rgba(255,255,255,.18); }
+  .panel { position: absolute; border-radius: 14px; overflow: hidden;
+           box-shadow: 0 30px 90px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.12); }
+  .panel img { display: block; width: 100%; }
+  .sheet { position: absolute; border-radius: 14px; overflow: hidden;
+           box-shadow: 0 40px 120px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.12); }
+  .sheet img { display: block; width: 100%; }
+
+  .word { font-size: 150px; font-weight: 700; letter-spacing: -0.045em; white-space: nowrap; }
+  .grad { background: linear-gradient(100deg, #8ab4ff 0%, #b69cff 45%, #6fe3ff 100%);
+          -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #endUrl { font-size: 26px; font-weight: 500; color: var(--dim); letter-spacing: 0; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="glow"></div>
+
+  <!-- Beats 1–2 -->
+  <div class="layer headline" id="t1">You have files.</div>
+  <div class="layer headline" id="t2">Everywhere.</div>
+
+  <!-- Beat 3: the cloud of services -->
+  <div id="cloud"></div>
+
+  <!-- Beat 4 -->
+  <div class="layer headline" id="t4">Where do you even start?</div>
+
+  <!-- Beat 5 -->
+  <div class="layer" id="icon"><img src="assets/icon.png" alt=""></div>
+  <div class="layer word" id="t5">Nimbus</div>
+
+  <!-- Beats 6–9: product -->
+  <div id="menubar"><span>Tue 9:41 AM</span></div>
+  <div class="layer window" id="wHome" style="width:1480px">
+    <div class="titlebar"><i></i><i></i><i></i><span>Home</span></div>
+    <img class="screen" src="assets/screens/home.png" alt="">
+  </div>
+  <div class="layer panel" id="pCompanion" style="width:430px">
+    <img src="assets/screens/companion.png" alt="">
+  </div>
+  <div class="layer window" id="wBackups" style="width:1460px">
+    <div class="titlebar"><i></i><i></i><i></i><span>Backups</span></div>
+    <img class="screen" src="assets/screens/backups.png" alt="">
+  </div>
+  <div class="layer sheet" id="sPreview" style="width:800px">
+    <img src="assets/screens/preview.png" alt="">
+  </div>
+  <div class="layer sheet" id="sPicker" style="width:660px">
+    <img src="assets/screens/picker.png" alt="">
+  </div>
+
+  <div class="layer caption" id="c6">Every cloud. <span class="soft">One place.</span></div>
+  <div class="layer caption" id="c7">Always a click away.</div>
+  <div class="layer caption" id="c8a">Back up anything.</div>
+  <div class="layer caption" id="c8b">See every change <span class="soft">before it happens.</span></div>
+  <div class="layer caption" id="c9">70+ services. <span class="soft">Sign in once.</span></div>
+
+  <!-- Beat 10 -->
+  <div class="layer word" id="v1">Native.</div>
+  <div class="layer word" id="v2">Open source.</div>
+  <div class="layer word grad" id="v3">No subscription.</div>
+
+  <!-- Beat 11 -->
+  <div class="layer" id="endIcon" style="width:150px;height:150px"><img src="assets/icon.png" alt="" style="width:100%;height:100%"></div>
+  <div class="layer word" id="endWord" style="font-size:112px">Nimbus</div>
+  <div class="layer sub" id="endLine">Every cloud. One Mac.</div>
+  <div class="layer" id="endUrl">github.com/CasaVargas/Nimbus</div>
+</div>
+
+<script>
+const DURATION = 61.0;
+const W = 1920, H = 1080;
+
+// ---------- easing + helpers ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const expoOut = x => x >= 1 ? 1 : 1 - Math.pow(2, -10 * x);
+const inOut = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const easeIn = x => x * x * x;
+const lerp = (a, b, x) => a + (b - a) * x;
+/** Opacity envelope: fades in over [a,b], out over [c,d]. */
+const env = (t, a, b, c, d) => Math.min(expoOut(seg(t, a, b)), 1 - inOut(seg(t, c, d)));
+const $ = id => document.getElementById(id);
+
+function place(el, { x = W / 2, y = H / 2, o = 1, s = 1, blur = 0, ax = 0.5, ay = 0.5 }) {
+  el.style.opacity = o.toFixed(4);
+  el.style.transform = `translate(${x}px, ${y}px) translate(${-ax * 100}%, ${-ay * 100}%) scale(${s})`;
+  el.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : (el.id === 'icon' ? '' : 'none');
+}
+
+/** Text that rises 22px as it fades in, and only fades out. */
+function riseText(el, t, a, b, c, d, x = W / 2, y = H / 2, rise = 22) {
+  const k = expoOut(seg(t, a, b));
+  place(el, { x, y: y + (1 - k) * rise, o: env(t, a, b, c, d) });
+}
+
+// ---------- the cloud of services (seeded, so every render is identical) ----------
+let seed = 7;
+const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+const lead = ["Google Drive", "Dropbox", "OneDrive", "iCloud Drive", "Box", "Amazon S3"];
+const rest = ["Backblaze B2", "Proton Drive", "MEGA", "pCloud", "Your NAS", "Google Photos", "Google Cloud Storage",
+  "Azure Blob", "Azure Files", "Wasabi", "Cloudflare R2", "DigitalOcean Spaces", "Storj", "Filen", "Seafile",
+  "Nextcloud", "ownCloud", "WebDAV", "SFTP", "FTP", "SMB", "Jottacloud", "Koofr", "Yandex Disk", "Zoho WorkDrive",
+  "Mail.ru Cloud", "OpenDrive", "put.io", "Internet Archive", "Hetzner Storage Box", "IDrive e2", "Linode",
+  "Scaleway", "Tencent COS", "Alibaba OSS", "Oracle Object Storage", "OpenStack Swift", "Sia", "Akamai NetStorage",
+  "Citrix ShareFile", "HiDrive", "Quatrix", "Uloz.to", "Pixeldrain", "ImageKit", "Cloudinary", "Gofile", "Linkbox",
+  "PikPak", "Premiumize", "Files.com", "HDFS", "Ceph", "MinIO", "Synology", "QNAP", "Huawei OBS", "Qiniu",
+  "Leviia", "Magalu", "Rackcorp", "Petabox", "Liara", "Lyve Cloud", "IONOS", "Arvan", "Outscale"];
+const logos = ["drive", "dropbox", "onedrive", "iclouddrive", "box", "s3", "b2", "protondrive", "mega", "gphotos",
+  "storj", "azure", "filen", "seafile", "gcs", "zoho"];
+
+const cloud = $('cloud');
+const items = [];
+
+function arrival(i, n) {
+  const fixed = [8.2, 8.95, 9.6, 10.15, 10.6, 10.95];
+  if (i < fixed.length) return fixed[i];
+  const k = (i - fixed.length) / Math.max(1, n - fixed.length - 1);
+  return 11.25 + 3.1 * Math.pow(k, 0.62);
+}
+
+// Keep the noise clear of the six lead names (box + a margin for drift),
+// so the leads stay readable while the frame fills up.
+const leadBoxes = [];
+function clearOfLeads(x, y, hw, hh) {
+  return leadBoxes.every(b => Math.abs(x - b.x) > b.hw + hw + 50 || Math.abs(y - b.y) > b.hh + hh + 30);
+}
+function spot(hw = 0, hh = 0) {
+  for (let n = 0; n < 120; n++) {
+    const p = { x: W / 2 + (rand() * 2 - 1) * 900, y: H / 2 + (rand() * 2 - 1) * 470 };
+    if (clearOfLeads(p.x, p.y, hw, hh)) return p;
+  }
+  return { x: W / 2 + (rand() * 2 - 1) * 900, y: rand() < 0.5 ? 60 : H - 60 };
+}
+
+const leadSpots = [
+  { x: 560, y: 330, size: 86 }, { x: 1390, y: 290, size: 80 }, { x: 430, y: 760, size: 76 },
+  { x: 1330, y: 780, size: 74 }, { x: 980, y: 170, size: 66 }, { x: 990, y: 915, size: 66 },
+];
+lead.forEach((label, i) => leadBoxes.push({
+  x: leadSpots[i].x, y: leadSpots[i].y, hw: label.length * leadSpots[i].size * 0.29, hh: leadSpots[i].size * 0.6,
+}));
+const names = lead.concat(rest);
+const leadEls = [];
+names.forEach((label, i) => {
+  const el = document.createElement('div');
+  el.className = 'name';
+  el.textContent = label;
+  const big = i < lead.length;
+  const size = big ? leadSpots[i].size : 20 + rand() * 22;
+  el.style.fontSize = `${size}px`;
+  const z = big ? 1 : 0.35 + rand() * 0.65;            // depth: far ones dimmer
+  el.style.color = big ? '#f5f5f7' : `rgba(245,245,247,${(0.35 + z * 0.55).toFixed(2)})`;
+  if (big) leadEls.push(el); else cloud.appendChild(el);
+  const p = big ? { x: leadSpots[i].x, y: leadSpots[i].y } : spot(label.length * size * 0.29, size * 0.6);
+  if (big) el.style.textShadow = '0 0 28px #000, 0 0 10px #000';
+  const speed = big ? 0.35 : 1;
+  items.push({ el, at: arrival(i, names.length), ...p, vx: (rand() - 0.5) * 18 * speed, vy: (rand() - 0.5) * 12 * speed, z });
+});
+logos.forEach((key, i) => {
+  const el = document.createElement('div');
+  el.className = 'logo';
+  const size = 58 + rand() * 46;
+  el.style.width = el.style.height = `${size}px`;
+  el.innerHTML = `<img src="assets/logos/${key}.svg" alt="">`;
+  cloud.appendChild(el);
+  const p = spot(size / 2, size / 2);
+  items.push({ el, at: 9.3 + i * 0.36 + rand() * 0.2, ...p, vx: (rand() - 0.5) * 22, vy: (rand() - 0.5) * 16, z: 0.6 + rand() * 0.4 });
+});
+
+leadEls.forEach(el => cloud.appendChild(el));   // leads above the noise
+
+function renderCloud(t) {
+  // Slow push-in through the noise, then freeze and blur, then collapse.
+  const push = lerp(1, 1.14, inOut(seg(t, 8, 15.6)));
+  const blur = lerp(0, 16, inOut(seg(t, 15.5, 16.4)));
+  const dimmed = lerp(1, 0.22, inOut(seg(t, 15.5, 16.4)));
+  const collapse = easeIn(seg(t, 19.55, 20.75));
+  cloud.style.transform = `scale(${push})`;
+  cloud.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : 'none';
+  const drift = Math.min(t, 15.6) - 8;   // drift stops when the frame freezes
+  for (const it of items) {
+    const local = t - it.at;
+    if (local < 0 || t > 20.9) { it.el.style.opacity = 0; continue; }
+    const k = expoOut(clamp(local / 0.7));
+    let x = it.x + it.vx * drift, y = it.y + it.vy * drift + (1 - k) * 18;
+    x = lerp(x, W / 2, collapse); y = lerp(y, H / 2, collapse);
+    const s = lerp(1, 0.05, collapse) * lerp(0.94, 1, k);
+    const o = k * dimmed * (1 - collapse);
+    it.el.style.opacity = o.toFixed(4);
+    it.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${s})`;
+  }
+}
+
+// ---------- the timeline ----------
+function render(t) {
+  // Beats 1–2
+  {
+    const lift = inOut(seg(t, 3.9, 4.8));
+    const k = expoOut(seg(t, 0.5, 1.4));
+    const el = $('t1');
+    place(el, { y: H / 2 + (1 - k) * 22 - lift * 70, o: env(t, 0.5, 1.4, 7.2, 7.9) });
+    el.style.color = lift > 0 ? `rgb(${lerp(245, 134, lift)},${lerp(245, 134, lift)},${lerp(247, 139, lift)})` : '';
+    riseText($('t2'), t, 4.6, 5.5, 7.2, 7.9, W / 2, H / 2 + 60);
+  }
+
+  renderCloud(t);
+  riseText($('t4'), t, 16.0, 16.9, 19.15, 19.75);
+
+  // Beat 5: the icon blooms out of the collapse.
+  {
+    const k = expoOut(seg(t, 20.55, 21.9));
+    const out = inOut(seg(t, 23.7, 24.4));
+    place($('icon'), { y: H / 2 - 60 - out * 20, s: lerp(0.55, 1, k) * lerp(1, 0.92, out), o: Math.min(k, 1 - out) });
+    riseText($('t5'), t, 21.35, 22.25, 23.7, 24.4, W / 2, H / 2 + 150);
+    $('glow').style.opacity = (0.9 * env(t, 20.5, 22.0, 50.5, 52.0) + 0.6 * env(t, 56.2, 57.6, 60.0, 61.0)).toFixed(3);
+  }
+
+  // Beat 6: Home.
+  {
+    const rise = expoOut(seg(t, 24.6, 26.0));
+    const back = inOut(seg(t, 32.0, 33.1));
+    const leave = inOut(seg(t, 37.0, 37.6));
+    const drift = lerp(1, 1.025, seg(t, 24.6, 32));
+    const x = lerp(W / 2, 700, back);
+    const y = lerp(H / 2 + 95, H / 2 + 80, back) + (1 - rise) * 90;
+    place($('wHome'), { x, y, s: drift * lerp(1, 0.78, back), o: Math.min(rise, 1 - leave) });
+    riseText($('c6'), t, 25.2, 26.1, 31.3, 31.9, W / 2, 112);
+  }
+
+  // Beat 7: the menu bar companion.
+  {
+    const bar = env(t, 32.2, 32.9, 37.0, 37.6);
+    $('menubar').style.opacity = bar.toFixed(3);
+    const drop = expoOut(seg(t, 32.7, 33.7));
+    place($('pCompanion'), { x: 1540, y: 46 + (1 - drop) * -30, ax: 0.5, ay: 0, o: Math.min(drop, 1 - inOut(seg(t, 37.0, 37.6))) });
+    riseText($('c7'), t, 33.2, 34.1, 36.8, 37.4, 700, 150);
+  }
+
+  // Beat 8: Backups, then the preview sheet over it.
+  {
+    const rise = expoOut(seg(t, 37.6, 38.9));
+    const leave = inOut(seg(t, 45.0, 45.6));
+    const back = inOut(seg(t, 40.8, 41.8));
+    place($('wBackups'), { y: H / 2 + 90 + (1 - rise) * 90, s: lerp(1, 0.96, back), o: Math.min(rise, 1 - leave) * lerp(1, 0.55, back) });
+    const sheet = expoOut(seg(t, 40.9, 42.0));
+    place($('sPreview'), { y: 205 + (1 - sheet) * -60, ay: 0, o: Math.min(sheet, 1 - leave) });
+    riseText($('c8a'), t, 38.1, 39.0, 40.6, 41.1, W / 2, 112);
+    riseText($('c8b'), t, 41.4, 42.3, 44.9, 45.5, W / 2, 112);
+  }
+
+  // Beat 9: Add Cloud.
+  {
+    const rise = expoOut(seg(t, 45.6, 46.9));
+    const leave = inOut(seg(t, 50.4, 51.0));
+    place($('sPicker'), { x: 1300, y: H / 2 + 20 + (1 - rise) * 90, s: lerp(1, 1.02, seg(t, 45.6, 51)), o: Math.min(rise, 1 - leave) });
+    riseText($('c9'), t, 46.1, 47.0, 50.3, 50.9, 560, H / 2);
+  }
+
+  // Beat 10: three words.
+  riseText($('v1'), t, 51.15, 51.9, 52.45, 52.85);
+  riseText($('v2'), t, 52.75, 53.5, 54.05, 54.45);
+  riseText($('v3'), t, 54.35, 55.15, 55.55, 56.0);
+
+  // Beat 11: end card.
+  {
+    const out = inOut(seg(t, 60.0, 61.0));
+    const k = expoOut(seg(t, 56.2, 57.4));
+    place($('endIcon'), { y: H / 2 - 150, s: lerp(0.8, 1, k), o: Math.min(k, 1 - out) });
+    const w = expoOut(seg(t, 56.6, 57.6));
+    place($('endWord'), { y: H / 2 + 10 + (1 - w) * 22, o: Math.min(w, 1 - out) });
+    const l = expoOut(seg(t, 57.1, 58.0));
+    place($('endLine'), { y: H / 2 + 100 + (1 - l) * 18, o: Math.min(l, 1 - out) });
+    const u = expoOut(seg(t, 57.8, 58.7));
+    place($('endUrl'), { y: H / 2 + 230, o: Math.min(u, 1 - out) * 0.9 });
+  }
+}
+
+// Frame-exact hook for the renderer; real-time playback for previewing.
+window.DURATION = DURATION;
+window.seek = t => { render(t); return true; };
+window.ready = Promise.all([...document.images].map(img => img.decode().catch(() => null)));
+
+if (!location.search.includes('render')) {
+  const start = performance.now() - (parseFloat(new URLSearchParams(location.search).get('t')) || 0) * 1000;
+  const loop = now => {
+    const t = ((now - start) / 1000) % DURATION;
+    render(t);
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
