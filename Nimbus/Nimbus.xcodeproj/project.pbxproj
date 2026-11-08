@@ -274,6 +274,7 @@
 		49A87D485E391F3534A28A3F /* MountInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountInspector.swift; sourceTree = "<group>"; };
 		509C7DB1AE1B3496F8DBC733 /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadge.swift; sourceTree = "<group>"; };
 		50D2F227ADA1BAED2F502D90 /* SidebarSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarSelection.swift; sourceTree = "<group>"; };
+		5150D7E529E6EF52A806499E /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		5322BA5BF672E9A04097F109 /* MountConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountConfiguration.swift; sourceTree = "<group>"; };
 		56966682DCD80E13741AEA06 /* TransferNotificationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferNotificationServiceTests.swift; sourceTree = "<group>"; };
 		56DDC44A90929A9518155E77 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
@@ -448,6 +449,14 @@
 			path = Mocks;
 			sourceTree = "<group>";
 		};
+		1837289FBEC88ECD51A38C7C /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				5150D7E529E6EF52A806499E /* Base.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 		1ABC6F14FDB5C42096789963 /* Remotes */ = {
 			isa = PBXGroup;
 			children = (
@@ -557,6 +566,7 @@
 		617866E59968FDC96CC1252C = {
 			isa = PBXGroup;
 			children = (
+				1837289FBEC88ECD51A38C7C /* Config */,
 				C81E068745AC9892407C8E79 /* FileProviderExtension */,
 				A2433B4EBCFD0B42D850541E /* Nimbus */,
 				E3F2B09E1363EEB31AC237BB /* NimbusTests */,
@@ -883,11 +893,9 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					044B6629A6E71639423D11EE = {
-						DevelopmentTeam = 53MUTM55LC;
 						ProvisioningStyle = Automatic;
 					};
 					F9BA4D8A0DCA86712EBA5816 = {
-						DevelopmentTeam = 53MUTM55LC;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -1180,7 +1188,6 @@
 				CODE_SIGN_ENTITLEMENTS = Nimbus/Nimbus.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = 53MUTM55LC;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Nimbus;
@@ -1196,6 +1203,7 @@
 		};
 		1049E647FBEE0F45537FA9DA /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5150D7E529E6EF52A806499E /* Base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -1284,7 +1292,6 @@
 				CODE_SIGN_ENTITLEMENTS = Nimbus/Nimbus.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = 53MUTM55LC;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Nimbus;
@@ -1304,7 +1311,6 @@
 				CODE_SIGN_ENTITLEMENTS = FileProviderExtension/FileProviderExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = 53MUTM55LC;
 				ENABLE_APP_SANDBOX = YES;
 				INFOPLIST_FILE = FileProviderExtension/Info.plist;
 				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.fileprovider-nonui";
@@ -1324,7 +1330,6 @@
 				CODE_SIGN_ENTITLEMENTS = FileProviderExtension/FileProviderExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = 53MUTM55LC;
 				ENABLE_APP_SANDBOX = YES;
 				INFOPLIST_FILE = FileProviderExtension/Info.plist;
 				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.fileprovider-nonui";
@@ -1340,6 +1345,7 @@
 		};
 		C939F5AED2CE46725AEFEA4F /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5150D7E529E6EF52A806499E /* Base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;

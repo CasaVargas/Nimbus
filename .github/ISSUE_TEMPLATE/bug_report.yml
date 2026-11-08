@@ -1,0 +1,95 @@
+name: Bug report
+description: Something in Nimbus does not work the way it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please fill in the environment fields; most
+        cloud-storage bugs depend on the exact macOS, rclone and provider
+        combination.
+
+        Nimbus can copy the environment fields for you: open
+        **Settings > Advanced > Diagnostics > Copy System Information**. That
+        text contains only the Nimbus version, macOS version, architecture,
+        rclone version and daemon status. It never includes remote names,
+        credentials or file paths.
+  - type: input
+    id: nimbus-version
+    attributes:
+      label: Nimbus version
+      description: From Nimbus > About Nimbus, or the Copy System Information output.
+      placeholder: "1.0 (1)"
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: "macOS 15.1 (24B83), Apple Silicon"
+    validations:
+      required: true
+  - type: input
+    id: rclone-version
+    attributes:
+      label: rclone version
+      description: Output of `rclone version`, first line.
+      placeholder: "rclone v1.68.2"
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Cloud provider / rclone backend
+      description: Which remote type is involved, if any (s3, drive, onedrive, sftp, crypt over ...).
+      placeholder: "drive"
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - File browser
+        - Remotes / Add Remote
+        - Finder (File Provider extension)
+        - NFS mounts
+        - Copy / Sync / Transfers
+        - Settings
+        - Startup / rclone daemon
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what Nimbus did instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Add a remote of type ...
+        2. Open the browser and ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        **Settings > Advanced > Diagnostics > Open Logs in Console** opens
+        Console filtered to Nimbus's log subsystem. Paste the relevant lines,
+        or run `log show --last 10m --predicate 'subsystem BEGINSWITH "app.casavargas.nimbus"'`
+        in Terminal. Remove anything you consider private (remote names,
+        paths, bucket names) before posting.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I checked that the same operation works with the rclone command line (for example `rclone lsd remote:`), so this is a Nimbus problem rather than an rclone or provider problem.
+        - label: I searched existing issues for this problem.

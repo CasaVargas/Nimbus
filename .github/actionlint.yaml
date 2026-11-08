@@ -1,0 +1,5 @@
+# actionlint configuration. GitHub's "xcode-27" image label is real but not yet
+# in actionlint's built-in list; declare it so `actionlint` passes locally.
+self-hosted-runner:
+  labels:
+    - xcode-27

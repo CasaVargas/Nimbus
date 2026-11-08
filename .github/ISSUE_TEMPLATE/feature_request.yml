@@ -1,0 +1,44 @@
+name: Feature request
+description: Suggest something Nimbus should do.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Nimbus is macOS only, native SwiftUI, and uses rclone for every cloud
+        provider. Requests for new providers belong upstream with rclone;
+        once rclone supports a backend, Nimbus does too. Have a look at the
+        roadmap in `docs/superpowers/specs/2026-05-14-nimbus-north-star-design.md`
+        before filing; it may already be planned.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the situation, not the solution. What are you doing in Nimbus when you hit the gap?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like Nimbus to do?
+      description: If you have a concrete UI or behaviour in mind, describe it. Mockups and screenshots of how Finder or another native Mac app handles it are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What do you do today instead?
+      description: rclone CLI, another app, a workaround in Nimbus, nothing.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - File browser
+        - Remotes / Add Remote
+        - Finder (File Provider extension)
+        - NFS mounts
+        - Copy / Sync / Transfers
+        - Settings
+        - Menu bar / notifications
+        - Other

@@ -1,0 +1,9 @@
+// Base build configuration shared by every Nimbus target and configuration.
+//
+// Settings that differ per developer (code signing team, signing identity)
+// live in Nimbus/Local.xcconfig, which is gitignored. Copy
+// Nimbus/Local.xcconfig.example to Nimbus/Local.xcconfig and fill in your
+// own values. The include is optional: without a Local.xcconfig the project
+// still generates and builds with signing disabled, which is how CI builds.
+
+#include? "../Local.xcconfig"

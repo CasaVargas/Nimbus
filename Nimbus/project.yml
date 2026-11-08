@@ -6,6 +6,12 @@ options:
   xcodeVersion: "16.0"
   defaultConfig: Debug
 
+# Per-developer settings (DEVELOPMENT_TEAM) come from Nimbus/Local.xcconfig,
+# optionally included by Config/Base.xcconfig. See Local.xcconfig.example.
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -53,7 +59,6 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Nimbus/Nimbus.entitlements
         ENABLE_APP_SANDBOX: NO
         CODE_SIGN_STYLE: Automatic
-        DEVELOPMENT_TEAM: 53MUTM55LC
 
   FileProviderExtension:
     type: app-extension
@@ -70,7 +75,6 @@ targets:
         CODE_SIGN_ENTITLEMENTS: FileProviderExtension/FileProviderExtension.entitlements
         ENABLE_APP_SANDBOX: YES
         CODE_SIGN_STYLE: Automatic
-        DEVELOPMENT_TEAM: 53MUTM55LC
         INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.fileprovider-nonui
     info:
       path: FileProviderExtension/Info.plist

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: rclone backend or provider questions
+    url: https://forum.rclone.org/
+    about: Nimbus uses rclone for every cloud provider. Questions about a specific backend, its options, rate limits or authentication belong on the rclone forum.
+  - name: Security vulnerability
+    url: https://github.com/CasaVargas/Nimbus/security/advisories/new
+    about: Report security problems privately. See SECURITY.md.

@@ -11,29 +11,29 @@ struct ParseStaleMountPointsTests {
     private let sample = """
     /dev/disk3s1s1 on / (apfs, sealed, local, read-only, journaled)
     devfs on /dev (devfs, local, nobrowse)
-    localhost:/ on /Users/jonathan/GoogleDrive (nfs, nosuid, nodev, soft, nobrowse)
-    localhost:/ on /Users/jonathan/S3 (nfs, nosuid, nodev, soft, nobrowse)
+    localhost:/ on /Users/me/GoogleDrive (nfs, nosuid, nodev, soft, nobrowse)
+    localhost:/ on /Users/me/S3 (nfs, nosuid, nodev, soft, nobrowse)
     //user@server/share on /Volumes/share (smbfs, nodev, nosuid)
     """
 
     @Test func findsLocalhostNFSMounts() {
         let stale = parseStaleMountPoints(mountOutput: sample, excluding: [])
-        #expect(stale == ["/Users/jonathan/GoogleDrive", "/Users/jonathan/S3"])
+        #expect(stale == ["/Users/me/GoogleDrive", "/Users/me/S3"])
     }
 
     @Test func excludesLiveMountsOwnedByThisSession() {
         let stale = parseStaleMountPoints(
             mountOutput: sample,
-            excluding: ["/Users/jonathan/GoogleDrive"]
+            excluding: ["/Users/me/GoogleDrive"]
         )
-        #expect(stale == ["/Users/jonathan/S3"])
+        #expect(stale == ["/Users/me/S3"])
     }
 
     @Test func ignoresForeignNFSAndNonNFSLines() {
         let output = """
         /dev/disk3s1s1 on / (apfs, local, journaled)
-        server:/export on /Users/jonathan/RemoteNFS (nfs)
-        localhost:8080 on /Users/jonathan/NotNFS (smbfs)
+        server:/export on /Users/me/RemoteNFS (nfs)
+        localhost:8080 on /Users/me/NotNFS (smbfs)
         """
         #expect(parseStaleMountPoints(mountOutput: output, excluding: []).isEmpty)
     }
