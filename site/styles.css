@@ -224,6 +224,25 @@ code { font-family: var(--mono); font-size: .92em; background: rgba(0,0,0,.06); 
 .compare th, .compare td { font-size: 15px; min-width: 130px; }
 .compare__title { font-size: 28px; margin: 80px 0 24px; text-align: center; letter-spacing: -0.022em; }
 
+/* ---------- From the same studio ---------- */
+.fund { display: grid; grid-template-columns: 7fr 5fr; gap: 20px; }
+.fund__card { background: #fff; border-radius: var(--radius-lg); overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 0 0 1px rgba(0,0,0,.04); }
+.fund__art { position: relative; padding: 28px 28px 0; }
+.fund__art--tv { padding-right: 84px; }
+.fund__phone { position: absolute; right: 20px; bottom: -24px; width: 136px; height: auto; }
+.fund__art--phone { display: flex; justify-content: center; }
+.fund__hero-phone { width: 230px; height: auto; margin-bottom: -44px; }
+.fund__body { padding: 40px 28px 28px; display: flex; flex-direction: column; flex: 1; }
+.fund__name { display: flex; align-items: center; gap: 12px; }
+.fund__name img { border-radius: 10px; box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
+.fund__name h3 { font-size: 28px; letter-spacing: -0.022em; }
+.fund__what { margin-top: 14px; font-size: 21px; letter-spacing: -0.015em; color: var(--text); }
+.fund__copy { margin-top: 8px; color: var(--text-2); font-size: 16px; line-height: 1.5; }
+.fund__price { margin-top: 14px; font-size: 14px; font-weight: 600; color: var(--blue); }
+.hero__actions--left { justify-content: flex-start; margin-top: 20px; gap: 20px; }
+.fund .btn { font-size: 15px; padding: 11px 20px; }
+@media (max-width: 860px) { .fund { grid-template-columns: 1fr; } }
+
 /* ---------- CTA ---------- */
 .cta { padding: 140px 0; text-align: center; background:
   radial-gradient(1200px 500px at 50% -10%, rgba(92,176,255,.25), transparent 60%),

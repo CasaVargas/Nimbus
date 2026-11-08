@@ -123,6 +123,15 @@ Facts only; "unverified" means we did not confirm it against a current release. 
 | Providers | Everything rclone supports (50+) | Its own backends (roughly 20, unverified) | Its own backends (unverified count) | Its own backends (roughly 20, unverified) | 50+ |
 | Reuses your rclone config | Yes | No | No | No | n/a |
 
+## Support development
+
+Nimbus is free and open source, and will stay that way. It is built by [Casa Vargas](https://casavargas.app), which pays for the time with two apps, each bought once and kept. If Nimbus is useful to you, the best way to say thanks is to try one of them:
+
+- **[Beltr](https://beltr.app/?utm_source=github&utm_medium=readme&utm_campaign=nimbus)**: karaoke from the music you already own, on your TV, with every phone in the room as a mic and remote. Mac, Windows and Linux. $19.99 once, five songs free to try.
+- **[OneScribe](https://apps.apple.com/us/app/onescribe-ai-note-scanner/id6756506734)**: a document scanner for iPhone and iPad that reads what it scans, with the AI running on the device. Free to scan; Pro is $9.99 once.
+
+Stars, bug reports and pull requests are welcome too.
+
 ## Contributing
 
 Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for the build setup, test commands and the spec-first workflow, and [SECURITY.md](SECURITY.md) for how to report vulnerabilities privately. Participation is covered by the [Code of Conduct](CODE_OF_CONDUCT.md).
