@@ -28,7 +28,7 @@
 
 ## Install
 
-Nimbus is pre-1.0 and has not had a tagged release yet. Signed and notarized DMGs will be published on the [Releases](https://github.com/CasaVargas/Nimbus/releases) page; until then, build from source (below).
+Download the latest signed and notarized DMG from the [Releases](https://github.com/CasaVargas/Nimbus/releases/latest) page (`Nimbus-<version>.dmg`, with a `.sha256` beside it), open it, and drag Nimbus to Applications. Nimbus is pre-1.0; expect rough edges. You can also build from source (below).
 
 ### Requirements
 
@@ -107,7 +107,6 @@ Not done yet (see the [roadmap](docs/superpowers/specs/2026-05-14-nimbus-north-s
 - System integration depth (Spotlight, Shortcuts, Services menu, Share Sheet)
 - Encryption setup wizard, scheduled syncs, public link management
 - Media gallery and other advanced browser modes
-- A first signed, notarized release
 
 Design specs and per-phase exit gates live in [`docs/superpowers/specs/`](docs/superpowers/specs/).
 
