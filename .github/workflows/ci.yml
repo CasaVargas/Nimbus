@@ -64,13 +64,11 @@ jobs:
             build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
-      # The two skips below are known, pre-existing failures that do not
+      # The skip below is a known, pre-existing failure that does not
       # indicate a regression:
-      #   - EmptyStateTests/rendersWithCTA: ImageRenderer leaves a gap in the
-      #     offscreen render that the perceptual-hash fixture does not tolerate.
       #   - RcloneConfigMachineTests: pins the question order of an older
       #     rclone release; Homebrew installs a newer one.
-      # The Settings snapshots used to be skipped too. Their two causes are
+      # EmptyStateTests and the Settings snapshots used to be skipped too. Their two causes are
       # fixed in SnapshotHelpers: captures are a fixed 2x (no longer the
       # display's scale), and each render gets its own window (concurrent
       # suites used to swap content in a shared one mid-render).
@@ -85,7 +83,6 @@ jobs:
             -derivedDataPath DerivedData \
             -resultBundlePath TestResults.xcresult \
             test \
-            '-skip-testing:NimbusTests/EmptyStateTests/rendersWithCTA()' \
             -skip-testing:NimbusTests/RcloneConfigMachineTests \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
