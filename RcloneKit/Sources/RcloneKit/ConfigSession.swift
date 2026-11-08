@@ -94,17 +94,47 @@ extension RcloneClient {
         try? await deleteRemote(name: name)
     }
 
-    private func configCall(
+    /// Begins a config walk over an EXISTING remote via `config/update`.
+    /// Used to sign in again: for OAuth backends the walk reaches
+    /// `*oauth-confirm` ("Token already configured - replace it?") and then
+    /// `*oauth-islocal`, the same browser hand-off `startConfig` reaches for
+    /// a new remote (verified against rclone 1.76). Each call persists what
+    /// it has so far, so a caller may stop once the token is replaced.
+    public func startUpdate(name: String) async throws -> ConfigStep {
+        try await configCall(method: "config/update", name: name, type: nil, opt: [
+            "nonInteractive": true,
+            "all": false,
+        ])
+    }
+
+    /// Answers the current `config/update` question and returns the next step.
+    public func continueUpdate(
         name: String,
-        type: String,
+        state: String,
+        result: String
+    ) async throws -> ConfigStep {
+        try await configCall(method: "config/update", name: name, type: nil, opt: [
+            "nonInteractive": true,
+            "all": false,
+            "continue": true,
+            "state": state,
+            "result": result,
+        ])
+    }
+
+    private func configCall(
+        method: String = "config/create",
+        name: String,
+        type: String?,
         opt: [String: any Sendable]
     ) async throws -> ConfigStep {
-        let response: ConfigMachineResponse = try await call("config/create", params: [
+        var params: [String: any Sendable] = [
             "name": name,
-            "type": type,
             "parameters": [String: String](),
             "opt": opt,
-        ])
+        ]
+        if let type { params["type"] = type }
+        let response: ConfigMachineResponse = try await call(method, params: params)
 
         // rclone reports config failures in the body of a 200, not the
         // status code. Checking only the status reports success on failure.
