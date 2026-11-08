@@ -87,7 +87,12 @@ public final class RcloneClient: @unchecked Sendable {
 
         // Some RC endpoints report an API error with a successful HTTP status.
         // Detect that shape before decoding an endpoint-specific response.
-        if let errorResponse = try? JSONDecoder().decode(RcloneErrorResponse.self, from: data) {
+        // rclone's error envelope carries `path`/`status`; `job/status` bodies
+        // also have an `error` field ("" or the job's failure) but are not
+        // API errors, so the envelope keys are required.
+        if let errorResponse = try? JSONDecoder().decode(RcloneErrorResponse.self, from: data),
+           !errorResponse.error.isEmpty,
+           errorResponse.path != nil || errorResponse.status != nil {
             throw RcloneError.requestFailed(
                 status: errorResponse.status ?? httpResponse.statusCode,
                 message: errorResponse.error
