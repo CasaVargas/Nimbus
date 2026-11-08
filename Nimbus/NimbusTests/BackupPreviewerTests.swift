@@ -72,6 +72,8 @@ struct BackupPreviewerTests {
 
     @Test func limitHitIsFinishedNotFailed() async {
         let client = MockBackupClient()
+        client.setStats(group: "job/100", BackupFixtures.stats(transfers: 0, deletes: 2, renames: 0,
+                                                               lastError: "--max-delete threshold reached"))
         client.script(jobID: 100, [BackupFixtures.job(
             id: 100, finished: true, success: false, error: "failed to delete 4 files",
             output: #"{"missingOnDst": [], "differ": [], "missingOnSrc": ["a", "b", "c", "d", "e", "f"], "error": []}"#
@@ -134,6 +136,17 @@ struct BackupPreviewerTests {
         let previewer = previewer(client)
         await previewer.run(job: job())
         #expect(previewer.state == .failed("The source folder isn't available. Is the drive connected?"))
+    }
+
+    /// rclone 1.76 returns every requested list, empty when nothing changes.
+    /// No report at all means this rclone can't preview: never show "nothing
+    /// will change" for it.
+    @Test func missingReportFailsInsteadOfLookingEmpty() async {
+        let client = MockBackupClient()
+        client.script(jobID: 100, [BackupFixtures.job(id: 100, finished: true, success: true)])
+        let previewer = previewer(client)
+        await previewer.run(job: job())
+        #expect(previewer.state == .failed(BackupPreviewer.noReportMessage))
     }
 
     @Test func cancelStopsJob() async {

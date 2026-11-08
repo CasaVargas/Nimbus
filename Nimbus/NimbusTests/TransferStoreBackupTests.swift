@@ -20,9 +20,11 @@ enum BackupFixtures {
         return try! JSONDecoder().decode(Job.self, from: Data(json.utf8))
     }
 
-    static func stats(transfers: Int, deletes: Int, renames: Int, errors: Int = 0, bytes: Int64 = 1000) -> StatsResponse {
+    static func stats(transfers: Int, deletes: Int, renames: Int, errors: Int = 0, bytes: Int64 = 1000,
+                      lastError: String? = nil) -> StatsResponse {
+        let lastErrorField = lastError.map { #""lastError": "\#($0)","# } ?? ""
         let json = """
-        {"speed": 0, "bytes": \(bytes), "errors": \(errors), "checks": 0, "transfers": \(transfers),
+        {\(lastErrorField) "speed": 0, "bytes": \(bytes), "errors": \(errors), "checks": 0, "transfers": \(transfers),
          "deletes": \(deletes), "renames": \(renames), "elapsedTime": 1, "totalBytes": \(bytes),
          "totalTransfers": \(transfers), "totalChecks": 0}
         """
@@ -84,15 +86,27 @@ struct TransferStoreBackupTests {
         #expect(summary.outcome == .cancelled)
     }
 
-    @Test func limitHitFromFailedToDelete() {
-        #expect(TransferStore.backupOutcome(jobError: "failed to delete 2 files", hadRemovalLimit: true) == .limitHit)
+    /// rclone 1.76: a run stopped by MaxDelete fails with "failed to delete N
+    /// files" and core/stats.lastError "--max-delete threshold reached".
+    @Test func limitHitFromMaxDeleteLastError() {
+        #expect(TransferStore.backupOutcome(jobError: "failed to delete 2 files", hadRemovalLimit: true,
+                                            lastError: "--max-delete threshold reached") == .limitHit)
+    }
+
+    /// Any other delete failure (permissions, object lock) uses the same job
+    /// error; it must not read as the removal limit.
+    @Test func permissionDeniedDeleteIsAFailureWithTheRealReason() {
+        #expect(TransferStore.backupOutcome(jobError: "failed to delete 1 files", hadRemovalLimit: true,
+                                            lastError: "remove /x/locked.txt: permission denied")
+            == .failed("remove /x/locked.txt: permission denied"))
     }
 
     @Test func plainFailureStaysFailure() {
-        #expect(TransferStore.backupOutcome(jobError: "directory not found", hadRemovalLimit: true)
+        #expect(TransferStore.backupOutcome(jobError: "directory not found", hadRemovalLimit: true, lastError: nil)
             == .failed("directory not found"))
-        #expect(TransferStore.backupOutcome(jobError: "failed to delete 2 files", hadRemovalLimit: false)
-            == .failed("failed to delete 2 files"))
+        #expect(TransferStore.backupOutcome(jobError: "failed to delete 2 files", hadRemovalLimit: false,
+                                            lastError: "--max-delete threshold reached")
+            == .failed("--max-delete threshold reached"))
     }
 
     // MARK: - Finish flow
@@ -134,7 +148,8 @@ struct TransferStoreBackupTests {
 
         await store.handleFinished(
             jobID: 42, job: BackupFixtures.job(id: 42, success: false, error: "failed to delete 4 files"),
-            stats: BackupFixtures.stats(transfers: 0, deletes: 2, renames: 0), now: end
+            stats: BackupFixtures.stats(transfers: 0, deletes: 2, renames: 0, lastError: "--max-delete threshold reached"),
+            now: end
         )
 
         #expect(outcomes == [.limitHit])
@@ -161,6 +176,44 @@ struct TransferStoreBackupTests {
         store.addTransfer(jobId: 44, operation: .sync, srcFs: "a:", dstFs: "b:", origin: .backup, backup: context())
         await store.cancelTransfer(jobId: 44)
         #expect(outcomes == [.cancelled])
+    }
+
+    // MARK: - Lost jobs
+
+    @Test func lostJobFinishesBackupAsFailed() async throws {
+        let store = TransferStore(history: SavedHistory())
+        var outcomes: [BackupRunSummary.Outcome] = []
+        store.onBackupFinished = { _, summary in outcomes.append(summary.outcome) }
+        store.addTransfer(jobId: 50, operation: .sync, srcFs: "a:", dstFs: "b:", origin: .backup, backup: context())
+
+        await store.handlePollFailure(jobID: 50, error: RcloneError.requestFailed(status: 500, message: "job not found"), now: end)
+
+        #expect(outcomes == [.failed(TransferStore.lostRunMessage)])
+        guard case .failed = try #require(store.transfers.first).status else {
+            Issue.record("a lost job must not stay active")
+            return
+        }
+    }
+
+    @Test func transientPollErrorKeepsTransferActive() async {
+        let store = TransferStore(history: SavedHistory())
+        var calls = 0
+        store.onBackupFinished = { _, _ in calls += 1 }
+        store.addTransfer(jobId: 51, operation: .sync, srcFs: "a:", dstFs: "b:", origin: .backup, backup: context())
+        await store.handlePollFailure(jobID: 51, error: URLError(.timedOut), now: end)
+        #expect(calls == 0)
+        #expect(store.activeTransfers.count == 1)
+    }
+
+    @Test func abandonActiveTransfersFailsEveryActiveRun() async {
+        let store = TransferStore(history: SavedHistory())
+        var calls = 0
+        store.onBackupFinished = { _, _ in calls += 1 }
+        store.addTransfer(jobId: 1, operation: .sync, srcFs: "a:", dstFs: "b:", origin: .backup, backup: context())
+        store.addTransfer(jobId: 2, operation: .copy, srcFs: "a:", dstFs: "b:")
+        await store.abandonActiveTransfers()
+        #expect(store.activeTransfers.isEmpty)
+        #expect(calls == 1)
     }
 
     // MARK: - Filter

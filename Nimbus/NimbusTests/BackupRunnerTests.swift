@@ -135,8 +135,24 @@ struct BackupRunnerTests {
         let h = await harness()
         let job = await addJob(h)
         await h.runner.enqueue(job.id, trigger: .manual)
-        await finish(h, rcloneJob: 100, success: false, error: "failed to delete 4 files")
+        await h.transfers.handleFinished(
+            jobID: 100,
+            job: BackupFixtures.job(id: 100, finished: true, success: false, error: "failed to delete 4 files"),
+            stats: BackupFixtures.stats(transfers: 0, deletes: 100, renames: 0, lastError: "--max-delete threshold reached"),
+            now: now
+        )
         #expect(h.store.job(id: job.id)?.lastRun?.outcome == .limitHit)
+    }
+
+    @Test func daemonRestartUnsticksQueue() async {
+        let h = await harness()
+        let first = await addJob(h, name: "A")
+        let second = await addJob(h, name: "B")
+        await h.runner.enqueue(first.id, trigger: .manual)
+        await h.runner.enqueue(second.id, trigger: .manual)
+        await h.transfers.abandonActiveTransfers()
+        #expect(h.store.job(id: first.id)?.lastRun?.outcome == .failed(TransferStore.lostRunMessage))
+        #expect(h.runner.runningJobID == second.id)
     }
 
     @Test func editedJobAfterApprovalIsRefused() async {

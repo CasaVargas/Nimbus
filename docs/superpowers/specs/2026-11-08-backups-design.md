@@ -358,10 +358,9 @@ struct BackupRunSummary: Codable, Hashable, Sendable {
 - `TransferOrigin` gains `.backup`.
 - `Transfer` and `TransferRecord` gain `backupID: UUID?`, `title: String?` (the job name at run
   time, so history survives a rename or delete) and `summary: BackupRunSummary?`. They are
-  optional, so version-1 history files still decode. A **newer** file read by an **older** build
-  fails on the unknown `.backup` origin and is preserved untouched by the existing
-  `unsupportedVersion`/corrupt handling: the history file goes to version 2 and the loader
-  accepts 1 and 2.
+  optional, so version-1 history files still decode. A file holding backup records is written as
+  version 2. An older build skips reading a version-2 file but overwrites it on its next save, so
+  a downgrade loses transfer history; each job's `lastRun` survives in `backups-v1.json`.
 - On completion of a `.backup` transfer, the store reads the job group's `core/stats` once before
   marking it finished, builds the summary, and calls an `onBackupFinished` hook that `BackupStore`
   uses to update `lastRun`.
@@ -597,7 +596,17 @@ Where the build differs from the sections above, the build wins.
   errors: "directory not found" becomes "The source folder isn't available. Is the drive
   connected?", and the backup-dir overlap error names the versions folder.
 - **History file:** version 2 only when a record has backup data, so an older Nimbus keeps
-  reading backup-free history.
+  reading backup-free history. (An older Nimbus overwrites a version-2 file on its next save.)
+- **From the final review:**
+  - A dry run that comes back without a report fails ("This version of rclone can't list what a
+    backup would change…") instead of reading as "Everything is already backed up". rclone 1.76
+    returns every requested list, empty when nothing would change.
+  - The removal limit is recognised by `core/stats.lastError` = "--max-delete threshold
+    reached". Other delete failures (permissions, object lock) share the job error "failed to
+    delete N files" and now show their real reason instead of "would remove more than N files".
+  - A run rclone no longer knows ("job not found": expired, or a new daemon) ends as failed, and
+    every daemon (re)connect ends transfers left from the previous process. The backup queue
+    can't get stuck behind a run that will never report back.
 - **Copy Between Clouds' title** now matches the sidebar.
 
 ### Live results

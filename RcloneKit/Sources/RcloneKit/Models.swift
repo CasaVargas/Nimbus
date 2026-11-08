@@ -306,6 +306,9 @@ public struct StatsResponse: Codable, Sendable {
     public let renames: Int?
     /// Directory entries listed so far (progress for checks and dry runs).
     public let listed: Int?
+    /// The group's most recent error. A run stopped by `MaxDelete` reports
+    /// "--max-delete threshold reached" here.
+    public let lastError: String?
     public let elapsedTime: Double
     public let totalBytes: Int64
     public let totalTransfers: Int

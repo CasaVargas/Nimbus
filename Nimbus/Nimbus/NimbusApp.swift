@@ -215,6 +215,10 @@ struct NimbusApp: App {
     /// syncState just rewrites the shared port/remotes snapshot.
     private func onDaemonConnected() async {
         guard !isRunningTests else { return }
+        // Every connect is a new rclone process: jobs from a previous one are
+        // gone (and job ids restart), so end their transfers and let the
+        // backup queue move on.
+        await transferStore.abandonActiveTransfers()
         if !servicesStarted {
             servicesStarted = true
             ShareLinkNotifier.shared.start()

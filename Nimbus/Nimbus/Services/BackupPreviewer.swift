@@ -48,6 +48,8 @@ final class BackupPreviewer {
 
     private(set) var state: State = .idle
 
+    static let noReportMessage = String(localized: "This version of rclone can't list what a backup would change. Update rclone, then try again.")
+
     @ObservationIgnored private let client: any BackupRcloneClient
     @ObservationIgnored private let pollInterval: Duration
     @ObservationIgnored private let now: () -> Date
@@ -139,18 +141,26 @@ final class BackupPreviewer {
     }
 
     private func finish(job: Job, stats: StatsResponse?, fingerprint: String, removalLimit: Int?, isMirror: Bool) {
-        let limitHit = !job.success
-            && TransferStore.backupOutcome(jobError: job.error, hadRemovalLimit: removalLimit != nil) == .limitHit
-        guard job.success || limitHit else {
-            state = .failed(BackupErrorText.friendly(job.error))
+        let outcome: BackupRunSummary.Outcome = job.success
+            ? .completed
+            : TransferStore.backupOutcome(jobError: job.error, hadRemovalLimit: removalLimit != nil, lastError: stats?.lastError)
+        let limitHit = outcome == .limitHit
+        if case .failed(let message) = outcome {
+            state = .failed(BackupErrorText.friendly(message))
             return
         }
-        let report = job.output
+        // rclone 1.76 returns every requested list (empty when nothing would
+        // change). No report means this rclone can't preview; never let that
+        // read as "nothing will change".
+        guard let report = job.output else {
+            state = .failed(Self.noReportMessage)
+            return
+        }
         state = .finished(BackupPreview(
-            willCopy: report?.missingOnDst ?? [],
-            willReplace: report?.differ ?? [],
-            willRemove: isMirror ? (report?.missingOnSrc ?? []) : [],
-            errors: report?.error ?? [],
+            willCopy: report.missingOnDst ?? [],
+            willReplace: report.differ ?? [],
+            willRemove: isMirror ? (report.missingOnSrc ?? []) : [],
+            errors: report.error ?? [],
             approxBytes: stats?.totalBytes ?? 0,
             limitHit: limitHit,
             removalLimit: removalLimit,

@@ -286,9 +286,47 @@ final class TransferStore {
         if job.success { transfers[index].progress = 1.0 }
         let outcome: BackupRunSummary.Outcome = job.success
             ? .completed
-            : Self.backupOutcome(jobError: job.error, hadRemovalLimit: transfers[index].backup?.hadRemovalLimit ?? false)
+            : Self.backupOutcome(jobError: job.error,
+                                 hadRemovalLimit: transfers[index].backup?.hadRemovalLimit ?? false,
+                                 lastError: stats?.lastError)
+        await finish(at: index, status: job.success ? .completed : .failed(job.error),
+                     outcome: outcome, stats: stats, now: now)
+    }
+
+    static let lostRunMessage = String(localized: "Nimbus lost track of this run when its connection engine restarted. It may not have finished.")
+
+    /// A poll that fails because rclone no longer knows the job (it expired,
+    /// or the daemon restarted) ends the transfer instead of leaving it
+    /// active forever. Other errors are transient and retried next poll.
+    func handlePollFailure(jobID: Int, error: Error, now: Date = Date()) async {
+        guard case RcloneError.requestFailed(_, let message) = error, message.contains("job not found"),
+              let index = transfers.firstIndex(where: { $0.status.isActive && $0.jobID == jobID }) else { return }
+        await finish(at: index, status: .failed(Self.lostRunMessage), outcome: .failed(Self.lostRunMessage),
+                     stats: nil, now: now)
+    }
+
+    /// Ends every active transfer. Called when a new rclone daemon comes up:
+    /// jobs belong to the process that ran them, and job ids restart.
+    /// Only transfers active at the call are ended: finishing a backup starts
+    /// the next queued one on the new daemon, and that one must live.
+    func abandonActiveTransfers(now: Date = Date()) async {
+        let stale = Set(activeTransfers.map(\.id))
+        for id in stale {
+            guard let index = transfers.firstIndex(where: { $0.id == id && $0.status.isActive }) else { continue }
+            await finish(at: index, status: .failed(Self.lostRunMessage), outcome: .failed(Self.lostRunMessage),
+                         stats: nil, now: now)
+        }
+    }
+
+    private func finish(
+        at index: Int,
+        status: TransferStatus,
+        outcome: BackupRunSummary.Outcome,
+        stats: StatsResponse?,
+        now: Date
+    ) async {
         let finished = attachBackupSummary(at: index, outcome: outcome, stats: stats, now: now)
-        transfers[index].status = job.success ? .completed : .failed(job.error)
+        transfers[index].status = status
         transfers[index].completedAt = now
         if let record = transfers[index].record {
             await notifications.deliver(record, mode: notificationMode)
@@ -297,10 +335,13 @@ final class TransferStore {
         await notifyBackupFinished(finished)
     }
 
-    /// rclone ends a run stopped by `MaxDelete` with "failed to delete N
-    /// files". Only a run that set a limit can have hit it.
-    static func backupOutcome(jobError: String, hadRemovalLimit: Bool) -> BackupRunSummary.Outcome {
-        if hadRemovalLimit, jobError.contains("failed to delete") { return .limitHit }
+    /// A run stopped by `MaxDelete` fails with "failed to delete N files" and
+    /// the stats group's last error "--max-delete threshold reached" (rclone
+    /// 1.76). Other delete failures share the job error, so the last error
+    /// decides, and it is the more useful message for a real failure.
+    static func backupOutcome(jobError: String, hadRemovalLimit: Bool, lastError: String?) -> BackupRunSummary.Outcome {
+        if hadRemovalLimit, let lastError, lastError.contains("max-delete") { return .limitHit }
+        if let lastError, !lastError.isEmpty, jobError.hasPrefix("failed to delete") { return .failed(lastError) }
         return .failed(jobError)
     }
 
@@ -467,9 +508,10 @@ final class TransferStore {
                     await handleFinished(jobID: jobID, job: job, stats: stats)
                 }
             } catch {
-                // Job may have been cleaned up by rclone — expected for old jobs.
-                // Transient errors will cause retries on the next poll cycle.
-                logger.debug("Job \(jobID) status poll failed (may be cleaned up): \(error)")
+                // "job not found" means rclone forgot the job (expired, or a
+                // new daemon): end the transfer. Anything else is retried.
+                logger.debug("Job \(jobID) status poll failed: \(error)")
+                await handlePollFailure(jobID: jobID, error: error)
             }
         }
     }

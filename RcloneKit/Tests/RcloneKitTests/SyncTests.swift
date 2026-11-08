@@ -158,6 +158,16 @@ struct SyncDecodingTests {
         let stats = try JSONDecoder().decode(StatsResponse.self, from: Data(json.utf8))
         #expect(stats.renames == 1)
         #expect(stats.listed == 8)
+        #expect(stats.lastError == nil)
+    }
+
+    @Test func statsDecodesLastError() throws {
+        let json = #"""
+        {"bytes": 0, "checks": 0, "deletes": 1, "elapsedTime": 1, "errors": 2, "lastError": "--max-delete threshold reached",
+         "speed": 0, "totalBytes": 0, "totalChecks": 0, "totalTransfers": 0, "transfers": 0}
+        """#
+        let stats = try JSONDecoder().decode(StatsResponse.self, from: Data(json.utf8))
+        #expect(stats.lastError == "--max-delete threshold reached")
         #expect(stats.deletes == 1)
     }
 }
