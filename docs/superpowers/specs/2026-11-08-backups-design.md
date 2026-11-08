@@ -349,10 +349,9 @@ struct BackupRunSummary: Codable, Hashable, Sendable {
 }
 ```
 
-`BackupRunSummary.copied` and `replaced` come from `core/stats.transfers`; rclone doesn't split new
-from changed in stats, so v1 reports `copied = transfers` and `replaced = 0` for real runs, and the
-UI says "N files backed up". `removed` is `deletes + renames` for mirror runs with versions (a
-"removal" into versions is a move), `deletes` otherwise.
+`BackupRunSummary` counts come from the job's final `core/stats` (corrected after measuring rclone
+1.76, see "Phase 1 as built"): `copied = transfers`, `removed = deletes`, and with versions
+`replaced = renames − deletes`; without versions `replaced` is 0 (unknown).
 
 ### Changes to `TransferStore`
 
@@ -569,3 +568,49 @@ Each phase is its own PR, works on its own, and leaves `main` shippable.
    percentage option; it would need a pre-run listing.
 3. **Is decision 1 (in-app only) acceptable for v1?** If backups while Nimbus is quit are a
    must, option D (a helper that owns the daemon) becomes its own project before Backups phase 2.
+
+## Phase 1 as built (2026-11-08, `feat/backups-phase1`)
+
+Where the build differs from the sections above, the build wins.
+
+- **A preview that hits the removal limit can't be approved.** The real run would stop at the
+  same limit, so the sheet shows the limit callout and **Edit Backup…** instead. The second
+  confirmation covers more than 100 removals (`BackupPreview.largeRemovalThreshold`) when no
+  limit, or a higher one, allows them. A preview with read errors also offers only **Edit
+  Backup…**.
+- **Run counts, measured on rclone 1.76.** `deletes` counts files that left the destination.
+  With a backup dir, `renames` counts every move into it, replaced plus removed (local mirror
+  of new + changed + destination-only: transfers 2, deletes 1, renames 2). So `removed =
+  deletes` and `replaced = renames − deletes`. The data-model paragraph above is corrected.
+- **Pre-existing bug fixed in RcloneKit.** Since 4ba0fc0, `RcloneClient` treated any 200 body
+  with an `error` key as an RC error. Every `job/status` body has one (`""` on success), so
+  `jobStatus` always threw and `TransferStore` never marked a transfer finished. A 200 body is
+  now an error only with rclone's envelope (`path` or `status`).
+- **No schedule section in phase 1.** The editor has none (a one-choice picker is noise).
+  ⇧⌘B opens the Backups screen. New Backup… is its toolbar button.
+- **Small copy additions:** a completed run with no files reads "Backed up <when>, no
+  changes"; a cancelled run reads "Stopped <when>"; queued rows offer **Cancel**. Friendly
+  errors: "directory not found" becomes "The source folder isn't available. Is the drive
+  connected?", and the backup-dir overlap error names the versions folder.
+- **History file:** version 2 only when a record has backup data, so an older Nimbus keeps
+  reading backup-free history.
+- **Copy Between Clouds' title** now matches the sidebar.
+
+### Live results
+
+`BackupLiveTests` (opt-in: `TEST_RUNNER_NIMBUS_LIVE_RCLONE=/opt/homebrew/bin/rclone`) drives
+the previewer, runner and `TransferStore` against a real `rclone rcd` (1.76) on the scratch tree:
+
+| Check | Result |
+|---|---|
+| Preview lists +`new.txt`, *`sub/changed.txt`, −`onlydst.txt`; `skip.log` excluded | pass |
+| The dry run leaves the destination untouched | pass |
+| Approve and Back Up Now: destination matches; `.nimbus-versions/<stamp>/` has `onlydst.txt` and the old `sub/changed.txt` | pass |
+| Run summary: copied 2, replaced 1, removed 1 | pass |
+| Second preview: "Everything is already backed up" (versions folder untouched) | pass |
+| Empty source, limit 2: preview reports `limitHit`, can't be approved, nothing removed | pass |
+
+Not verified: the full GUI flow in the running app. Launching a second Nimbus on this Mac
+would run its stale-daemon cleanup against the installed app's rclone. Screens were checked
+with RenderPreview (every row status, editor in both modes, every preview state, light and
+dark).
