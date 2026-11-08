@@ -46,14 +46,17 @@ struct TransferStoreBackupTests {
 
     // MARK: - Pure summary / outcome
 
-    @Test func summaryCountsMovesAsRemovalsWithVersions() {
+    /// Measured on rclone 1.76: with a backup dir, `deletes` counts files
+    /// removed from the destination and `renames` counts every move into the
+    /// backup dir (replaced + removed).
+    @Test func summaryWithVersionsSplitsReplacedFromRemoved() {
         let summary = TransferStore.summary(
             trigger: .scheduled, startedAt: start, finishedAt: end, outcome: .completed,
-            stats: BackupFixtures.stats(transfers: 12, deletes: 0, renames: 1, bytes: 48_213_004),
+            stats: BackupFixtures.stats(transfers: 12, deletes: 1, renames: 3, bytes: 48_213_004),
             isMirrorWithVersions: true
         )
         #expect(summary.copied == 12)
-        #expect(summary.replaced == 0)
+        #expect(summary.replaced == 2)
         #expect(summary.removed == 1)
         #expect(summary.errors == 0)
         #expect(summary.bytes == 48_213_004)
@@ -69,6 +72,7 @@ struct TransferStoreBackupTests {
             isMirrorWithVersions: false
         )
         #expect(summary.removed == 2)
+        #expect(summary.replaced == 0)
     }
 
     @Test func summaryWithoutStatsIsZero() {
@@ -102,7 +106,7 @@ struct TransferStoreBackupTests {
 
         await store.handleFinished(
             jobID: 41, job: BackupFixtures.job(id: 41, success: true),
-            stats: BackupFixtures.stats(transfers: 12, deletes: 0, renames: 1),
+            stats: BackupFixtures.stats(transfers: 12, deletes: 1, renames: 2),
             now: end
         )
 
@@ -113,6 +117,7 @@ struct TransferStoreBackupTests {
         }
         #expect(transfer.summary?.copied == 12)
         #expect(transfer.summary?.removed == 1)
+        #expect(transfer.summary?.replaced == 1)
         #expect(transfer.record?.summary == transfer.summary)
         #expect(transfer.record?.backupID == backupID)
         #expect(transfer.record?.title == "Documents to B2")

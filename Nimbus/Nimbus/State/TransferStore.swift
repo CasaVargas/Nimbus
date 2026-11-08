@@ -304,8 +304,11 @@ final class TransferStore {
         return .failed(jobError)
     }
 
-    /// rclone's stats don't split new from changed files, so a real run
-    /// reports everything as copied. With versions, a removal is a move.
+    /// Counts from the job's final `core/stats` (measured on rclone 1.76):
+    /// `transfers` is every file written; `deletes` is files that left the
+    /// destination; with a backup dir, `renames` is every move into it
+    /// (replaced plus removed), so replaced = renames − deletes. Without
+    /// versions rclone doesn't say how many were replaced.
     static func summary(
         trigger: BackupRunSummary.Trigger,
         startedAt: Date,
@@ -314,16 +317,15 @@ final class TransferStore {
         stats: StatsResponse?,
         isMirrorWithVersions: Bool
     ) -> BackupRunSummary {
-        let removed = isMirrorWithVersions
-            ? (stats?.deletes ?? 0) + (stats?.renames ?? 0)
-            : (stats?.deletes ?? 0)
+        let removed = stats?.deletes ?? 0
+        let replaced = isMirrorWithVersions ? max(0, (stats?.renames ?? 0) - removed) : 0
         return BackupRunSummary(
             startedAt: startedAt,
             finishedAt: finishedAt,
             trigger: trigger,
             outcome: outcome,
             copied: stats?.transfers ?? 0,
-            replaced: 0,
+            replaced: replaced,
             removed: removed,
             errors: stats?.errors ?? 0,
             bytes: stats?.bytes ?? 0

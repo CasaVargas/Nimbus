@@ -42,7 +42,7 @@ struct BackupRunnerTests {
         await h.transfers.handleFinished(
             jobID: rcloneJob,
             job: BackupFixtures.job(id: rcloneJob, finished: true, success: success, error: error),
-            stats: BackupFixtures.stats(transfers: 3, deletes: 0, renames: 1),
+            stats: BackupFixtures.stats(transfers: 3, deletes: 1, renames: 2),
             now: now.addingTimeInterval(60)
         )
     }
@@ -116,6 +116,7 @@ struct BackupRunnerTests {
         #expect(lastRun.outcome == .completed)
         #expect(lastRun.copied == 3)
         #expect(lastRun.removed == 1)
+        #expect(lastRun.replaced == 1)
         #expect(lastRun.trigger == .manual)
         #expect(h.runner.runningJobID == nil)
         #expect(h.runner.isRunningAnything == false)
