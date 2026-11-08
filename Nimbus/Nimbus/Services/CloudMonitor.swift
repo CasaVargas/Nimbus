@@ -30,13 +30,19 @@ final class CloudMonitor {
     private var inFlight: Task<Void, Never>?
     private var periodic: Task<Void, Never>?
     private var observer: NSObjectProtocol?
+    /// Runs after each successful list load, before probing. Production
+    /// uses it to record what each cloud supports (share links) for the
+    /// File Provider extension.
+    private let afterLoad: @MainActor ([Remote]) async -> Void
 
     init(loadRemotes: @escaping @MainActor () async -> [Remote]?,
          status: RemoteStatusService,
-         now: @escaping () -> Date = { Date() }) {
+         now: @escaping () -> Date = { Date() },
+         afterLoad: @escaping @MainActor ([Remote]) async -> Void = { _ in }) {
         self.loadRemotes = loadRemotes
         self.status = status
         self.now = now
+        self.afterLoad = afterLoad
     }
 
     /// Production wiring: list via `RemotesViewModel`, refresh on change notices.
@@ -45,13 +51,27 @@ final class CloudMonitor {
             let model = RemotesViewModel(client: client)
             await model.loadRemotes()
             return model.error == nil ? model.remotes : nil
-        }, status: status)
+        }, status: status, afterLoad: { remotes in
+            await recordCapabilities(of: remotes, client: client)
+        })
         monitor.observer = NotificationCenter.default.addObserver(
             forName: .nimbusRemotesChanged, object: nil, queue: .main
         ) { [weak monitor] _ in
             Task { @MainActor in await monitor?.refresh() }
         }
         return monitor
+    }
+
+    /// `operations/fsinfo` is answered locally by rclone, so this is cheap.
+    /// A cloud whose features can't be read is recorded as not sharing.
+    private static func recordCapabilities(of remotes: [Remote], client: RcloneClient) async {
+        guard let store = CloudCapabilities.shared else { return }
+        var entries: [String: CloudCapabilities.Entry] = [:]
+        for remote in remotes {
+            let features = try? await client.features(fs: "\(remote.name):")
+            entries[remote.name] = .init(shareLinks: features?.publicLink ?? false)
+        }
+        try? store.replace(with: entries)
     }
 
     func refresh() async {
@@ -64,6 +84,7 @@ final class CloudMonitor {
             remotes = list
             hasLoaded = true
             lastRefresh = now()
+            await afterLoad(list)
             let names = list.map(\.name)
             if !names.isEmpty { await status.probeAll(names) }
         }

@@ -109,4 +109,59 @@ extension RcloneClient {
         // default 30s request timeout is too tight. Give it generous headroom.
         try await call("operations/about", params: ["fs": fs], timeout: 120)
     }
+
+    /// A public link to `remote` (a file or folder) via `operations/publiclink`.
+    /// `expire` is an rclone duration ("7d", "1h"); services that don't
+    /// support expiry ignore it. `unlink: true` removes an existing link
+    /// where the service supports that, and returns no URL.
+    @discardableResult
+    public func publicLink(fs: String, remote: String, expire: String? = nil, unlink: Bool = false) async throws -> URL? {
+        var params: [String: any Sendable] = ["fs": fs, "remote": remote]
+        if let expire { params["expire"] = expire }
+        if unlink { params["unlink"] = true }
+        let response: PublicLinkResponse = try await call("operations/publiclink", params: params, timeout: 60)
+        guard let url = response.url, !url.isEmpty else { return nil }
+        return URL(string: url)
+    }
+
+    /// What this remote's backend can do, from `operations/fsinfo`. Answered
+    /// locally by rclone (no network call for most backends).
+    public func features(fs: String) async throws -> RemoteFeatures {
+        let info: FsInfoResponse = try await call("operations/fsinfo", params: ["fs": fs])
+        return RemoteFeatures(publicLink: info.features["PublicLink"] ?? false)
+    }
+}
+
+/// The subset of a backend's `Features` Nimbus acts on.
+public struct RemoteFeatures: Sendable, Equatable, Codable {
+    public let publicLink: Bool
+
+    public init(publicLink: Bool) {
+        self.publicLink = publicLink
+    }
+}
+
+private struct PublicLinkResponse: Decodable, Sendable {
+    let url: String?
+}
+
+private struct FsInfoResponse: Decodable, Sendable {
+    let features: [String: Bool]
+
+    enum CodingKeys: String, CodingKey { case features = "Features" }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        // Features mixes booleans with the occasional non-boolean entry in
+        // some rclone versions; keep the booleans, ignore the rest.
+        let raw = try c.decodeIfPresent([String: LenientBool].self, forKey: .features) ?? [:]
+        features = raw.compactMapValues(\.value)
+    }
+}
+
+private struct LenientBool: Decodable, Sendable {
+    let value: Bool?
+    init(from decoder: Decoder) throws {
+        value = try? decoder.singleValueContainer().decode(Bool.self)
+    }
 }

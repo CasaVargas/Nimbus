@@ -203,6 +203,7 @@ struct NimbusApp: App {
         guard !isRunningTests else { return }
         if !servicesStarted {
             servicesStarted = true
+            ShareLinkNotifier.shared.start()
             transferStore.startPolling(client: daemon.client)
             mountManager.startHealthMonitor()
             cloudMonitor.startPeriodicRefresh()
