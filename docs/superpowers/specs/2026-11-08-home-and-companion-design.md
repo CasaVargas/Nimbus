@@ -1,7 +1,7 @@
 # Home and Companion — Design
 
 **Date:** 2026-11-08
-**Status:** Direction approved ("Home + Companion" from the mockup review page); details below await review
+**Status:** Direction approved ("Home + Companion" from the mockup review page). Phase 1 implemented 2026-11-08 on `feat/home-phase1`; see "Phase 1 as built" at the end.
 **Mockups:** `docs/mockups/interface-directions.html`, sections Home and Companion
 **Builds on:** `2026-11-08-volumes-redesign-design.md` (the Volumes pane stays as each cloud's detail page)
 
@@ -330,3 +330,34 @@ Each phase is its own PR and must work on its own.
   sentence each.
 - Grep check: no "remote", "volume", "mount", or "rclone" in user-facing strings outside the
   allowed screens.
+
+## Phase 1 as built (2026-11-08)
+
+Where the build differs from the sections above, the build wins:
+
+- **Re-sign-in is verified and shipped.** On rclone 1.76, `config/update` on an existing drive
+  remote walks `client_id_warning` (`config_shared_client_id`), then `*oauth-confirm`
+  (`config_refresh_token`, "Token already configured - replace it?"), then `*oauth-islocal`.
+  RcloneKit gained `startUpdate`/`continueUpdate`. `ReconnectFlow` auto-answers only those three
+  questions and stops as soon as the browser step returns, so later questions (for example
+  OneDrive's drive picker) never change the config. Any other question before sign-in ends
+  in "needs more than a sign-in" instead of a guess.
+- **Busy sentences say "items", not "files".** A `Transfer` is an rclone job, and Nimbus doesn't
+  know how many files it holds.
+- **`lastConnected` lives in `RemoteStatusService`**, persisted under `remoteLastConnected`,
+  not in `AppSettings`. The service is the place that knows when a probe succeeds.
+- **The "not in Finder" suggestion has no 24-hour wait.** Nimbus records no "ready since" time.
+  The suggestion is dismissible instead.
+- **Clicking an activity line opens that cloud**, not its Transfers tab, because the tab is
+  private state of the Volumes pane.
+- **Aliases resolve to the service they point at** (`CloudNaming`): the badge and provider name
+  come from the target, and an alias of a local folder reads "Shortcut to a folder".
+- **Home is split into `HomeView`** (reads services) **and `HomeContent`** (pure, with five
+  fixture previews), which gives the RenderPreview exit gate something to render without a
+  daemon.
+- **The sidebar's rclone status bar is gone.** Daemon state shows only on Home.
+- **Not verified in the running app.** On daemon connect, Nimbus removes any File Provider domain
+  whose remote isn't in the active config (`cleanupStaleDomains`), so launching with a demo
+  `RCLONE_CONFIG` on a Mac that has real domains would remove them. Verification used
+  RenderPreview and unit tests. A real-app check needs a Mac or user account with no real
+  Nimbus domains.
