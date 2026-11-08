@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nimbus: three interface directions</title>
+<style>
+:root{
+  --accent:#2A64F6; --accent-ink:#fff; --ok:#2FA84F; --warn:#E5850B; --err:#E0393E;
+  --page:#EEEEF1; --pg-ink:#1D1D1F; --pg-ink2:#5E5E66;
+  --ink:#1D1D1F; --ink2:rgba(0,0,0,.56); --ink3:rgba(0,0,0,.34);
+  --win:#FFFFFF; --win2:#F5F5F7; --line:rgba(0,0,0,.08); --line2:rgba(0,0,0,.15);
+  --side:rgba(238,238,243,.82); --glass:rgba(255,255,255,.78); --glass-line:rgba(0,0,0,.08);
+  --selrow:rgba(0,0,0,.075); --btn:#FFFFFF; --track:rgba(0,0,0,.09); --tile:#FFFFFF;
+  --wall:linear-gradient(160deg,#8FB0EC 0%,#B6AEE8 50%,#EBC5B9 100%);
+  --menubar:rgba(255,255,255,.42);
+  --shadow:0 28px 70px rgba(25,30,60,.30),0 0 0 .5px rgba(0,0,0,.22);
+  --c1:#2A64F6; --c2:#0A9BD8; --c3:#6A4DF0; --c4:#E0393E; --c5:#9A9AA2;
+}
+[data-theme=dark]{
+  --accent:#3D7BFF; --page:#151518; --pg-ink:#EDEDF0; --pg-ink2:#A0A0A8;
+  --ink:#F2F2F5; --ink2:rgba(255,255,255,.62); --ink3:rgba(255,255,255,.36);
+  --win:#232326; --win2:#2B2B2F; --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.15);
+  --side:rgba(50,50,56,.82); --glass:rgba(72,72,78,.7); --glass-line:rgba(255,255,255,.1);
+  --selrow:rgba(255,255,255,.1); --btn:rgba(255,255,255,.13); --track:rgba(255,255,255,.13); --tile:#38383C;
+  --wall:linear-gradient(160deg,#1C2850 0%,#382B5A 50%,#5A3946 100%);
+  --menubar:rgba(20,20,26,.45);
+  --shadow:0 28px 70px rgba(0,0,0,.55),0 0 0 .5px rgba(255,255,255,.16);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--page);color:var(--pg-ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* ---------- page chrome ---------- */
+.top{max-width:1200px;margin:0 auto;padding:56px 40px 24px;display:grid;grid-template-columns:72px 1fr auto;gap:20px;align-items:start}
+.top img{width:72px;height:72px}
+.top h1{font-size:34px;line-height:1.15;font-weight:700;letter-spacing:-.02em}
+.top p{color:var(--pg-ink2);max-width:62ch;margin-top:8px}
+.top nav{grid-column:2/4;display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.top nav a{color:var(--pg-ink);text-decoration:none;font-size:13px;font-weight:500;padding:6px 14px;border-radius:999px;background:var(--glass);box-shadow:0 0 0 .5px var(--line2)}
+.top nav a:hover{background:var(--accent);color:#fff}
+.theme{font-size:13px;font-weight:500;padding:6px 14px;border-radius:999px;background:var(--glass);box-shadow:0 0 0 .5px var(--line2)}
+
+.dir{max-width:1200px;margin:0 auto;padding:56px 40px 24px;border-top:1px solid var(--line)}
+.dir-head{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:40px;margin-bottom:28px}
+.dir h2{font-size:28px;font-weight:700;letter-spacing:-.015em;line-height:1.2}
+.dir h2 small{display:block;font-size:15px;font-weight:500;color:var(--pg-ink2);letter-spacing:0;margin-top:4px}
+.lede{margin-top:12px;max-width:58ch}
+.fit{display:grid;gap:12px;align-content:start;font-size:14px}
+.fit div{display:grid;grid-template-columns:96px 1fr;gap:12px}
+.fit dt{color:var(--pg-ink2)}
+.stage{background:var(--wall);border-radius:20px;padding:44px;overflow-x:auto;display:flex;justify-content:center;margin-bottom:12px}
+.stage.scene{padding:0;display:block}
+figcaption{font-size:13px;color:var(--pg-ink2);max-width:80ch;margin:0 0 36px 4px}
+
+/* ---------- mac window primitives ---------- */
+.win{position:relative;flex:none;background:var(--win);color:var(--ink);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;font-size:13px;line-height:1.35;display:grid}
+.lights{display:flex;gap:8px;height:52px;align-items:center;padding-left:10px}
+.lights i{width:12px;height:12px;border-radius:50%;background:#FF5F57;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.18)}
+.lights i:nth-child(2){background:#FEBC2E}.lights i:nth-child(3){background:#28C840}
+.side{margin:8px 0 8px 8px;border-radius:13px;background:var(--side);backdrop-filter:blur(30px);box-shadow:0 0 0 .5px var(--line2),0 6px 20px rgba(0,0,0,.07);padding:0 10px 10px;display:flex;flex-direction:column;min-width:0}
+.side h6{font-size:11px;font-weight:600;color:var(--ink3);margin:14px 8px 3px}
+.srow{display:flex;align-items:center;gap:8px;min-height:28px;padding:0 8px;border-radius:8px;white-space:nowrap}
+.srow .nm{flex:1;overflow:hidden;text-overflow:ellipsis}
+.srow.sel{background:var(--selrow)}
+.srow.dim{color:var(--ink3)}
+.srow .note{font-size:11px;color:var(--ink3)}
+.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.side .ic{color:var(--accent)}
+.lg{width:18px;height:18px;flex:none}
+.fd{width:18px;height:15px;flex:none}
+.tail{width:14px;height:14px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.tail.ok{stroke:var(--ok)}.tail.sync{stroke:var(--accent)}.tail.warn{stroke:var(--warn)}
+.flex{flex:1}
+
+.tb{height:52px;display:flex;align-items:center;gap:10px;padding:0 14px}
+.cap{display:inline-flex;align-items:center;height:32px;border-radius:16px;background:var(--glass);box-shadow:0 0 0 .5px var(--glass-line),0 2px 8px rgba(0,0,0,.07);padding:0 3px;flex:none}
+.cap b{width:32px;height:26px;display:grid;place-items:center;color:var(--ink2);border-radius:13px}
+.cap b.on{background:var(--selrow);color:var(--ink)}
+.cap b.dimmed{color:var(--ink3)}
+.ttl{display:flex;flex-direction:column;line-height:1.2;white-space:nowrap}
+.ttl strong{font-size:15px;font-weight:700}
+.ttl span{font-size:11px;color:var(--ink2)}
+.search{height:32px;border-radius:16px;background:var(--glass);box-shadow:0 0 0 .5px var(--glass-line),0 2px 8px rgba(0,0,0,.07);display:flex;align-items:center;gap:6px;padding:0 12px;color:var(--ink3);width:210px;flex:none}
+.search.focus{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent),0 0 0 .5px var(--accent);color:var(--ink)}
+.search .tok{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);border-radius:5px;padding:1px 6px;font-size:12px;font-weight:500}
+.pill{height:32px;border-radius:16px;background:var(--glass);box-shadow:0 0 0 .5px var(--glass-line),0 2px 8px rgba(0,0,0,.07);display:flex;align-items:center;gap:8px;padding:0 14px 0 8px;font-weight:500;white-space:nowrap;flex:none}
+.pill .mut{color:var(--ink2);font-weight:400}
+.ring{width:18px;height:18px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p)*360deg),var(--track) 0);-webkit-mask:radial-gradient(circle,transparent 5px,#000 5.5px);mask:radial-gradient(circle,transparent 5px,#000 5.5px);flex:none}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;padding:0 14px;border-radius:999px;background:var(--btn);box-shadow:0 0 0 .5px var(--line2),0 1px 2px rgba(0,0,0,.06);font-size:13px;font-weight:500;white-space:nowrap}
+.btn.pri{background:var(--accent);color:#fff;box-shadow:none}
+.btn.sm{height:22px;padding:0 10px;font-size:12px}
+.btn.ghost{background:transparent;box-shadow:none;color:var(--accent);padding:0 4px}
+.btn.danger{color:var(--err);background:transparent;box-shadow:none;padding:0}
+.sw{width:34px;height:20px;border-radius:10px;background:var(--track);position:relative;flex:none;display:inline-block}
+.sw::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.sw.on{background:var(--accent)}.sw.on::after{left:16px}
+.popup{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 6px 0 10px;border-radius:7px;background:var(--btn);box-shadow:0 0 0 .5px var(--line2),0 1px 2px rgba(0,0,0,.05);font-size:13px;white-space:nowrap}
+.popup svg{width:10px;height:14px;stroke:var(--ink2);fill:none;stroke-width:1.6}
+.bar{height:6px;border-radius:3px;background:var(--track);overflow:hidden;display:block}
+.bar i{display:block;height:100%;width:var(--v);background:var(--accent);border-radius:3px}
+.bar.warn i{background:var(--warn)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.logo{width:32px;height:32px;border-radius:8px;background:var(--tile);box-shadow:0 0 0 .5px var(--line2),0 1px 2px rgba(0,0,0,.05);display:grid;place-items:center;flex:none}
+.logo svg{width:68%;height:68%}
+.logo.l40{width:40px;height:40px;border-radius:10px}
+.logo.l56{width:56px;height:56px;border-radius:14px}
+.logo.l24{width:24px;height:24px;border-radius:6px}
+
+/* file icons */
+.fi{position:relative;width:22px;height:27px;border-radius:2px 7px 2px 2px;background:#fff;box-shadow:0 0 0 .5px rgba(0,0,0,.25),0 1px 1px rgba(0,0,0,.08);flex:none;display:inline-block}
+.fi::before{content:"";position:absolute;right:0;top:0;width:7px;height:7px;background:linear-gradient(225deg,var(--win2) 50%,#E4E4EA 50%);border-bottom-left-radius:2px}
+.fi b{position:absolute;left:0;right:0;bottom:4px;font-size:6px;font-weight:800;text-align:center;color:#fff;background:var(--fc);margin:0 2px;border-radius:1px;line-height:9px}
+.fi.pdf{--fc:#E0393E}.fi.xls{--fc:#1E8E4A}.fi.doc{--fc:#2A64F6}.fi.key{--fc:#1D88E5}.fi.zip{--fc:#8A8A92}
+
+/* photos drawn in CSS */
+.ph{position:relative;border-radius:6px;overflow:hidden;background:var(--sky);box-shadow:0 0 0 .5px rgba(0,0,0,.12)}
+.ph::before{content:"";position:absolute;inset:auto 0 0 0;height:62%;background:var(--far);clip-path:polygon(0 100%,0 48%,14% 34%,30% 52%,47% 6%,62% 40%,78% 22%,100% 46%,100% 100%)}
+.ph::after{content:"";position:absolute;inset:auto 0 0 0;height:34%;background:var(--near);clip-path:polygon(0 100%,0 40%,20% 18%,40% 46%,58% 26%,80% 54%,100% 30%,100% 100%)}
+.ph.b::before{clip-path:polygon(0 100%,0 20%,22% 10%,30% 60%,55% 64%,72% 30%,86% 8%,100% 30%,100% 100%)}
+.ph:has(.prog) .dur{bottom:15px}
+.ph .dur{position:absolute;right:5px;bottom:4px;z-index:2;font-size:10px;font-weight:600;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.p1{--sky:linear-gradient(180deg,#F7C27C,#EE8D6A 70%);--far:#6E5577;--near:#2F2A3E}
+.p2{--sky:linear-gradient(180deg,#9EC9F0,#D7E8F4);--far:#A7A49E;--near:#45663F}
+.p3{--sky:linear-gradient(180deg,#C6DDE9,#EEF3F2);--far:#7E8C86;--near:#355A3B}
+.p4{--sky:linear-gradient(180deg,#7FB3E8,#BCD9F2);--far:#C4BBAE;--near:#3E5B34}
+.p5{--sky:linear-gradient(180deg,#F3A86B,#F6D59A);--far:#8B6A62;--near:#3B3338}
+.p6{--sky:linear-gradient(180deg,#141B3A,#33416E);--far:#20294A;--near:#0D1120}
+.p7{--sky:linear-gradient(180deg,#A8D4EE,#E4F1F6);--far:#6E8D80;--near:#2F5340}
+.p8{--sky:linear-gradient(180deg,#B5CBE0,#DCE6EE);--far:#98A3A8;--near:#4A6A48}
+.p9{--sky:linear-gradient(180deg,#8EC1E9,#CFE5F3);--far:#B9B6AE;--near:#526E45}
+.p10{--sky:linear-gradient(180deg,#E9B98F,#F4DDBB);--far:#9C8A80;--near:#4B4440}
+.p11{--sky:linear-gradient(180deg,#9FB8D8,#E2E7EE);--far:#8C9097;--near:#3D4A3D}
+
+/* ---------- Direction 1: Places ---------- */
+.d1{grid-template-columns:228px 1fr}
+.d1 .main{display:grid;grid-template-rows:52px 1fr;min-width:0}
+.d1 .body{display:grid;grid-template-columns:1fr 252px;min-height:0}
+.d1 .content{display:grid;grid-template-rows:1fr 30px;min-width:0;min-height:0}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:18px 14px;padding:16px 22px;align-content:start;overflow:hidden}
+.tile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px;border-radius:9px;position:relative}
+.tile .ph{width:100%;aspect-ratio:4/3}
+.tile.sel{background:var(--selrow)}
+.tn{font-size:12px;text-align:center;line-height:1.3;display:flex;align-items:center;gap:4px;max-width:100%;padding:1px 6px;border-radius:5px}
+.tn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile.sel .tn{background:var(--accent);color:#fff}
+.tn svg{width:12px;height:12px;fill:none;stroke:var(--ink3);stroke-width:1.6;flex:none;stroke-linecap:round;stroke-linejoin:round}
+.tile.sel .tn svg{stroke:#fff}
+.tn svg.up{stroke:var(--accent)}
+.prog{height:4px;border-radius:2px;background:rgba(255,255,255,.55);position:absolute;left:8px;right:8px;bottom:8px;z-index:3;overflow:hidden;box-shadow:0 0 0 .5px rgba(0,0,0,.15)}
+.prog i{display:block;height:100%;width:var(--v);background:var(--accent)}
+.doctile{width:100%;aspect-ratio:4/3;display:grid;place-items:center}
+.doctile .fi{transform:scale(2.1)}
+.pathbar{border-top:1px solid var(--line);display:flex;align-items:center;gap:6px;padding:0 16px;font-size:11px;color:var(--ink2);white-space:nowrap}
+.pathbar .fd{width:13px;height:11px}
+.pathbar .lg{width:13px;height:13px}
+.pathbar svg.sep{width:8px;height:8px;stroke:var(--ink3);fill:none;stroke-width:1.6}
+.insp{border-left:1px solid var(--line);padding:16px 16px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.insp .ph{width:100%;aspect-ratio:4/3;border-radius:8px}
+.insp h3{font-size:14px;font-weight:600;line-height:1.25}
+.insp .sub{font-size:12px;color:var(--ink2);margin-top:2px}
+.box{border-radius:10px;background:var(--win2);box-shadow:0 0 0 .5px var(--line)}
+.box .r{display:flex;align-items:center;gap:10px;padding:9px 12px}
+.box .r+.r{border-top:1px solid var(--line)}
+.box .r .ic{color:var(--ink2)}
+.box .r b{display:block;font-weight:600}
+.box .r small{display:block;font-size:11px;color:var(--ink2)}
+.kv{display:grid;grid-template-columns:80px 1fr;gap:5px 10px;font-size:12px}
+.kv dt{color:var(--ink2)}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.acts .btn{height:26px;padding:0 11px;font-size:12px}
+
+/* search variant */
+.d1s{grid-template-columns:228px 1fr}
+.d1s .main{display:grid;grid-template-rows:52px 40px 26px 1fr 30px;min-width:0}
+.scope{display:flex;align-items:center;gap:6px;padding:0 16px;font-size:12px;white-space:nowrap}
+.scope .chip{height:24px;padding:0 10px;border-radius:12px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 0 0 .5px var(--line2)}
+.scope .chip.on{background:var(--accent);color:#fff;box-shadow:none}
+.scope .chip .lg{width:13px;height:13px}
+.scope .lab{color:var(--ink2);margin-right:4px}
+.cols{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1.5fr) 110px 70px;gap:12px;padding:0 20px;font-size:11px;font-weight:500;color:var(--ink2);align-items:center;border-bottom:1px solid var(--line)}
+.results{overflow:hidden}
+.grp{display:flex;align-items:center;gap:8px;padding:12px 20px 4px;font-size:12px;font-weight:600}
+.grp .lg{width:15px;height:15px}
+.grp span{font-weight:400;color:var(--ink2)}
+.res{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1.5fr) 110px 70px;gap:12px;padding:0 20px;height:30px;align-items:center;white-space:nowrap}
+.res:nth-of-type(even){background:var(--win2)}
+.res .n{display:flex;align-items:center;gap:8px;overflow:hidden}
+.res .n .fi{transform:scale(.62);margin:0 -4px}
+.res .n .fd{width:18px}
+.res .n span{overflow:hidden;text-overflow:ellipsis}
+.res mark{background:color-mix(in srgb,var(--accent) 22%,transparent);color:inherit;border-radius:3px;padding:0 1px}
+.res .w,.res .d,.res .s{color:var(--ink2);overflow:hidden;text-overflow:ellipsis}
+.res .s{text-align:right}
+.res.sel{background:var(--accent)!important;color:#fff}
+.res.sel .w,.res.sel .d,.res.sel .s{color:rgba(255,255,255,.8)}
+.res.sel mark{background:rgba(255,255,255,.25)}
+
+/* ---------- Direction 2: Home ---------- */
+.d2{grid-template-columns:236px 1fr}
+.d2 .main{display:grid;grid-template-rows:52px 1fr;min-width:0}
+.d2 .side .cl{display:flex;flex-direction:column;gap:3px;padding:5px 8px;border-radius:8px}
+.d2 .side .cl .top-l{display:flex;align-items:center;gap:8px}
+.d2 .side .cl .bar{height:3px;margin-left:26px}
+.homebody{padding:4px 28px 24px;display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:22px;overflow:hidden;align-content:start}
+.overview{grid-column:1/3;padding:18px 20px 16px}
+.ov-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+.ov-h b{font-size:15px;font-weight:600}
+.ov-h span{color:var(--ink2)}
+.seg{display:flex;height:22px;border-radius:6px;overflow:hidden;background:var(--track);gap:2px}
+.seg i{display:block;height:100%}
+.legend{display:flex;gap:18px;margin-top:10px;font-size:12px;color:var(--ink2);flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend b{color:var(--ink);font-weight:500}
+.attn{grid-column:1/3;display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:12px;background:color-mix(in srgb,var(--warn) 11%,var(--win));box-shadow:0 0 0 .5px color-mix(in srgb,var(--warn) 45%,transparent)}
+.attn .ic{color:var(--warn);width:20px;height:20px}
+.attn div{flex:1}
+.attn b{display:block;font-weight:600}
+.attn small{font-size:12px;color:var(--ink2)}
+.h4{font-size:13px;font-weight:600;margin:0 0 8px 4px}
+.clouds .crow{display:grid;grid-template-columns:40px minmax(0,1fr) 150px 10px;gap:12px;align-items:center;padding:10px 14px}
+.clouds .crow+.crow{border-top:1px solid var(--line)}
+.crow .nm b{font-weight:600}
+.crow .nm small{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);margin-top:2px;white-space:nowrap}
+.crow .use{font-size:11px;color:var(--ink2);display:flex;flex-direction:column;gap:5px;text-align:right}
+.crow .chev{width:8px;height:12px;stroke:var(--ink3);fill:none;stroke-width:1.6}
+.crow.off{opacity:.62}
+.tag{font-size:11px;padding:1px 7px;border-radius:5px;background:var(--selrow);color:var(--ink2)}
+.feed .fr{display:grid;grid-template-columns:22px 1fr;gap:10px;padding:9px 12px;font-size:12px}
+.feed .fr+.fr{border-top:1px solid var(--line)}
+.feed .fr .ic{color:var(--ink2);margin-top:1px}
+.feed .fr small{display:block;color:var(--ink3);font-size:11px}
+.sugg{padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:12px}
+.sugg+.sugg{border-top:1px solid var(--line)}
+.sugg p{color:var(--ink2)}
+.sugg b{color:var(--ink);font-weight:600;display:block;font-size:13px}
+
+/* sheet */
+.ghostwin{grid-template-columns:236px 1fr}
+.ghost{background:var(--win2);border-radius:6px}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.18);z-index:4}
+.sheet{position:absolute;left:50%;top:40px;transform:translateX(-50%);width:640px;background:var(--win);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.35),0 0 0 .5px var(--line2);z-index:5;padding:22px 24px 18px}
+.steps{display:flex;gap:8px;margin-bottom:18px;font-size:11px;color:var(--ink3)}
+.steps div{flex:1;display:flex;flex-direction:column;gap:6px}
+.steps i{height:3px;border-radius:2px;background:var(--track);display:block}
+.steps .on{color:var(--ink)}.steps .on i{background:var(--accent)}
+.sheet h3{font-size:20px;font-weight:700;letter-spacing:-.01em}
+.sheet .sub{color:var(--ink2);margin:4px 0 14px}
+.sheet .search{width:100%;margin-bottom:16px;background:var(--win2);box-shadow:0 0 0 .5px var(--line2)}
+.provs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.prov{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 6px 11px;border-radius:12px;box-shadow:0 0 0 .5px var(--line2);text-align:center}
+.prov b{font-weight:600;font-size:12px}
+.prov small{font-size:11px;color:var(--ink2);line-height:1.2}
+.prov.sel{box-shadow:0 0 0 2px var(--accent);background:color-mix(in srgb,var(--accent) 6%,var(--win))}
+.adv{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.adv>span{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px 0 6px;border-radius:15px;box-shadow:0 0 0 .5px var(--line2);font-size:12px}
+.adv .logo{width:20px;height:20px;border-radius:5px;box-shadow:none}
+.adv>span.more{padding-left:12px;color:var(--accent)}
+.sheet-foot{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line);padding-top:14px}
+.sheet-foot small{flex:1;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2)}
+
+/* ---------- Direction 3: Companion ---------- */
+.desk{position:relative;width:1120px;height:610px;margin:0 auto}
+.menubar{position:absolute;inset:0 0 auto 0;height:30px;background:var(--menubar);backdrop-filter:blur(20px);display:flex;align-items:center;gap:18px;padding:0 14px;font-size:13px;color:var(--ink);font-weight:500;z-index:2}
+.menubar .sp{flex:1}
+.menubar .mi{font-weight:400}
+.menubar .ni{height:24px;padding:0 8px;border-radius:6px;display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.35)}
+[data-theme=dark] .menubar .ni{background:rgba(255,255,255,.18)}
+.menubar svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.finder{position:absolute;left:30px;top:64px;width:636px;height:500px;grid-template-columns:196px 1fr}
+.finder .main{display:grid;grid-template-rows:52px 26px 1fr;min-width:0}
+.lhead{display:grid;grid-template-columns:minmax(0,1fr) 120px 70px 24px;gap:10px;padding:0 16px;font-size:11px;color:var(--ink2);align-items:center;border-bottom:1px solid var(--line)}
+.lrow{display:grid;grid-template-columns:minmax(0,1fr) 120px 70px 24px;gap:10px;padding:0 16px;height:28px;align-items:center;white-space:nowrap}
+.lrow:nth-child(even){background:var(--win2)}
+.lrow .n{display:flex;align-items:center;gap:8px;overflow:hidden}
+.lrow .n .fi{transform:scale(.6);margin:0 -4px}
+.lrow .d,.lrow .s{color:var(--ink2)}.lrow .s{text-align:right}
+.lrow svg.st{width:14px;height:14px;fill:none;stroke:var(--ink3);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.lrow svg.st.ok{stroke:var(--ok)}
+.pop{position:absolute;right:96px;top:36px;width:350px;background:var(--glass);backdrop-filter:blur(40px) saturate(1.4);border-radius:18px;box-shadow:0 22px 60px rgba(0,0,0,.32),0 0 0 .5px var(--line2);color:var(--ink);font-size:13px;z-index:3;overflow:hidden}
+[data-theme=dark] .pop{background:rgba(48,48,54,.86)}
+.pop-h{padding:16px 16px 14px;display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-items:center}
+.pop-h b{font-size:14px;font-weight:600}
+.pop-h small{grid-column:1;color:var(--ink2);font-size:12px}
+.pop-h .bar{grid-column:1/3;height:5px}
+.roundbtn{width:28px;height:28px;border-radius:50%;background:var(--selrow);display:grid;place-items:center;grid-row:1/2;grid-column:2}
+.pop-sec{padding:6px 8px;border-top:1px solid var(--line)}
+.pop-sec h6{font-size:11px;font-weight:600;color:var(--ink3);margin:6px 8px 4px}
+.prow{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 8px;border-radius:10px}
+.prow.hl{background:var(--selrow)}
+.prow b{font-weight:500;display:block}
+.prow small{display:block;font-size:11px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prow .logo{width:28px;height:28px;border-radius:7px}
+.prow.off{opacity:.55}
+.prow .fi{transform:scale(.8);justify-self:center}
+.pop-f{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--line);align-items:center}
+.pop-f .flex{flex:1}
+
+.d3s{grid-template-columns:236px 1fr}
+.d3s .main{overflow:hidden;padding:0 30px 24px}
+.d3s .side .search{width:100%;margin:2px 0 6px;height:28px;background:var(--selrow);box-shadow:none}
+.phead{display:flex;align-items:center;gap:16px;padding:22px 0 18px}
+.phead h3{font-size:22px;font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.phead small{color:var(--ink2);font-size:13px}
+.form{border-radius:12px;background:var(--win2);box-shadow:0 0 0 .5px var(--line);margin-bottom:16px}
+.form .r{display:flex;align-items:center;gap:14px;padding:11px 14px;min-height:44px}
+.form .r+.r{border-top:1px solid var(--line)}
+.form .r div{flex:1}
+.form .r small{display:block;font-size:11px;color:var(--ink2);margin-top:1px}
+.form .r .val{color:var(--ink2)}
+.fh{font-size:13px;font-weight:600;margin:0 0 7px 4px}
+.storage-line{display:flex;justify-content:space-between;font-size:12px;color:var(--ink2);margin-top:8px}
+
+/* compare */
+.cmp{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+.cmp th,.cmp td{text-align:left;vertical-align:top;padding:12px 14px;border-bottom:1px solid var(--line)}
+.cmp thead th{font-size:15px}
+.cmp tbody th{font-weight:500;color:var(--pg-ink2);width:170px}
+.vocab{display:grid;grid-template-columns:1fr 1fr;gap:0 40px;margin-top:8px;font-size:14px}
+.vocab div{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.vocab s{color:var(--pg-ink2);text-decoration-color:color-mix(in srgb,var(--pg-ink2) 60%,transparent)}
+.rec{margin-top:28px;padding:22px 24px;border-radius:16px;background:var(--glass);box-shadow:0 0 0 .5px var(--line2);max-width:860px}
+.rec h3{font-size:18px;margin-bottom:8px}
+.rec p+p{margin-top:10px}
+footer{max-width:1200px;margin:0 auto;padding:24px 40px 64px;font-size:13px;color:var(--pg-ink2)}
+@media (max-width:900px){.dir-head{grid-template-columns:1fr}.top{grid-template-columns:56px 1fr}.top img{width:56px;height:56px}.theme{grid-column:1/3;justify-self:start}.vocab{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+  <symbol id="i-back" viewBox="0 0 16 16"><path d="M10 3L5 8l5 5"/></symbol>
+  <symbol id="i-fwd" viewBox="0 0 16 16"><path d="M6 3l5 5-5 5"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 16 16"><path d="M2.5 2.5h4.5v4.5H2.5zM9 2.5h4.5v4.5H9zM2.5 9h4.5v4.5H2.5zM9 9h4.5v4.5H9z"/></symbol>
+  <symbol id="i-list" viewBox="0 0 16 16"><path d="M5.5 4h8M5.5 8h8M5.5 12h8M2.5 4h.01M2.5 8h.01M2.5 12h.01"/></symbol>
+  <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4L14 14"/></symbol>
+  <symbol id="i-share" viewBox="0 0 16 16"><path d="M8 10V2M5 5l3-3 3 3M4 7.5H3.5v6h9v-6H12"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 16 16"><path d="M4.5 12.5h7.2a2.9 2.9 0 00.3-5.8 4 4 0 00-7.6 1.1A2.4 2.4 0 004.5 12.5z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"/></symbol>
+  <symbol id="i-checkc" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M5.3 8.3l1.8 1.8 3.6-4"/></symbol>
+  <symbol id="i-up" viewBox="0 0 16 16"><path d="M8 13V3.5M4.5 7L8 3.5 11.5 7"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 16 16"><path d="M13 6.5A5 5 0 004 4.5L3 6M3 9.5a5 5 0 009 2l1-1.5M3 3v3h3M13 13v-3h-3"/></symbol>
+  <symbol id="i-down" viewBox="0 0 16 16"><path d="M8 3v9.5M4.5 9L8 12.5 11.5 9"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 16 16"><path d="M6 4.5v7M10 4.5v7"/></symbol>
+  <symbol id="i-sidebar-r" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="2.2"/><path d="M10 3v10"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.8"/><path d="M8 4.8V8l2.2 1.4"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 16 16"><path d="M3.5 4h9v6.5h-9zM1.5 12.5h13"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 8 12"><path d="M2 2l4 4-4 4"/></symbol>
+  <symbol id="i-updown" viewBox="0 0 10 14"><path d="M2.5 5L5 2.5 7.5 5M2.5 9L5 11.5 7.5 9"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2.2l6.2 11H1.8zM8 6.5v3M8 11.4h.01"/></symbol>
+  <symbol id="i-home" viewBox="0 0 16 16"><path d="M2.5 7.3L8 2.8l5.5 4.5V13h-3.8V9.5H6.3V13H2.5z"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 16 16"><path d="M1.5 8.5h3l2-4.5 3 8 2-3.5h3"/></symbol>
+  <symbol id="i-backup" viewBox="0 0 16 16"><path d="M2.8 8A5.2 5.2 0 108 2.8a5.3 5.3 0 00-4 1.9M3.8 2.3v2.6h2.6M8 5.5V8l1.8 1.2"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5.2a2.5 2.5 0 015 0V7"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.8M8 12.4v1.8M1.8 8h1.8M12.4 8h1.8M3.6 3.6l1.3 1.3M11.1 11.1l1.3 1.3M3.6 12.4l1.3-1.3M11.1 4.9l1.3-1.3"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 9h5.6l.7-9"/></symbol>
+  <symbol id="i-finder" viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="2.5"/><path d="M8.3 2.5C7.4 5 7 7 7.3 9h1.4M5.2 6v1M10.8 6v1M5.3 10.6c1.6 1 3.8 1 5.4 0"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 16 16"><path d="M2 6.5a9 9 0 0112 0M4.2 9a5.8 5.8 0 017.6 0M6.4 11.4a2.6 2.6 0 013.2 0M8 13.4h.01"/></symbol>
+  <symbol id="i-batt" viewBox="0 0 22 16"><rect x="1.5" y="4" width="17" height="8" rx="2.2"/><rect x="3" y="5.5" width="11" height="5" rx="1" fill="currentColor" stroke="none"/><path d="M20 7v2"/></symbol>
+  <symbol id="i-cc" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="4.2" rx="2.1"/><rect x="2" y="8.8" width="12" height="4.2" rx="2.1"/><circle cx="11.9" cy="5.1" r="1.1"/><circle cx="4.1" cy="10.9" r="1.1"/></symbol>
+  <symbol id="i-nimbus-mb" viewBox="0 0 16 16"><path d="M4.3 12.5h7.4a2.9 2.9 0 00.3-5.8 4 4 0 00-7.6 1.1A2.4 2.4 0 004.3 12.5zM8 11V7.3M6.4 8.8L8 7.2l1.6 1.6"/></symbol>
+
+  <symbol id="folder" viewBox="0 0 40 32"><path fill="#4E9DEB" d="M2 6a3 3 0 013-3h9.5l3 3H35a3 3 0 013 3v18a3 3 0 01-3 3H5a3 3 0 01-3-3z"/><path fill="#7CBEF7" d="M2 11.5a2 2 0 012-2h32a2 2 0 012 2V27a3 3 0 01-3 3H5a3 3 0 01-3-3z"/></symbol>
+
+  <symbol id="l-gdrive" viewBox="0 0 24 24"><path fill="#0F9D58" d="M8.2 3.5L1.5 15.1 4.9 21l6.7-11.6z"/><path fill="#FFBA00" d="M8.2 3.5h7.6l6.7 11.6h-7.6z"/><path fill="#4285F4" d="M4.9 21h14.2l3.4-5.9H8.3z"/></symbol>
+  <symbol id="l-dropbox" viewBox="0 0 24 24"><g fill="#0061FF"><path d="M6.5 3l5 3.2-5 3.2-5-3.2zM17.5 3l5 3.2-5 3.2-5-3.2zM1.5 12.6l5-3.2 5 3.2-5 3.2zM12.5 12.6l5-3.2 5 3.2-5 3.2zM12 16.6l5 3.2-5 3.2-5-3.2z"/></g></symbol>
+  <symbol id="l-onedrive" viewBox="0 0 24 24"><path fill="#0364B8" d="M9.8 8.6a6 6 0 0110.6 2.3 4 4 0 00-4.2-.3L9.8 8.6z"/><path fill="#1490DF" d="M9.8 7.5a5.4 5.4 0 00-6.6 5.3A4 4 0 006 19h12.5a3.8 3.8 0 001.4-7.4 5.6 5.6 0 00-10.1-4.1z"/><path fill="#28A8EA" d="M6 19h12.5a3.8 3.8 0 001.4-7.4L9 17.2 6 19z" opacity=".9"/></symbol>
+  <symbol id="l-b2" viewBox="0 0 24 24"><path fill="#E21E29" d="M12.3 2c.7 3.4 6.2 5.8 6.2 11.3a6.5 6.5 0 01-13 0c0-3.2 1.9-4.7 2.8-7.2 1 1.3 1.8 2.7 1.8 4.4 1.4-2.6 2.6-5.4 2.2-8.5z"/></symbol>
+  <symbol id="l-sftp" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="7" rx="2" fill="#8E8E95"/><rect x="3.5" y="13" width="17" height="7" rx="2" fill="#8E8E95"/><circle cx="16.5" cy="7.5" r="1.1" fill="#fff"/><circle cx="16.5" cy="16.5" r="1.1" fill="#fff"/><path d="M6.5 7.5h5M6.5 16.5h5" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/></symbol>
+  <symbol id="l-icloud" viewBox="0 0 24 24"><defs><linearGradient id="gi" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5EB0FF"/><stop offset="1" stop-color="#1F6FEA"/></linearGradient></defs><path fill="url(#gi)" d="M6.4 19h11.2a4.3 4.3 0 00.6-8.6 6.2 6.2 0 00-11.8 1.6A3.6 3.6 0 006.4 19z"/></symbol>
+  <symbol id="l-box" viewBox="0 0 24 24"><text x="12" y="16" text-anchor="middle" font-family="Helvetica,Arial" font-size="10.5" font-weight="800" fill="#0061D5">box</text></symbol>
+  <symbol id="l-pcloud" viewBox="0 0 24 24"><path fill="none" stroke="#17BED0" stroke-width="2.4" d="M7 18h10.2a3.8 3.8 0 00.5-7.6 5.6 5.6 0 00-10.7 1.4A3.1 3.1 0 007 18z"/></symbol>
+  <symbol id="l-proton" viewBox="0 0 24 24"><defs><linearGradient id="gp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8B6CFF"/><stop offset="1" stop-color="#5B2EE8"/></linearGradient></defs><path fill="url(#gp)" d="M5 21V8.5A5.5 5.5 0 0110.5 3h3a5.5 5.5 0 010 11H10v7z"/><path fill="#fff" opacity=".35" d="M10 14V8.5h3.4a2.7 2.7 0 010 5.5z"/></symbol>
+  <symbol id="l-mega" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="#D9272E"/><path d="M7.5 15.5v-7l4.5 4.5 4.5-4.5v7" fill="none" stroke="#fff" stroke-width="1.9" stroke-linejoin="round"/></symbol>
+  <symbol id="l-s3" viewBox="0 0 24 24"><path fill="#E7811B" d="M4 6.5h16l-1.8 12.7a2 2 0 01-2 1.8H7.8a2 2 0 01-2-1.8z"/><ellipse cx="12" cy="6.5" rx="8" ry="2.4" fill="#F7A84A"/></symbol>
+  <symbol id="l-webdav" viewBox="0 0 24 24"><g fill="none" stroke="#6E6E76" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.6 2.6 14.4 0 17M12 3.5c-2.6 2.6-2.6 14.4 0 17"/></g></symbol>
+</defs>
+</svg>
+
+<header class="top">
+  <img src="data:image/png;base64,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" alt="Nimbus app icon">
+  <div>
+    <h1>Three directions for Nimbus</h1>
+    <p>Each direction is a different answer to one question: what should someone see when they open a cloud storage app on their Mac? All three use the same native parts (Liquid Glass toolbar, floating sidebar, system type), the same plain vocabulary, and the same sample data, so the differences are about layout and priorities, not paint.</p>
+  </div>
+  <button class="theme" id="theme" aria-pressed="false">Show dark appearance</button>
+  <nav aria-label="Directions">
+    <a href="#places">Places</a><a href="#home">Home</a><a href="#companion">Companion</a><a href="#compare">Compare and recommendation</a>
+  </nav>
+</header>
+
+<!-- ======================= DIRECTION 1 ======================= -->
+<section class="dir" id="places">
+  <div class="dir-head">
+    <div>
+      <h2>Places<small>Every cloud is a drive in one Finder-grade window</small></h2>
+      <p class="lede">Clouds sit in the sidebar the way disks sit in Finder. Pinned folders from any cloud sit beside them. The window is a fast file browser first: thumbnails, an inspector that explains where a file lives, and one search box that looks in every cloud at once.</p>
+    </div>
+    <dl class="fit">
+      <div><dt>Feels like</dt><dd>Finder, if every cloud were plugged in</dd></div>
+      <div><dt>Best for</dt><dd>People who move and find files across several clouds every day</dd></div>
+      <div><dt>Gives up</dt><dd>Someone who only wanted their Google Drive in Finder still meets a file browser first. Account health is a glyph, not a sentence.</dd></div>
+      <div><dt>From today</dt><dd>Closest to the current Volumes build. Mostly a sidebar, inspector, and search change.</dd></div>
+    </dl>
+  </div>
+
+  <figure class="stage">
+    <div class="win d1" style="width:1120px;height:690px">
+      <aside class="side">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <div class="srow"><svg class="ic"><use href="#i-clock"/></svg><span class="nm">Recents</span></div>
+        <div class="srow"><svg class="ic"><use href="#i-laptop"/></svg><span class="nm">Kept on this Mac</span></div>
+        <h6>Clouds</h6>
+        <div class="srow"><svg class="lg"><use href="#l-gdrive"/></svg><span class="nm">Personal</span><svg class="tail sync" viewBox="0 0 16 16"><use href="#i-sync"/></svg></div>
+        <div class="srow"><svg class="lg"><use href="#l-onedrive"/></svg><span class="nm">Work</span><svg class="tail ok" viewBox="0 0 16 16"><use href="#i-check"/></svg></div>
+        <div class="srow"><svg class="lg"><use href="#l-dropbox"/></svg><span class="nm">Dropbox</span><svg class="tail ok" viewBox="0 0 16 16"><use href="#i-check"/></svg></div>
+        <div class="srow"><svg class="lg"><use href="#l-b2"/></svg><span class="nm">Photo Archive</span><svg class="tail ok" viewBox="0 0 16 16"><use href="#i-check"/></svg></div>
+        <div class="srow dim"><svg class="lg" style="opacity:.5"><use href="#l-sftp"/></svg><span class="nm">Home NAS</span><span class="note">Away</span></div>
+        <h6>Pinned</h6>
+        <div class="srow sel"><svg class="fd"><use href="#folder"/></svg><span class="nm">Yosemite 2026</span></div>
+        <div class="srow"><svg class="fd"><use href="#folder"/></svg><span class="nm">Taxes</span></div>
+        <div class="srow"><svg class="fd"><use href="#folder"/></svg><span class="nm">Client Work</span></div>
+        <div class="flex"></div>
+        <div class="srow" style="color:var(--ink2)"><svg class="ic" style="color:var(--ink2)"><use href="#i-plus"/></svg><span class="nm">Add Cloud</span></div>
+      </aside>
+      <div class="main">
+        <div class="tb">
+          <div class="cap"><b><svg class="ic"><use href="#i-back"/></svg></b><b class="dimmed"><svg class="ic"><use href="#i-fwd"/></svg></b></div>
+          <div class="ttl"><strong>Yosemite 2026</strong><span>Personal › Photos</span></div>
+          <div class="flex"></div>
+          <div class="pill"><span class="ring" style="--p:.62"></span>Uploading 3 photos<span class="mut">2 min left</span></div>
+          <div class="cap"><b class="on"><svg class="ic"><use href="#i-grid"/></svg></b><b><svg class="ic"><use href="#i-list"/></svg></b></div>
+          <div class="cap"><b><svg class="ic"><use href="#i-share"/></svg></b><b class="on"><svg class="ic"><use href="#i-sidebar-r"/></svg></b></div>
+          <div class="search"><svg class="ic"><use href="#i-search"/></svg>Search all clouds</div>
+        </div>
+        <div class="body">
+          <div class="content">
+            <div class="tiles">
+              <div class="tile sel"><div class="ph p1"></div><div class="tn"><span>Half Dome Sunrise</span><svg viewBox="0 0 16 16"><use href="#i-cloud"/></svg></div></div>
+              <div class="tile"><div class="ph p2 b"></div><div class="tn"><span>Tunnel View</span><svg viewBox="0 0 16 16"><use href="#i-cloud"/></svg></div></div>
+              <div class="tile"><div class="ph p3"><span class="dur">0:42</span></div><div class="tn"><span>Mist Trail</span><svg viewBox="0 0 16 16"><use href="#i-cloud"/></svg></div></div>
+              <div class="tile"><div class="ph p4 b"></div><div class="tn"><span>El Capitan</span><svg viewBox="0 0 16 16" style="stroke:var(--ok)"><use href="#i-check"/></svg></div></div>
+              <div class="tile"><div class="ph p5"></div><div class="tn"><span>Glacier Point</span><svg viewBox="0 0 16 16"><use href="#i-cloud"/></svg></div></div>
+              <div class="tile"><div class="ph p6"><div class="prog"><i style="--v:82%"></i></div></div><div class="tn"><span>Camp Night</span><svg class="up" viewBox="0 0 16 16"><use href="#i-up"/></svg></div></div>
+              <div class="tile"><div class="ph p7 b"><div class="prog"><i style="--v:40%"></i></div></div><div class="tn"><span>Mirror Lake</span><svg class="up" viewBox="0 0 16 16"><use href="#i-up"/></svg></div></div>
+              <div class="tile"><div class="ph p8"><span class="dur">1:18</span><div class="prog"><i style="--v:8%"></i></div></div><div class="tn"><span>Valley Floor</span><svg class="up" viewBox="0 0 16 16"><use href="#i-up"/></svg></div></div>
+              <div class="tile"><div class="ph p9 b"></div><div class="tn"><span>Nevada Fall</span><svg viewBox="0 0 16 16"><use href="#i-cloud"/></svg></div></div>
+              <div class="tile"><div class="ph p10"></div><div class="tn"><span>Taft Point</span><svg viewBox="0 0 16 16"><use href="#i-cloud"/></svg></div></div>
+              <div class="tile"><div class="ph p11 b"></div><div class="tn"><span>Sentinel Dome</span><svg viewBox="0 0 16 16"><use href="#i-cloud"/></svg></div></div>
+              <div class="tile"><div class="doctile"><span class="fi pdf"><b>PDF</b></span></div><div class="tn"><span>Itinerary.pdf</span><svg viewBox="0 0 16 16" style="stroke:var(--ok)"><use href="#i-check"/></svg></div></div>
+            </div>
+            <div class="pathbar">
+              <svg class="lg"><use href="#l-gdrive"/></svg>Personal<svg class="sep" viewBox="0 0 8 12"><use href="#i-chev"/></svg>
+              <svg class="fd"><use href="#folder"/></svg>Photos<svg class="sep" viewBox="0 0 8 12"><use href="#i-chev"/></svg>
+              <svg class="fd"><use href="#folder"/></svg>Yosemite 2026
+              <span class="flex"></span>12 items, 1 selected, 720 GB free
+            </div>
+          </div>
+          <aside class="insp">
+            <div class="ph p1"></div>
+            <div><h3>Half Dome Sunrise.heic</h3><p class="sub">HEIC image, 8.4 MB</p></div>
+            <div class="box">
+              <div class="r"><svg class="ic"><use href="#i-cloud"/></svg><div><b>In the cloud only</b><small>Downloads the moment you open it.</small></div></div>
+              <div class="r"><span class="flex">Keep on this Mac</span><span class="sw"></span></div>
+            </div>
+            <dl class="kv">
+              <dt>Where</dt><dd>Personal › Photos › Yosemite 2026</dd>
+              <dt>Modified</dt><dd>Today at 6:42 AM</dd>
+              <dt>Dimensions</dt><dd>4032 × 3024</dd>
+              <dt>Taken with</dt><dd>iPhone 17 Pro</dd>
+            </dl>
+            <div class="acts"><span class="btn"><svg class="ic"><use href="#i-eye"/></svg>Quick Look</span><span class="btn">Copy to…</span><span class="btn">Share Link</span></div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </figure>
+  <figcaption>Status lives next to each name, the way Finder shows iCloud Drive: a cloud means it is online only, a check means it is on this Mac, an arrow means it is uploading. The toolbar pill is the only place a transfer shows unless you click it.</figcaption>
+
+  <figure class="stage">
+    <div class="win d1s" style="width:1120px;height:470px">
+      <aside class="side">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <div class="srow"><svg class="ic"><use href="#i-clock"/></svg><span class="nm">Recents</span></div>
+        <div class="srow"><svg class="ic"><use href="#i-laptop"/></svg><span class="nm">Kept on this Mac</span></div>
+        <h6>Clouds</h6>
+        <div class="srow"><svg class="lg"><use href="#l-gdrive"/></svg><span class="nm">Personal</span></div>
+        <div class="srow"><svg class="lg"><use href="#l-onedrive"/></svg><span class="nm">Work</span></div>
+        <div class="srow"><svg class="lg"><use href="#l-dropbox"/></svg><span class="nm">Dropbox</span></div>
+        <div class="srow"><svg class="lg"><use href="#l-b2"/></svg><span class="nm">Photo Archive</span></div>
+        <div class="srow dim"><svg class="lg" style="opacity:.5"><use href="#l-sftp"/></svg><span class="nm">Home NAS</span><span class="note">Away</span></div>
+      </aside>
+      <div class="main">
+        <div class="tb">
+          <div class="cap"><b><svg class="ic"><use href="#i-back"/></svg></b><b class="dimmed"><svg class="ic"><use href="#i-fwd"/></svg></b></div>
+          <div class="ttl"><strong>Searching all clouds</strong><span>6 results in 3 clouds</span></div>
+          <div class="flex"></div>
+          <div class="search focus" style="width:300px"><svg class="ic"><use href="#i-search"/></svg><span style="color:var(--ink)">invoice</span><span class="flex"></span><span class="tok">PDF</span></div>
+        </div>
+        <div class="scope">
+          <span class="lab">Search in</span>
+          <span class="chip on">All clouds</span>
+          <span class="chip"><svg class="lg"><use href="#l-gdrive"/></svg>Personal</span>
+          <span class="chip"><svg class="lg"><use href="#l-onedrive"/></svg>Work</span>
+          <span class="chip"><svg class="lg"><use href="#l-dropbox"/></svg>Dropbox</span>
+          <span class="chip"><svg class="lg"><use href="#l-b2"/></svg>Photo Archive</span>
+          <span class="flex"></span>
+          <span class="lab">Match</span><span class="popup">Names and contents<svg viewBox="0 0 10 14"><use href="#i-updown"/></svg></span>
+        </div>
+        <div class="cols"><span>Name</span><span>Where</span><span>Modified</span><span style="text-align:right">Size</span></div>
+        <div class="results">
+          <div class="grp"><svg class="lg"><use href="#l-gdrive"/></svg>Personal <span>Google Drive</span></div>
+          <div class="res sel"><span class="n"><span class="fi pdf"><b>PDF</b></span><span><mark>Invoice</mark> 2026-031 Acme.pdf</span></span><span class="w">Client Work › Acme</span><span class="d">Oct 30, 2026</span><span class="s">214 KB</span></div>
+          <div class="res"><span class="n"><span class="fi pdf"><b>PDF</b></span><span><mark>Invoice</mark> 2026-028 Lumen.pdf</span></span><span class="w">Client Work › Lumen</span><span class="d">Oct 2, 2026</span><span class="s">198 KB</span></div>
+          <div class="grp"><svg class="lg"><use href="#l-onedrive"/></svg>Work <span>OneDrive</span></div>
+          <div class="res"><span class="n"><span class="fi pdf"><b>PDF</b></span><span>Vendor <mark>invoice</mark> policy.pdf</span></span><span class="w">Finance › Policies</span><span class="d">Sep 14, 2026</span><span class="s">1.1 MB</span></div>
+          <div class="res"><span class="n"><span class="fi pdf"><b>PDF</b></span><span>Q3 <mark>invoice</mark>s signed.pdf</span></span><span class="w">Finance › 2026</span><span class="d">Oct 8, 2026</span><span class="s">6.4 MB</span></div>
+          <div class="grp"><svg class="lg"><use href="#l-dropbox"/></svg>Dropbox <span>Dropbox</span></div>
+          <div class="res"><span class="n"><span class="fi pdf"><b>PDF</b></span><span>Plumber <mark>invoice</mark> (scan).pdf</span></span><span class="w">Home › Repairs</span><span class="d">Aug 21, 2026</span><span class="s">2.3 MB</span></div>
+          <div class="res"><span class="n"><span class="fi pdf"><b>PDF</b></span><span>Roof <mark>invoice</mark> 2025.pdf</span></span><span class="w">Home › Repairs</span><span class="d">Mar 3, 2025</span><span class="s">880 KB</span></div>
+        </div>
+        <div class="pathbar"><svg class="ic" style="width:12px;height:12px;color:var(--warn)"><use href="#i-warn"/></svg>Home NAS wasn't searched because it's only reachable on your home network.</div>
+      </div>
+    </div>
+  </figure>
+  <figcaption>One search box, every cloud. Results group by cloud so the same file name in two places is never ambiguous, and the footer says plainly which cloud was skipped and why.</figcaption>
+</section>
+
+<!-- ======================= DIRECTION 2 ======================= -->
+<section class="dir" id="home">
+  <div class="dir-head">
+    <div>
+      <h2>Home<small>A calm overview that answers "is everything okay?" first</small></h2>
+      <p class="lede">The window opens on Home, styled after the Storage pane in System Settings: one bar for everything you store, one line per cloud in plain words, and at most one problem with the button that fixes it. Files are one click deeper, inside each cloud.</p>
+    </div>
+    <dl class="fit">
+      <div><dt>Feels like</dt><dd>System Settings › Storage, for every cloud you use</dd></div>
+      <div><dt>Best for</dt><dd>Anyone. Especially people who don't know what rclone, a remote, or a mount is.</dd></div>
+      <div><dt>Gives up</dt><dd>Power users take one extra click to reach files. Suggestions need care so they never read as nagging.</dd></div>
+      <div><dt>From today</dt><dd>New Home screen plus a guided Add Cloud sheet. The Volumes pane stays as each cloud's detail page.</dd></div>
+    </dl>
+  </div>
+
+  <figure class="stage">
+    <div class="win d2" style="width:1120px;height:720px">
+      <aside class="side">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <div class="srow sel"><svg class="ic"><use href="#i-home"/></svg><span class="nm">Home</span></div>
+        <div class="srow"><svg class="ic"><use href="#i-pulse"/></svg><span class="nm">Activity</span></div>
+        <div class="srow"><svg class="ic"><use href="#i-backup"/></svg><span class="nm">Backups</span></div>
+        <h6>Clouds</h6>
+        <div class="cl"><div class="top-l"><svg class="lg"><use href="#l-gdrive"/></svg>Personal</div><span class="bar"><i style="--v:64%"></i></span></div>
+        <div class="cl"><div class="top-l"><svg class="lg"><use href="#l-onedrive"/></svg>Work<span class="flex"></span><span class="dot" style="background:var(--warn)"></span></div><span class="bar"><i style="--v:41%"></i></span></div>
+        <div class="cl"><div class="top-l"><svg class="lg"><use href="#l-dropbox"/></svg>Dropbox</div><span class="bar"><i style="--v:3%"></i></span></div>
+        <div class="cl"><div class="top-l"><svg class="lg"><use href="#l-b2"/></svg>Photo Archive</div></div>
+        <div class="cl" style="color:var(--ink3)"><div class="top-l"><svg class="lg" style="opacity:.5"><use href="#l-sftp"/></svg>Home NAS</div></div>
+        <div class="flex"></div>
+        <div class="srow" style="color:var(--ink2)"><svg class="ic" style="color:var(--ink2)"><use href="#i-plus"/></svg><span class="nm">Add Cloud</span></div>
+      </aside>
+      <div class="main">
+        <div class="tb">
+          <div class="ttl" style="padding-left:14px"><strong style="font-size:17px">Home</strong></div>
+          <div class="flex"></div>
+          <span class="btn">Copy Between Clouds…</span>
+          <span class="btn pri"><svg class="ic" style="width:13px;height:13px"><use href="#i-plus"/></svg>Add Cloud</span>
+        </div>
+        <div class="homebody">
+          <div class="box overview">
+            <div class="ov-h"><b>All your clouds</b><span>2.47 TB used of 5 TB you pay for</span></div>
+            <div class="seg"><i style="width:25.6%;background:var(--c1)"></i><i style="width:8.2%;background:var(--c2)"></i><i style="width:1.2%;background:var(--c3)"></i><i style="width:14.4%;background:var(--c4)"></i><i style="width:0%;background:var(--c5)"></i></div>
+            <div class="legend">
+              <span><i class="dot" style="background:var(--c1)"></i><b>Personal</b>1.28 TB</span>
+              <span><i class="dot" style="background:var(--c2)"></i><b>Work</b>412 GB</span>
+              <span><i class="dot" style="background:var(--c3)"></i><b>Dropbox</b>61 GB</span>
+              <span><i class="dot" style="background:var(--c4)"></i><b>Photo Archive</b>720 GB, billed by use</span>
+              <span><i class="dot" style="background:var(--c5)"></i><b>Home NAS</b>not reachable</span>
+            </div>
+          </div>
+
+          <div class="attn">
+            <svg class="ic"><use href="#i-warn"/></svg>
+            <div><b>Work needs you to sign in again</b><small>Microsoft ended the session on Nov 6. Your files are safe; new changes wait until you sign in.</small></div>
+            <span class="btn pri">Sign In to Microsoft</span>
+          </div>
+
+          <div>
+            <p class="h4">Your clouds</p>
+            <div class="box clouds">
+              <div class="crow"><span class="logo l40"><svg><use href="#l-gdrive"/></svg></span><div class="nm"><b>Personal</b><small><span class="dot" style="background:var(--ok)"></span>Up to date<span class="tag">In Finder</span></small></div><div class="use">1.28 TB of 2 TB<span class="bar"><i style="--v:64%"></i></span></div><svg class="chev" viewBox="0 0 8 12"><use href="#i-chev"/></svg></div>
+              <div class="crow"><span class="logo l40"><svg><use href="#l-onedrive"/></svg></span><div class="nm"><b>Work</b><small><span class="dot" style="background:var(--warn)"></span>Needs sign-in<span class="tag">In Finder</span></small></div><div class="use">412 GB of 1 TB<span class="bar"><i style="--v:41%"></i></span></div><svg class="chev" viewBox="0 0 8 12"><use href="#i-chev"/></svg></div>
+              <div class="crow"><span class="logo l40"><svg><use href="#l-dropbox"/></svg></span><div class="nm"><b>Dropbox</b><small><svg class="ic" style="width:12px;height:12px;color:var(--accent)"><use href="#i-up"/></svg>Uploading 3 files, 2 min left</small></div><div class="use">61 GB of 2 TB<span class="bar"><i style="--v:3%"></i></span></div><svg class="chev" viewBox="0 0 8 12"><use href="#i-chev"/></svg></div>
+              <div class="crow"><span class="logo l40"><svg><use href="#l-b2"/></svg></span><div class="nm"><b>Photo Archive</b><small><span class="dot" style="background:var(--ok)"></span>Backed up 2 hours ago</small></div><div class="use">720 GB<span style="color:var(--ink3)">Billed by what you store</span></div><svg class="chev" viewBox="0 0 8 12"><use href="#i-chev"/></svg></div>
+              <div class="crow off"><span class="logo l40"><svg><use href="#l-sftp"/></svg></span><div class="nm"><b>Home NAS</b><small><span class="dot" style="background:var(--c5)"></span>Only reachable on your home network</small></div><div class="use">Last seen Friday</div><svg class="chev" viewBox="0 0 8 12"><use href="#i-chev"/></svg></div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:18px">
+            <div>
+              <p class="h4">Worth a look</p>
+              <div class="box">
+                <div class="sugg"><b>Your Desktop isn't backed up</b><p>Copy it to Photo Archive every night. Only changed files upload.</p><span><span class="btn sm">Set Up Backup…</span></span></div>
+                <div class="sugg"><b>38 GB of downloads you haven't opened</b><p>They're in Personal and stay there. Removing the Mac copies frees space.</p><span><span class="btn sm">Free Up 38 GB</span></span></div>
+              </div>
+            </div>
+            <div>
+              <p class="h4">Recent activity</p>
+              <div class="box feed">
+                <div class="fr"><svg class="ic"><use href="#i-up"/></svg><div>Uploaded 212 photos to Photo Archive<small>Today, 7:10 AM</small></div></div>
+                <div class="fr"><svg class="ic"><use href="#i-sync"/></svg><div>Copied Client Work to Dropbox<small>Yesterday</small></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </figure>
+  <figcaption>Every status is a sentence a non-technical person can act on: "Needs sign-in", "Only reachable on your home network", "Billed by what you store". The one problem gets the one button that fixes it, named for exactly what happens.</figcaption>
+
+  <figure class="stage">
+    <div class="win ghostwin" style="width:1000px;height:690px">
+      <aside class="side">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <div class="srow"><svg class="ic"><use href="#i-home"/></svg><span class="nm">Home</span></div>
+        <div class="srow"><svg class="ic"><use href="#i-pulse"/></svg><span class="nm">Activity</span></div>
+        <div class="srow"><svg class="ic"><use href="#i-backup"/></svg><span class="nm">Backups</span></div>
+        <h6>Clouds</h6>
+        <div class="srow"><svg class="lg"><use href="#l-gdrive"/></svg><span class="nm">Personal</span></div>
+        <div class="srow"><svg class="lg"><use href="#l-onedrive"/></svg><span class="nm">Work</span></div>
+      </aside>
+      <div style="padding:70px 28px;display:grid;gap:14px;align-content:start">
+        <div class="ghost" style="height:110px"></div><div class="ghost" style="height:240px"></div>
+      </div>
+      <div class="scrim"></div>
+      <div class="sheet">
+        <div class="steps">
+          <div class="on"><i></i>1. Choose a service</div>
+          <div><i></i>2. Sign in</div>
+          <div><i></i>3. Name it and add to Finder</div>
+        </div>
+        <h3>Add a cloud</h3>
+        <p class="sub">Pick the service you already use. You'll sign in on its own website; Nimbus never sees your password.</p>
+        <div class="search"><svg class="ic"><use href="#i-search"/></svg>Search 70 services</div>
+        <div class="provs">
+          <div class="prov sel"><span class="logo l40"><svg><use href="#l-gdrive"/></svg></span><b>Google Drive</b><small>Sign in with Google</small></div>
+          <div class="prov"><span class="logo l40"><svg><use href="#l-onedrive"/></svg></span><b>OneDrive</b><small>Personal or work account</small></div>
+          <div class="prov"><span class="logo l40"><svg><use href="#l-dropbox"/></svg></span><b>Dropbox</b><small>Sign in with Dropbox</small></div>
+          <div class="prov"><span class="logo l40"><svg><use href="#l-icloud"/></svg></span><b>iCloud Drive</b><small>Uses your Apple Account</small></div>
+          <div class="prov"><span class="logo l40"><svg><use href="#l-box"/></svg></span><b>Box</b><small>Sign in with Box</small></div>
+          <div class="prov"><span class="logo l40"><svg><use href="#l-pcloud"/></svg></span><b>pCloud</b><small>Email and password</small></div>
+          <div class="prov"><span class="logo l40"><svg><use href="#l-proton"/></svg></span><b>Proton Drive</b><small>End-to-end encrypted</small></div>
+          <div class="prov"><span class="logo l40"><svg><use href="#l-mega"/></svg></span><b>MEGA</b><small>Email and password</small></div>
+        </div>
+        <p class="h4" style="margin-left:0">Storage you run or rent</p>
+        <div class="adv">
+          <span><span class="logo"><svg><use href="#l-s3"/></svg></span>Amazon S3 and compatible</span>
+          <span><span class="logo"><svg><use href="#l-b2"/></svg></span>Backblaze B2</span>
+          <span><span class="logo"><svg><use href="#l-sftp"/></svg></span>NAS or server (SFTP)</span>
+          <span><span class="logo"><svg><use href="#l-webdav"/></svg></span>WebDAV</span>
+          <span class="more">Import from rclone.conf…</span>
+        </div>
+        <div class="sheet-foot">
+          <small><svg class="ic" style="width:13px;height:13px"><use href="#i-lock"/></svg>Your sign-in stays in your Mac's keychain.</small>
+          <span class="btn">Cancel</span>
+          <span class="btn pri">Continue with Google Drive</span>
+        </div>
+      </div>
+    </div>
+  </figure>
+  <figcaption>Adding a cloud is the first thing a new person does, so it gets the most care: real logos, a one-line hint about how sign-in works for each service, popular services first, and servers in their own row so S3 jargon never scares anyone off. The button names the service it continues with.</figcaption>
+</section>
+
+<!-- ======================= DIRECTION 3 ======================= -->
+<section class="dir" id="companion">
+  <div class="dir-head">
+    <div>
+      <h2>Companion<small>Finder is the file browser; Nimbus lives in the menu bar</small></h2>
+      <p class="lede">Most people never want another file browser. They want their clouds under Locations in Finder and a quiet signal that everything is working. Nimbus becomes a menu bar companion with a small settings-style window for each cloud. The full browser is still there for cross-cloud copies, one menu item away.</p>
+    </div>
+    <dl class="fit">
+      <div><dt>Feels like</dt><dd>iCloud Drive: it's just there, in Finder</dd></div>
+      <div><dt>Best for</dt><dd>People who set it up once and forget it. The biggest audience, and the most "Apple would have shipped this".</dd></div>
+      <div><dt>Gives up</dt><dd>Nimbus is less visible, so less of its polish is seen. Depends on File Provider being rock solid.</dd></div>
+      <div><dt>From today</dt><dd>Builds on the existing menu bar extra and Finder integration. Settings-style cloud pages are new.</dd></div>
+    </dl>
+  </div>
+
+  <figure class="stage scene">
+    <div class="desk">
+      <div class="menubar">
+        <svg viewBox="0 0 16 16" style="stroke:none;fill:currentColor"><path d="M11.2 8.5c0-1.6 1.3-2.4 1.4-2.4-.8-1.1-2-1.3-2.4-1.3-1-.1-2 .6-2.5.6s-1.3-.6-2.2-.6A3.3 3.3 0 002.7 6.5c-1.2 2-.3 5.1.9 6.8.6.8 1.2 1.7 2.1 1.7s1.2-.5 2.2-.5 1.3.5 2.2.5 1.5-.8 2-1.6a7 7 0 00.9-1.9 2.9 2.9 0 01-1.8-3zM9.6 3.6A2.9 2.9 0 0010.3 1.5a3 3 0 00-2 1 2.8 2.8 0 00-.7 2 2.5 2.5 0 002-.9z"/></svg>
+        <b>Finder</b><span class="mi">File</span><span class="mi">Edit</span><span class="mi">View</span><span class="mi">Go</span><span class="mi">Window</span><span class="mi">Help</span>
+        <span class="sp"></span>
+        <span class="ni"><svg viewBox="0 0 16 16"><use href="#i-nimbus-mb"/></svg></span>
+        <svg viewBox="0 0 16 16"><use href="#i-wifi"/></svg>
+        <svg viewBox="0 0 22 16" style="width:22px"><use href="#i-batt"/></svg>
+        <svg viewBox="0 0 16 16"><use href="#i-cc"/></svg>
+        <span class="mi">Sun Nov 8 9:41 AM</span>
+      </div>
+
+      <div class="win finder">
+        <aside class="side">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <h6 style="margin-top:0">Favorites</h6>
+          <div class="srow"><svg class="ic"><use href="#i-clock"/></svg><span class="nm">Recents</span></div>
+          <div class="srow"><svg class="fd"><use href="#folder"/></svg><span class="nm">Desktop</span></div>
+          <div class="srow"><svg class="fd"><use href="#folder"/></svg><span class="nm">Documents</span></div>
+          <div class="srow"><svg class="ic"><use href="#i-down"/></svg><span class="nm">Downloads</span></div>
+          <h6>Locations</h6>
+          <div class="srow"><svg class="lg"><use href="#l-icloud"/></svg><span class="nm">iCloud Drive</span></div>
+          <div class="srow sel"><svg class="lg"><use href="#l-gdrive"/></svg><span class="nm">Personal</span></div>
+          <div class="srow"><svg class="lg"><use href="#l-onedrive"/></svg><span class="nm">Work</span></div>
+          <div class="srow"><svg class="lg"><use href="#l-dropbox"/></svg><span class="nm">Dropbox</span></div>
+        </aside>
+        <div class="main">
+          <div class="tb">
+            <div class="cap"><b><svg class="ic"><use href="#i-back"/></svg></b><b class="dimmed"><svg class="ic"><use href="#i-fwd"/></svg></b></div>
+            <div class="ttl"><strong>Personal</strong></div>
+            <div class="flex"></div>
+            <div class="cap"><b><svg class="ic"><use href="#i-grid"/></svg></b><b class="on"><svg class="ic"><use href="#i-list"/></svg></b></div>
+            <div class="cap"><b><svg class="ic"><use href="#i-search"/></svg></b></div>
+          </div>
+          <div class="lhead"><span>Name</span><span>Date Modified</span><span style="text-align:right">Size</span><span></span></div>
+          <div>
+            <div class="lrow"><span class="n"><svg class="fd"><use href="#folder"/></svg>Client Work</span><span class="d">Oct 30, 2026</span><span class="s">--</span><span></span></div>
+            <div class="lrow"><span class="n"><svg class="fd"><use href="#folder"/></svg>Photos</span><span class="d">Today, 6:42 AM</span><span class="s">--</span><span></span></div>
+            <div class="lrow"><span class="n"><svg class="fd"><use href="#folder"/></svg>Taxes</span><span class="d">Apr 12, 2026</span><span class="s">--</span><span></span></div>
+            <div class="lrow"><span class="n"><span class="fi xls"><b>XLS</b></span>Budget 2026.xlsx</span><span class="d">Yesterday</span><span class="s">840 KB</span><svg class="st ok" viewBox="0 0 16 16"><use href="#i-checkc"/></svg></div>
+            <div class="lrow"><span class="n"><span class="fi key"><b>KEY</b></span>Pitch Deck.key</span><span class="d">Nov 2, 2026</span><span class="s">48 MB</span><svg class="st" viewBox="0 0 16 16"><use href="#i-cloud"/></svg></div>
+            <div class="lrow"><span class="n"><span class="fi pdf"><b>PDF</b></span>Lease 2026.pdf</span><span class="d">Jan 9, 2026</span><span class="s">2.1 MB</span><svg class="st" viewBox="0 0 16 16"><use href="#i-cloud"/></svg></div>
+            <div class="lrow"><span class="n"><span class="fi doc"><b>DOC</b></span>Wedding Toast.docx</span><span class="d">Sep 19, 2026</span><span class="s">36 KB</span><svg class="st ok" viewBox="0 0 16 16"><use href="#i-checkc"/></svg></div>
+            <div class="lrow"><span class="n"><span class="fi zip"><b>ZIP</b></span>Old Laptop Backup.zip</span><span class="d">Feb 2, 2025</span><span class="s">31 GB</span><svg class="st" viewBox="0 0 16 16"><use href="#i-cloud"/></svg></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pop">
+        <div class="pop-h">
+          <b>Uploading 3 files to Dropbox</b>
+          <span class="roundbtn"><svg class="ic" style="width:14px;height:14px"><use href="#i-pause"/></svg></span>
+          <small>38 MB of 112 MB, about 2 minutes left</small>
+          <span class="bar"><i style="--v:34%"></i></span>
+        </div>
+        <div class="pop-sec">
+          <h6>Clouds</h6>
+          <div class="prow"><span class="logo"><svg><use href="#l-gdrive"/></svg></span><div><b>Personal</b><small>1.28 TB of 2 TB, up to date</small></div><svg class="tail ok" viewBox="0 0 16 16"><use href="#i-check"/></svg></div>
+          <div class="prow hl"><span class="logo"><svg><use href="#l-onedrive"/></svg></span><div><b>Work</b><small style="color:var(--warn)">Signed out by Microsoft</small></div><span class="btn sm pri">Sign In</span></div>
+          <div class="prow"><span class="logo"><svg><use href="#l-dropbox"/></svg></span><div><b>Dropbox</b><small>Uploading 3 files</small></div><svg class="tail sync" viewBox="0 0 16 16"><use href="#i-sync"/></svg></div>
+          <div class="prow"><span class="logo"><svg><use href="#l-b2"/></svg></span><div><b>Photo Archive</b><small>Backed up 2 hours ago</small></div><svg class="tail ok" viewBox="0 0 16 16"><use href="#i-check"/></svg></div>
+          <div class="prow off"><span class="logo"><svg><use href="#l-sftp"/></svg></span><div><b>Home NAS</b><small>Away from home network</small></div><span></span></div>
+        </div>
+        <div class="pop-sec">
+          <h6>Recently changed</h6>
+          <div class="prow"><span class="fi xls"><b>XLS</b></span><div><b>Budget 2026.xlsx</b><small>Personal, 4 minutes ago</small></div><span></span></div>
+          <div class="prow"><span class="fi key"><b>KEY</b></span><div><b>Pitch Deck.key</b><small>Work, yesterday</small></div><span></span></div>
+        </div>
+        <div class="pop-f">
+          <span class="btn sm">Add Cloud…</span>
+          <span class="flex"></span>
+          <span class="btn sm">Open Nimbus</span>
+          <span class="cap" style="height:26px"><b style="height:22px;width:26px"><svg class="ic" style="width:14px;height:14px"><use href="#i-gear"/></svg></b></span>
+        </div>
+      </div>
+    </div>
+  </figure>
+  <figcaption>The menu bar glyph doubles as status: a plain cloud when all is well, an arrow while uploading, a small badge when something needs you. Clicking it shows only what matters right now, and the files themselves are in Finder where people already look.</figcaption>
+
+  <figure class="stage">
+    <div class="win d3s" style="width:1000px;height:660px">
+      <aside class="side">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <div class="search"><svg class="ic"><use href="#i-search"/></svg>Search</div>
+        <div class="srow sel"><svg class="lg"><use href="#l-gdrive"/></svg><span class="nm">Personal</span></div>
+        <div class="srow"><svg class="lg"><use href="#l-onedrive"/></svg><span class="nm">Work</span><span class="dot" style="background:var(--warn)"></span></div>
+        <div class="srow"><svg class="lg"><use href="#l-dropbox"/></svg><span class="nm">Dropbox</span></div>
+        <div class="srow"><svg class="lg"><use href="#l-b2"/></svg><span class="nm">Photo Archive</span></div>
+        <div class="srow dim"><svg class="lg" style="opacity:.5"><use href="#l-sftp"/></svg><span class="nm">Home NAS</span></div>
+        <div style="height:12px"></div>
+        <div class="srow"><svg class="ic"><use href="#i-gear"/></svg><span class="nm">General</span></div>
+        <div class="srow"><svg class="ic"><use href="#i-backup"/></svg><span class="nm">Backups</span></div>
+        <div class="srow"><svg class="ic"><use href="#i-sync"/></svg><span class="nm">Copy Between Clouds</span></div>
+        <div class="flex"></div>
+        <div class="srow" style="color:var(--ink2)"><svg class="ic" style="color:var(--ink2)"><use href="#i-plus"/></svg><span class="nm">Add Cloud</span></div>
+      </aside>
+      <div class="main">
+        <div class="phead">
+          <span class="logo l56"><svg><use href="#l-gdrive"/></svg></span>
+          <div><h3>Personal</h3><small>Google Drive, signed in with Google</small></div>
+          <span class="flex"></span>
+          <span class="btn">Open in Finder</span>
+        </div>
+        <div class="form" style="padding:14px 14px 12px">
+          <span class="bar" style="height:10px;border-radius:5px"><i style="--v:64%;border-radius:5px"></i></span>
+          <div class="storage-line"><span>1.28 TB used of 2 TB</span><span>720 GB free</span></div>
+        </div>
+        <p class="fh">On this Mac</p>
+        <div class="form">
+          <div class="r"><div>Show in Finder<small>Appears under Locations in the Finder sidebar.</small></div><span class="sw on"></span></div>
+          <div class="r"><div>Download files<small>Files you open stay downloaded until you free up space.</small></div><span class="popup">When I open them<svg viewBox="0 0 10 14"><use href="#i-updown"/></svg></span></div>
+          <div class="r"><div>Free up space automatically<small>Removes Mac copies you haven't opened in 30 days. They stay in Personal.</small></div><span class="sw on"></span></div>
+        </div>
+        <p class="fh">Backups to this cloud</p>
+        <div class="form">
+          <div class="r"><svg class="fd"><use href="#folder"/></svg><div>Desktop<small>Every night at 2:00 AM into Personal › Mac Backups. Last run finished at 2:14 AM.</small></div><span class="btn sm">Edit…</span></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0 4px">
+          <span class="btn ghost">Advanced rclone settings…</span>
+          <span class="btn danger">Remove Personal from Nimbus…</span>
+        </div>
+      </div>
+    </div>
+  </figure>
+  <figcaption>Each cloud's page reads like a System Settings pane: what it is, how full it is, how it behaves on this Mac, and what gets backed up to it. rclone stays available under Advanced, never on the first screen.</figcaption>
+</section>
+
+<!-- ======================= COMPARE ======================= -->
+<section class="dir" id="compare">
+  <h2>Compare</h2>
+  <table class="cmp">
+    <thead><tr><th></th><th>Places</th><th>Home</th><th>Companion</th></tr></thead>
+    <tbody>
+      <tr><th>First thing you see</th><td>Your files</td><td>Whether everything is okay</td><td>Nothing, until you click the menu bar</td></tr>
+      <tr><th>Where you browse</th><td>Nimbus window</td><td>Nimbus window, one level down</td><td>Finder</td></tr>
+      <tr><th>New person, first 5 minutes</th><td>Capable but busy</td><td>Clearest</td><td>Easiest after setup, least obvious before it</td></tr>
+      <tr><th>Power user, daily</th><td>Best</td><td>Good</td><td>Good, if Finder covers it</td></tr>
+      <tr><th>Showcases Nimbus's polish</th><td>A lot</td><td>A lot</td><td>Little</td></tr>
+      <tr><th>Work from today</th><td>Small</td><td>Medium</td><td>Medium</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:48px;font-size:22px">Applies to every direction: say it like a person</h2>
+  <p class="lede" style="margin-bottom:8px">The single biggest ease-of-use win isn't layout. It's removing rclone's vocabulary from every screen a non-technical person sees.</p>
+  <div class="vocab">
+    <div><s>Remote</s><span>Cloud</span></div>
+    <div><s>Mount, File Provider domain</s><span>Show in Finder</span></div>
+    <div><s>VFS cache mode</s><span>Download files: when I open them</span></div>
+    <div><s>Alias for an existing remote</s><span>The real service name and logo</span></div>
+    <div><s>rclone connected</s><span>Nothing, unless it breaks</span></div>
+    <div><s>Copy &amp; Sync</s><span>Copy Between Clouds, Backups</span></div>
+    <div><s>Token expired (401)</s><span>Microsoft signed you out. Sign In.</span></div>
+    <div><s>Connection refused</s><span>Only reachable on your home network</span></div>
+  </div>
+
+  <div class="rec">
+    <h3>My recommendation: Home as the spine, Companion around it</h3>
+    <p>Make Home (direction 2) what the window opens to, and keep today's Volumes pane as the page behind each cloud row, so power users lose nothing. Then ship the Companion menu bar popover (direction 3) as the always-on status surface, because "is it working?" is a question people ask far more often than "where is my file?".</p>
+    <p>Places (direction 1) is the most impressive screenshot, but it competes with Finder head-on. Borrow its two best parts instead: search across all clouds, and the inspector line that says where a file lives and whether it's on this Mac.</p>
+  </div>
+</section>
+
+<footer>Mockups only, drawn in HTML and CSS to match macOS 26 controls. Provider logos are simplified stand-ins for the real bundled assets. Sample data is invented.</footer>
+
+<script>
+const b=document.getElementById('theme');
+b.addEventListener('click',()=>{const d=document.documentElement.dataset.theme==='dark';document.documentElement.dataset.theme=d?'light':'dark';b.textContent=d?'Show dark appearance':'Show light appearance';b.setAttribute('aria-pressed',String(!d));});
+</script>
+</body>
+</html>
