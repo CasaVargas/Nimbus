@@ -12,19 +12,22 @@ concurrency:
 jobs:
   app:
     name: App build and tests
-    # macos-15 ships Xcode 16.4 and 26.3 at most; both crash in IRGen on this
-    # codebase (TransferSettingsView, reabstraction thunk for
-    # TransferNotificationMode). Nimbus is developed on current Xcode, so build
-    # on macos-26 with the newest Xcode 26.x the image ships.
-    runs-on: macos-26
+    # Xcode 16.4 (macos-15), 26.3 (macos-15) and 26.6 (macos-26) all crash in
+    # IRGen on this codebase (swift-frontend aborts in SyncCallEmission::setArgs
+    # while emitting a reabstraction thunk for TransferNotificationMode in
+    # TransferSettingsView). Xcode 27 compiles it, so the app job runs on the
+    # xcode-27 image (macOS 27 + Xcode 27, GitHub-hosted, currently labelled
+    # preview). Move back to a GA macos-* label once one ships Xcode 27.
+    # TODO: re-test on macos-26 when its default Xcode is 27.
+    runs-on: xcode-27
     timeout-minutes: 60
     continue-on-error: false
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select newest Xcode 26
+      - name: Select newest Xcode 27
         run: |
-          xcode="$(find /Applications -maxdepth 1 -name 'Xcode_26.*.app' | sort -V | tail -n 1)"
+          xcode="$(find /Applications -maxdepth 1 -name 'Xcode_27*.app' | sort -V | tail -n 1)"
           echo "Using $xcode"
           sudo xcode-select -s "$xcode"
 
