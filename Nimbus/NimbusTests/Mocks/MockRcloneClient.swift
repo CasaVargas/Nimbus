@@ -4,13 +4,29 @@ import Foundation
 
 /// Test double for the `RemoteProbeClient` protocol. Captures call args
 /// and returns canned responses or throws canned errors per fs argument.
+///
+/// `about` runs concurrently (probeAll fans out on the global executor), so
+/// the recorded calls and canned results sit behind a lock. Without it two
+/// overlapping appends can drop one, which made CloudMonitor's probe test
+/// flaky on CI.
 final class MockRcloneClient: RemoteProbeClient, @unchecked Sendable {
-    var aboutResults: [String: Result<AboutResponse, Error>] = [:]
-    private(set) var calls: [String] = []
+    private let lock = NSLock()
+    private var _aboutResults: [String: Result<AboutResponse, Error>] = [:]
+    private var _calls: [String] = []
+
+    var aboutResults: [String: Result<AboutResponse, Error>] {
+        get { lock.withLock { _aboutResults } }
+        set { lock.withLock { _aboutResults = newValue } }
+    }
+
+    var calls: [String] { lock.withLock { _calls } }
 
     func about(fs: String) async throws -> AboutResponse {
-        calls.append(fs)
-        guard let result = aboutResults[fs] else {
+        let result: Result<AboutResponse, Error>? = lock.withLock {
+            _calls.append(fs)
+            return _aboutResults[fs]
+        }
+        guard let result else {
             return Self.emptyAbout()
         }
         switch result {
