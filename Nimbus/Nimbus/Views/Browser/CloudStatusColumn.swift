@@ -23,15 +23,35 @@ struct CloudStatusColumn: View {
     /// on the SDK), kept as a `@State` for forward-compatibility with the
     /// async protocol.
     @State private var isEvicted = false
+    /// Pinned with Keep Downloaded (directly or through a folder).
+    @State private var isKept = false
 
     var body: some View {
-        StatusBadge(state: state, style: style)
-            .task(id: queryKey) {
-                let materialized = await bridge.isItemMaterialized(remote: remote, path: file.path)
-                let evicted = await bridge.wasRecentlyEvicted(remote: remote, path: file.path)
-                isMaterialized = materialized
-                isEvicted = evicted
+        HStack(spacing: 3) {
+            if isKept && style == .compact {
+                Image(systemName: "pin.fill")
+                    .font(DesignSystem.Typography.caption2)
+                    .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                    .help("Kept on this Mac")
+                    .accessibilityLabel("Kept on this Mac")
             }
+            StatusBadge(state: state, style: style)
+        }
+        .task(id: queryKey) {
+            refreshKept()
+            let materialized = await bridge.isItemMaterialized(remote: remote, path: file.path)
+            let evicted = await bridge.wasRecentlyEvicted(remote: remote, path: file.path)
+            isMaterialized = materialized
+            isEvicted = evicted
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .nimbusPinsChanged)) { _ in refreshKept() }
+    }
+
+    private func refreshKept() {
+        let identifier = "\(remote):\(file.path)"
+        let pins = PinStore.shared?.pins(domain: remote) ?? []
+        isKept = pins.contains(identifier) || PinPolicy.keptByAncestor(
+            identifier, pins: pins, rootKey: PinPolicy.rootKey)
     }
 
     /// Re-fire the FP-status task only when the row identity changes.

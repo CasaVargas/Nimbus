@@ -25,7 +25,35 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
     let itemVersion: NSFileProviderItemVersion
 
     let capabilities: NSFileProviderItemCapabilities
-    let contentPolicy: NSFileProviderContentPolicy = .downloadLazily
+
+    /// Pinned with Keep Downloaded (directly, not via a folder).
+    let isPinned: Bool
+    /// Kept downloaded because a folder above it is pinned.
+    let isKeptByFolder: Bool
+    private let isRoot: Bool
+
+    /// Root downloads lazily; a pinned item downloads now and stays; every
+    /// other item inherits from its parent, so pinning a folder keeps
+    /// everything inside it.
+    var contentPolicy: NSFileProviderContentPolicy {
+        switch PinPolicy.policy(isRoot: isRoot, isPinned: isPinned) {
+        case .downloadLazily: .downloadLazily
+        case .keepDownloaded: .downloadEagerlyAndKeepDownloaded
+        case .inherited: .inherited
+        }
+    }
+
+    /// 0 = not kept, 1 = pinned, 2 = kept because a folder above is pinned.
+    var keepState: Int { Self.keepState(pinned: isPinned, keptByFolder: isKeptByFolder) }
+
+    static func keepState(pinned: Bool, keptByFolder: Bool) -> Int {
+        pinned ? 1 : (keptByFolder ? 2 : 0)
+    }
+
+    /// Read by the Finder actions' activation rules (extension Info.plist).
+    var userInfo: [AnyHashable: Any]? {
+        ["pinned": isPinned, "keptByFolder": isKeptByFolder]
+    }
 
     /// Full path of `file` from the remote root (no remote-name prefix).
     /// Exposed so callers can reuse it for further rclone calls without
@@ -42,8 +70,15 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
     init(from file: FileItem, parentIdentifier: NSFileProviderItemIdentifier, remoteName: String) {
         let fullPath = file.path
         self.fullPath = fullPath
-        self.itemIdentifier = NSFileProviderItemIdentifier("\(remoteName):\(fullPath)")
+        let identifier = NSFileProviderItemIdentifier("\(remoteName):\(fullPath)")
+        self.itemIdentifier = identifier
         self.parentItemIdentifier = parentIdentifier
+        let pins = PinStore.shared?.pins(domain: remoteName) ?? []
+        let pinned = pins.contains(identifier.rawValue)
+        let keptByFolder = PinPolicy.keptByAncestor(identifier.rawValue, pins: pins, rootKey: PinPolicy.rootKey)
+        self.isPinned = pinned
+        self.isKeptByFolder = keptByFolder
+        self.isRoot = false
         self.filename = file.name
         self.contentModificationDate = file.modTime
         self.creationDate = file.modTime
@@ -64,11 +99,20 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
         } else {
             versionData = Data([0])
         }
-        self.itemVersion = NSFileProviderItemVersion(contentVersion: versionData, metadataVersion: versionData)
+        // The pin state is metadata: folding it into the metadata version
+        // tells the system the item changed (re-read its content policy)
+        // while the unchanged content version means nothing re-downloads.
+        var metadataVersion = versionData
+        metadataVersion.append(UInt8(Self.keepState(pinned: pinned, keptByFolder: keptByFolder)))
+        self.itemVersion = NSFileProviderItemVersion(contentVersion: versionData, metadataVersion: metadataVersion)
     }
 
-    private init(identifier: NSFileProviderItemIdentifier, parent: NSFileProviderItemIdentifier, name: String) {
+    private init(identifier: NSFileProviderItemIdentifier, parent: NSFileProviderItemIdentifier, name: String,
+                 remoteName: String) {
         self.itemIdentifier = identifier
+        self.isPinned = PinStore.shared?.isPinned(identifier.rawValue, domain: remoteName) ?? false
+        self.isKeptByFolder = false
+        self.isRoot = true
         self.parentItemIdentifier = parent
         self.filename = name
         self.contentType = .folder
@@ -84,7 +128,8 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
         FileProviderItem(
             identifier: .rootContainer,
             parent: .rootContainer,
-            name: domain.displayName
+            name: domain.displayName,
+            remoteName: domain.identifier.rawValue
         )
     }
 

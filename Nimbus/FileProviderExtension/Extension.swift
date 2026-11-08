@@ -77,7 +77,17 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         // `.workingSet` and `.trashContainer` are synthetic system
         // containers, not real rclone paths — see `SystemContainerEnumerator`
         // for why they're always empty.
-        if containerItemIdentifier == .workingSet || containerItemIdentifier == .trashContainer {
+        if containerItemIdentifier == .workingSet {
+            let rclone = self.rclone
+            let remoteName = domain.identifier.rawValue
+            let logger = self.logger
+            return WorkingSetEnumerator(domain: domain) { identifier in
+                try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "workingSet.item") {
+                    try await Self.fetchItemStatic(rclone: rclone, identifier: identifier, remoteName: remoteName)
+                }
+            }
+        }
+        if containerItemIdentifier == .trashContainer {
             return SystemContainerEnumerator(containerIdentifier: containerItemIdentifier)
         }
 
@@ -260,6 +270,9 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                             }
                         }
                         workingPath = destinationPath
+                        try? PinStore.shared?.moved(
+                            from: "\(remoteName):\(currentPath)", to: "\(remoteName):\(destinationPath)",
+                            domain: remoteName)
                     }
                 }
 
@@ -322,6 +335,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                         try await rclone.deleteFile(fs: "\(remoteName):", remote: remotePath)
                     }
                 }
+                try? PinStore.shared?.removed(identifier.rawValue, domain: remoteName)
                 progress.completedUnitCount = 1
                 handler.value(nil)
             } catch {
@@ -371,7 +385,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
     // MARK: - Static Helpers (Sendable-safe)
 
-    private static func fetchItemStatic(
+    static func fetchItemStatic(
         rclone: RcloneClient,
         identifier: NSFileProviderItemIdentifier,
         remoteName: String
@@ -421,5 +435,40 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
               size > 0
         else { return orDefault }
         return size
+    }
+}
+
+// MARK: - Finder actions
+
+extension FileProviderExtension: NSFileProviderCustomAction {
+    func performAction(
+        identifier actionIdentifier: NSFileProviderExtensionActionIdentifier,
+        onItemsWithIdentifiers itemIdentifiers: [NSFileProviderItemIdentifier],
+        completionHandler: @escaping ((any Error)?) -> Void
+    ) -> Progress {
+        let progress = Progress(totalUnitCount: 1)
+        guard KeepDownloadedAction.handles(actionIdentifier) else {
+            completionHandler(CocoaError(.featureUnsupported))
+            return progress
+        }
+        // NSFileProviderDomain isn't Sendable; it is only read here.
+        let domain = SendableBox(value: self.domain)
+        let logger = self.logger
+        let handler = SendableBox(value: completionHandler)
+        let task = Task { @Sendable in
+            do {
+                try await KeepDownloadedAction.perform(actionIdentifier, items: itemIdentifiers,
+                                                       domain: domain.value, logger: logger)
+                progress.completedUnitCount = 1
+                handler.value(nil)
+            } catch is CancellationError {
+                handler.value(CocoaError(.userCancelled))
+            } catch {
+                logger.error("Keep Downloaded action failed: \((error as NSError).domain, privacy: .public) \((error as NSError).code, privacy: .public)")
+                handler.value(error)
+            }
+        }
+        progress.cancellationHandler = { task.cancel() }
+        return progress
     }
 }

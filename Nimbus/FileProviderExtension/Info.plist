@@ -25,6 +25,25 @@
 	</dict>
 	<key>NSExtension</key>
 	<dict>
+		<key>NSExtensionFileProviderActions</key>
+		<array>
+			<dict>
+				<key>NSExtensionFileProviderActionActivationRule</key>
+				<string>fileproviderItems.@count &gt; 0 AND SUBQUERY(fileproviderItems, $item, $item.userInfo.pinned == YES OR $item.userInfo.keptByFolder == YES).@count == 0</string>
+				<key>NSExtensionFileProviderActionIdentifier</key>
+				<string>app.casavargas.nimbus.keepDownloaded</string>
+				<key>NSExtensionFileProviderActionName</key>
+				<string>Keep Downloaded</string>
+			</dict>
+			<dict>
+				<key>NSExtensionFileProviderActionActivationRule</key>
+				<string>fileproviderItems.@count &gt; 0 AND SUBQUERY(fileproviderItems, $item, $item.userInfo.pinned == YES).@count == fileproviderItems.@count</string>
+				<key>NSExtensionFileProviderActionIdentifier</key>
+				<string>app.casavargas.nimbus.allowRemovingDownload</string>
+				<key>NSExtensionFileProviderActionName</key>
+				<string>Allow Removing Download</string>
+			</dict>
+		</array>
 		<key>NSExtensionFileProviderDocumentGroup</key>
 		<string>group.app.casavargas.nimbus</string>
 		<key>NSExtensionFileProviderSupportsEnumeration</key>
