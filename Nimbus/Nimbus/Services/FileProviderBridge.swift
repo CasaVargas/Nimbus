@@ -48,7 +48,7 @@ final class FileProviderBridge {
             let domains = try await NSFileProviderManager.domains()
             activeDomains = Set(domains.map { $0.identifier.rawValue })
         } catch {
-            logger.debug("Failed to refresh domains: \(error.localizedDescription)")
+            logger.error("Failed to refresh domains: \(FileProviderErrorText.describe(error), privacy: .public)")
         }
     }
 
@@ -168,7 +168,7 @@ final class FileProviderBridge {
             UserDefaults.standard.set(Self.itemSchemaVersion, forKey: Self.itemSchemaKey)
         } catch {
             // Leave the version unset so the next launch retries.
-            logger.warning("Schema re-import failed: \(error.localizedDescription)")
+            logger.warning("Schema re-import failed: \(FileProviderErrorText.describe(error), privacy: .public)")
         }
     }
 
@@ -185,7 +185,7 @@ final class FileProviderBridge {
                 }
             }
         } catch {
-            logger.debug("Failed to signal domains: \(error.localizedDescription)")
+            logger.error("Failed to signal domains: \(FileProviderErrorText.describe(error), privacy: .public)")
         }
     }
 
@@ -215,12 +215,12 @@ final class FileProviderBridge {
                     removed.append(id)
                     logger.info("Cleaned up stale domain: \(id)")
                 } catch {
-                    logger.warning("Failed to remove stale domain \(id): \(error)")
+                    logger.warning("Failed to remove stale domain \(id): \(FileProviderErrorText.describe(error), privacy: .public)")
                 }
             }
             UserDefaults.standard.set(Array(staleNow).sorted(), forKey: Self.pendingStaleKey)
         } catch {
-            logger.debug("File Provider not available: \(error.localizedDescription)")
+            logger.error("File Provider not available: \(FileProviderErrorText.describe(error), privacy: .public)")
         }
         return removed
     }

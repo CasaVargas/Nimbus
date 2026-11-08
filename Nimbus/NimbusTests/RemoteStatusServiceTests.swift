@@ -6,10 +6,21 @@ import Foundation
 @Suite("RemoteStatusService")
 @MainActor
 struct RemoteStatusServiceTests {
+    /// Every service gets throwaway defaults. The test host runs as
+    /// app.casavargas.nimbus, so `.standard` here is the real app's settings
+    /// file: probes used to leave `remoteLastConnected` entries for test
+    /// remotes ("gdrive", "s3") in the user's Nimbus preferences.
+    static func isolatedDefaults() -> UserDefaults {
+        let name = "NimbusTests.RemoteStatus.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        return defaults
+    }
+
     @Test func probeSetsConnectedOnSuccess() async {
         let client = MockRcloneClient()
         client.aboutResults["gdrive:"] = .success(MockRcloneClient.emptyAbout())
-        let service = RemoteStatusService(client: client)
+        let service = RemoteStatusService(client: client, defaults: Self.isolatedDefaults())
         await service.probe("gdrive")
         #expect(service.statuses["gdrive"] == .connected)
         #expect(client.calls == ["gdrive:"])
@@ -18,7 +29,7 @@ struct RemoteStatusServiceTests {
     @Test func probeSetsUnknownBeforeCompletion() async {
         let client = MockRcloneClient()
         client.aboutResults["slow:"] = .success(MockRcloneClient.emptyAbout())
-        let service = RemoteStatusService(client: client)
+        let service = RemoteStatusService(client: client, defaults: Self.isolatedDefaults())
         service.markUnknown("slow")  // simulates the initial set before probeAll launches
         #expect(service.statuses["slow"] == .unknown)
     }
@@ -28,7 +39,7 @@ struct RemoteStatusServiceTests {
         client.aboutResults["s3:"] = .failure(
             RcloneError.requestFailed(status: 401, message: "Unauthorized")
         )
-        let service = RemoteStatusService(client: client)
+        let service = RemoteStatusService(client: client, defaults: Self.isolatedDefaults())
         await service.probe("s3")
         #expect(service.statuses["s3"] == .authNeeded)
     }
@@ -38,7 +49,7 @@ struct RemoteStatusServiceTests {
         client.aboutResults["s3:"] = .failure(
             RcloneError.requestFailed(status: 403, message: "Forbidden")
         )
-        let service = RemoteStatusService(client: client)
+        let service = RemoteStatusService(client: client, defaults: Self.isolatedDefaults())
         await service.probe("s3")
         #expect(service.statuses["s3"] == .authNeeded)
     }
@@ -48,7 +59,7 @@ struct RemoteStatusServiceTests {
         client.aboutResults["gdrive:"] = .failure(
             RcloneError.requestFailed(status: 500, message: "couldn't fetch info: oauth token expired")
         )
-        let service = RemoteStatusService(client: client)
+        let service = RemoteStatusService(client: client, defaults: Self.isolatedDefaults())
         await service.probe("gdrive")
         #expect(service.statuses["gdrive"] == .authNeeded)
     }
@@ -58,7 +69,7 @@ struct RemoteStatusServiceTests {
         client.aboutResults["s3:"] = .failure(
             RcloneError.requestFailed(status: 500, message: "couldn't fetch info: connection refused")
         )
-        let service = RemoteStatusService(client: client)
+        let service = RemoteStatusService(client: client, defaults: Self.isolatedDefaults())
         await service.probe("s3")
         if case .unreachable(let reason) = service.statuses["s3"] {
             #expect(reason.contains("connection refused"))
@@ -71,7 +82,7 @@ struct RemoteStatusServiceTests {
         let client = MockRcloneClient()
         client.aboutResults["gdrive:"] = .success(MockRcloneClient.emptyAbout())
         client.aboutResults["s3:"] = .success(MockRcloneClient.emptyAbout())
-        let service = RemoteStatusService(client: client)
+        let service = RemoteStatusService(client: client, defaults: Self.isolatedDefaults())
         await service.probeAll(["gdrive", "s3"])
         #expect(service.statuses["gdrive"] == .connected)
         #expect(service.statuses["s3"] == .connected)
@@ -81,7 +92,7 @@ struct RemoteStatusServiceTests {
     @Test func clearRemovesStatus() async {
         let client = MockRcloneClient()
         client.aboutResults["gdrive:"] = .success(MockRcloneClient.emptyAbout())
-        let service = RemoteStatusService(client: client)
+        let service = RemoteStatusService(client: client, defaults: Self.isolatedDefaults())
         await service.probe("gdrive")
         #expect(service.statuses["gdrive"] == .connected)
         service.clear("gdrive")
@@ -90,7 +101,7 @@ struct RemoteStatusServiceTests {
 
     @Test func probeIgnoresEmptyName() async {
         let client = MockRcloneClient()
-        let service = RemoteStatusService(client: client)
+        let service = RemoteStatusService(client: client, defaults: Self.isolatedDefaults())
         await service.probe("")
         #expect(client.calls.isEmpty)
         #expect(service.statuses[""] == nil)
