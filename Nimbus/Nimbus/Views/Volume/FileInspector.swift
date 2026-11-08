@@ -50,6 +50,7 @@ struct FileInspector: View {
         if !file.isDir {
             CloudStatusColumn(file: file, remote: remote, style: .pill)
         }
+        KeepOnThisMacRow(remote: remote, file: file)
         keyValues([
             ("Kind", Self.kind(of: file)),
             ("Size", file.isDir ? "--" : FileRowView.formatSize(file.size)),
@@ -162,3 +163,91 @@ struct FileInspector: View {
         return f
     }()
 }
+
+/// The inspector's **Keep on this Mac** switch: the in-app twin of Finder's
+/// Keep Downloaded / Allow Removing Download actions. Disabled, with the
+/// reason, when the cloud isn't shown in Finder (there's no local copy to
+/// keep) or when a folder above is already kept.
+struct KeepOnThisMacRow: View {
+    let remote: String
+    let file: FileItem
+
+    @Environment(FileProviderBridge.self) private var bridge
+    @Environment(AppSettings.self) private var settings
+    @State private var isPinned = false
+    @State private var isKeptByFolder = false
+    @State private var error: String?
+
+    private var identifier: String { "\(remote):\(file.path)" }
+    private var inFinder: Bool { FinderIntegration.isShown(remote: remote, settings: settings) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            Toggle(isOn: Binding(get: { isPinned || isKeptByFolder }, set: { set($0) })) {
+                Text("Keep on this Mac")
+                    .font(DesignSystem.Typography.callout)
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .disabled(!inFinder || isKeptByFolder || PinStore.shared == nil)
+            Text(verbatim: caption)
+                .font(DesignSystem.Typography.caption)
+                .foregroundStyle(error == nil ? DesignSystem.Color.semantic.textSecondary
+                                              : DesignSystem.Color.semantic.statusError)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(DesignSystem.Spacing.s)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                .fill(DesignSystem.Color.semantic.surfaceSubtle)
+        )
+        .task(id: identifier) { reload() }
+        .onReceive(NotificationCenter.default.publisher(for: .nimbusPinsChanged)) { _ in reload() }
+    }
+
+    private var caption: String {
+        if let error { return error }
+        if !inFinder { return "Show this cloud in Finder to keep files on this Mac." }
+        if isKeptByFolder { return "Kept because a folder it's in is kept on this Mac." }
+        if isPinned {
+            return file.isDir ? "Everything in this folder stays downloaded and up to date."
+                              : "Stays downloaded and up to date."
+        }
+        return "Downloads when you open it. macOS can remove the download to free space."
+    }
+
+    private func reload() {
+        let pins = PinStore.shared?.pins(domain: remote) ?? []
+        isPinned = pins.contains(identifier)
+        isKeptByFolder = PinPolicy.keptByAncestor(
+            identifier, pins: pins, rootKey: PinPolicy.rootKey)
+    }
+
+    private func set(_ keep: Bool) {
+        error = nil
+        isPinned = keep
+        Task {
+            do {
+                try await bridge.setKeepDownloaded(keep, remote: remote, path: file.path)
+            } catch {
+                self.error = "Couldn't change this: \(error.localizedDescription)"
+                reload()
+            }
+        }
+    }
+}
+
+#if DEBUG
+#Preview("Keep on this Mac") {
+    let file = FileItem(path: "Photos/Half Dome.heic", name: "Half Dome.heic", size: 8_400_000,
+                        mimeType: "image/heic", modTime: Date(), isDir: false, fileID: nil,
+                        qualifiedRemotePath: "Personal:Photos/Half Dome.heic")
+    VStack(spacing: 12) {
+        KeepOnThisMacRow(remote: "Personal", file: file)
+    }
+    .padding()
+    .frame(width: FileInspector.width)
+    .environment(FileProviderBridge())
+    .environment(AppSettings(defaults: UserDefaults(suiteName: "KeepPreview")!))
+}
+#endif

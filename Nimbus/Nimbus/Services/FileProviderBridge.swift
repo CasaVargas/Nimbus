@@ -235,6 +235,35 @@ extension FileProviderBridge: FileProviderBridgeProtocol {
         activeDomains.contains(remote)
     }
 
+    /// Keep Downloaded from inside the app (the inspector's switch). Same
+    /// effect as Finder's action: record the pin in the shared store, then
+    /// signal the item's container so the extension re-reports the item with
+    /// its new content policy, and ask for the download right away.
+    func setKeepDownloaded(_ keep: Bool, remote: String, path: String) async throws {
+        guard let store = PinStore.shared else { return }
+        let identifier = "\(remote):\(path)"
+        try store.setPinned(keep, identifiers: [identifier], domain: remote)
+        try store.markChanged([identifier], domain: remote)
+        NotificationCenter.default.post(name: .nimbusPinsChanged, object: nil)
+
+        let domain = NSFileProviderDomain(
+            identifier: NSFileProviderDomainIdentifier(rawValue: remote),
+            displayName: remote
+        )
+        guard let manager = NSFileProviderManager(for: domain) else { return }
+        // Replicated File Provider: only working-set signals are honoured; the
+        // extension's working-set enumerator reports the changed pin.
+        try? await manager.signalEnumerator(for: .workingSet)
+        if keep {
+            do {
+                try await manager.requestDownloadForItem(withIdentifier: NSFileProviderItemIdentifier(identifier))
+            } catch {
+                logger.info("requestDownload after pin: \((error as NSError).domain, privacy: .public) \((error as NSError).code, privacy: .public)")
+            }
+        }
+        materializedCache.invalidate(remote)
+    }
+
     /// Best-effort resolution of the Finder-visible URL for a (remote, path)
     /// pair. Returns nil if the domain cannot be resolved by
     /// `NSFileProviderManager` (e.g. the extension hasn't finished registering

@@ -93,6 +93,7 @@ final class CloudMonitor {
     func remove(_ name: String, client: RcloneClient) async {
         await RemotesViewModel(client: client).deleteRemote(name: name)
         status.clear(name)
+        PinStore.shared?.removeAll(domain: name)
         await refresh()
     }
 }
