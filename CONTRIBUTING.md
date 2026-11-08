@@ -7,7 +7,8 @@ trip on your first pull request.
 ## Prerequisites
 
 - macOS 15 or later
-- Xcode 16 or later, with the Command Line Tools installed
+- Xcode 27 or later, with the Command Line Tools installed (Xcode 16.4 through
+  26.6 crash in IRGen while compiling this project)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`
 - [rclone](https://rclone.org/install/): `brew install rclone` (the app spawns
   it at runtime and the integration tests expect it on `PATH`)
@@ -90,7 +91,8 @@ a spec. Just open the pull request.
   `chore: ...`, `test: ...`, `refactor: ...`.
 - Keep commits small and focused. One logical change per commit.
 - Run the tests before you push. CI runs the same commands as above on a
-  `macos-15` runner.
+  GitHub-hosted `xcode-27` runner (Xcode 16.x and 26.x crash in IRGen on
+  this codebase; use Xcode 27 or later locally too).
 - Do not touch Swift UI code (`Views/`, `Components/`, `ViewModels/`) and
   unrelated files in the same pull request.
 - Fill in the pull request template: a summary, how you tested it,
