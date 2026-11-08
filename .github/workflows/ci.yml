@@ -12,16 +12,16 @@ concurrency:
 jobs:
   app:
     name: App build and tests
-    runs-on: macos-15
+    # macos-15 ships Xcode 16.4 and 26.3 at most; both crash in IRGen on this
+    # codebase (TransferSettingsView, reabstraction thunk for
+    # TransferNotificationMode). Nimbus is developed on current Xcode, so build
+    # on macos-26 with the newest Xcode 26.x the image ships.
+    runs-on: macos-26
     timeout-minutes: 60
     continue-on-error: false
     steps:
       - uses: actions/checkout@v4
 
-      # The macos-15 image defaults to Xcode 16.4, whose Swift 6.1.2 frontend
-      # crashes in IRGen on this codebase (TransferSettingsView). Nimbus is
-      # developed on current Xcode, so pick the newest Xcode 26.x the image
-      # ships instead of the default.
       - name: Select newest Xcode 26
         run: |
           xcode="$(find /Applications -maxdepth 1 -name 'Xcode_26.*.app' | sort -V | tail -n 1)"
