@@ -92,7 +92,7 @@ final class WorkingSetEnumerator: NSObject, NSFileProviderEnumerator {
                 if !outcome.updated.isEmpty { box.observer.didUpdate(outcome.updated) }
                 if !outcome.deleted.isEmpty { box.observer.didDeleteItems(withIdentifiers: outcome.deleted) }
             }
-            logger.info("working set: scanned \(outcome.listedContainers) folders, \(outcome.updated.count) updated, \(outcome.deleted.count) deleted")
+            logger.info("working set \(remoteName, privacy: .public): scanned \(outcome.listedContainers) folders, \(outcome.updated.count) updated, \(outcome.deleted.count) deleted")
             box.observer.finishEnumeratingChanges(
                 upTo: Self.anchor(pins: changes.latest, generation: generation), moreComing: false
             )

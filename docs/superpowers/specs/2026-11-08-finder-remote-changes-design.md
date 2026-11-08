@@ -104,3 +104,22 @@ user opens them in Finder.
 - Live: on a local `rclone serve s3` cloud, add, rename and delete a file
   on the server; each shows up in Finder after one refresh (⌘R in the
   browser or the next CloudMonitor refresh), with no re-import.
+
+### Live result (2026-11-08, `s3test` on `rclone serve s3`)
+
+Refresh = relaunching Nimbus (the daemon-connect refresh). Each change
+showed in `~/Library/CloudStorage/Nimbus-s3test/` after one refresh:
+
+| Change on the server | Scan log | Finder |
+|---|---|---|
+| Existing backlog (new bucket `wallpapers`, 2 files in `pics`, `shared/thumbs`) | 5 updated | bucket and files appear |
+| Add `pics/nimbus-live-check.txt` | 2 updated (file + `pics` entry) | file appears |
+| Rename it | 2 updated, 1 deleted | old name gone, new name appears |
+| Append to it | 1 updated | new size; reading it gets the new content |
+| Delete it | 1 updated, 1 deleted | file gone |
+| Nothing | 0 updated | unchanged |
+
+With the S3 server down, the scan skipped the timed-out folders and reported
+nothing, as designed. `shared/thumbs` reached the system but waited on
+`parentCreation`: `shared` itself hadn't finished importing on disk in that
+domain, which predates this change.
