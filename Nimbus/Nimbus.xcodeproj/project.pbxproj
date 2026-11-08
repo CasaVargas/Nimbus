@@ -83,6 +83,7 @@
 		65300BE82629803221970D24 /* FileProviderExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 357AE42AD3448C6FC4B5DF2F /* FileProviderExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		66686A62291C3FC31EFD0607 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF1ECD3038C0295EC2B40C77 /* OnboardingView.swift */; };
 		67A75BB7B58FE380D35C4694 /* ThumbnailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBF0ED043D0F3373DA032F20 /* ThumbnailTests.swift */; };
+		6D0277350535EBC0C79CF592 /* RemoteChangeDiffTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947DFA6CFCD3941E73EC2740 /* RemoteChangeDiffTests.swift */; };
 		6DFCD35D76BF683449E2128B /* ProgressMeter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14657C7B2112C65E41A648F4 /* ProgressMeter.swift */; };
 		6FECFF9BD67D0EEC503B2DD1 /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509C7DB1AE1B3496F8DBC733 /* StatusBadge.swift */; };
 		7186B43DDF9D7F839F82B6E6 /* FileProviderBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F4DF18D93B378AC2C60ABC /* FileProviderBridge.swift */; };
@@ -130,6 +131,7 @@
 		A0711627A70DE50CB302CBA1 /* TransfersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D6672817A705472989CD40D /* TransfersView.swift */; };
 		A1D8E4098247475DF132F4F0 /* AppCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4910D3AF15B212612877784B /* AppCommands.swift */; };
 		A1F13F97A52C569C1B1A9B70 /* ReconnectFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 935AFEF6AB23E3B484903E25 /* ReconnectFlow.swift */; };
+		A1F862C44B2732FA8CAACA4F /* RemoteChangeDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D6574FED65369AF72456E6 /* RemoteChangeDiff.swift */; };
 		A2C445BFC1D91129614EB77D /* QuickLookHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9CE29401FAD3CBE223A9672 /* QuickLookHost.swift */; };
 		A2C663DDD788A6BAEDFE4B0F /* EmptyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 773187DDF62D87927128DCAC /* EmptyState.swift */; };
 		A4B4FD4C770A77CC7C43889E /* KeepDownloadedAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AADFE40A0094C9D1B203763 /* KeepDownloadedAction.swift */; };
@@ -165,6 +167,7 @@
 		C43A4C8EACB4C847D12E4E31 /* Lints.swift in Sources */ = {isa = PBXBuildFile; fileRef = A21CD08F98A42ACB20E40A27 /* Lints.swift */; };
 		C4C1CE457BC2536A447DE1BB /* SheetChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6C3E0E28CB14B1FC1F0F666 /* SheetChrome.swift */; };
 		C6CA6A911FF7130164568629 /* TransferRuntimeSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0BC5A8FE5E4FF067F76206A /* TransferRuntimeSettingsTests.swift */; };
+		C832B7F1A2C419718F2395DF /* RemoteChangeDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D6574FED65369AF72456E6 /* RemoteChangeDiff.swift */; };
 		C8DE07661C0B986CC23D0DEE /* PinStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 381559F17FCAB7DE01CB69A0 /* PinStore.swift */; };
 		C94C8DD95DA8BF42396D3779 /* TimedCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCAC9985B428E97E63330C61 /* TimedCache.swift */; };
 		CA0E5E0F07A0AF378C3BA5E7 /* Selection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C428B03536470F32946F2BB /* Selection.swift */; };
@@ -198,6 +201,7 @@
 		E89A322541CB8B98774B7765 /* ConfigFieldView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FBAA3F42058EB68CD5B9138 /* ConfigFieldView.swift */; };
 		EBC50EFF50D52BB11B702437 /* FileProviderErrorText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CCA28ACC2C4FB749024BB2A /* FileProviderErrorText.swift */; };
 		EE47A89B6A10C75B2D84B26C /* WorkingSetEnumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC064C2976CC5B4538C0712A /* WorkingSetEnumerator.swift */; };
+		EE5019E8D9B1D58231DA2324 /* RemoteChangeScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DB2DA947E8E6A02DDDD519 /* RemoteChangeScanner.swift */; };
 		F00D57B1B55149EF5149A025 /* TransferStorePersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBCD67F8F5D2E0A876CC4C72 /* TransferStorePersistenceTests.swift */; };
 		F0F4A75D1B29B6DF7A215EFB /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DECF7995C720D6A071047D2 /* Motion.swift */; };
 		F20DC020AE748305501AE6DC /* CopySyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10A3816E1EC55E5657611B64 /* CopySyncView.swift */; };
@@ -314,6 +318,7 @@
 		479C92854804EBEC3D2C3111 /* StorageQuotaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageQuotaTests.swift; sourceTree = "<group>"; };
 		4910D3AF15B212612877784B /* AppCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCommands.swift; sourceTree = "<group>"; };
 		49A87D485E391F3534A28A3F /* MountInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountInspector.swift; sourceTree = "<group>"; };
+		49D6574FED65369AF72456E6 /* RemoteChangeDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteChangeDiff.swift; sourceTree = "<group>"; };
 		4F77052F9AE02AF3CFCEE0D2 /* CompanionContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionContent.swift; sourceTree = "<group>"; };
 		509C7DB1AE1B3496F8DBC733 /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadge.swift; sourceTree = "<group>"; };
 		50BEC623491F0195433B143D /* SpeedLimitChoiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedLimitChoiceTests.swift; sourceTree = "<group>"; };
@@ -365,8 +370,10 @@
 		916A92A1094C044C04A03BB1 /* Conditional.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conditional.swift; sourceTree = "<group>"; };
 		91C86CE92CC40814A0659DB4 /* RemoteStatusServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteStatusServiceTests.swift; sourceTree = "<group>"; };
 		925D421BD7102774371B0F56 /* AdvancedSettingsViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsViewTests.swift; sourceTree = "<group>"; };
+		92DB2DA947E8E6A02DDDD519 /* RemoteChangeScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteChangeScanner.swift; sourceTree = "<group>"; };
 		935AFEF6AB23E3B484903E25 /* ReconnectFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReconnectFlow.swift; sourceTree = "<group>"; };
 		941B52BF2A1E8F0D27C9A987 /* MountRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountRow.swift; sourceTree = "<group>"; };
+		947DFA6CFCD3941E73EC2740 /* RemoteChangeDiffTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteChangeDiffTests.swift; sourceTree = "<group>"; };
 		9500A98F5338D92B273CB2A3 /* FileGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGrid.swift; sourceTree = "<group>"; };
 		959DAE54C1BE1841389ECEE2 /* ProviderPickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderPickerTests.swift; sourceTree = "<group>"; };
 		98BCCBB2AD76F950F78233DE /* EmptyStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateTests.swift; sourceTree = "<group>"; };
@@ -714,6 +721,7 @@
 			children = (
 				299AFE9FFD95BF3C15E2D4E1 /* CloudCapabilities.swift */,
 				381559F17FCAB7DE01CB69A0 /* PinStore.swift */,
+				49D6574FED65369AF72456E6 /* RemoteChangeDiff.swift */,
 				D6ECD40E7172BCD436740A23 /* ShareLinkSignal.swift */,
 				C81C8BD837D04443C1FC3FF3 /* Thumbnails.swift */,
 			);
@@ -839,6 +847,7 @@
 				122FC43D9B9925959BF766EE /* Info.plist */,
 				B07A2E84E597DE37C122A15B /* Item.swift */,
 				0AADFE40A0094C9D1B203763 /* KeepDownloadedAction.swift */,
+				92DB2DA947E8E6A02DDDD519 /* RemoteChangeScanner.swift */,
 				2A73ED3F778D3C45DA48F49A /* RetrySupport.swift */,
 				85E8E3292C9337A99B07E02A /* ShareLinkAction.swift */,
 				5B4EDE78A4EEDF0C9EE8A0E9 /* SyncSnapshotStore.swift */,
@@ -885,6 +894,7 @@
 				1A65E95E3A964C6BB33215EF /* RcloneDaemonSettingsTests.swift */,
 				1CD4E8CAFFAB8F0A899246EF /* ReconcileFPDomainsTests.swift */,
 				BCF0019E90B7A307ABD46CE0 /* ReconnectFlowTests.swift */,
+				947DFA6CFCD3941E73EC2740 /* RemoteChangeDiffTests.swift */,
 				F49337EE8003B1CBE6A0A96C /* RemoteSetupFlowTests.swift */,
 				91C86CE92CC40814A0659DB4 /* RemoteStatusServiceTests.swift */,
 				EFDFD6B91C6E9C08C1FFDE89 /* SelectionIntentTests.swift */,
@@ -1189,6 +1199,7 @@
 				4B8F27C6E2737CE62B78A053 /* RcloneDaemon.swift in Sources */,
 				A1F13F97A52C569C1B1A9B70 /* ReconnectFlow.swift in Sources */,
 				81F55A8DE19D46C519E33712 /* ReconnectSheet.swift in Sources */,
+				A1F862C44B2732FA8CAACA4F /* RemoteChangeDiff.swift in Sources */,
 				98842DE504040C086A7C06A3 /* RemoteSetupFlow.swift in Sources */,
 				73699A6102245454444A825F /* RemoteStatus.swift in Sources */,
 				CA84245C980DE470FB035D8B /* RemoteStatusService.swift in Sources */,
@@ -1242,6 +1253,8 @@
 				E68C93C65CBC2C2403BF9431 /* Item.swift in Sources */,
 				A4B4FD4C770A77CC7C43889E /* KeepDownloadedAction.swift in Sources */,
 				C8DE07661C0B986CC23D0DEE /* PinStore.swift in Sources */,
+				C832B7F1A2C419718F2395DF /* RemoteChangeDiff.swift in Sources */,
+				EE5019E8D9B1D58231DA2324 /* RemoteChangeScanner.swift in Sources */,
 				F3B2DB5C301BC6F1D5517B0F /* RetrySupport.swift in Sources */,
 				8BA85C8EE184432A403DF7C3 /* ShareLinkAction.swift in Sources */,
 				81CAA86CB34B69D76112D50A /* ShareLinkSignal.swift in Sources */,
@@ -1291,6 +1304,7 @@
 				5E112D3F787B4B6792B7F563 /* RcloneDaemonSettingsTests.swift in Sources */,
 				B85590E6C8AA1C9E8B6597BB /* ReconcileFPDomainsTests.swift in Sources */,
 				933E316208189861F98CE71D /* ReconnectFlowTests.swift in Sources */,
+				6D0277350535EBC0C79CF592 /* RemoteChangeDiffTests.swift in Sources */,
 				775AC50C7F80C02365EFEF33 /* RemoteSetupFlowTests.swift in Sources */,
 				4F25A60A8EA3357E42B51874 /* RemoteStatusServiceTests.swift in Sources */,
 				8C0B4B7304F04D2ED4C68DBC /* SelectionIntentTests.swift in Sources */,

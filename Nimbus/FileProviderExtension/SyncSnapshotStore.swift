@@ -3,38 +3,16 @@ import FileProvider
 import RcloneKit
 import os
 
-/// A lightweight, comparable snapshot of one directory listing's item set —
-/// just enough to detect additions, deletions, and metadata changes without
-/// pulling in the full `FileItem`/`FileProviderItem` types.
-struct SyncedItemRecord: Codable, Equatable, Sendable {
-    /// `NSFileProviderItemIdentifier.rawValue` (full path form, see
-    /// `Item.swift`'s identifier contract).
-    let identifier: String
-    let name: String
-    let isDir: Bool
-    let size: Int64
-    let modTime: TimeInterval?
-    /// Keep Downloaded state (see `FileProviderItem.keepState`). A pin
-    /// changes nothing on the server, so without this a pin or unpin would
-    /// diff as "no change" and the system would never re-read the item's
-    /// content policy. Optional so snapshots saved by older builds decode.
-    var keepState: Int? = nil
-}
-
-/// Persisted baseline for one enumerated container (root or a subfolder).
-struct ContainerSnapshot: Codable, Sendable {
-    /// Monotonically increasing only when the diffed contents actually
-    /// change — this is what backs the sync anchor, so an anchor stays
-    /// stable across no-op `enumerateChanges` calls.
-    var version: Int
-    var items: [SyncedItemRecord]
-}
+// `SyncedItemRecord`, `ContainerSnapshot` and the pure diff live in
+// `Shared/RemoteChangeDiff.swift` (unit-tested from the app target).
 
 /// Result of diffing a fresh listing against the persisted baseline for a
 /// container.
 struct SnapshotDiff {
     let updated: [FileProviderItem]
     let deletedIdentifiers: [NSFileProviderItemIdentifier]
+    /// Deleted entries that were folders (their snapshots are stale).
+    var deletedFolders: [NSFileProviderItemIdentifier] = []
     var hasChanges: Bool { !updated.isEmpty || !deletedIdentifiers.isEmpty }
 }
 
@@ -88,23 +66,18 @@ enum SyncSnapshotStore {
         current: [(item: FileProviderItem, record: SyncedItemRecord)]
     ) -> (diff: SnapshotDiff, anchor: NSFileProviderSyncAnchor) {
         let old = load(remoteName: remoteName, containerIdentifier: containerIdentifier)
-        let oldByID = Dictionary(uniqueKeysWithValues: (old?.items ?? []).map { ($0.identifier, $0) })
-        let newByID = Dictionary(uniqueKeysWithValues: current.map { ($0.record.identifier, $0.record) })
+        let result = RemoteChangeDiff.diff(old: old?.items, new: current.map(\.record))
+        let changed = Set(result.changed)
+        var emitted = Set<String>()
+        let updated = current
+            .filter { changed.contains($0.record.identifier) && emitted.insert($0.record.identifier).inserted }
+            .map(\.item)
 
-        var updated: [FileProviderItem] = []
-        for (item, record) in current {
-            if let oldRecord = oldByID[record.identifier] {
-                if oldRecord != record { updated.append(item) }
-            } else {
-                updated.append(item)
-            }
-        }
-
-        let deletedIdentifiers = (old?.items ?? [])
-            .filter { newByID[$0.identifier] == nil }
-            .map { NSFileProviderItemIdentifier($0.identifier) }
-
-        let diff = SnapshotDiff(updated: updated, deletedIdentifiers: deletedIdentifiers)
+        let diff = SnapshotDiff(
+            updated: updated,
+            deletedIdentifiers: result.deleted.map { NSFileProviderItemIdentifier($0) },
+            deletedFolders: result.deletedFolders.map { NSFileProviderItemIdentifier($0) }
+        )
         let newVersion = diff.hasChanges ? (old?.version ?? 0) + 1 : (old?.version ?? 0)
 
         if diff.hasChanges || old == nil {
@@ -131,6 +104,58 @@ enum SyncSnapshotStore {
 
     static func currentAnchor(remoteName: String, containerIdentifier: NSFileProviderItemIdentifier) -> NSFileProviderSyncAnchor {
         anchor(forVersion: load(remoteName: remoteName, containerIdentifier: containerIdentifier)?.version ?? 0)
+    }
+
+    /// Whether the system has listed this container at least once (a
+    /// remote scan only walks containers it knows about).
+    static func hasSnapshot(remoteName: String, containerIdentifier: NSFileProviderItemIdentifier) -> Bool {
+        guard let url = fileURL(remoteName: remoteName, containerIdentifier: containerIdentifier) else { return false }
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+
+    /// Drops a container's snapshot (the folder was deleted on the server).
+    static func removeSnapshot(remoteName: String, containerIdentifier: NSFileProviderItemIdentifier) {
+        guard let url = fileURL(remoteName: remoteName, containerIdentifier: containerIdentifier) else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    /// rclone path of a container: `""` for the root, otherwise the
+    /// identifier without its `"<remote>:"` prefix.
+    static func remotePath(of containerIdentifier: NSFileProviderItemIdentifier, remoteName: String) -> String {
+        if containerIdentifier == .rootContainer { return "" }
+        let raw = containerIdentifier.rawValue
+        let prefix = "\(remoteName):"
+        return raw.hasPrefix(prefix) ? String(raw.dropFirst(prefix.count)) : raw
+    }
+
+    // MARK: - Remote generation (working-set anchor)
+
+    /// Goes up whenever a remote scan finds changes; half of the working
+    /// set's sync anchor (see `WorkingSetAnchor`).
+    static func remoteGeneration(remoteName: String) -> Int {
+        guard let url = generationURL(remoteName: remoteName),
+              let text = try? String(contentsOf: url, encoding: .utf8) else { return 0 }
+        return Int(text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+    }
+
+    @discardableResult
+    static func bumpRemoteGeneration(remoteName: String) -> Int {
+        let next = remoteGeneration(remoteName: remoteName) + 1
+        guard let url = generationURL(remoteName: remoteName) else { return next }
+        do {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try String(next).write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            logger.warning("Failed to persist remote generation: \(String(describing: error))")
+        }
+        return next
+    }
+
+    private static func generationURL(remoteName: String) -> URL? {
+        FileProviderRetry.appGroupContainerURL()?
+            .appendingPathComponent("FileProviderSync", isDirectory: true)
+            .appendingPathComponent(remoteName, isDirectory: true)
+            .appendingPathComponent("remote-generation", isDirectory: false)
     }
 
     // MARK: - Anchor encoding

@@ -172,16 +172,29 @@ final class FileProviderBridge {
         }
     }
 
-    /// Tells all File Provider domains to re-enumerate their contents.
-    /// Call this after rclone becomes healthy so the extension retries.
+    /// Asks every File Provider domain for changes: after rclone becomes
+    /// healthy (so the extension retries) and on every cloud refresh (so
+    /// server-side changes reach Finder).
     func signalAllDomains() async {
+        await Self.signalWorkingSets()
+    }
+
+    /// Signals the working set of every registered domain, or only
+    /// `remote`'s. A replicated extension ignores signals for any other
+    /// container (`.rootContainer` included); its working-set enumerator
+    /// reports pin changes and re-lists the folders Finder knows about
+    /// (`RemoteChangeScanner` in the extension).
+    nonisolated static func signalWorkingSets(remote: String? = nil) async {
+        let logger = Logger(subsystem: "app.casavargas.nimbus", category: "fileprovider")
         do {
             let domains = try await NSFileProviderManager.domains()
-            for domain in domains {
-                if let manager = NSFileProviderManager(for: domain) {
-                    try? await manager.signalEnumerator(for: .rootContainer)
-                    try? await manager.signalEnumerator(for: .workingSet)
-                    logger.info("Signaled domain: \(domain.identifier.rawValue)")
+            for domain in domains where remote == nil || domain.identifier.rawValue == remote {
+                guard let manager = NSFileProviderManager(for: domain) else { continue }
+                do {
+                    try await manager.signalEnumerator(for: .workingSet)
+                    logger.info("Signaled working set: \(domain.identifier.rawValue, privacy: .public)")
+                } catch {
+                    logger.info("Working-set signal failed for \(domain.identifier.rawValue, privacy: .public): \(FileProviderErrorText.describe(error), privacy: .public)")
                 }
             }
         } catch {
