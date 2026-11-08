@@ -75,7 +75,7 @@ struct NimbusApp: App {
         }
         .windowToolbarStyle(.unified(showsTitle: false))
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 1000, height: 700)
+        .defaultSize(width: Self.defaultWindowSize.width, height: Self.defaultWindowSize.height)
         .commands {
             AppCommands()
             #if DEBUG
@@ -114,6 +114,17 @@ struct NimbusApp: App {
                     .environment(\.transferNotifier, transferNotifier)
             }
         }
+    }
+
+    /// Debug builds honor `-debugWindowWidth` / `-debugWindowHeight` so a
+    /// screenshot run can open a larger first window on a non-Retina display.
+    private static var defaultWindowSize: CGSize {
+        #if DEBUG
+        let d = UserDefaults.standard
+        let w = d.double(forKey: "debugWindowWidth"), h = d.double(forKey: "debugWindowHeight")
+        if w >= 800, h >= 600 { return CGSize(width: w, height: h) }
+        #endif
+        return CGSize(width: 1000, height: 700)
     }
 
     /// True when the process is the host of an XCTest/Swift Testing run.
