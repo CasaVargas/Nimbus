@@ -18,6 +18,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The macos-15 image defaults to Xcode 16.4, whose Swift 6.1.2 frontend
+      # crashes in IRGen on this codebase (TransferSettingsView). Nimbus is
+      # developed on current Xcode, so pick the newest Xcode 26.x the image
+      # ships instead of the default.
+      - name: Select newest Xcode 26
+        run: |
+          xcode="$(find /Applications -maxdepth 1 -name 'Xcode_26.*.app' | sort -V | tail -n 1)"
+          echo "Using $xcode"
+          sudo xcode-select -s "$xcode"
+
       - name: Install XcodeGen and rclone
         run: brew install xcodegen rclone
 
