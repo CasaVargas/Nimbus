@@ -256,8 +256,8 @@ final class RemoteSetupFlow {
         // property — see the case's doc comment (NB-4).
         guard case .signingIn(let question, let signInAskAll) = phase else { return }
         do {
-            let next = try await client.continueConfig(
-                name: name, type: provider.name, state: question.state,
+            let next = try await continueWalk(
+                state: question.state,
                 result: "true", askAll: signInAskAll
             )
             await advance(from: next, askAll: signInAskAll)
@@ -278,6 +278,57 @@ final class RemoteSetupFlow {
 
     // MARK: - Walk
 
+    /// Questions Nimbus answers on the user's behalf, keyed by option name.
+    /// They never reach a page, and the walk's OAuth detection sees the
+    /// step after them.
+    ///
+    /// `config_shared_client_id` (state `client_id_warning`): since rclone
+    /// 1.76, Google Drive asks this before `*oauth-islocal` whenever no
+    /// client_id was given ("rclone's shared client_id is being retired...
+    /// continue using it anyway?", default false). Left as a plain question
+    /// it made Drive's first `all:false` step a non-OAuth one, so
+    /// `performBegin` threw the walk away and restarted with `all:true`,
+    /// asking for client_id/client_secret. "true" keeps Drive a one-click
+    /// sign-in like the other OAuth backends and matches what `ReconnectFlow`
+    /// answers. "false" would only lead to client_id/client_secret fields,
+    /// which "Show all options" already asks for up front — and a client_id
+    /// entered there means rclone never asks this question at all.
+    private static let automaticAnswers: [String: String] = [
+        "config_shared_client_id": "true",
+    ]
+
+    /// Answers every leading question in `automaticAnswers` and returns the
+    /// first step that isn't one. Every step the walk receives from rclone
+    /// passes through here, so an automatic question can never be collected
+    /// onto a page or mistaken for the walk's first real step.
+    private func skippingAutomaticAnswers(
+        _ first: ConfigStep, askAll: Bool
+    ) async throws -> ConfigStep {
+        var step = first
+        var steps = 0
+        while case .question(let q) = step,
+              let result = Self.automaticAnswers[q.option.name] {
+            steps += 1
+            guard steps <= maxWalkSteps else { throw StuckWalkError() }
+            step = try await client.continueConfig(
+                name: name, type: provider.name, state: q.state,
+                result: result, askAll: askAll
+            )
+        }
+        return step
+    }
+
+    /// Answers one step and returns the next one the walk should look at.
+    private func continueWalk(
+        state: String, result: String, askAll: Bool
+    ) async throws -> ConfigStep {
+        let next = try await client.continueConfig(
+            name: name, type: provider.name, state: state,
+            result: result, askAll: askAll
+        )
+        return try await skippingAutomaticAnswers(next, askAll: askAll)
+    }
+
     private func start(askAll: Bool) async throws -> ConfigStep {
         // Capture the name this call actually uses, and record it BEFORE
         // calling the client: rclone writes the partial remote on the first
@@ -295,7 +346,10 @@ final class RemoteSetupFlow {
         if !currentName.isEmpty {
             partialRemoteName = currentName
         }
-        return try await client.startConfig(name: currentName, type: provider.name, askAll: askAll)
+        let first = try await client.startConfig(
+            name: currentName, type: provider.name, askAll: askAll
+        )
+        return try await skippingAutomaticAnswers(first, askAll: askAll)
     }
 
     /// Consumes plain questions into a page, stopping at the first boundary.
@@ -315,8 +369,8 @@ final class RemoteSetupFlow {
                 switch step {
                 case .question(let q):
                     collected.append(q)
-                    step = try await client.continueConfig(
-                        name: name, type: provider.name, state: q.state,
+                    step = try await continueWalk(
+                        state: q.state,
                         result: answer(for: q), askAll: askAll
                     )
                 case .oauth(let q):
@@ -374,15 +428,15 @@ final class RemoteSetupFlow {
             guard steps <= maxWalkSteps else {
                 throw StuckWalkError()
             }
-            step = try await client.continueConfig(
-                name: name, type: provider.name, state: q.state,
+            step = try await continueWalk(
+                state: q.state,
                 result: answer(for: q), askAll: askAll
             )
         }
         switch step {
         case .advancedGate(let q):
-            return try await client.continueConfig(
-                name: name, type: provider.name, state: q.state,
+            return try await continueWalk(
+                state: q.state,
                 result: includeAdvanced ? "true" : "false", askAll: askAll
             )
         default:

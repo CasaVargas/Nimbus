@@ -90,16 +90,32 @@ struct RcloneConfigMachineTests {
         return json
     }
 
-    /// Walks the machine with default answers, returning the questions asked.
+    /// One question the machine asked: the option name and its state cursor.
+    private struct Asked: Equatable {
+        let name: String
+        let state: String
+    }
+
+    /// The answer `RemoteSetupFlow` gives Drive's rclone 1.76 shared
+    /// client_id warning on the user's behalf. Walks that model the app's
+    /// path pass it so they follow the same branch the app does.
+    private let nimbusAnswers = ["config_shared_client_id": "true"]
+
+    /// Walks the machine with default answers, returning the option names asked.
+    private func walk(type: String, askAll: Bool, answers: [String: String]) throws -> [String] {
+        try walkSteps(type: type, askAll: askAll, answers: answers).map(\.name)
+    }
+
+    /// Walks the machine with default answers, returning every question asked.
     /// Uses its own throwaway config file per call — the walks mutate config
     /// state, so sharing one file across calls/tests would make them order-dependent.
-    private func walk(type: String, askAll: Bool, answers: [String: String]) throws -> [String] {
+    private func walkSteps(type: String, askAll: Bool, answers: [String: String]) throws -> [Asked] {
         let configPath = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(UUID().uuidString).conf").path
         FileManager.default.createFile(atPath: configPath, contents: Data())
         defer { try? FileManager.default.removeItem(atPath: configPath) }
 
-        var asked: [String] = []
+        var asked: [Asked] = []
         var opt: [String: Any] = ["nonInteractive": true, "all": askAll]
         for _ in 0..<200 {
             let optJSON = String(
@@ -113,7 +129,7 @@ struct RcloneConfigMachineTests {
             guard let option = response["Option"] as? [String: Any],
                   !state.isEmpty else { break }
             let name = option["Name"] as? String ?? "?"
-            asked.append(name)
+            asked.append(Asked(name: name, state: state))
             opt = [
                 "nonInteractive": true, "all": askAll, "continue": true,
                 "state": state, "result": answers[name] ?? "",
@@ -125,7 +141,9 @@ struct RcloneConfigMachineTests {
     @Test func askAllWalksAreShortBecauseRcloneGatesByProvider() throws {
         #expect(try walk(type: "s3", askAll: true,
                          answers: ["provider": "AWS", "env_auth": "false"]).count == 13)
-        #expect(try walk(type: "drive", askAll: true, answers: [:]).count == 8)
+        // rclone 1.76 added `config_shared_client_id` after Drive's advanced
+        // gate (8 steps before). Answered the way the app answers it.
+        #expect(try walk(type: "drive", askAll: true, answers: nimbusAnswers).count == 9)
         #expect(try walk(type: "sftp", askAll: true, answers: [:]).count == 14)
     }
 
@@ -147,7 +165,18 @@ struct RcloneConfigMachineTests {
         // proven-real response is what then proves it answered "no
         // questions". Both conditions are required to reach the assertion
         // at all, not just the second one.
-        #expect(try walk(type: "drive", askAll: false, answers: [:]).first == "config_is_local")
+        //
+        // Since rclone 1.76 Drive's first `all:false` step is a plain
+        // question, `config_shared_client_id` at state `client_id_warning`
+        // (the shared client_id is being retired; default false). Answering
+        // it "true", as RemoteSetupFlow does on the user's behalf, leads
+        // straight to the `*oauth-islocal` state the flow detects OAuth by.
+        // If rclone ever drops the question or adds another one ahead of
+        // OAuth, this fails and the flow's `automaticAnswers` needs a look.
+        let drive = try walkSteps(type: "drive", askAll: false, answers: nimbusAnswers)
+        #expect(drive.first == Asked(name: "config_shared_client_id", state: "client_id_warning"))
+        #expect(drive.dropFirst().first?.name == "config_is_local")
+        #expect(drive.dropFirst().first?.state.hasPrefix("*oauth-islocal") == true)
         #expect(try walk(type: "sftp", askAll: false, answers: [:]).isEmpty)
     }
 }

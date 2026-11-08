@@ -216,6 +216,71 @@ struct RemoteSetupFlowTests {
         #expect(flow.phase == .finished)
     }
 
+    @Test func driveSharedClientIdWarningIsAnsweredAndStillReachesSignIn() async throws {
+        // rclone 1.76: Drive's first all:false step is a plain question
+        // (config_shared_client_id at state client_id_warning) ahead of
+        // *oauth-islocal. It must not make Drive look like a credential
+        // backend: no probe-delete-restart with all:true, no page.
+        let client = ScriptedConfigClient()
+        let oauthQuestion = question("config_is_local", state: "*oauth-islocal,teamdrive,oauth,")
+        client.scriptFalse = [
+            .question(question("config_shared_client_id", state: "client_id_warning")),
+            .oauth(oauthQuestion),
+            .done,
+        ]
+        let flow = RemoteSetupFlow(provider: provider("drive"), client: client)
+        flow.name = "gdrive"
+        await flow.begin()
+
+        #expect(flow.phase == .signingIn(oauthQuestion, askAll: false))
+        #expect(flow.isOAuthBackend == true)
+        #expect(client.calls == ["start(all:false)", "continue(client_id_warning=true)"])
+        #expect(client.deletedRemotes.isEmpty)
+
+        await flow.signIn()
+
+        #expect(client.calls.last == "continue(*oauth-islocal,teamdrive,oauth,=true)")
+        #expect(flow.phase == .finished)
+    }
+
+    @Test func sharedClientIdWarningAfterTheAdvancedGateIsAnsweredToo() async throws {
+        // With "Show all options" and client_id left blank, rclone 1.76 asks
+        // the warning after the advanced gate instead. Submitting the page
+        // must answer it on the user's behalf and land on sign-in, not on a
+        // page holding the warning as a field.
+        let client = ScriptedConfigClient()
+        let oauthQuestion = question("config_is_local", state: "*oauth-islocal,teamdrive,oauth,")
+        client.scriptFalse = [
+            .question(question("config_shared_client_id", state: "client_id_warning")),
+            .oauth(oauthQuestion),
+        ]
+        client.scriptTrue = [
+            .question(question("client_id", state: "*all-set,0,false")),
+            .advancedGate(question("config_fs_advanced", state: "*all-advanced")),
+            .question(question("config_shared_client_id", state: "client_id_warning")),
+            .oauth(oauthQuestion),
+        ]
+        let flow = RemoteSetupFlow(provider: provider("drive"), client: client)
+        flow.name = "gdrive"
+        await flow.begin()
+        flow.showAllOptions = true
+        await flow.rewalk()
+
+        guard case .page(let page) = flow.phase else {
+            Issue.record("expected .page, got \(flow.phase)"); return
+        }
+        #expect(page.questions.map(\.option.name) == ["client_id"])
+
+        await flow.submitPage()
+
+        #expect(flow.phase == .signingIn(oauthQuestion, askAll: true))
+        #expect(Array(client.calls.suffix(3)) == [
+            "continue(*all-set,0,false=)",
+            "continue(*all-advanced=false)",
+            "continue(client_id_warning=true)",
+        ])
+    }
+
     @Test func signInCarriesTheAskAllValueFromWhenSigningInWasEntered() async throws {
         // NB-4: performSignIn() must use the askAll captured when .signingIn
         // was entered, not recompute it live. scriptTrue is deliberately
