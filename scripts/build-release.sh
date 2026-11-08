@@ -11,11 +11,15 @@ echo "==> Regenerating Xcode project from project.yml"
 xcodegen generate
 
 echo "==> Building Nimbus (Release)"
+# CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO keeps Xcode from adding the
+# get-task-allow debugging entitlement that a plain `build` (as opposed to an
+# archive) injects. The notary service rejects any executable that has it.
 xcodebuild \
   -scheme Nimbus \
   -configuration Release \
   -destination 'platform=macOS' \
   -derivedDataPath build \
+  CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
   build
 
 echo "==> Release build complete: build/Build/Products/Release/Nimbus.app"

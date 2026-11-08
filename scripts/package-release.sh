@@ -51,21 +51,38 @@ VOLNAME="Nimbus $VERSION"
 mkdir -p "$DIST_DIR"
 rm -f "$DMG" "$DMG.sha256"
 
+# Writes the bundle's current entitlements to $2 with the debugging-only
+# get-task-allow key removed. Apple's notary service rejects any executable
+# that requests it, and Xcode injects it into non-archive builds.
+release_entitlements() {
+  local bundle="$1" out="$2"
+  codesign -d --entitlements :- "$bundle" 2>/dev/null > "$out"
+  /usr/libexec/PlistBuddy -c 'Delete :com.apple.security.get-task-allow' "$out" 2>/dev/null || true
+}
+
 if [ -n "$SIGN_IDENTITY" ]; then
   log "Signing with: $SIGN_IDENTITY"
+  ENT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/nimbus-ent.XXXXXX")"
   # Sign inside-out so the embedded extension is sealed before the app that
-  # contains it. --preserve-metadata keeps the entitlements Xcode applied
-  # (app group, File Provider, network); --options runtime enables the
-  # hardened runtime that notarization requires.
+  # contains it. Entitlements are re-applied from the build minus
+  # get-task-allow; --options runtime enables the hardened runtime that
+  # notarization requires.
   if [ -d "$APPEX" ]; then
+    release_entitlements "$APPEX" "$ENT_DIR/appex.plist"
     codesign --force --timestamp --options runtime \
-      --preserve-metadata=entitlements,identifier \
+      --entitlements "$ENT_DIR/appex.plist" \
       --sign "$SIGN_IDENTITY" "$APPEX"
   fi
-  codesign --force --deep --timestamp --options runtime \
-    --preserve-metadata=entitlements,identifier \
+  release_entitlements "$APP" "$ENT_DIR/app.plist"
+  codesign --force --timestamp --options runtime \
+    --entitlements "$ENT_DIR/app.plist" \
     --sign "$SIGN_IDENTITY" "$APP"
   codesign --verify --deep --strict --verbose=2 "$APP"
+  if codesign -d --entitlements :- "$APP" 2>/dev/null | grep -q get-task-allow; then
+    echo "error: get-task-allow is still present after re-signing" >&2
+    exit 1
+  fi
+  rm -rf "$ENT_DIR"
 else
   log "NIMBUS_SIGN_IDENTITY not set; leaving the app with its build signature"
 fi
@@ -91,7 +108,15 @@ fi
 
 if [ -n "$SIGN_IDENTITY" ] && [ -n "$NOTARY_PROFILE" ]; then
   log "Submitting to the notary service (profile: $NOTARY_PROFILE)"
-  xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
+  SUBMISSION="$(xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait --output-format json)"
+  echo "$SUBMISSION"
+  STATUS="$(printf '%s' "$SUBMISSION" | /usr/bin/python3 -c 'import json,sys; print(json.load(sys.stdin).get("status",""))')"
+  if [ "$STATUS" != "Accepted" ]; then
+    SUBMISSION_ID="$(printf '%s' "$SUBMISSION" | /usr/bin/python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))')"
+    echo "error: notarization status is '$STATUS'. Log:" >&2
+    xcrun notarytool log "$SUBMISSION_ID" --keychain-profile "$NOTARY_PROFILE" >&2 || true
+    exit 1
+  fi
   log "Stapling ticket"
   xcrun stapler staple "$DMG"
   xcrun stapler validate "$DMG"
