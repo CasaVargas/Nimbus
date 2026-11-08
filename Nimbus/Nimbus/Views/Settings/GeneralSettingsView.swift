@@ -132,6 +132,15 @@ private struct AboutSettingsSection: View {
             }
             .font(DesignSystem.Typography.caption)
             .padding(.vertical, DesignSystem.Spacing.xs)
+            HStack(spacing: DesignSystem.Spacing.l) {
+                Text("Nimbus is free. More from Casa Vargas:")
+                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                Link("Beltr, karaoke from your own music", destination: URL(string: "https://beltr.app/?utm_source=nimbus-app&utm_medium=about&utm_campaign=nimbus")!)
+                Link("OneScribe, a scanner that reads", destination: URL(string: "https://apps.apple.com/us/app/onescribe-ai-note-scanner/id6756506734")!)
+                Spacer()
+            }
+            .font(DesignSystem.Typography.caption)
+            .padding(.vertical, DesignSystem.Spacing.xs)
         }
     }
 }

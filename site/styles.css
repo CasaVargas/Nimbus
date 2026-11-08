@@ -127,6 +127,9 @@ code { font-family: var(--mono); font-size: .92em; background: rgba(0,0,0,.06); 
 .hero__sub { font-size: clamp(19px, 2.2vw, 24px); line-height: 1.35; color: var(--text-2); max-width: 720px; margin: 26px auto 0; letter-spacing: -0.015em; }
 .hero__actions { display: flex; gap: 28px; align-items: center; justify-content: center; margin-top: 34px; flex-wrap: wrap; }
 .hero__fine { font-size: 13px; color: var(--text-3); margin-top: 20px; }
+.hero__studio { margin-top: 6px; }
+.hero__studio a { color: var(--text-2); text-decoration: underline; text-underline-offset: 2px; }
+.hero__studio a:hover { color: var(--blue); }
 .hero__shot { margin: 72px auto 0; max-width: 1100px; padding: 0 22px; }
 
 /* Window chrome around screenshots */
