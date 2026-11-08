@@ -2,31 +2,41 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// For people who want to see under the hood: the connection engine's
+/// health, which rclone it runs, network-drive defaults, and troubleshooting.
 struct AdvancedSettingsView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(\.diagnosticsService) private var environmentDiagnosticsService
 
+    @State private var storageModel: GeneralSettingsModel
     @State private var showingFilePicker = false
     @State private var diagnosticsMessage: String?
+
+    init(storageModel: GeneralSettingsModel = GeneralSettingsModel()) {
+        _storageModel = State(initialValue: storageModel)
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
+                DaemonSettingsSection(
+                    status: daemon.status,
+                    version: diagnosticsService.sanitizedRcloneVersion(daemon.rcloneVersion),
+                    port: daemon.port,
+                    restartRequired: daemon.restartRequired(for: settings.rcloneBinaryPath),
+                    actionTitle: daemonActionTitle,
+                    action: runDaemonAction
+                )
                 RcloneSettingsSection(
                     binaryPath: settings.rcloneBinaryPath,
                     version: diagnosticsService.sanitizedRcloneVersion(daemon.rcloneVersion),
                     showFilePicker: { showingFilePicker = true },
                     revealBinary: revealBinary
                 )
-                DaemonSettingsSection(
-                    status: daemon.status,
-                    port: daemon.port,
-                    restartRequired: daemon.restartRequired(for: settings.rcloneBinaryPath),
-                    actionTitle: daemonActionTitle,
-                    action: runDaemonAction
-                )
+                NetworkDriveDefaultsSection()
                 DiagnosticsSettingsSection(
+                    storageModel: storageModel,
                     message: diagnosticsMessage,
                     openLogs: diagnosticsService.openLogs,
                     copySystemInformation: copySystemInformation
@@ -107,138 +117,182 @@ private struct RcloneSettingsSection: View {
     let revealBinary: () -> Void
 
     var body: some View {
-        FormSection(title: "Rclone", footer: nil) {
-            FormRow(label: "Binary Path", help: nil) {
+        FormSection(title: "rclone", footer: nil) {
+            FormRow(label: "Location", help: nil) {
                 HStack(spacing: DesignSystem.Spacing.s) {
                     Text(verbatim: binaryPath)
                         .font(DesignSystem.Typography.caption)
                         .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    Button("Choose...", action: showFilePicker)
+                        .textSelection(.enabled)
+                    Button("Choose…", action: showFilePicker)
                         .controlSize(.small)
                     Button("Reveal", action: revealBinary)
                         .controlSize(.small)
                 }
-                .frame(maxWidth: 360, alignment: .trailing)
+                .frame(maxWidth: 380, alignment: .trailing)
             }
-            FormRow(label: "Detected Version", help: nil) {
+            FormRow(label: "Version", help: nil) {
                 Text(verbatim: version)
                     .font(DesignSystem.Typography.body)
                     .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-                    .accessibilityLabel("Detected Version \(version)")
+                    .accessibilityLabel("rclone version \(version)")
             }
         }
     }
 }
 
+/// One status line for the engine that talks to every cloud, with the one
+/// action that fits its state. Port and version are detail, not headline.
 private struct DaemonSettingsSection: View {
     let status: RcloneDaemon.Status
+    let version: String
     let port: Int
     let restartRequired: Bool
     let actionTitle: String?
     let action: () -> Void
 
     var body: some View {
-        FormSection(title: "Daemon", footer: nil) {
-            FormRow(label: "Status", help: nil) {
-                daemonStatusView
-            }
-            FormRow(label: "Port", help: nil) {
-                Text(verbatim: "\(port)")
-                    .font(DesignSystem.Typography.body)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-            }
-            if restartRequired {
-                statusMessage(
-                    text: "Restart Required",
-                    systemImage: "arrow.clockwise.circle.fill",
-                    color: DesignSystem.Color.semantic.statusWarning
-                )
-            }
-            if let actionTitle {
-                FormRow(label: "Action", help: nil) {
+        FormSection(
+            title: "Connection engine",
+            footer: "Nimbus uses rclone to talk to your clouds. It starts with Nimbus and restarts on its own after most problems."
+        ) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.m) {
+                statusDot
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: headline)
+                        .font(DesignSystem.Typography.body)
+                        .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                        .lineLimit(2)
+                    Text(verbatim: detail)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundStyle(restartRequired ? DesignSystem.Color.semantic.statusWarning
+                                                         : DesignSystem.Color.semantic.textSecondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: DesignSystem.Spacing.m)
+                if let actionTitle {
                     Button(actionTitle, action: action)
                         .controlSize(.small)
                         .accessibilityLabel(actionTitle)
                 }
             }
+            .padding(.vertical, DesignSystem.Spacing.xs)
+            .accessibilityElement(children: .contain)
+        }
+    }
+
+    private var headline: String {
+        switch status {
+        case .idle: "Stopped"
+        case .starting: "Starting…"
+        case .connected: "Running"
+        case .error(let message): message
+        }
+    }
+
+    private var detail: String {
+        if restartRequired { return "Restart to use the rclone you chose." }
+        switch status {
+        case .connected: return "rclone \(version) on port \(port)"
+        case .starting: return "rclone \(version)"
+        case .idle: return "Start it to reach your clouds."
+        case .error: return "Try again, or choose a different rclone below."
         }
     }
 
     @ViewBuilder
-    private var daemonStatusView: some View {
+    private var statusDot: some View {
         switch status {
-        case .idle:
-            Label("Not Running", systemImage: "pause.circle")
-                .font(DesignSystem.Typography.caption)
-                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
         case .starting:
-            HStack(spacing: DesignSystem.Spacing.s) {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Starting...")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-            }
-        case .connected:
-            Label("Connected", systemImage: "checkmark.circle.fill")
-                .font(DesignSystem.Typography.caption)
-                .foregroundStyle(DesignSystem.Color.semantic.statusOK)
-        case .error(let message):
-            statusMessage(
-                text: message,
-                systemImage: "exclamationmark.triangle.fill",
-                color: DesignSystem.Color.semantic.statusError
-            )
+            ProgressView().controlSize(.small)
+        default:
+            Circle()
+                .fill(dotColor)
+                .frame(width: 10, height: 10)
+                .accessibilityHidden(true)
         }
     }
 
-    private func statusMessage(text: String, systemImage: String, color: Color) -> some View {
-        Label {
-            Text(verbatim: text)
-                .lineLimit(2)
-        } icon: {
-            Image(systemName: systemImage)
+    private var dotColor: Color {
+        switch status {
+        case .connected: DesignSystem.Color.semantic.statusOK
+        case .error: DesignSystem.Color.semantic.statusError
+        case .idle, .starting: DesignSystem.Color.semantic.statusMuted
         }
-        .font(DesignSystem.Typography.caption)
-        .foregroundStyle(color)
-        .frame(maxWidth: 320, alignment: .trailing)
+    }
+}
+
+/// Defaults for NFS network drives, moved here from General: most people use
+/// Show in Finder, and these only apply to drives added later.
+private struct NetworkDriveDefaultsSection: View {
+    @Environment(AppSettings.self) private var settings
+
+    var body: some View {
+        @Bindable var settings = settings
+
+        FormSection(
+            title: "Network drives",
+            footer: "Applies to network drives you add later. Most people use Show in Finder instead."
+        ) {
+            FormRow(label: "Access for new network drives", help: nil) {
+                Picker("Access for new network drives", selection: $settings.newMountAccess) {
+                    Text("Read & write").tag(MountAccessDefault.readWrite)
+                    Text("Read only").tag(MountAccessDefault.readOnly)
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(width: 140, alignment: .trailing)
+                .accessibilityLabel("Access for new network drives")
+            }
+            FormRow(label: "Connect new network drives at login", help: nil) {
+                Toggle("", isOn: $settings.newMountAutoMount)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .accessibilityLabel("Connect new network drives at login")
+            }
+        }
     }
 }
 
 private struct DiagnosticsSettingsSection: View {
+    let storageModel: GeneralSettingsModel
     let message: String?
     let openLogs: () -> Void
     let copySystemInformation: () -> Void
 
     var body: some View {
         FormSection(
-            title: "Diagnostics",
-            footer: "Copied system information excludes remote names, credentials, and file paths."
+            title: "Troubleshooting",
+            footer: "System information leaves out cloud names, passwords, and file paths."
         ) {
+            FinderChangeRecordsRow(model: storageModel)
             FormRow(label: "Logs", help: nil) {
-                Button("Open Logs in Console", action: openLogs)
+                Button("Open in Console", action: openLogs)
                     .controlSize(.small)
-                    .accessibilityLabel("Open Logs in Console")
+                    .accessibilityLabel("Open logs in Console")
             }
-            FormRow(label: "System Information", help: nil) {
-                Button("Copy System Information", action: copySystemInformation)
-                    .controlSize(.small)
-                    .accessibilityLabel("Copy System Information")
-            }
-            if let message {
-                Text(verbatim: message)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-                    .accessibilityLabel(message)
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                FormRow(label: "System information", help: nil) {
+                    Button("Copy", action: copySystemInformation)
+                        .controlSize(.small)
+                        .accessibilityLabel("Copy system information")
+                }
+                if let message {
+                    Text(verbatim: message)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .accessibilityLabel(message)
+                }
             }
         }
     }
 }
 
 #Preview {
-    AdvancedSettingsView()
+    AdvancedSettingsView(storageModel: GeneralSettingsModel(cacheUsage: .available(4_200_000)))
         .environment(AppSettings())
         .environment(RcloneDaemon())
         .environment(\.diagnosticsService, DiagnosticsService())

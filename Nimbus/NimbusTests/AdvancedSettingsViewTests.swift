@@ -16,12 +16,32 @@ struct AdvancedSettingsViewTests {
         )
 
         try SnapshotHelpers.assertHostedSnapshot(
-            AdvancedSettingsView()
+            AdvancedSettingsView(storageModel: GeneralSettingsModel(cacheUsage: .available(4_194_304)))
                 .environment(settings)
                 .environment(daemon)
                 .environment(\.diagnosticsService, diagnosticsService),
-            size: CGSize(width: 680, height: 450),
+            size: CGSize(width: 680, height: 820),
             named: "Settings-Advanced-connected"
+        )
+    }
+
+    @Test func rendersFinderRecordsFailure() throws {
+        let settings = settings(path: "/opt/homebrew/bin/rclone")
+        let daemon = RcloneDaemon(
+            testStatus: .connected,
+            activeBinaryPath: "/opt/homebrew/bin/rclone",
+            rcloneVersion: "rclone v1.74.0",
+            port: 5572
+        )
+
+        try SnapshotHelpers.assertHostedSnapshot(
+            AdvancedSettingsView(storageModel: GeneralSettingsModel(
+                cacheUsage: .failed("Nimbus couldn't read its Finder change records.")))
+                .environment(settings)
+                .environment(daemon)
+                .environment(\.diagnosticsService, diagnosticsService),
+            size: CGSize(width: 680, height: 820),
+            named: "Settings-Advanced-records-error"
         )
     }
 
@@ -35,11 +55,11 @@ struct AdvancedSettingsViewTests {
         )
 
         try SnapshotHelpers.assertHostedSnapshot(
-            AdvancedSettingsView()
+            AdvancedSettingsView(storageModel: GeneralSettingsModel(cacheUsage: .available(4_194_304)))
                 .environment(settings)
                 .environment(daemon)
                 .environment(\.diagnosticsService, diagnosticsService),
-            size: CGSize(width: 680, height: 450),
+            size: CGSize(width: 680, height: 820),
             named: "Settings-Advanced-restart-required"
         )
     }
@@ -54,11 +74,11 @@ struct AdvancedSettingsViewTests {
         )
 
         try SnapshotHelpers.assertHostedSnapshot(
-            AdvancedSettingsView()
+            AdvancedSettingsView(storageModel: GeneralSettingsModel(cacheUsage: .available(4_194_304)))
                 .environment(settings)
                 .environment(daemon)
                 .environment(\.diagnosticsService, diagnosticsService),
-            size: CGSize(width: 680, height: 450),
+            size: CGSize(width: 680, height: 820),
             named: "Settings-Advanced-disconnected"
         )
     }
@@ -73,11 +93,11 @@ struct AdvancedSettingsViewTests {
         )
 
         try SnapshotHelpers.assertHostedSnapshot(
-            AdvancedSettingsView()
+            AdvancedSettingsView(storageModel: GeneralSettingsModel(cacheUsage: .available(4_194_304)))
                 .environment(settings)
                 .environment(daemon)
                 .environment(\.diagnosticsService, diagnosticsService),
-            size: CGSize(width: 680, height: 450),
+            size: CGSize(width: 680, height: 820),
             named: "Settings-Advanced-error"
         )
     }

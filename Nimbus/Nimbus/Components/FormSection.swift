@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Wraps a SwiftUI section of preference-form rows with consistent typography
-/// and spacing. Matches macOS System Settings preference-form style.
+/// Wraps a group of preference-form rows. Same visual language as Home's
+/// groups: a sentence-case heading, a subtle filled container with a hairline
+/// edge, and a divider between adjacent rows.
 ///
 /// Use FormRow for individual labeled rows inside the section.
 struct FormSection<Content: View>: View {
@@ -13,23 +14,36 @@ struct FormSection<Content: View>: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
             if let title {
                 Text(title)
-                    .font(DesignSystem.Typography.captionEmphasized)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-                    .textCase(.uppercase)
+                    .font(DesignSystem.Typography.headline)
+                    .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                    .padding(.leading, DesignSystem.Spacing.xs)
                     .accessibilityAddTraits(.isHeader)
             }
             VStack(spacing: 0) {
-                content()
+                Group(subviews: content()) { rows in
+                    ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                        if index > 0 {
+                            Divider().padding(.vertical, DesignSystem.Spacing.xs)
+                        }
+                        row
+                    }
+                }
             }
             .padding(DesignSystem.Spacing.m)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
                     .fill(DesignSystem.Color.semantic.surfaceSubtle)
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                    .strokeBorder(DesignSystem.Color.semantic.separator.opacity(0.6), lineWidth: 0.5)
+            )
             if let footer {
                 Text(footer)
                     .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .padding(.leading, DesignSystem.Spacing.xs)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
