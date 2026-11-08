@@ -10,10 +10,8 @@ struct CopySyncView: View {
     @State private var viewModel: CopySyncViewModel?
 
     @State private var operation: TransferOperation = .copy
-    @State private var srcRemote = ""
-    @State private var srcPath = ""
-    @State private var dstRemote = ""
-    @State private var dstPath = ""
+    @State private var source: TransferEndpoint?
+    @State private var destination: TransferEndpoint?
     @State private var isRunning = false
 
     var body: some View {
@@ -44,15 +42,13 @@ struct CopySyncView: View {
         .navigationTitle("Copy & Sync")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            if let initialSource, srcRemote.isEmpty {
-                srcRemote = initialSource
-                srcPath = initialSourcePath ?? ""
+            if let initialSource, source == nil {
+                source = .cloud(remote: initialSource, path: initialSourcePath ?? "")
             }
         }
         .onChange(of: initialSource) { _, newValue in
             if let newValue {
-                srcRemote = newValue
-                srcPath = initialSourcePath ?? ""
+                source = .cloud(remote: newValue, path: initialSourcePath ?? "")
             }
         }
         .task(id: daemon.status) {
@@ -100,19 +96,17 @@ struct CopySyncView: View {
 
     private var pathsSection: some View {
         FormSection(title: "Paths", footer: nil) {
-            PathPicker(
+            LocationPicker(
                 label: "Source",
                 remoteNames: viewModel?.remoteNames ?? [],
                 client: daemon.client,
-                selectedRemote: $srcRemote,
-                path: $srcPath
+                endpoint: $source
             )
-            PathPicker(
+            LocationPicker(
                 label: "Destination",
                 remoteNames: viewModel?.remoteNames ?? [],
                 client: daemon.client,
-                selectedRemote: $dstRemote,
-                path: $dstPath
+                endpoint: $destination
             )
         }
     }
@@ -131,45 +125,20 @@ struct CopySyncView: View {
     }
 
     private var isValid: Bool {
-        !srcRemote.isEmpty && !dstRemote.isEmpty
+        guard let source, let destination else { return false }
+        return source != destination
     }
 
     private func run() async {
-        guard let viewModel else { return }
+        guard let viewModel, let source, let destination else { return }
         isRunning = true
         defer { isRunning = false }
 
-        let srcFs = srcPath.isEmpty ? "\(srcRemote):" : "\(srcRemote):\(srcPath)"
-        let dstFs = dstPath.isEmpty ? "\(dstRemote):" : "\(dstRemote):\(dstPath)"
-
         await viewModel.startOperation(
             operation: operation,
-            srcFs: srcFs,
-            dstFs: dstFs,
+            source: source,
+            destination: destination,
             store: store
-        )
-    }
-}
-
-/// File-private destructive-action callout. Used only by CopySyncView to warn
-/// users that `Sync` deletes destination-only files. Intentionally not extracted
-/// to `Components/` — no other screen currently needs this affordance.
-private struct DestructiveCallout: View {
-    let message: LocalizedStringKey
-
-    var body: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.s) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(DesignSystem.Color.semantic.statusWarning)
-            Text(message)
-                .font(DesignSystem.Typography.caption)
-                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-            Spacer()
-        }
-        .padding(DesignSystem.Spacing.m)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                .fill(DesignSystem.Color.semantic.statusWarning.opacity(0.10))
         )
     }
 }
