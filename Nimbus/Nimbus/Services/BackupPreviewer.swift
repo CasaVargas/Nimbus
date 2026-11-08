@@ -21,11 +21,16 @@ struct BackupPreview: Equatable, Sendable {
         willCopy.isEmpty && willReplace.isEmpty && willRemove.isEmpty && errors.isEmpty
     }
 
-    var canApprove: Bool { errors.isEmpty }
+    /// A preview that hits the removal limit can't be approved: the real
+    /// run would stop at the same limit. The user raises or turns off the
+    /// limit in Edit first.
+    var canApprove: Bool { errors.isEmpty && !limitHit }
 
-    /// Approving needs a second, explicit confirmation naming the count.
+    static let largeRemovalThreshold = 100
+
+    /// More removals than this need a second confirmation naming the count.
     var needsRemovalConfirmation: Bool {
-        limitHit || willRemove.count > (removalLimit ?? .max)
+        !limitHit && willRemove.count > Self.largeRemovalThreshold
     }
 }
 

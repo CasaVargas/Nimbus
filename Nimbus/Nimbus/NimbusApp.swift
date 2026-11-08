@@ -18,6 +18,8 @@ struct NimbusApp: App {
     @State private var providerDirectory = ProviderDirectory()
     @State private var cloudMonitor: CloudMonitor
     @State private var router = AppRouter()
+    @State private var backupStore: BackupStore
+    @State private var backupRunner: BackupRunner
 
     /// Guards the parts of daemon-connect handling that must run once per
     /// process (pollers, monitors); the rest of `onDaemonConnected` is
@@ -36,10 +38,19 @@ struct NimbusApp: App {
         _settings = State(initialValue: settings)
         _diagnosticsService = State(initialValue: DiagnosticsService())
         _transferNotifier = State(initialValue: transferNotifier)
-        _transferStore = State(initialValue: TransferStore(
+        let transfers = TransferStore(
             retention: settings.transferHistoryRetention,
             notifications: transferNotifier,
             notificationMode: settings.transferNotificationMode
+        )
+        _transferStore = State(initialValue: transfers)
+        let backups = BackupStore()
+        _backupStore = State(initialValue: backups)
+        _backupRunner = State(initialValue: BackupRunner(
+            store: backups,
+            transfers: transfers,
+            client: d.client,
+            isDaemonConnected: { d.status == .connected }
         ))
     }
 
@@ -54,6 +65,8 @@ struct NimbusApp: App {
                     .environment(fileProviderBridge)
                     .environment(mountConfigs)
                     .environment(transferStore)
+                    .environment(backupStore)
+                    .environment(backupRunner)
                     .environment(bookmarkStore)
                     .environment(launchAtLogin)
                     .environment(statusService)
@@ -170,6 +183,7 @@ struct NimbusApp: App {
         }
 
         await transferStore.restoreHistory(retention: settings.transferHistoryRetention)
+        await backupStore.load()
 
         mountManager.rcloneBinaryPath = settings.rcloneBinaryPath
         await mountManager.cleanupStaleMounts()

@@ -58,6 +58,8 @@ struct AppCommands: Commands {
                 .keyboardShortcut("h", modifiers: [.command, .shift])
             Button("Copy Between Clouds") { sidebarSelection?.wrappedValue = .copySync }
                 .keyboardShortcut("4", modifiers: [.command, .shift])
+            Button("Backups") { sidebarSelection?.wrappedValue = .backups }
+                .keyboardShortcut("b", modifiers: [.command, .shift])
         }
     }
 }

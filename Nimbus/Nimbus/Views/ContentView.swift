@@ -13,6 +13,7 @@ struct ContentView: View {
     /// Source remote to preselect when Copy & Sync opens from a volume.
     @State private var copySyncSource: String?
     @State private var copySyncSourcePath: String?
+    @State private var pendingBackupDraft: BackupJob?
     @Environment(AppSettings.self) private var settings
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(TransferStore.self) private var transferStore
@@ -166,7 +167,22 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         case .copySync:
-            CopySyncView(initialSource: copySyncSource, initialSourcePath: copySyncSourcePath)
+            CopySyncView(
+                initialSource: copySyncSource,
+                initialSourcePath: copySyncSourcePath,
+                onSaveAsBackup: { draft in
+                    pendingBackupDraft = draft
+                    selection = .backups
+                }
+            )
+        case .backups:
+            BackupsView(
+                pendingDraft: $pendingBackupDraft,
+                onShowHistory: { cloud in
+                    requestedVolumeTab = .transfers
+                    selection = .remote(cloud)
+                }
+            )
         }
     }
 }

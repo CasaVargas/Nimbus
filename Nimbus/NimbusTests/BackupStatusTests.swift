@@ -1,0 +1,144 @@
+import Foundation
+import Testing
+@testable import Nimbus
+
+struct BackupStatusTests {
+    let now = Date(timeIntervalSince1970: 1_794_085_200) // 2026-11-08 16:00 EST
+
+    static var newYork: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/New_York")!
+        return calendar
+    }
+
+    private func job(approved: Bool = true, _ mutate: (inout BackupJob) -> Void = { _ in }) -> BackupJob {
+        var job = BackupJob.new(source: .local(path: "/Users/j/Documents"),
+                                destination: .cloud(remote: "b2", path: "mac"), now: now)
+        mutate(&job)
+        if approved { job.approvedFingerprint = job.fingerprint }
+        return job
+    }
+
+    private func run(_ outcome: BackupRunSummary.Outcome, copied: Int = 12, hoursAgo: Double = 2) -> BackupRunSummary {
+        let finished = now.addingTimeInterval(-hoursAgo * 3600)
+        return BackupRunSummary(startedAt: finished.addingTimeInterval(-60), finishedAt: finished,
+                                trigger: .manual, outcome: outcome, copied: copied, replaced: 0,
+                                removed: 0, errors: 0, bytes: 0)
+    }
+
+    private func transfer(progress: Double, eta: TimeInterval?) -> Transfer {
+        Transfer(jobID: 1, operation: .sync, srcFs: "a", dstFs: "b", startedAt: now, status: .active,
+                 origin: .backup, nimbusUUID: UUID(), progress: progress, eta: eta)
+    }
+
+    @Test func runningBeatsEverything() {
+        let job = job(approved: false) { $0.isPaused = true; $0.lastRun = run(.failed("x")) }
+        let status = BackupStatus.make(job: job, isRunning: true, isQueued: true,
+                                       transfer: transfer(progress: 0.45, eta: 180), now: now)
+        #expect(status.sentence == "Backing up… 45%, 3 min left")
+        #expect(status.tint == .info)
+        #expect(status.progress == 0.45)
+    }
+
+    @Test func runningWithoutEta() {
+        let status = BackupStatus.make(job: job(), isRunning: true, isQueued: false,
+                                       transfer: transfer(progress: 0.1, eta: nil), now: now)
+        #expect(status.sentence == "Backing up… 10%")
+    }
+
+    @Test func queued() {
+        let status = BackupStatus.make(job: job(), isRunning: false, isQueued: true, transfer: nil, now: now)
+        #expect(status.sentence == "Waiting for another backup to finish")
+        #expect(status.tint == .secondary)
+        #expect(status.progress == nil)
+    }
+
+    @Test func notApproved() {
+        let status = BackupStatus.make(job: job(approved: false) { $0.lastRun = run(.completed) },
+                                       isRunning: false, isQueued: false, transfer: nil, now: now)
+        #expect(status.sentence == "Preview needed before it can run")
+        #expect(status.tint == .warning)
+    }
+
+    @Test func paused() {
+        let status = BackupStatus.make(job: job { $0.isPaused = true; $0.lastRun = run(.failed("x")) },
+                                       isRunning: false, isQueued: false, transfer: nil, now: now)
+        #expect(status.sentence == "Paused")
+        #expect(status.tint == .secondary)
+    }
+
+    @Test func failed() {
+        let summary = run(.failed("The source folder isn't available. Is the drive connected?"))
+        let status = BackupStatus.make(job: job { $0.lastRun = summary },
+                                       isRunning: false, isQueued: false, transfer: nil, now: now)
+        let relative = BackupStatus.relative(summary.finishedAt, now: now)
+        #expect(status.sentence == "Failed \(relative): The source folder isn't available. Is the drive connected?")
+        #expect(status.tint == .error)
+    }
+
+    @Test func limitHit() {
+        let summary = run(.limitHit)
+        let status = BackupStatus.make(job: job { $0.removalLimit = 100; $0.lastRun = summary },
+                                       isRunning: false, isQueued: false, transfer: nil, now: now)
+        let relative = BackupStatus.relative(summary.finishedAt, now: now)
+        #expect(status.sentence == "Stopped \(relative): would remove more than 100 files")
+        #expect(status.tint == .warning)
+    }
+
+    @Test func completed() {
+        let summary = run(.completed, copied: 12)
+        let status = BackupStatus.make(job: job { $0.lastRun = summary },
+                                       isRunning: false, isQueued: false, transfer: nil, now: now)
+        let relative = BackupStatus.relative(summary.finishedAt, now: now)
+        #expect(status.sentence == "Backed up \(relative), 12 files")
+        #expect(status.tint == .ok)
+        #expect(relative == "2 hours ago")
+    }
+
+    @Test func completedSingularAndNoChanges() {
+        let one = BackupStatus.make(job: job { $0.lastRun = run(.completed, copied: 1) },
+                                    isRunning: false, isQueued: false, transfer: nil, now: now)
+        #expect(one.sentence.hasSuffix(", 1 file"))
+        let none = BackupStatus.make(job: job { $0.lastRun = run(.completed, copied: 0) },
+                                     isRunning: false, isQueued: false, transfer: nil, now: now)
+        #expect(none.sentence.hasSuffix(", no changes"))
+    }
+
+    @Test func cancelledLastRun() {
+        let summary = run(.cancelled)
+        let status = BackupStatus.make(job: job { $0.lastRun = summary },
+                                       isRunning: false, isQueued: false, transfer: nil, now: now)
+        #expect(status.sentence == "Stopped \(BackupStatus.relative(summary.finishedAt, now: now))")
+        #expect(status.tint == .secondary)
+    }
+
+    @Test func neverRun() {
+        let status = BackupStatus.make(job: job(), isRunning: false, isQueued: false, transfer: nil, now: now)
+        #expect(status.sentence == "Not run yet")
+        #expect(status.tint == .secondary)
+    }
+
+    @Test func scheduleLineManual() {
+        #expect(BackupStatus.scheduleLine(job: job(), now: now, calendar: Self.newYork) == "Manual")
+    }
+
+    @Test func scheduleLineDaily() {
+        let line = BackupStatus.scheduleLine(job: job { $0.schedule = .daily(hour: 2, minute: 0) },
+                                             now: now, calendar: Self.newYork)
+        #expect(line.hasPrefix("Every day at 2:00"))
+        #expect(line.contains(" · next "))
+    }
+
+    @Test func scheduleLinePausedHasNoNext() {
+        let line = BackupStatus.scheduleLine(job: job { $0.schedule = .hourly; $0.isPaused = true },
+                                             now: now, calendar: Self.newYork)
+        #expect(line == "Every hour")
+    }
+
+    @Test func accessibilityLabelIsOneSentence() {
+        let job = job { $0.name = "Documents to B2"; $0.lastRun = run(.completed) }
+        let status = BackupStatus.make(job: job, isRunning: false, isQueued: false, transfer: nil, now: now)
+        let label = BackupStatus.accessibilityLabel(job: job, status: status, scheduleLine: "Manual")
+        #expect(label == "Documents to B2, \(status.sentence), Manual")
+    }
+}

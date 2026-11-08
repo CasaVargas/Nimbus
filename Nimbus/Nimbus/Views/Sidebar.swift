@@ -15,6 +15,8 @@ struct Sidebar: View {
             RemotesSidebarSection()
 
             Section {
+                Label("Backups", systemImage: "clock.arrow.circlepath")
+                    .tag(SidebarSelection.backups)
                 Label("Copy Between Clouds", systemImage: "arrow.triangle.2.circlepath")
                     .tag(SidebarSelection.copySync)
             } header: {

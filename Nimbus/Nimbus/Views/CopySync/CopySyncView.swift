@@ -5,6 +5,8 @@ struct CopySyncView: View {
     /// Remote to preselect as the source when opened from a volume's Sync… button.
     var initialSource: String? = nil
     var initialSourcePath: String? = nil
+    /// "Save as Backup…": a pre-filled new backup for the Backups screen.
+    var onSaveAsBackup: (BackupJob) -> Void = { _ in }
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(TransferStore.self) private var store
     @State private var viewModel: CopySyncViewModel?
@@ -13,6 +15,7 @@ struct CopySyncView: View {
     @State private var source: TransferEndpoint?
     @State private var destination: TransferEndpoint?
     @State private var isRunning = false
+    @State private var isPreviewing = false
 
     var body: some View {
         ScrollView {
@@ -39,7 +42,19 @@ struct CopySyncView: View {
             .padding(DesignSystem.Spacing.xl)
             .frame(maxWidth: 720)
         }
-        .navigationTitle("Copy & Sync")
+        .navigationTitle("Copy Between Clouds")
+        .sheet(isPresented: $isPreviewing) {
+            if let source, let destination {
+                BackupPreviewSheet(
+                    subject: .transfer(
+                        SyncRequest(operation: operation == .sync ? .sync : .copy, srcFs: source.fs, dstFs: destination.fs),
+                        startLabel: operation == .copy ? "Start Copy" : "Start Sync"
+                    ),
+                    client: daemon.client,
+                    onStart: { Task { await run() } }
+                )
+            }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             if let initialSource, source == nil {
@@ -113,7 +128,16 @@ struct CopySyncView: View {
 
     private var runRow: some View {
         HStack {
+            Button("Save as Backup…") {
+                guard let source, let destination else { return }
+                var draft = BackupJob.new(source: source, destination: destination, now: Date())
+                draft.mode = operation == .sync ? .mirror : .addOnly
+                onSaveAsBackup(draft)
+            }
+            .disabled(!isValid)
             Spacer()
+            Button("Preview…") { isPreviewing = true }
+                .disabled(!isValid || isRunning)
             Button(isRunning ? "Starting…" : operation == .copy ? "Start Copy" : "Start Sync") {
                 Task { await run() }
             }

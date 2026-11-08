@@ -83,17 +83,20 @@ struct BackupPreviewerTests {
             return
         }
         #expect(preview.limitHit)
-        #expect(preview.needsRemovalConfirmation)
-        #expect(preview.canApprove)
+        // The real run would stop at the same limit, so approving is pointless:
+        // the sheet sends the user to Edit instead.
+        #expect(preview.canApprove == false)
+        #expect(preview.needsRemovalConfirmation == false)
     }
 
-    @Test func removalsAboveLimitNeedConfirmation() {
-        let preview = BackupPreview(willCopy: [], willReplace: [], willRemove: ["a", "b", "c"], errors: [],
-                                    approxBytes: 0, limitHit: false, removalLimit: 2, fingerprint: "f", finishedAt: now)
-        #expect(preview.needsRemovalConfirmation)
-        let noLimit = BackupPreview(willCopy: [], willReplace: [], willRemove: ["a", "b", "c"], errors: [],
-                                    approxBytes: 0, limitHit: false, removalLimit: nil, fingerprint: "f", finishedAt: now)
-        #expect(noLimit.needsRemovalConfirmation == false)
+    @Test func largeRemovalNeedsConfirmation() {
+        let many = (0...100).map { "f\($0)" }
+        let large = BackupPreview(willCopy: [], willReplace: [], willRemove: many, errors: [],
+                                  approxBytes: 0, limitHit: false, removalLimit: nil, fingerprint: "f", finishedAt: now)
+        #expect(large.needsRemovalConfirmation)
+        let small = BackupPreview(willCopy: [], willReplace: [], willRemove: ["a", "b", "c"], errors: [],
+                                  approxBytes: 0, limitHit: false, removalLimit: nil, fingerprint: "f", finishedAt: now)
+        #expect(small.needsRemovalConfirmation == false)
     }
 
     @Test func reportedErrorsBlockApproval() async {
