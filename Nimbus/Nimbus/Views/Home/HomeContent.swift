@@ -236,4 +236,14 @@ enum HomePreviewData {
 #Preview("Engine down", traits: .fixedLayout(width: 900, height: 600)) {
     HomeContent(summary: HomePreviewData.summary([], overall: .engineDown("rclone exited with status 1")), activity: [], providerCount: 72)
 }
+
+#Preview("Window: Home", traits: .fixedLayout(width: 1280, height: 800)) {
+    let rows = [HomePreviewData.personal, HomePreviewData.work, HomePreviewData.dropbox, HomePreviewData.archive, HomePreviewData.nas]
+    DemoWindow(title: "Home", selection: .home) {
+        HomeContent(
+            summary: HomePreviewData.summary(rows, overall: .needsAttention(HomePreviewData.work), attention: HomePreviewData.work,
+                                             suggestions: [.notInFinder(HomePreviewData.archive)]),
+            activity: HomePreviewData.activity, providerCount: 72)
+    }
+}
 #endif

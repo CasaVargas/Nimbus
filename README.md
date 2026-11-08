@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/browser-list.png" width="900" alt="Nimbus file browser showing a remote in list view">
+  <img src="docs/screenshots/window-home.png" width="900" alt="The Nimbus window on Home: a sidebar of clouds with capacity bars, one storage bar across all of them, and a row per cloud in plain words">
 </p>
 
 ## Why

@@ -109,4 +109,143 @@ struct VolumeHeader: View {
     .background(DesignSystem.Color.semantic.surface)
     .preferredColorScheme(.dark)
 }
+
+// MARK: - Demo windows for screenshots
+
+/// A stand-in for the app window: the real sidebar rows and the real detail
+/// views, with demo data and a drawn-in toolbar, so the website can show the
+/// interface without a live rclone. Not part of the shipping app.
+struct DemoWindow<Content: View>: View {
+    let title: String
+    let selection: SidebarSelection
+    @ViewBuilder let content: () -> Content
+
+    static var remotes: [(Remote, RemoteStatus, StorageQuota?)] {
+        [
+            (Remote(name: "Personal", type: "drive", config: [:]), .connected, StorageQuota(used: 1_280_000_000_000, total: 2_000_000_000_000)),
+            (Remote(name: "Work", type: "onedrive", config: [:]), .authNeeded, StorageQuota(used: 412_000_000_000, total: 1_000_000_000_000)),
+            (Remote(name: "Dropbox", type: "dropbox", config: [:]), .connected, StorageQuota(used: 61_000_000_000, total: 2_000_000_000_000)),
+            (Remote(name: "Photo Archive", type: "b2", config: [:]), .connected, StorageQuota(used: 720_000_000_000, total: nil)),
+            (Remote(name: "Home NAS", type: "sftp", config: [:]), .unreachable(reason: "timeout"), nil),
+        ]
+    }
+
+    static var files: [FileItem] {
+        let day: TimeInterval = 86_400
+        func item(_ name: String, _ size: Int64, _ mime: String, dir: Bool = false, ago: Double) -> FileItem {
+            FileItem(path: name, name: name, size: size, mimeType: mime, modTime: Date().addingTimeInterval(-ago * day),
+                     isDir: dir, fileID: nil, qualifiedRemotePath: "Personal:\(name)")
+        }
+        return [
+            item("Documents", 0, "inode/directory", dir: true, ago: 0.2),
+            item("Photos", 0, "inode/directory", dir: true, ago: 1),
+            item("Projects", 0, "inode/directory", dir: true, ago: 3),
+            item("Budget 2026.xlsx", 840_000, "application/vnd.ms-excel", ago: 2),
+            item("Deck.key", 48_000_000, "application/x-iwork-keynote-sffkey", ago: 5),
+            item("Lease.pdf", 1_400_000, "application/pdf", ago: 12),
+            item("Yosemite 2026.heic", 8_400_000, "image/heic", ago: 18),
+        ]
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            List(selection: .constant(Optional(selection))) {
+                Label("Home", systemImage: "house").tag(SidebarSelection.home)
+                Section {
+                    ForEach(Self.remotes, id: \.0.name) { remote, status, quota in
+                        SidebarRemoteRow(remote: remote, status: status, quota: quota,
+                                         onEdit: {}, onDelete: {}, onReconnect: {})
+                            .tag(SidebarSelection.remote(remote.name))
+                    }
+                } header: {
+                    HStack {
+                        Text("Clouds")
+                        Spacer()
+                        Image(systemName: "plus").foregroundStyle(.secondary)
+                    }
+                }
+                Section("Tools") {
+                    Label("Copy Between Clouds", systemImage: "arrow.triangle.2.circlepath")
+                        .tag(SidebarSelection.copySync)
+                }
+            }
+            .listStyle(.sidebar)
+            .frame(width: 236)
+            .padding(.top, 38)
+            .background(.ultraThinMaterial)
+
+            VStack(spacing: 0) {
+                HStack(spacing: DesignSystem.Spacing.m) {
+                    Text(title)
+                        .font(DesignSystem.Typography.headline)
+                    Spacer()
+                    Button("Copy Between Clouds…") {}
+                    Button {} label: { Label("Add Cloud", systemImage: "plus") }
+                    Button {} label: { Image(systemName: "sidebar.trailing") }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .padding(.horizontal, DesignSystem.Spacing.l)
+                .frame(height: 52)
+                .background(DesignSystem.Color.semantic.surface)
+                Divider()
+                content()
+            }
+            .background(DesignSystem.Color.semantic.surface)
+        }
+        .preferredColorScheme(.dark)
+        .environment(FileProviderBridge())
+        .environment(AppSettings(defaults: UserDefaults(suiteName: "DemoWindowPreview")!))
+        .environment(RcloneDaemon())
+        .environment(TransferStore())
+        .environment(CloudMonitor(loadRemotes: { [] }, status: RemoteStatusService(client: RcloneDaemon().client)))
+    }
+}
+
+#Preview("Window: Files", traits: .fixedLayout(width: 1280, height: 800)) {
+    @Previewable @State var tab: VolumeTab = .files
+    @Previewable @State var sortField: SortField = .name
+    @Previewable @State var sortAscending = true
+    let remote = Remote(name: "Personal", type: "drive", config: [:])
+    let quota = StorageQuota(used: 1_280_000_000_000, total: 2_000_000_000_000)
+    let files = DemoWindow<EmptyView>.files
+    DemoWindow(title: "Personal", selection: .remote("Personal")) {
+        VolumeHeader(remote: remote, providerName: "Google Drive", quota: quota, status: .connected,
+                     isInFinder: true, onPrimary: {}, onSync: {}, onEdit: {})
+        StorageGauge(quota: quota)
+        VolumeTabBar(selection: $tab)
+        Divider()
+        FileTableHeader(sortField: $sortField, sortAscending: $sortAscending)
+        Divider()
+        VStack(spacing: 0) {
+            ForEach(files) { file in
+                FileRowView(file: file, remote: "Personal", isSelected: file.name == "Lease.pdf")
+                    .padding(.horizontal, 18)
+                    .background(file.name == "Lease.pdf" ? Color(nsColor: .selectedContentBackgroundColor) : .clear)
+            }
+        }
+        .padding(.top, DesignSystem.Spacing.xs)
+        Spacer(minLength: 0)
+    }
+}
+
+#Preview("Window: Finder tab", traits: .fixedLayout(width: 1280, height: 800)) {
+    @Previewable @State var tab: VolumeTab = .finder
+    let remote = Remote(name: "Personal", type: "drive", config: [:])
+    let quota = StorageQuota(used: 1_280_000_000_000, total: 2_000_000_000_000)
+    let inFinder = MountConfig(remote: "Personal:", mountPoint: "", vfsMode: .readWrite, autoMount: true, backend: .fileProvider)
+    let asVolume = MountConfig(remote: "Personal:", mountPoint: "/Volumes/Personal", vfsMode: .readWrite, autoMount: false, backend: .nfs)
+    DemoWindow(title: "Personal", selection: .remote("Personal")) {
+        VolumeHeader(remote: remote, providerName: "Google Drive", quota: quota, status: .connected,
+                     isInFinder: true, onPrimary: {}, onSync: {}, onEdit: {})
+        StorageGauge(quota: quota)
+        VolumeTabBar(selection: $tab)
+        Divider()
+        List {
+            MountRow(config: inFinder, state: .on, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {})
+            MountRow(config: asVolume, state: .off, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {})
+        }
+        .listStyle(.inset)
+    }
+}
 #endif
