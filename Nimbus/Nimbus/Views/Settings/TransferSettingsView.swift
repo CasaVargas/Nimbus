@@ -42,7 +42,7 @@ enum TransferRuntimeSettings {
         runtime: any TransferRuntimeConfiguring
     ) async throws {
         let persistedValue = bandwidthLimit.trimmingCharacters(in: .whitespacesAndNewlines)
-        try await runtime.setBandwidthLimit(rate: persistedValue.isEmpty ? "off" : persistedValue)
+        _ = try await runtime.setBandwidthLimit(rate: persistedValue.isEmpty ? "off" : persistedValue)
         settings.bandwidthLimit = persistedValue
     }
 
@@ -238,7 +238,7 @@ private struct TransferPerformanceSection: View {
                 Stepper(
                     value: Binding(
                         get: { concurrentTransfers },
-                        set: updateConcurrentTransfers
+                        set: { updateConcurrentTransfers($0) }
                     ),
                     in: 1...32
                 ) {

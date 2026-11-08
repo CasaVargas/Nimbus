@@ -236,7 +236,7 @@ struct BrowserView: View {
                         Task { await viewModel.navigateTo(path: component.path) }
                     } label: {
                         if index == 0 {
-                            Label(component.name, systemImage: "cloud")
+                            Label(remoteName, systemImage: "cloud")
                         } else {
                             Text(component.name)
                         }

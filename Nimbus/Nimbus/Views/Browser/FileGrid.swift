@@ -77,9 +77,10 @@ struct FileGrid: View {
 
     @ViewBuilder
     private func tilePreview(for file: FileItem) -> some View {
-        Image(systemName: file.isDir ? "folder.fill" : Self.iconName(for: file.name))
-            .font(DesignSystem.Typography.largeTitle)
-            .foregroundStyle(DesignSystem.Color.semantic.statusInfo)
+        Image(nsImage: FileIcon.image(for: file))
+            .resizable()
+            .interpolation(.high)
+            .frame(width: Layout.iconSize, height: Layout.iconSize)
             .padding()
     }
 
@@ -105,13 +106,11 @@ struct FileGridTile: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            Image(systemName: file.isDir ? "folder.fill" : FileGrid.iconName(for: file.name))
+            Image(nsImage: FileIcon.image(for: file))
                 .resizable()
-                .scaledToFit()
+                .interpolation(.high)
                 .frame(width: FileGrid.Layout.iconSize, height: FileGrid.Layout.iconSize)
-                .foregroundStyle(file.isDir
-                                 ? DesignSystem.Color.semantic.statusInfo
-                                 : DesignSystem.Color.semantic.textSecondary)
+                .accessibilityHidden(true)
                 .frame(height: 54)
 
             Text(file.name)

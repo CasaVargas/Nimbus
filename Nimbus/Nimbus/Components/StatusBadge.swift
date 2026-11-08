@@ -9,7 +9,17 @@ enum CloudStatus: Equatable {
 }
 
 struct StatusBadge: View {
+    /// `.pill` is the labelled chip used in inspectors and transfer rows.
+    /// `.compact` mirrors Finder's iCloud status column: nothing for local
+    /// items, a bare glyph otherwise, so a folder full of synced files reads
+    /// as calm instead of as a wall of green.
+    enum Style {
+        case pill
+        case compact
+    }
+
     let state: CloudStatus
+    var style: Style = .pill
 
     var accessibilityLabelString: String {
         switch state {
@@ -23,6 +33,18 @@ struct StatusBadge: View {
 
     var body: some View {
         Group {
+            switch style {
+            case .pill: pillBody
+            case .compact: compactBody
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel(Text(accessibilityLabelString))
+    }
+
+    @ViewBuilder
+    private var pillBody: some View {
+        Group {
             switch state {
             case .local:              pill(text: "Local",   systemImage: "checkmark.circle.fill",
                                            tint: DesignSystem.Color.semantic.statusOK,       muted: false)
@@ -35,8 +57,31 @@ struct StatusBadge: View {
                                            tint: DesignSystem.Color.semantic.statusError,    muted: false)
             }
         }
-        .accessibilityElement()
-        .accessibilityLabel(Text(accessibilityLabelString))
+    }
+
+    @ViewBuilder
+    private var compactBody: some View {
+        switch state {
+        case .local:
+            Color.clear.frame(width: 16, height: 16)
+        case .cloud:
+            glyph("cloud", tint: DesignSystem.Color.semantic.textTertiary)
+        case .downloading(let p):
+            ring(progress: p)
+        case .evicted:
+            glyph("icloud.slash", tint: DesignSystem.Color.semantic.textTertiary)
+        case .error:
+            glyph("exclamationmark.triangle.fill", tint: DesignSystem.Color.semantic.statusError)
+        }
+    }
+
+    private func glyph(_ systemImage: String, tint: Color) -> some View {
+        Image(systemName: systemImage)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 14, height: 14)
+            .foregroundStyle(tint)
+            .frame(width: 16, height: 16)
     }
 
     @ViewBuilder
@@ -79,6 +124,17 @@ struct StatusBadge: View {
         StatusBadge(state: .downloading(progress: 1.0))
         StatusBadge(state: .evicted)
         StatusBadge(state: .error(reason: "Auth failed"))
+    }
+    .padding()
+}
+
+#Preview("Compact") {
+    HStack(spacing: 12) {
+        StatusBadge(state: .local, style: .compact)
+        StatusBadge(state: .cloud, style: .compact)
+        StatusBadge(state: .downloading(progress: 0.5), style: .compact)
+        StatusBadge(state: .evicted, style: .compact)
+        StatusBadge(state: .error(reason: "Auth failed"), style: .compact)
     }
     .padding()
 }
