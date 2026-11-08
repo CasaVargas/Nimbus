@@ -166,6 +166,17 @@ private let _setupMocks: Void = {
         endpoint: "test/error-body-200",
         json: #"{"error": "options rejected", "path": "options/set", "status": 500}"#
     )
+    // Real rclone 1.76 job/status bodies: every job status has an "error"
+    // key ("" on success, the failure text on a failed job). Neither is an
+    // RC API error; they have no "path" or "status".
+    MockURLProtocol.register(
+        endpoint: "test/jobstatus-ok",
+        json: #"{"duration": 0.01, "endTime": "", "error": "", "executeId": "x", "finished": true, "group": "job/1", "id": 1, "output": {}, "startTime": "", "success": true}"#
+    )
+    MockURLProtocol.register(
+        endpoint: "test/jobstatus-failed",
+        json: #"{"duration": 0.01, "endTime": "", "error": "directory not found", "finished": true, "group": "job/2", "id": 2, "startTime": "", "success": false}"#
+    )
 
     // Dedicated endpoint for mockCapturesRequestBody — config/create is also
     // hit by RemotesTests.swift's bare createRemote() test, which would race
@@ -313,4 +324,17 @@ struct MockHarnessTests {
         #expect(json["name"] as? String == "bodytest")
         #expect(json["type"] as? String == "s3")
     }
+}
+
+@Test func jobStatusWithEmptyErrorFieldIsNotAnAPIError() async throws {
+    let job: Job = try await makeTestClient().call("test/jobstatus-ok")
+    #expect(job.id == 1)
+    #expect(job.success)
+}
+
+@Test func failedJobStatusDecodesInsteadOfThrowing() async throws {
+    let job: Job = try await makeTestClient().call("test/jobstatus-failed")
+    #expect(job.finished)
+    #expect(job.success == false)
+    #expect(job.error == "directory not found")
 }

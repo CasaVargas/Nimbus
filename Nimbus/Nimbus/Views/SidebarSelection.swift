@@ -7,6 +7,7 @@ enum SidebarSelection: Hashable {
     case home
     case remote(String)
     case copySync
+    case backups
 }
 
 /// Reconciles a selection against the current set of remote names. Used both
@@ -14,7 +15,7 @@ enum SidebarSelection: Hashable {
 /// land on Home, which is always valid. Non-remote selections are never altered.
 func nextSelection(current: SidebarSelection?, remotes: [String]) -> SidebarSelection? {
     switch current {
-    case .home, .copySync:
+    case .home, .copySync, .backups:
         return current
     case .remote(let name):
         return remotes.contains(name) ? .remote(name) : .home

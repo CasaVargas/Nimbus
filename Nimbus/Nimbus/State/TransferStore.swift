@@ -30,6 +30,8 @@ enum TransferOrigin: String, Codable, Sendable {
     case manual
     case crossRemoteDrop
     case copySyncJob
+    /// A run of a saved backup (`BackupRunner`).
+    case backup
 }
 
 extension Transfer {
@@ -42,6 +44,18 @@ extension Transfer {
 }
 
 struct Transfer: Identifiable {
+    /// What a backup run needs to build its summary when rclone finishes.
+    struct BackupContext: Equatable, Sendable {
+        let backupID: UUID
+        /// The job's name at run time, so history survives a rename or delete.
+        let title: String
+        let trigger: BackupRunSummary.Trigger
+        /// Mirror with versions: removals are moves into the versions folder.
+        let isMirrorWithVersions: Bool
+        /// The run had `MaxDelete`, so "failed to delete" means the limit hit.
+        let hadRemovalLimit: Bool
+    }
+
     var id: UUID { nimbusUUID }
     /// rclone's ID is transient and must never identify a Nimbus row.
     let jobID: Int?
@@ -58,6 +72,9 @@ struct Transfer: Identifiable {
     var speed: Int64?
     /// Estimated seconds remaining, derived from speed + remaining bytes.
     var eta: TimeInterval?
+    var backup: BackupContext?
+    /// Set when a backup run finishes.
+    var summary: BackupRunSummary?
 
     init(
         jobID: Int?,
@@ -71,7 +88,9 @@ struct Transfer: Identifiable {
         nimbusUUID: UUID,
         progress: Double = 0.0,
         speed: Int64? = nil,
-        eta: TimeInterval? = nil
+        eta: TimeInterval? = nil,
+        backup: BackupContext? = nil,
+        summary: BackupRunSummary? = nil
     ) {
         self.jobID = jobID
         self.operation = operation
@@ -85,6 +104,8 @@ struct Transfer: Identifiable {
         self.progress = progress
         self.speed = speed
         self.eta = eta
+        self.backup = backup
+        self.summary = summary
     }
 
     init(record: TransferRecord) {
@@ -98,7 +119,17 @@ struct Transfer: Identifiable {
             status: .init(outcome: record.outcome),
             origin: record.origin,
             nimbusUUID: record.id,
-            progress: record.outcome == .completed ? 1.0 : 0.0
+            progress: record.outcome == .completed ? 1.0 : 0.0,
+            backup: record.backupID.map {
+                BackupContext(
+                    backupID: $0,
+                    title: record.title ?? "",
+                    trigger: record.summary?.trigger ?? .manual,
+                    isMirrorWithVersions: false,
+                    hadRemovalLimit: false
+                )
+            },
+            summary: record.summary
         )
     }
 
@@ -124,7 +155,10 @@ struct Transfer: Identifiable {
             startedAt: startedAt,
             completedAt: completedAt,
             outcome: outcome,
-            origin: origin
+            origin: origin,
+            backupID: backup?.backupID,
+            title: backup?.title,
+            summary: summary
         )
     }
 }
@@ -150,6 +184,9 @@ final class TransferStore {
     private let notifications: any TransferNotifying
     private var notificationMode: TransferNotificationMode
     private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "transfer-store")
+    /// Called once per finished backup run (completed, failed, limit hit or
+    /// cancelled). `BackupRunner` records `lastRun` and starts the next job.
+    @ObservationIgnored var onBackupFinished: (@MainActor (UUID, BackupRunSummary) async -> Void)?
 
     init(
         history: any TransferHistoryPersisting = TransferHistoryFile(),
@@ -186,7 +223,8 @@ final class TransferStore {
         srcFs: String,
         dstFs: String,
         origin: TransferOrigin = .manual,
-        nimbusUUID: UUID = UUID()
+        nimbusUUID: UUID = UUID(),
+        backup: Transfer.BackupContext? = nil
     ) {
         let transfer = Transfer(
             jobID: jobId,
@@ -196,7 +234,8 @@ final class TransferStore {
             startedAt: Date(),
             status: .active,
             origin: origin,
-            nimbusUUID: nimbusUUID
+            nimbusUUID: nimbusUUID,
+            backup: backup
         )
         transfers.append(transfer)
     }
@@ -231,10 +270,131 @@ final class TransferStore {
 
     func cancelTransfer(jobId: Int) async {
         if let index = transfers.firstIndex(where: { $0.status.isActive && $0.jobID == jobId }) {
+            let now = Date()
             transfers[index].status = .cancelled
-            transfers[index].completedAt = Date()
+            transfers[index].completedAt = now
+            let finished = attachBackupSummary(at: index, outcome: .cancelled, stats: nil, now: now)
             await persistRetainedHistory()
+            await notifyBackupFinished(finished)
         }
+    }
+
+    /// Applies a finished rclone job to its transfer. For a backup run it
+    /// also builds the run summary from `stats` and calls `onBackupFinished`.
+    func handleFinished(jobID: Int, job: Job, stats: StatsResponse?, now: Date = Date()) async {
+        guard let index = transfers.firstIndex(where: { $0.status.isActive && $0.jobID == jobID }) else { return }
+        if job.success { transfers[index].progress = 1.0 }
+        let outcome: BackupRunSummary.Outcome = job.success
+            ? .completed
+            : Self.backupOutcome(jobError: job.error,
+                                 hadRemovalLimit: transfers[index].backup?.hadRemovalLimit ?? false,
+                                 lastError: stats?.lastError)
+        await finish(at: index, status: job.success ? .completed : .failed(job.error),
+                     outcome: outcome, stats: stats, now: now)
+    }
+
+    static let lostRunMessage = String(localized: "Nimbus lost track of this run when its connection engine restarted. It may not have finished.")
+
+    /// A poll that fails because rclone no longer knows the job (it expired,
+    /// or the daemon restarted) ends the transfer instead of leaving it
+    /// active forever. Other errors are transient and retried next poll.
+    func handlePollFailure(jobID: Int, error: Error, now: Date = Date()) async {
+        guard case RcloneError.requestFailed(_, let message) = error, message.contains("job not found"),
+              let index = transfers.firstIndex(where: { $0.status.isActive && $0.jobID == jobID }) else { return }
+        await finish(at: index, status: .failed(Self.lostRunMessage), outcome: .failed(Self.lostRunMessage),
+                     stats: nil, now: now)
+    }
+
+    /// Ends every active transfer. Called when a new rclone daemon comes up:
+    /// jobs belong to the process that ran them, and job ids restart.
+    /// Only transfers active at the call are ended: finishing a backup starts
+    /// the next queued one on the new daemon, and that one must live.
+    func abandonActiveTransfers(now: Date = Date()) async {
+        let stale = Set(activeTransfers.map(\.id))
+        for id in stale {
+            guard let index = transfers.firstIndex(where: { $0.id == id && $0.status.isActive }) else { continue }
+            await finish(at: index, status: .failed(Self.lostRunMessage), outcome: .failed(Self.lostRunMessage),
+                         stats: nil, now: now)
+        }
+    }
+
+    private func finish(
+        at index: Int,
+        status: TransferStatus,
+        outcome: BackupRunSummary.Outcome,
+        stats: StatsResponse?,
+        now: Date
+    ) async {
+        let finished = attachBackupSummary(at: index, outcome: outcome, stats: stats, now: now)
+        transfers[index].status = status
+        transfers[index].completedAt = now
+        if let record = transfers[index].record {
+            await notifications.deliver(record, mode: notificationMode)
+        }
+        await persistRetainedHistory()
+        await notifyBackupFinished(finished)
+    }
+
+    /// A run stopped by `MaxDelete` fails with "failed to delete N files" and
+    /// the stats group's last error "--max-delete threshold reached" (rclone
+    /// 1.76). Other delete failures share the job error, so the last error
+    /// decides, and it is the more useful message for a real failure.
+    static func backupOutcome(jobError: String, hadRemovalLimit: Bool, lastError: String?) -> BackupRunSummary.Outcome {
+        if hadRemovalLimit, let lastError, lastError.contains("max-delete") { return .limitHit }
+        if let lastError, !lastError.isEmpty, jobError.hasPrefix("failed to delete") { return .failed(lastError) }
+        return .failed(jobError)
+    }
+
+    /// Counts from the job's final `core/stats` (measured on rclone 1.76):
+    /// `transfers` is every file written; `deletes` is files that left the
+    /// destination; with a backup dir, `renames` is every move into it
+    /// (replaced plus removed), so replaced = renames − deletes. Without
+    /// versions rclone doesn't say how many were replaced.
+    static func summary(
+        trigger: BackupRunSummary.Trigger,
+        startedAt: Date,
+        finishedAt: Date,
+        outcome: BackupRunSummary.Outcome,
+        stats: StatsResponse?,
+        isMirrorWithVersions: Bool
+    ) -> BackupRunSummary {
+        let removed = stats?.deletes ?? 0
+        let replaced = isMirrorWithVersions ? max(0, (stats?.renames ?? 0) - removed) : 0
+        return BackupRunSummary(
+            startedAt: startedAt,
+            finishedAt: finishedAt,
+            trigger: trigger,
+            outcome: outcome,
+            copied: stats?.transfers ?? 0,
+            replaced: replaced,
+            removed: removed,
+            errors: stats?.errors ?? 0,
+            bytes: stats?.bytes ?? 0
+        )
+    }
+
+    private func attachBackupSummary(
+        at index: Int,
+        outcome: BackupRunSummary.Outcome,
+        stats: StatsResponse?,
+        now: Date
+    ) -> (UUID, BackupRunSummary)? {
+        guard let backup = transfers[index].backup else { return nil }
+        let summary = Self.summary(
+            trigger: backup.trigger,
+            startedAt: transfers[index].startedAt,
+            finishedAt: now,
+            outcome: outcome,
+            stats: stats,
+            isMirrorWithVersions: backup.isMirrorWithVersions
+        )
+        transfers[index].summary = summary
+        return (backup.backupID, summary)
+    }
+
+    private func notifyBackupFinished(_ finished: (UUID, BackupRunSummary)?) async {
+        guard let (id, summary) = finished, let onBackupFinished else { return }
+        await onBackupFinished(id, summary)
     }
 
     /// Stops the rclone job, then marks the transfer cancelled. A stop
@@ -342,17 +502,16 @@ final class TransferStore {
                 }
 
                 if job.finished {
-                    if job.success {
-                        setProgress(1.0, forJobId: jobID)
-                        await completeTransfer(jobId: jobID)
-                    } else {
-                        await failTransfer(jobId: jobID, error: job.error)
-                    }
+                    // A backup's summary needs the job's final counts; read
+                    // them once before rclone expires the stats group.
+                    let stats = transfer.backup == nil ? nil : try? await client.getStats(group: job.group)
+                    await handleFinished(jobID: jobID, job: job, stats: stats)
                 }
             } catch {
-                // Job may have been cleaned up by rclone — expected for old jobs.
-                // Transient errors will cause retries on the next poll cycle.
-                logger.debug("Job \(jobID) status poll failed (may be cleaned up): \(error)")
+                // "job not found" means rclone forgot the job (expired, or a
+                // new daemon): end the transfer. Anything else is retried.
+                logger.debug("Job \(jobID) status poll failed: \(error)")
+                await handlePollFailure(jobID: jobID, error: error)
             }
         }
     }

@@ -5,8 +5,19 @@ enum TransferFilter: String, CaseIterable, Identifiable {
     case crossRemoteDrops
     case manualCopies
     case syncJobs
+    case backups
 
     var id: String { rawValue }
+
+    func matches(_ transfer: Transfer) -> Bool {
+        switch self {
+        case .all: true
+        case .crossRemoteDrops: transfer.origin == .crossRemoteDrop
+        case .manualCopies: transfer.origin == .manual && transfer.operation == .copy
+        case .syncJobs: transfer.operation == .sync && transfer.origin != .backup
+        case .backups: transfer.origin == .backup
+        }
+    }
 
     var displayName: String {
         switch self {
@@ -14,6 +25,7 @@ enum TransferFilter: String, CaseIterable, Identifiable {
         case .crossRemoteDrops: return "Drops Between Clouds"
         case .manualCopies: return "Manual Copies"
         case .syncJobs: return "Sync Jobs"
+        case .backups: return "Backups"
         }
     }
 }
@@ -185,11 +197,6 @@ struct TransfersView: View {
 
     private func applyFilter(_ transfers: [Transfer]) -> [Transfer] {
         let transfers = remoteFilter.map { name in transfers.filter { $0.involves(remote: name) } } ?? transfers
-        switch filter {
-        case .all: return transfers
-        case .crossRemoteDrops: return transfers.filter { $0.origin == .crossRemoteDrop }
-        case .manualCopies: return transfers.filter { $0.origin == .manual && $0.operation == .copy }
-        case .syncJobs: return transfers.filter { $0.operation == .sync }
-        }
+        return transfers.filter(filter.matches)
     }
 }
