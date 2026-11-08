@@ -41,6 +41,7 @@ struct AddRemoteSheet: View {
     /// instead of silently losing the "add to Finder" step.
     @State private var finderFailures: [RemoteIntegrationFailure] = []
     @State private var integrationStarted = false
+    @State private var showImport = false
 
     var body: some View {
         SheetChrome(
@@ -51,8 +52,14 @@ struct AddRemoteSheet: View {
             body: { content },
             actions: { actions }
         )
-        .frame(width: 560, height: 560)
+        .frame(width: 600, height: 600)
         .task { await loadProviders() }
+        .sheet(isPresented: $showImport) {
+            // Import can't report cancel vs. success, so the Add sheet stays
+            // put: cancelling Import lands back on the picker, and a finished
+            // import refreshes the cloud list behind it.
+            ImportConfigSheet(onDismiss: onDismiss)
+        }
         .alert(
             alert?.title ?? "Couldn't add cloud",
             isPresented: Binding(
@@ -71,18 +78,39 @@ struct AddRemoteSheet: View {
 
     @ViewBuilder
     private var content: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.l) {
+            SetupSteps(titles: stepTitles, current: currentStep)
+            stepContent
+        }
+    }
+
+    /// Step three is a browser sign-in for OAuth services and a short form
+    /// for everything else; before rclone has answered, the catalog decides.
+    private var stepTitles: [String] {
+        let isOAuth = flow.map { $0.isOAuthBackend ?? PickerCatalog.isOAuth($0.provider.prefix) } ?? true
+        return ["Choose a service", "Name it", isOAuth ? "Sign in" : "Set up"]
+    }
+
+    private var currentStep: Int {
+        guard let flow else { return 0 }
+        if case .naming = flow.phase { return 1 }
+        return 2
+    }
+
+    @ViewBuilder
+    private var stepContent: some View {
         if loadingProviders {
             ProgressView()
                 .frame(maxWidth: .infinity, minHeight: 200)
         } else if let flow {
             flowContent(flow)
         } else {
-            ProviderPicker(providers: providers) { provider in
+            ProviderPicker(providers: providers, onPick: { provider in
                 oauthWaiting = false
                 finderFailures = []
                 integrationStarted = false
                 self.flow = RemoteSetupFlow(provider: provider, client: client)
-            }
+            }, onImport: { showImport = true })
         }
     }
 
