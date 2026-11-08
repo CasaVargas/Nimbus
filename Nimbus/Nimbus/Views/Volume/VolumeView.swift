@@ -7,6 +7,8 @@ import os
 /// mounts views it hosts keep their own state.
 struct VolumeView: View {
     let remote: Remote
+    /// Every configured cloud, so an alias can show the service it points at.
+    var allRemotes: [Remote] = []
     var browseTarget: BrowseTarget?
     /// (source remote, source path) for the Copy & Sync tool.
     var onSync: (String, String) -> Void
@@ -38,6 +40,10 @@ struct VolumeView: View {
         return .files
     }
 
+    private var resolvedType: String {
+        CloudNaming.resolvedType(of: remote, in: allRemotes)
+    }
+
     private var isInFinder: Bool {
         FinderIntegration.isShown(remote: remote.name, settings: settings)
     }
@@ -46,7 +52,8 @@ struct VolumeView: View {
         VStack(spacing: 0) {
             VolumeHeader(
                 remote: remote,
-                providerName: providers.displayName(forType: remote.type),
+                badgeType: resolvedType,
+                providerName: CloudNaming.providerName(forType: resolvedType, directory: providers),
                 quota: statusService.quotas[remote.name],
                 status: statusService.statuses[remote.name] ?? .unknown,
                 isInFinder: isInFinder,

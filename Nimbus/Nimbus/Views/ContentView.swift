@@ -3,7 +3,7 @@ import RcloneKit
 import os
 
 struct ContentView: View {
-    @State private var selection: SidebarSelection?
+    @State private var selection: SidebarSelection? = .home
     @State private var browseTarget: BrowseTarget?
     @State private var pendingSidebarCopy: CopyRequest?
     /// Last remote list reported by the sidebar — distinguishes "no remotes
@@ -106,10 +106,21 @@ struct ContentView: View {
     @ViewBuilder
     private var detailView: some View {
         switch selection {
+        case .home, nil:
+            HomeView(
+                remotes: remotes,
+                onOpenCloud: { selection = .remote($0) },
+                onCopyBetweenClouds: {
+                    copySyncSource = nil
+                    copySyncSourcePath = nil
+                    selection = .copySync
+                }
+            )
         case .remote(let name):
             if let remote = remotes.first(where: { $0.name == name }) {
                 VolumeView(
                     remote: remote,
+                    allRemotes: remotes,
                     browseTarget: browseTarget,
                     onSync: { source, path in
                         copySyncSource = source
@@ -125,57 +136,6 @@ struct ContentView: View {
             }
         case .copySync:
             CopySyncView(initialSource: copySyncSource, initialSourcePath: copySyncSourcePath)
-        case nil:
-            noSelectionView
-        }
-    }
-
-    /// The nil-selection pane doubles as the daemon status surface: it is
-    /// where a user lands on first launch and after failures, so it must
-    /// offer recovery (Retry) rather than just describing the problem.
-    @ViewBuilder
-    private var noSelectionView: some View {
-        switch daemon.status {
-        case .idle, .starting:
-            VStack(spacing: DesignSystem.Spacing.m) {
-                ProgressView()
-                    .controlSize(.large)
-                Text("Connecting to rclone…")
-                    .font(DesignSystem.Typography.body)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .error(let message):
-            EmptyState(
-                icon: "exclamationmark.triangle",
-                title: "rclone Isn't Running",
-                messageVerbatim: message,
-                action: .init(label: "Retry", perform: {
-                    Task {
-                        await daemon.retry(
-                            binaryPath: settings.rcloneBinaryPath,
-                            bandwidthLimit: settings.bandwidthLimit,
-                            concurrentTransfers: settings.concurrentTransfers
-                        )
-                    }
-                })
-            )
-        case .connected:
-            if remotes.isEmpty {
-                EmptyState(
-                    icon: "cloud.slash",
-                    title: "No Volumes Yet",
-                    message: "Add your first cloud with the + button in the sidebar.",
-                    action: nil
-                )
-            } else {
-                EmptyState(
-                    icon: "cloud.slash",
-                    title: "No Volume Selected",
-                    message: "Select a volume in the sidebar.",
-                    action: nil
-                )
-            }
         }
     }
 }

@@ -129,24 +129,24 @@ struct OnboardingCard: View {
         OnboardingCard(
             state: .actionRequired,
             icon: "cloud",
-            title: "Add a Remote",
-            message: "Connect a cloud provider to get started.",
+            title: "Add a Cloud",
+            message: "Connect a cloud service to get started.",
             primaryAction: .init(label: "Add Remote", perform: {}),
             secondaryAction: nil
         )
         OnboardingCard(
             state: .complete,
             icon: "cloud",
-            title: "Add a Remote",
-            message: "Connected to gdrive.",
+            title: "Add a Cloud",
+            message: "Connected to Personal.",
             primaryAction: nil,
             secondaryAction: .init(label: "Mount it for Finder →", perform: {})
         )
         OnboardingCard(
             state: .pending,
             icon: "externaldrive",
-            title: "Mount Your Remote",
-            message: "Mount the remote to access it in Finder.",
+            title: "Add It to Finder",
+            message: "Show your cloud beside iCloud Drive in Finder.",
             primaryAction: nil,
             secondaryAction: nil
         )

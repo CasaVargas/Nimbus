@@ -36,7 +36,7 @@ struct VolumeTabBar: View {
         .padding(.horizontal, DesignSystem.Spacing.l)
         .padding(.top, DesignSystem.Spacing.s)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Volume sections")
+        .accessibilityLabel("Cloud sections")
     }
 }
 

@@ -44,7 +44,7 @@ struct AddRemoteSheet: View {
 
     var body: some View {
         SheetChrome(
-            title: "Add Remote",
+            title: "Add Cloud",
             // No subtitle: the identity header (badge + service name) carries
             // the selected provider once one is chosen; the picker needs none.
             subtitle: nil,
@@ -54,7 +54,7 @@ struct AddRemoteSheet: View {
         .frame(width: 560, height: 560)
         .task { await loadProviders() }
         .alert(
-            alert?.title ?? "Couldn't add remote",
+            alert?.title ?? "Couldn't add cloud",
             isPresented: Binding(
                 get: { alert != nil },
                 set: { if !$0 { alert = nil } }
@@ -93,8 +93,8 @@ struct AddRemoteSheet: View {
 
             switch flow.phase {
             case .naming:
-                FormSection(title: "Remote", footer: nameFooter(flow)) {
-                    FormRow(label: "Name", help: "Used to reference this remote in the Browser.") {
+                FormSection(title: "Cloud", footer: nameFooter(flow)) {
+                    FormRow(label: "Name", help: "The name you'll see in Nimbus and in Finder.") {
                         TextField("e.g. gdrive", text: Binding(
                             get: { flow.name },
                             set: { flow.name = $0 }
@@ -182,7 +182,7 @@ struct AddRemoteSheet: View {
     }
 
     private func nameFooter(_ flow: RemoteSetupFlow) -> LocalizedStringKey? {
-        nameCollides(flow) ? "A remote with that name already exists." : nil
+        nameCollides(flow) ? "You already have a cloud with that name." : nil
     }
 
     private func nameCollides(_ flow: RemoteSetupFlow) -> Bool {
@@ -201,7 +201,7 @@ struct AddRemoteSheet: View {
     /// just advances the walk, so the button must not claim "Add Remote"
     /// for either (C4).
     private func pageButtonLabel(_ page: ConfigPage) -> LocalizedStringKey {
-        if case .finished = page.boundary { return "Add Remote" }
+        if case .finished = page.boundary { return "Add Cloud" }
         return "Continue"
     }
 
@@ -324,7 +324,7 @@ struct AddRemoteSheet: View {
             // Fatal to this sheet: with no providers, there is nothing to
             // pick, so "Couldn't add remote" is an accurate title.
             alert = SheetAlert(
-                title: "Couldn't add remote",
+                title: "Couldn't add cloud",
                 message: NimbusError.classify(error).message
             )
             loadingProviders = false
@@ -343,7 +343,7 @@ struct AddRemoteSheet: View {
             existingNames = []
             alert = SheetAlert(
                 title: "Duplicate check unavailable",
-                message: "Couldn't check for existing remote names, so a duplicate name may not be caught until rclone rejects it. You can still continue."
+                message: "Couldn't check the names you already use, so a duplicate may only be caught when you finish. You can still continue."
             )
         }
         loadingProviders = false

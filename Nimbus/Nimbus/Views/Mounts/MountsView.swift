@@ -73,7 +73,7 @@ struct MountsView: View {
                 }
                 Button("Cancel", role: .cancel) { deletingConfig = nil }
             } message: { _ in
-                Text("This will unmount the volume if mounted and remove the configuration.")
+                Text("Nimbus disconnects it from Finder and forgets this setup. Files in the cloud aren't affected.")
             }
             .alert(
                 "Mount error",
@@ -101,14 +101,14 @@ struct MountsView: View {
                     EmptyState(
                         icon: "macwindow.badge.plus",
                         title: "Bring a Cloud into Finder",
-                        message: "Add a remote as a native Finder location. Files download on demand and stay managed by macOS.",
+                        message: "Show a cloud as a Finder location. Files download when you open them, and macOS manages the space.",
                         action: .init(label: "Add to Finder", perform: { showingAddSheet = true })
                     )
                 } else {
                     EmptyState(
                         icon: "macwindow.badge.plus",
                         title: "Not in Finder Yet",
-                        message: "Show this volume beside iCloud Drive, or add it as a network volume with the + button.",
+                        message: "Show this cloud beside iCloud Drive, or connect it as a network drive with the + button.",
                         action: .init(label: "Show in Finder", perform: { Task { await showInFinder() } })
                     )
                 }

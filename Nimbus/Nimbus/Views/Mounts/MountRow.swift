@@ -39,7 +39,7 @@ struct MountRow: View {
             if case .on = state {
                 Button("Reveal in Finder") { onRevealInFinder() }
             }
-            Button("Edit Mount") { onEdit() }
+            Button("Edit Settings…") { onEdit() }
             Divider()
             Button("Delete", role: .destructive) { onDelete() }
         }

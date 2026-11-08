@@ -36,6 +36,12 @@ final class AppSettings {
         defaultConflictPolicy = ConflictPolicy(rawValue: defaults.string(forKey: "defaultConflictPolicy") ?? "") ?? .rename
         transferNotificationMode = TransferNotificationMode(rawValue: defaults.string(forKey: "transferNotificationMode") ?? "") ?? .failuresOnly
         transferHistoryRetention = TransferHistoryRetention(rawValue: defaults.string(forKey: "transferHistoryRetention") ?? "") ?? .sevenDays
+        dismissedSuggestions = Set(defaults.stringArray(forKey: "dismissedSuggestions") ?? [])
+    }
+
+    /// Home suggestions the user closed (`CloudSummary.Suggestion.id`).
+    var dismissedSuggestions: Set<String> {
+        didSet { defaults.set(Array(dismissedSuggestions).sorted(), forKey: "dismissedSuggestions") }
     }
 
     var rclonePort: Int {

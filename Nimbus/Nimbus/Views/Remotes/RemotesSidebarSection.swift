@@ -25,6 +25,7 @@ struct RemotesSidebarSection: View {
                         remote: remote,
                         status: statusService.statuses[remote.name] ?? .unknown,
                         quota: statusService.quotas[remote.name],
+                        iconType: CloudNaming.resolvedType(of: remote, in: viewModel.remotes),
                         onEdit: { editingRemote = remote },
                         onDelete: { deletingRemote = remote },
                         onReconnect: { Task { await statusService.probe(remote.name) } }
@@ -35,18 +36,18 @@ struct RemotesSidebarSection: View {
                 Button {
                     showAddRemote = true
                 } label: {
-                    Label("Add Volume…", systemImage: "plus")
+                    Label("Add Cloud…", systemImage: "plus")
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
             }
         } header: {
             HStack {
-                Text("Volumes")
+                Text("Clouds")
                 Spacer()
                 Menu {
-                    Button("Add Volume…", systemImage: "plus") { showAddRemote = true }
-                    Button("Import Config…", systemImage: "square.and.arrow.down") { showImportConfig = true }
+                    Button("Add Cloud…", systemImage: "plus") { showAddRemote = true }
+                    Button("Import from rclone.conf…", systemImage: "square.and.arrow.down") { showImportConfig = true }
                 } label: {
                     Image(systemName: "plus")
                 }
@@ -54,11 +55,15 @@ struct RemotesSidebarSection: View {
                 .menuIndicator(.hidden)
                 .fixedSize()
                 .disabled(daemon.status != .connected)
-                .help("Add or import a volume")
+                .help("Add a cloud or import one from rclone.conf")
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .nimbusRemotesChanged)) { _ in
             Task { await reload() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .nimbusAddCloudRequested)) { _ in
+            guard daemon.status == .connected else { return }
+            showAddRemote = true
         }
         .task(id: daemon.status) {
             // Reconciliation (onRemotesLoaded) fires only on a real list
@@ -89,14 +94,14 @@ struct RemotesSidebarSection: View {
             }
         }
         .confirmationDialog(
-            "Delete \(deletingRemote?.name ?? "")?",
+            "Remove \(deletingRemote?.name ?? "") from Nimbus?",
             isPresented: Binding(
                 get: { deletingRemote != nil },
                 set: { if !$0 { deletingRemote = nil } }
             ),
             titleVisibility: .visible
         ) {
-            Button("Delete", role: .destructive) {
+            Button("Remove", role: .destructive) {
                 if let remote = deletingRemote {
                     let name = remote.name
                     Task {
@@ -108,7 +113,7 @@ struct RemotesSidebarSection: View {
             }
             Button("Cancel", role: .cancel) { deletingRemote = nil }
         } message: {
-            Text("This will remove the remote configuration. Files on the cloud are not affected.")
+            Text("Nimbus forgets how to reach this cloud. Files stored in the cloud aren't affected.")
         }
     }
 

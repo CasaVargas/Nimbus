@@ -15,7 +15,7 @@ struct EditRemoteSheet: View {
 
     var body: some View {
         SheetChrome(
-            title: "Edit Remote",
+            title: "Edit Cloud",
             subtitle: LocalizedStringKey(remote.name),
             body: {
                 if loading {
@@ -26,7 +26,7 @@ struct EditRemoteSheet: View {
                     // here — the remote name is the identifier and can't be changed. Render
                     // a custom locked-name section + the configuration-only fields below.
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.l) {
-                        FormSection(title: "Remote", footer: "The remote name is fixed once created.") {
+                        FormSection(title: "Cloud", footer: "A cloud's name can't be changed after it's added.") {
                             FormRow(label: "Name", help: nil) {
                                 Text(remote.name)
                                     .font(DesignSystem.Typography.body)
@@ -69,7 +69,7 @@ struct EditRemoteSheet: View {
             loading = false
         }
         .alert(
-            "Couldn't save remote",
+            "Couldn't save changes",
             isPresented: Binding(
                 get: { error != nil },
                 set: { if !$0 { error = nil } }
