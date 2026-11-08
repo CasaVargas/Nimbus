@@ -68,19 +68,11 @@ struct OnboardingView: View {
 
     private var hero: some View {
         VStack(spacing: DesignSystem.Spacing.m) {
-            ZStack {
-                Circle()
-                    .fill(.thinMaterial)
-                    .frame(width: 88, height: 88)
-                    .overlay {
-                        Circle().stroke(DesignSystem.Color.semantic.separator.opacity(0.7))
-                    }
-                Image(systemName: "cloud.fill")
-                    .font(.largeTitle)
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(DesignSystem.Color.semantic.statusInfo)
-            }
-            .accessibilityHidden(true)
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 128, height: 128)
+                .accessibilityHidden(true)
             Text("Welcome to Nimbus")
                 .font(DesignSystem.Typography.largeTitle)
                 .fontWeight(.semibold)

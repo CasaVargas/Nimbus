@@ -25,6 +25,7 @@ private func boolOption(default defaultValue: String) -> ProviderOption {
 }
 
 @Suite("ConfigFieldView")
+@MainActor
 struct ConfigFieldViewTests {
 
     @Test func passwordOptionsAreSecure() {

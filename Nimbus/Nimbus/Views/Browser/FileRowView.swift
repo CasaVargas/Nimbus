@@ -18,21 +18,24 @@ struct FileRowView: View {
     var isEmphasized: Bool = true
 
     static let rowHeight: CGFloat = 24
+    static let iconSize: CGFloat = 16
+    static let statusColumnWidth: CGFloat = 28
+    static let dateColumnWidth: CGFloat = 120
+    static let sizeColumnWidth: CGFloat = 80
 
     private var invertsText: Bool { isSelected && isEmphasized }
 
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.s) {
             CloudStatusColumn(file: file, remote: remote)
-                .frame(width: 28)
+                .frame(width: Self.statusColumnWidth)
                 .accessibilityLabel("Cloud status")
 
-            Image(systemName: file.isDir ? "folder.fill" : Self.iconName(for: file.name))
-                .foregroundStyle(invertsText
-                                 ? Color.white
-                                 : (file.isDir
-                                    ? DesignSystem.Color.semantic.statusInfo
-                                    : DesignSystem.Color.semantic.textSecondary))
+            Image(nsImage: FileIcon.image(for: file))
+                .resizable()
+                .interpolation(.high)
+                .frame(width: Self.iconSize, height: Self.iconSize)
+                .accessibilityHidden(true)
 
             Text(file.name)
                 .font(DesignSystem.Typography.body)
@@ -42,13 +45,6 @@ struct FileRowView: View {
                                  : DesignSystem.Color.semantic.textPrimary)
 
             Spacer(minLength: DesignSystem.Spacing.m)
-
-            Text(file.isDir ? "--" : Self.formatSize(file.size))
-                .font(DesignSystem.Typography.callout)
-                .foregroundStyle(invertsText
-                                 ? Color.white.opacity(0.85)
-                                 : DesignSystem.Color.semantic.textSecondary)
-                .frame(width: 80, alignment: .trailing)
 
             Group {
                 if let date = file.modTime {
@@ -64,7 +60,14 @@ struct FileRowView: View {
                 }
             }
             .font(DesignSystem.Typography.callout)
-            .frame(width: 120, alignment: .leading)
+            .frame(width: Self.dateColumnWidth, alignment: .leading)
+
+            Text(file.isDir ? "--" : Self.formatSize(file.size))
+                .font(DesignSystem.Typography.callout)
+                .foregroundStyle(invertsText
+                                 ? Color.white.opacity(0.85)
+                                 : DesignSystem.Color.semantic.textSecondary)
+                .frame(width: Self.sizeColumnWidth, alignment: .trailing)
         }
         .padding(.horizontal, DesignSystem.Spacing.s)
         .frame(height: Self.rowHeight)

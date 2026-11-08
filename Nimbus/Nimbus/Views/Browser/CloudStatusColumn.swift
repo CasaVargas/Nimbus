@@ -24,7 +24,7 @@ struct CloudStatusColumn: View {
     @State private var isEvicted = false
 
     var body: some View {
-        StatusBadge(state: state)
+        StatusBadge(state: state, style: .compact)
             .task(id: queryKey) {
                 let materialized = await bridge.isItemMaterialized(remote: remote, path: file.path)
                 let evicted = await bridge.wasRecentlyEvicted(remote: remote, path: file.path)

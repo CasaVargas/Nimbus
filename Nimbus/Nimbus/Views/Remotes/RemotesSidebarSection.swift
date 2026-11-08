@@ -112,7 +112,10 @@ struct RemotesSidebarSection: View {
         guard let viewModel else { return }
         await viewModel.loadRemotes()
         let names = viewModel.remotes.map(\.name)
-        if !names.isEmpty { await statusService.probeAll(names) }
+        // Report first, probe second: probing can block for seconds on a
+        // remote with an expired token, and the detail pane must not sit on
+        // "No Remotes Yet" while the sidebar already lists them.
         onRemotesLoaded(names)
+        if !names.isEmpty { await statusService.probeAll(names) }
     }
 }
