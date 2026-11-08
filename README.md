@@ -1,88 +1,136 @@
+<p align="center">
+  <img src="docs/screenshots/app-icon.png" width="128" alt="Nimbus app icon">
+</p>
+
 <h1 align="center">Nimbus</h1>
 
 <p align="center">
-  A native macOS cloud storage manager with Finder integration.<br>
-  One app to browse, mount, and sync across 50+ cloud providers.
+  A native macOS app for cloud storage: browse, mount and sync 50+ providers through rclone, with Finder integration.
 </p>
 
 <p align="center">
+  <a href="https://github.com/CasaVargas/Nimbus/actions/workflows/ci.yml"><img src="https://github.com/CasaVargas/Nimbus/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2015%2B-blue" alt="macOS 15+">
+  <img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue" alt="GPL-3.0-or-later">
 </p>
 
----
+<p align="center">
+  <img src="docs/screenshots/browser-list.png" width="900" alt="Nimbus file browser showing a remote in list view">
+</p>
 
-## What is Nimbus?
+## Why
 
-Nimbus brings all your cloud storage into one place on macOS. Powered by [rclone](https://rclone.org), it supports S3, Google Drive, OneDrive, Dropbox, and dozens more — without vendor lock-in.
+**It is a real Mac app.** Nimbus is SwiftUI and AppKit, Swift 6, macOS 15 and up. There is no Electron, no web view, no cross-platform toolkit. Selection, drag and drop, Quick Look, keyboard shortcuts and column sorting behave the way they do in Finder, because the design target is "indistinguishable from Finder at a glance".
 
-- **Finder integration** — Browse cloud files directly in Finder via a native File Provider extension
-- **NFS mounting** — Mount any remote as a local volume on your Mac
-- **File browser** — Grid and table views with drag-and-drop, context menus, and quick actions
-- **Copy & Sync** — Transfer files between any two remotes or local folders
-- **Transfer monitoring** — Track active transfers with progress and speed stats
+**It does not reimplement cloud providers.** Nimbus spawns [rclone](https://rclone.org) as a local daemon and talks to its RC API over loopback. Every backend rclone supports (S3 and compatibles, Google Drive, OneDrive, Dropbox, Backblaze B2, SFTP, WebDAV, crypt, and dozens more) works in Nimbus, with rclone's own config format, so you can keep using the `rclone` command line alongside the app.
 
-## Architecture
+**It integrates with the system instead of replacing it.** Remotes show up in Finder's sidebar through a File Provider extension, or as NFS volumes if you prefer a classic mount. There is no account, no sign-in, no telemetry and no update pinging; the only process that touches the network is rclone.
 
-```
-SwiftUI views ──▶ RcloneKit ──HTTP──▶ rclone daemon ──▶ Cloud providers
-                      ▲
-                      │
-File Provider extension (Swift) ────▶ Finder
-```
+## Install
 
-| Layer | Tech |
-|-------|------|
-| App | SwiftUI (Swift 6, macOS 15.0, `@Observable` view models) |
-| Rclone client | RcloneKit — local Swift package, typed HTTP client over the rclone RC API |
-| File Provider | Swift 6 — `NSFileProviderReplicatedExtension` for Finder integration |
-| Cloud backend | rclone (spawned as subprocess, never reimplemented) |
+Nimbus is pre-1.0 and has not had a tagged release yet. Signed and notarized DMGs will be published on the [Releases](https://github.com/CasaVargas/Nimbus/releases) page; until then, build from source (below).
 
-## Getting Started
+### Requirements
 
-### Prerequisites
+- macOS 15 (Sequoia) or later, Apple Silicon or Intel
+- rclone on your `PATH`: `brew install rclone` (the path is configurable in Settings > Advanced)
 
-- macOS 15.0+
-- Xcode + Command Line Tools
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
-- [rclone](https://rclone.org/install/) in PATH
-
-### Development
+### Build from source
 
 ```bash
-# Generate the Xcode project from project.yml
-cd Nimbus && xcodegen generate
+brew install xcodegen rclone
+git clone https://github.com/CasaVargas/Nimbus.git
+cd Nimbus
 
-# Open in Xcode
-cd Nimbus && open Nimbus.xcodeproj
+# Optional: your Apple Developer team for a signed build (needed for Finder integration).
+cp Nimbus/Local.xcconfig.example Nimbus/Local.xcconfig   # then set DEVELOPMENT_TEAM
+
+cd Nimbus && xcodegen generate && cd ..
+git checkout -- Nimbus/FileProviderExtension/Info.plist   # xcodegen rewrites it; keep the committed one
+
+# Either open Nimbus/Nimbus.xcodeproj in Xcode, or build from the CLI:
+xcodebuild -project Nimbus/Nimbus.xcodeproj -scheme Nimbus -destination 'platform=macOS' build \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO     # drop these two if you set a team
 ```
 
-### Release Build
+Release packaging:
 
 ```bash
-bash scripts/build-release.sh
+bash scripts/build-release.sh      # Release .app in Nimbus/build/Build/Products/Release/
+bash scripts/package-release.sh    # dist/Nimbus-<version>.dmg (+ .sha256)
+
+# Signed and notarized DMG (maintainer release):
+NIMBUS_SIGN_IDENTITY="Developer ID Application: ..." \
+NIMBUS_NOTARY_PROFILE="<notarytool keychain profile>" \
+bash scripts/package-release.sh
 ```
 
-This regenerates the Xcode project and produces a release `.app` at `Nimbus/build/Build/Products/Release/Nimbus.app`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for running the tests.
 
-## Project Structure
+## How it works
 
 ```
-Nimbus/                       # SwiftUI app + Xcode project
-  Nimbus/                     # App sources (Views, ViewModels, Services, State)
-  FileProviderExtension/      # NSFileProviderReplicatedExtension
-  project.yml                 # XcodeGen project definition
-
-RcloneKit/                    # Local Swift package — typed rclone RC API client
-scripts/                      # Build scripts (build-release.sh)
-docs/superpowers/             # Design specs and implementation plans
+SwiftUI app (Nimbus/Nimbus/) ──▶ RcloneKit ──HTTP──▶ rclone rcd (127.0.0.1) ──▶ Cloud providers
+                                     ▲
+                                     │
+File Provider extension (Nimbus/FileProviderExtension/) ──────────────▶ Finder
 ```
+
+| Layer | What it is |
+|-------|------------|
+| App | SwiftUI, Swift 6 strict concurrency, `@Observable` view models, AppKit where SwiftUI falls short (the file table) |
+| RcloneKit | Local Swift package: a typed HTTP client for rclone's RC API, used by both the app and the extension |
+| File Provider extension | `NSFileProviderReplicatedExtension` that enumerates remotes into Finder; shares the daemon port with the app through an app group |
+| NFS mounts | `rclone serve nfs` plus `mount_nfs`, managed in-process; survives app restarts and cleans up on quit |
+| rclone | Your installed binary, started as `rclone rcd` on loopback. Nimbus never bundles or patches it |
+
+No third-party Swift packages. A pre-build lint fails the build if one is added.
+
+## Status
+
+Pre-1.0. The app is used daily by its author; expect rough edges and breaking changes before 1.0.
+
+Works today:
+
+- Browser with list and icon views, Finder-style multi-select, column sorting, type-to-select, Quick Look, drag and drop within and across remotes
+- Guided Add Remote driven by rclone's own config state machine, so new backends need no app changes
+- Finder integration through the File Provider extension (requires a signed build)
+- NFS mounts with auto-mount and restore on launch
+- Copy and sync between any two remotes or local folders, with a transfer queue, history, bandwidth limit and notifications
+- Menu bar item, launch at login, Settings window modeled on System Settings
+- Diagnostics: copy a sanitized system report, open the app's logs in Console
+
+Not done yet (see the [roadmap](docs/superpowers/specs/2026-05-14-nimbus-north-star-design.md)):
+
+- System integration depth (Spotlight, Shortcuts, Services menu, Share Sheet)
+- Encryption setup wizard, scheduled syncs, public link management
+- Media gallery and other advanced browser modes
+- A first signed, notarized release
+
+Design specs and per-phase exit gates live in [`docs/superpowers/specs/`](docs/superpowers/specs/).
+
+## How it compares
+
+Facts only; "unverified" means we did not confirm it against a current release. Corrections welcome.
+
+| | Nimbus | Mountain Duck | ExpanDrive | Cyberduck | rclone CLI |
+|---|---|---|---|---|---|
+| Price model | One-time purchase for binaries; source is free | One-time license per major version | One-time license per major version (unverified) | Free (donations; paid on the Mac App Store) | Free |
+| Open source | Yes, GPL-3.0-or-later | No | No | Yes, GPL-3.0 | Yes, MIT |
+| UI | Native SwiftUI/AppKit | Native Cocoa over a Java core | Electron for the UI (unverified) | Native Cocoa over a Java core | None (an experimental web GUI exists) |
+| Finder / mount | File Provider and NFS | File Provider and FUSE-style mounts | Mounts (unverified which mechanism) | No mounting; transfer client | FUSE (macFUSE) or NFS via `rclone mount` / `serve nfs` |
+| Providers | Everything rclone supports (50+) | Its own backends (roughly 20, unverified) | Its own backends (unverified count) | Its own backends (roughly 20, unverified) | 50+ |
+| Reuses your rclone config | Yes | No | No | No | n/a |
+
+## Contributing
+
+Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for the build setup, test commands and the spec-first workflow, and [SECURITY.md](SECURITY.md) for how to report vulnerabilities privately. Participation is covered by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-Not chosen yet. There is no LICENSE file, so until one is added all rights are
-reserved by Casa Vargas LLC.
+Nimbus is licensed under the GNU General Public License, version 3 or later (`SPDX-License-Identifier: GPL-3.0-or-later`). See [LICENSE](LICENSE). Copyright Casa Vargas LLC.
 
----
+The source is free to build and modify under those terms; prebuilt, signed binaries will be sold as a one-time purchase to fund development.
 
 ### Legacy
 
