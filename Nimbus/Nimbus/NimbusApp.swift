@@ -15,6 +15,7 @@ struct NimbusApp: App {
     @State private var diagnosticsService: DiagnosticsService
     @State private var transferNotifier: TransferNotificationService
     @State private var generalSettingsModel = GeneralSettingsModel()
+    @State private var providerDirectory = ProviderDirectory()
 
     /// Guards the parts of daemon-connect handling that must run once per
     /// process (pollers, monitors); the rest of `onDaemonConnected` is
@@ -50,6 +51,7 @@ struct NimbusApp: App {
                     .environment(bookmarkStore)
                     .environment(launchAtLogin)
                     .environment(statusService)
+                    .environment(providerDirectory)
                     .environment(\.diagnosticsService, diagnosticsService)
                     .environment(\.transferNotifier, transferNotifier)
             }
@@ -73,7 +75,7 @@ struct NimbusApp: App {
         }
         .windowToolbarStyle(.unified(showsTitle: false))
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 1000, height: 700)
+        .defaultSize(width: Self.defaultWindowSize.width, height: Self.defaultWindowSize.height)
         .commands {
             AppCommands()
             #if DEBUG
@@ -112,6 +114,17 @@ struct NimbusApp: App {
                     .environment(\.transferNotifier, transferNotifier)
             }
         }
+    }
+
+    /// Debug builds honor `-debugWindowWidth` / `-debugWindowHeight` so a
+    /// screenshot run can open a larger first window on a non-Retina display.
+    private static var defaultWindowSize: CGSize {
+        #if DEBUG
+        let d = UserDefaults.standard
+        let w = d.double(forKey: "debugWindowWidth"), h = d.double(forKey: "debugWindowHeight")
+        if w >= 800, h >= 600 { return CGSize(width: w, height: h) }
+        #endif
+        return CGSize(width: 1000, height: 700)
     }
 
     /// True when the process is the host of an XCTest/Swift Testing run.
@@ -183,6 +196,7 @@ struct NimbusApp: App {
         }
 
         mountManager.configs = mountConfigs.configs
+        Task { await providerDirectory.load(client: daemon.client) }
         await mountManager.restoreMounts(configs: mountConfigs.configs)
 
         // Phase 2c: refreshAll reconciles mount(8) state and FP domains against configs

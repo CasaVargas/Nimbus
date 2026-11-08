@@ -28,6 +28,7 @@ final class AppSettings {
         bandwidthLimit = defaults.string(forKey: "bandwidthLimit") ?? ""
         concurrentTransfers = defaults.object(forKey: "concurrentTransfers") as? Int ?? 4
         sidebarCollapsed = defaults.bool(forKey: "sidebarCollapsed")
+        inspectorVisible = defaults.bool(forKey: "inspectorVisible")
         disabledFileProviderDomains = Set(defaults.stringArray(forKey: "disabledFileProviderDomains") ?? [])
         addNewRemotesToFinder = defaults.object(forKey: "addNewRemotesToFinder") as? Bool ?? true
         newMountAccess = MountAccessDefault(rawValue: defaults.string(forKey: "newMountAccess") ?? "") ?? .readWrite
@@ -43,6 +44,11 @@ final class AppSettings {
 
     var rcloneBinaryPath: String {
         didSet { defaults.set(rcloneBinaryPath, forKey: "rcloneBinaryPath") }
+    }
+
+    /// Whether the Files tab shows its trailing inspector.
+    var inspectorVisible: Bool {
+        didSet { defaults.set(inspectorVisible, forKey: "inspectorVisible") }
     }
 
     private static let defaultRclonePath: String = {

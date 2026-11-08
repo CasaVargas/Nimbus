@@ -8,8 +8,8 @@ struct RemotesSidebarSection: View {
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(RemoteStatusService.self) private var statusService
 
-    /// Called every time the remote list (re)loads, with the current names.
-    var onRemotesLoaded: ([String]) -> Void
+    /// Called every time the remote list (re)loads, with the current remotes.
+    var onRemotesLoaded: ([Remote]) -> Void
 
     @State private var viewModel: RemotesViewModel?
     @State private var showAddRemote = false
@@ -24,6 +24,7 @@ struct RemotesSidebarSection: View {
                     SidebarRemoteRow(
                         remote: remote,
                         status: statusService.statuses[remote.name] ?? .unknown,
+                        quota: statusService.quotas[remote.name],
                         onEdit: { editingRemote = remote },
                         onDelete: { deletingRemote = remote },
                         onReconnect: { Task { await statusService.probe(remote.name) } }
@@ -34,17 +35,17 @@ struct RemotesSidebarSection: View {
                 Button {
                     showAddRemote = true
                 } label: {
-                    Label("Add Remote…", systemImage: "plus")
+                    Label("Add Volume…", systemImage: "plus")
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
             }
         } header: {
             HStack {
-                Text("Remotes")
+                Text("Volumes")
                 Spacer()
                 Menu {
-                    Button("Add Remote…", systemImage: "plus") { showAddRemote = true }
+                    Button("Add Volume…", systemImage: "plus") { showAddRemote = true }
                     Button("Import Config…", systemImage: "square.and.arrow.down") { showImportConfig = true }
                 } label: {
                     Image(systemName: "plus")
@@ -53,8 +54,11 @@ struct RemotesSidebarSection: View {
                 .menuIndicator(.hidden)
                 .fixedSize()
                 .disabled(daemon.status != .connected)
-                .help("Add or import a remote")
+                .help("Add or import a volume")
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .nimbusRemotesChanged)) { _ in
+            Task { await reload() }
         }
         .task(id: daemon.status) {
             // Reconciliation (onRemotesLoaded) fires only on a real list
@@ -115,7 +119,7 @@ struct RemotesSidebarSection: View {
         // Report first, probe second: probing can block for seconds on a
         // remote with an expired token, and the detail pane must not sit on
         // "No Remotes Yet" while the sidebar already lists them.
-        onRemotesLoaded(names)
+        onRemotesLoaded(viewModel.remotes)
         if !names.isEmpty { await statusService.probeAll(names) }
     }
 }

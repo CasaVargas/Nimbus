@@ -12,6 +12,10 @@ struct MountsView: View {
     @Environment(FileProviderBridge.self) private var fileProviderBridge
     @Environment(AppSettings.self) private var settings
 
+    /// When set, only this remote's configurations are shown and the pane
+    /// header is omitted (the volume pane's Finder tab).
+    var remoteFilter: String? = nil
+
     @State private var viewModel: MountsViewModel?
     @State private var showingAddSheet = false
     @State private var editingConfig: MountConfig?
@@ -21,7 +25,7 @@ struct MountsView: View {
 
     var body: some View {
         content
-            .navigationTitle("Finder")
+            .navigationTitle(remoteFilter ?? "Finder")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Add to Finder", systemImage: "plus") { showingAddSheet = true }
@@ -36,12 +40,19 @@ struct MountsView: View {
                 await viewModel?.loadRemotes()
             }
             .task {
+                // A remote shown in Finder by default (the launch-time domain
+                // sync registers every remote not explicitly hidden) has no
+                // configuration record yet; write one so the Finder tab shows
+                // the switch that matches what Finder is already doing.
+                if let remoteFilter, FinderIntegration.isShown(remote: remoteFilter, settings: settings) {
+                    FinderIntegration.ensureConfig(remote: remoteFilter, store: configs, settings: settings)
+                }
                 mountManager.configs = configs.configs
                 await mountManager.refreshAll()
             }
             .sheet(isPresented: $showingAddSheet) {
                 if let viewModel {
-                    AddMountSheet(viewModel: viewModel)
+                    AddMountSheet(viewModel: viewModel, initialRemote: remoteFilter)
                 }
             }
             .sheet(item: $editingConfig) { config in
@@ -81,18 +92,44 @@ struct MountsView: View {
     @ViewBuilder
     private var content: some View {
         VStack(spacing: 0) {
-            finderHeader
-            Divider()
-            if configs.configs.isEmpty {
-                EmptyState(
-                    icon: "macwindow.badge.plus",
-                    title: "Bring a Cloud into Finder",
-                    message: "Add a remote as a native Finder location. Files download on demand and stay managed by macOS.",
-                    action: .init(label: "Add to Finder", perform: { showingAddSheet = true })
-                )
+            if remoteFilter == nil {
+                finderHeader
+                Divider()
+            }
+            if visibleConfigs.isEmpty {
+                if remoteFilter == nil {
+                    EmptyState(
+                        icon: "macwindow.badge.plus",
+                        title: "Bring a Cloud into Finder",
+                        message: "Add a remote as a native Finder location. Files download on demand and stay managed by macOS.",
+                        action: .init(label: "Add to Finder", perform: { showingAddSheet = true })
+                    )
+                } else {
+                    EmptyState(
+                        icon: "macwindow.badge.plus",
+                        title: "Not in Finder Yet",
+                        message: "Show this volume beside iCloud Drive, or add it as a network volume with the + button.",
+                        action: .init(label: "Show in Finder", perform: { Task { await showInFinder() } })
+                    )
+                }
             } else {
                 list
             }
+        }
+    }
+
+    private var visibleConfigs: [MountConfig] {
+        guard let remoteFilter else { return configs.configs }
+        return configs.configs.filter { $0.remoteNameOnly == remoteFilter }
+    }
+
+    private func showInFinder() async {
+        guard let remoteFilter else { return }
+        do {
+            try await FinderIntegration.show(remote: remoteFilter, settings: settings, bridge: fileProviderBridge)
+            FinderIntegration.ensureConfig(remote: remoteFilter, store: configs, settings: settings)
+        } catch {
+            self.error = NimbusError.classify(error)
         }
     }
 
@@ -124,7 +161,7 @@ struct MountsView: View {
 
     private var list: some View {
         List {
-            ForEach(configs.configs) { config in
+            ForEach(visibleConfigs) { config in
                 VStack(spacing: 0) {
                     MountRow(
                         config: config,
@@ -201,34 +238,13 @@ struct MountsView: View {
                 }
             case .fileProvider:
                 let name = config.remoteNameOnly
-                let wasActive = isMountActive(config)
-                // Flip the persisted intent FIRST so the switch moves once,
-                // immediately. `NSFileProviderManager.add/remove` is
-                // eventually consistent, so waiting on it before updating the
-                // switch left the toggle looking stuck. The launch-time /
-                // reconnect domain sync also honors this set, so the choice
-                // survives a daemon restart.
-                if wasActive {
-                    settings.disabledFileProviderDomains.insert(name)
+                // Intent flips first, registration reconciles later; see
+                // FinderIntegration for the reasoning and the rollback.
+                if isMountActive(config) {
+                    try await FinderIntegration.hide(remote: name, settings: settings, bridge: fileProviderBridge)
                 } else {
-                    settings.disabledFileProviderDomains.remove(name)
+                    try await FinderIntegration.show(remote: name, settings: settings, bridge: fileProviderBridge)
                 }
-                do {
-                    if wasActive {
-                        try await fileProviderBridge.removeDomain(identifier: name)
-                    } else {
-                        try await fileProviderBridge.addDomain(identifier: name, displayName: name)
-                    }
-                } catch {
-                    // Revert intent so the switch reflects reality, then surface.
-                    if wasActive {
-                        settings.disabledFileProviderDomains.remove(name)
-                    } else {
-                        settings.disabledFileProviderDomains.insert(name)
-                    }
-                    throw error
-                }
-                await fileProviderBridge.refreshDomains()
             }
         } catch {
             self.error = NimbusError.classify(error)

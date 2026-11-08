@@ -7,24 +7,32 @@ import RcloneKit
 struct SidebarRemoteRow: View {
     let remote: Remote
     let status: RemoteStatus
+    var quota: StorageQuota? = nil
     let onEdit: () -> Void
     let onDelete: () -> Void
     let onReconnect: () -> Void
 
     var body: some View {
-        HStack(spacing: DesignSystem.Spacing.s) {
-            ProviderIcon(provider: remote.type, size: 18)
-                .frame(width: 20)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: DesignSystem.Spacing.s) {
+                ProviderIcon(provider: remote.type, size: 18)
+                    .frame(width: 20)
 
-            Text(remote.name)
-                .font(DesignSystem.Typography.body)
-                .lineLimit(1)
+                Text(remote.name)
+                    .font(DesignSystem.Typography.body)
+                    .lineLimit(1)
 
-            Spacer(minLength: DesignSystem.Spacing.s)
+                Spacer(minLength: DesignSystem.Spacing.s)
 
-            Circle()
-                .fill(status.tintColor)
-                .frame(width: 7, height: 7)
+                Circle()
+                    .fill(status.tintColor)
+                    .frame(width: 7, height: 7)
+            }
+            if let fraction = quota?.fraction {
+                CapacityBar(fraction: fraction, isNearlyFull: quota?.isNearlyFull ?? false)
+                    .padding(.leading, 28)
+                    .padding(.trailing, 15)
+            }
         }
         .contentShape(Rectangle())
         .contextMenu {
@@ -47,11 +55,34 @@ struct SidebarRemoteRow: View {
     }
 }
 
+/// The 3 pt capacity strip under a volume row. Accent while there is room,
+/// warning tint from 90% so a nearly full drive is visible without opening it.
+struct CapacityBar: View {
+    let fraction: Double
+    let isNearlyFull: Bool
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(DesignSystem.Color.semantic.separator.opacity(0.6))
+                Capsule()
+                    .fill(isNearlyFull ? DesignSystem.Color.semantic.statusWarning : DesignSystem.Color.semantic.accent)
+                    .frame(width: max(2, geo.size.width * fraction))
+            }
+        }
+        .frame(height: 3)
+        .accessibilityElement()
+        .accessibilityLabel("\(Int((fraction * 100).rounded())) percent full")
+    }
+}
+
 #Preview {
     List {
-        Section("Remotes") {
+        Section("Volumes") {
             SidebarRemoteRow(remote: Remote(name: "gdrive", type: "drive", config: [:]),
-                             status: .connected, onEdit: {}, onDelete: {}, onReconnect: {})
+                             status: .connected,
+                             quota: StorageQuota(used: 1_280_000_000_000, total: 2_000_000_000_000),
+                             onEdit: {}, onDelete: {}, onReconnect: {})
             SidebarRemoteRow(remote: Remote(name: "backup-s3", type: "s3", config: [:]),
                              status: .authNeeded, onEdit: {}, onDelete: {}, onReconnect: {})
             SidebarRemoteRow(remote: Remote(name: "archive", type: "b2", config: [:]),

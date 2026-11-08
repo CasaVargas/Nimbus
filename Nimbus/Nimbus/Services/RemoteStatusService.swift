@@ -11,6 +11,9 @@ import RcloneKit
 @MainActor
 final class RemoteStatusService {
     private(set) var statuses: [String: RemoteStatus] = [:]
+    /// Capacity per remote, filled from the same `operations/about` call the
+    /// probe makes. Absent when the backend reports nothing usable.
+    private(set) var quotas: [String: StorageQuota] = [:]
 
     private let client: RemoteProbeClient
 
@@ -32,10 +35,24 @@ final class RemoteStatusService {
         guard !name.isEmpty else { return }
         statuses[name] = .unknown
         do {
-            _ = try await client.about(fs: "\(name):")
+            let about = try await client.about(fs: "\(name):")
             statuses[name] = .connected
+            quotas[name] = StorageQuota(about: about)
         } catch {
             statuses[name] = Self.classify(error)
+            quotas.removeValue(forKey: name)
+        }
+    }
+
+    /// Refresh only the capacity numbers, leaving the status dot alone. A
+    /// failure here is not a connectivity verdict; it just clears the gauge.
+    func refreshQuota(_ name: String) async {
+        guard !name.isEmpty else { return }
+        do {
+            let about = try await client.about(fs: "\(name):")
+            quotas[name] = StorageQuota(about: about)
+        } catch {
+            quotas.removeValue(forKey: name)
         }
     }
 
@@ -57,6 +74,7 @@ final class RemoteStatusService {
     /// Drop the cached status for `name` (e.g., on remote deletion).
     func clear(_ name: String) {
         statuses.removeValue(forKey: name)
+        quotas.removeValue(forKey: name)
     }
 
     /// Classifies a probe failure into a RemoteStatus. Pulled out as a
