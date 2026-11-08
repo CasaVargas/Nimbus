@@ -385,3 +385,25 @@ Where the build differs from the sections above, the build wins:
 - **Verified with RenderPreview of `CompanionContent`** (busy in light, needs sign-in in dark,
   plus all-ready, no-clouds, and engine-down fixtures) and unit tests. Not run in the live app,
   for the same File Provider domain-cleanup reason as Phase 1.
+
+## Phase 3 as built (2026-11-08)
+
+- **`PickerCatalog`** in `ProviderPicker.swift` holds the plain titles and sign-in hints for the
+  8 popular services and the 4 server chips, plus the OAuth set (drive, dropbox, onedrive,
+  box, pcloud). **Correction to the table above:** pCloud signs in through the browser, so
+  its hint is "Sign in with pCloud", not "Email and password". OneDrive reads "Personal or
+  work account".
+- **One click picks a service; there's no separate "Continue with <Provider>" button.** The
+  tiles and chips are buttons, as the rows were before, which saves a step. The "Nimbus never
+  sees your password" line stays where sign-in happens (`OAuthStep`), not on the picker.
+- **"Import from rclone.conf…" is the last chip.** It opens `ImportConfigSheet` on top of Add
+  Cloud. Import can't report cancel vs. success, so Add Cloud stays open afterwards. Its
+  `onDismiss` refreshes the cloud list.
+- **`SetupSteps`** (`Components/SetupSteps.swift`) is the labelled three-step strip. Step 3
+  says "Sign in" or "Set up" based on `RemoteSetupFlow.isOAuthBackend`, falling back to
+  `PickerCatalog.isOAuth` before rclone has answered. The sheet grew to 600 × 600.
+- **The search prompt counts the services rclone actually reports** ("Search 72 services"), and
+  search also matches the plain titles ("OneDrive", "NAS").
+- **The `ProviderPicker-sections` fixture was re-recorded.** It renders through `ImageRenderer`
+  at a forced 2x scale, so recording on a non-Retina display is safe. That is not true of the
+  window-based Settings fixtures.

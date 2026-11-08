@@ -28,6 +28,7 @@ struct ProviderPickerTests {
             provider("webdav", "WebDAV"),
             provider("crypt", "Encrypt/Decrypt a remote"),
             provider("pcloud", "Pcloud"),
+            provider("b2", "Backblaze B2"),
         ]
     }
 
@@ -40,5 +41,22 @@ struct ProviderPickerTests {
             size: CGSize(width: 552, height: 640),
             named: "ProviderPicker-sections"
         )
+    }
+    @Test func catalogKeepsOrderAndSkipsMissingServices() throws {
+        let popular = PickerCatalog.entries(PickerCatalog.popular, in: try sampleProviders())
+        #expect(popular.map(\.title) == ["Google Drive", "OneDrive", "Dropbox", "iCloud Drive",
+                                          "Box", "pCloud", "Proton Drive", "MEGA"])
+        #expect(popular.first?.hint == "Sign in with Google")
+        let servers = PickerCatalog.entries(PickerCatalog.servers, in: try [provider("sftp", "SSH/SFTP")])
+        #expect(servers.map(\.title) == ["NAS or server (SFTP)"])
+    }
+
+    @Test func oauthCatalogMatchesBrowserSignInBackends() {
+        for prefix in ["drive", "dropbox", "onedrive", "box", "pcloud"] {
+            #expect(PickerCatalog.isOAuth(prefix))
+        }
+        for prefix in ["s3", "sftp", "mega", "protondrive", "iclouddrive"] {
+            #expect(!PickerCatalog.isOAuth(prefix))
+        }
     }
 }

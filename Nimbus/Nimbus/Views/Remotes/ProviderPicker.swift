@@ -1,33 +1,51 @@
 import SwiftUI
 import RcloneKit
 
-/// Provider list for AddRemoteSheet. Reference: System Settings →
-/// Internet Accounts — a dense, scannable list of badge · name · id rows,
-/// popular services first. Rows, not tiles: with 50+ rclone backends the
-/// text is the scan axis and the badge is a recognition aid, not the hero.
+/// The first step of Add Cloud. The services most people add are tiles with
+/// their real logo and a line on how signing in works; servers people run
+/// or rent are chips; the long tail of rclone backends stays a dense list
+/// (with 70+ entries the text is the scan axis there). Searching replaces
+/// everything with filtered rows. One click picks a service.
 struct ProviderPicker: View {
     let providers: [Provider]
     let onPick: (Provider) -> Void
+    /// Shown as the last "storage you run or rent" chip when set.
+    var onImport: (() -> Void)? = nil
     @State private var search = ""
-
-    /// The consumer services most users are actually adding, surfaced ahead
-    /// of the alphabetical long tail. Order is deliberate (rough popularity),
-    /// not alphabetical.
-    private static let popularPrefixes = [
-        "drive", "dropbox", "onedrive", "iclouddrive",
-        "s3", "box", "mega", "protondrive",
-    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.m) {
-            TextField("Search providers", text: $search)
+            TextField(searchPrompt, text: $search)
                 .textFieldStyle(.roundedBorder)
 
             if search.isEmpty {
-                section("Popular", rows: popular)
-                section("All Providers", rows: everythingElse)
+                if !popular.isEmpty {
+                    sectionTitle("Popular")
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: DesignSystem.Spacing.s), count: 4),
+                              spacing: DesignSystem.Spacing.s) {
+                        ForEach(popular, id: \.provider.name) { entry in
+                            ProviderTile(entry: entry, onPick: { onPick(entry.provider) })
+                        }
+                    }
+                }
+                if !servers.isEmpty || onImport != nil {
+                    sectionTitle("Storage you run or rent")
+                    FlowRows(spacing: DesignSystem.Spacing.s) {
+                        ForEach(servers, id: \.provider.name) { entry in
+                            ProviderChip(title: entry.title, prefix: entry.provider.prefix,
+                                         onPick: { onPick(entry.provider) })
+                        }
+                        if let onImport {
+                            ProviderChip(title: "Import from rclone.conf…", prefix: nil, onPick: onImport)
+                        }
+                    }
+                }
+                if !everythingElse.isEmpty {
+                    sectionTitle("All services")
+                    rowStack(everythingElse)
+                }
             } else if filtered.isEmpty {
-                Text("No providers match “\(search)”.")
+                Text("No services match “\(search)”.")
                     .font(DesignSystem.Typography.body)
                     .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -40,15 +58,17 @@ struct ProviderPicker: View {
 
     // MARK: - Data
 
-    private var popular: [Provider] {
-        Self.popularPrefixes.compactMap { prefix in
-            providers.first { $0.prefix == prefix }
-        }
+    private var searchPrompt: String {
+        providers.count > 1 ? "Search \(providers.count) services" : "Search services"
     }
 
+    private var popular: [PickerCatalog.Entry] { PickerCatalog.entries(PickerCatalog.popular, in: providers) }
+    private var servers: [PickerCatalog.Entry] { PickerCatalog.entries(PickerCatalog.servers, in: providers) }
+
     private var everythingElse: [Provider] {
-        providers
-            .filter { !Self.popularPrefixes.contains($0.prefix) }
+        let featured = Set((PickerCatalog.popular + PickerCatalog.servers).map(\.prefix))
+        return providers
+            .filter { !featured.contains($0.prefix) }
             .sorted { $0.description.localizedCaseInsensitiveCompare($1.description) == .orderedAscending }
     }
 
@@ -57,22 +77,19 @@ struct ProviderPicker: View {
         return providers
             .filter {
                 $0.name.lowercased().contains(q) || $0.description.lowercased().contains(q)
+                    || (PickerCatalog.title(forPrefix: $0.prefix)?.lowercased().contains(q) ?? false)
             }
             .sorted { $0.description.localizedCaseInsensitiveCompare($1.description) == .orderedAscending }
     }
 
     // MARK: - Layout
 
-    @ViewBuilder
-    private func section(_ title: String, rows: [Provider]) -> some View {
-        if !rows.isEmpty {
-            Text(verbatim: title)
-                .font(DesignSystem.Typography.captionEmphasized)
-                .textCase(.uppercase)
-                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-                .padding(.top, DesignSystem.Spacing.xs)
-            rowStack(rows)
-        }
+    private func sectionTitle(_ title: String) -> some View {
+        Text(verbatim: title)
+            .font(DesignSystem.Typography.headline)
+            .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+            .padding(.top, DesignSystem.Spacing.xs)
+            .accessibilityAddTraits(.isHeader)
     }
 
     private func rowStack(_ rows: [Provider]) -> some View {
@@ -83,6 +100,163 @@ struct ProviderPicker: View {
                 ProviderRow(provider: provider, onPick: { onPick(provider) })
             }
         }
+    }
+}
+
+/// The services Add Cloud leads with, in plain names, each with a one-line
+/// hint about how signing in works. rclone's own descriptions ("Amazon S3
+/// Compliant Storage Providers including AWS, …") stay in the long list.
+enum PickerCatalog {
+    struct Item { let prefix: String; let title: String; let hint: String? }
+    struct Entry { let provider: Provider; let title: String; let hint: String? }
+
+    /// Backends whose `config/create` walk is a browser sign-in.
+    static let oauthPrefixes: Set<String> = ["drive", "dropbox", "onedrive", "box", "pcloud"]
+
+    static let popular: [Item] = [
+        .init(prefix: "drive", title: "Google Drive", hint: "Sign in with Google"),
+        .init(prefix: "onedrive", title: "OneDrive", hint: "Personal or work account"),
+        .init(prefix: "dropbox", title: "Dropbox", hint: "Sign in with Dropbox"),
+        .init(prefix: "iclouddrive", title: "iCloud Drive", hint: "Uses your Apple Account"),
+        .init(prefix: "box", title: "Box", hint: "Sign in with Box"),
+        .init(prefix: "pcloud", title: "pCloud", hint: "Sign in with pCloud"),
+        .init(prefix: "protondrive", title: "Proton Drive", hint: "End-to-end encrypted"),
+        .init(prefix: "mega", title: "MEGA", hint: "Email and password"),
+    ]
+
+    static let servers: [Item] = [
+        .init(prefix: "s3", title: "Amazon S3 and compatible", hint: nil),
+        .init(prefix: "b2", title: "Backblaze B2", hint: nil),
+        .init(prefix: "sftp", title: "NAS or server (SFTP)", hint: nil),
+        .init(prefix: "webdav", title: "WebDAV", hint: nil),
+    ]
+
+    static func entries(_ items: [Item], in providers: [Provider]) -> [Entry] {
+        items.compactMap { item in
+            providers.first { $0.prefix == item.prefix }.map { Entry(provider: $0, title: item.title, hint: item.hint) }
+        }
+    }
+
+    static func title(forPrefix prefix: String) -> String? {
+        (popular + servers).first { $0.prefix == prefix }?.title
+    }
+
+    static func isOAuth(_ prefix: String) -> Bool { oauthPrefixes.contains(prefix) }
+}
+
+/// A popular service: logo, plain name, and how signing in works.
+private struct ProviderTile: View {
+    let entry: PickerCatalog.Entry
+    let onPick: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: onPick) {
+            VStack(spacing: 6) {
+                ProviderBadge(provider: entry.provider.prefix, size: 40)
+                Text(verbatim: entry.title)
+                    .font(DesignSystem.Typography.callout.weight(.semibold))
+                    .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                    .lineLimit(1)
+                if let hint = entry.hint {
+                    Text(verbatim: hint)
+                        .font(DesignSystem.Typography.caption2)
+                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2, reservesSpace: true)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, DesignSystem.Spacing.m)
+            .padding(.horizontal, DesignSystem.Spacing.xs)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                    .fill(DesignSystem.Color.semantic.surfaceSubtle.opacity(hovering ? 1 : 0.55))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                    .strokeBorder(DesignSystem.Color.semantic.separator.opacity(0.6), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .accessibilityLabel(Text(verbatim: [entry.title, entry.hint].compactMap { $0 }.joined(separator: ", ")))
+    }
+}
+
+/// A compact capsule for storage you run or rent, and for Import.
+private struct ProviderChip: View {
+    let title: String
+    let prefix: String?
+    let onPick: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: onPick) {
+            HStack(spacing: 6) {
+                if let prefix {
+                    ProviderBadge(provider: prefix, size: 18)
+                }
+                Text(verbatim: title)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundStyle(prefix == nil ? DesignSystem.Color.semantic.accent
+                                                   : DesignSystem.Color.semantic.textPrimary)
+                    .lineLimit(1)
+            }
+            .padding(.leading, prefix == nil ? 10 : 5)
+            .padding(.trailing, 10)
+            .frame(height: 28)
+            .background(Capsule().fill(DesignSystem.Color.semantic.surfaceSubtle.opacity(hovering ? 1 : 0.55)))
+            .overlay(Capsule().strokeBorder(DesignSystem.Color.semantic.separator.opacity(0.6), lineWidth: 0.5))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+    }
+}
+
+/// Lays children out left to right, wrapping to a new row when full.
+struct FlowRows: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        let rows = arrange(subviews, width: width)
+        let height = rows.last.map { $0.y + $0.height } ?? 0
+        let used = rows.map(\.maxX).max() ?? 0
+        return CGSize(width: proposal.width ?? used, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for row in arrange(subviews, width: bounds.width) {
+            for (index, x) in zip(row.indices, row.xs) {
+                subviews[index].place(at: CGPoint(x: bounds.minX + x, y: bounds.minY + row.y),
+                                      proposal: .unspecified)
+            }
+        }
+    }
+
+    private struct Row { var indices: [Int] = []; var xs: [CGFloat] = []; var y: CGFloat = 0; var height: CGFloat = 0; var maxX: CGFloat = 0 }
+
+    private func arrange(_ subviews: Subviews, width: CGFloat) -> [Row] {
+        var rows: [Row] = [Row()]
+        var x: CGFloat = 0
+        for (index, subview) in subviews.enumerated() {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > width {
+                let last = rows[rows.count - 1]
+                rows.append(Row(y: last.y + last.height + spacing))
+                x = 0
+            }
+            rows[rows.count - 1].indices.append(index)
+            rows[rows.count - 1].xs.append(x)
+            rows[rows.count - 1].height = max(rows[rows.count - 1].height, size.height)
+            x += size.width
+            rows[rows.count - 1].maxX = x
+            x += spacing
+        }
+        return rows
     }
 }
 
@@ -125,3 +299,40 @@ private struct ProviderRow: View {
         .accessibilityHint(Text(verbatim: "rclone backend: \(provider.name)"))
     }
 }
+
+#if DEBUG
+private func previewProvider(_ name: String, _ description: String) -> Provider {
+    let json = #"{"Name":"\#(name)","Description":"\#(description)","Prefix":"\#(name)","Options":[]}"#
+    return try! JSONDecoder().decode(Provider.self, from: Data(json.utf8))
+}
+
+private func previewProviders() -> [Provider] {
+    var list: [Provider] = []
+    list.append(previewProvider("drive", "Google Drive"))
+    list.append(previewProvider("onedrive", "Microsoft OneDrive"))
+    list.append(previewProvider("dropbox", "Dropbox"))
+    list.append(previewProvider("iclouddrive", "iCloud Drive"))
+    list.append(previewProvider("box", "Box"))
+    list.append(previewProvider("pcloud", "Pcloud"))
+    list.append(previewProvider("protondrive", "Proton Drive"))
+    list.append(previewProvider("mega", "Mega"))
+    list.append(previewProvider("s3", "Amazon S3 Compliant Storage Providers"))
+    list.append(previewProvider("b2", "Backblaze B2"))
+    list.append(previewProvider("sftp", "SSH/SFTP"))
+    list.append(previewProvider("webdav", "WebDAV"))
+    list.append(previewProvider("crypt", "Encrypt/Decrypt a remote"))
+    list.append(previewProvider("ftp", "FTP"))
+    return list
+}
+
+#Preview("Add Cloud, step 1", traits: .fixedLayout(width: 600, height: 760)) {
+    SheetChrome(title: "Add Cloud", subtitle: nil, body: {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.l) {
+            SetupSteps(titles: ["Choose a service", "Name it", "Sign in"], current: 0)
+            ProviderPicker(providers: previewProviders(), onPick: { _ in }, onImport: {})
+        }
+    }, actions: {
+        Button("Cancel") {}
+    })
+}
+#endif
