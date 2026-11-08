@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nimbus: Every cloud you use. One Mac app.</title>
+  <meta name="description" content="Nimbus is a native Mac app for cloud storage. S3, Google Drive, OneDrive, Dropbox, SFTP and fifty more services become volumes you browse, show in Finder and sync. Open source, no account, nothing phoning home.">
+  <meta property="og:title" content="Nimbus: Every cloud you use. One Mac app.">
+  <meta property="og:description" content="A native macOS app that turns 50+ cloud providers into volumes on your Mac. Finder integration, menu bar status, copy and sync. GPL-3.0, no account.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/home-light.png">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" type="image/png" href="assets/app-icon.png">
+  <link rel="apple-touch-icon" href="assets/app-icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Nimbus",
+    "operatingSystem": "macOS 15 or later",
+    "applicationCategory": "UtilitiesApplication",
+    "softwareVersion": "0.9.1",
+    "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+    "downloadUrl": "https://github.com/CasaVargas/Nimbus/releases/latest",
+    "codeRepository": "https://github.com/CasaVargas/Nimbus",
+    "author": { "@type": "Organization", "name": "Casa Vargas LLC" }
+  }
+  </script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="nav" aria-label="Primary">
+  <div class="nav__inner">
+    <a class="nav__brand" href="#top" aria-label="Nimbus home">
+      <img src="assets/app-icon.png" width="22" height="22" alt="">
+      <span>Nimbus</span>
+    </a>
+    <ul class="nav__links">
+      <li><a href="#home">Home</a></li>
+      <li><a href="#finder">Finder</a></li>
+      <li><a href="#browse">Browser</a></li>
+      <li><a href="#menubar">Menu Bar</a></li>
+      <li><a href="#transfers">Copy &amp; Sync</a></li>
+      <li><a href="#privacy">Privacy</a></li>
+      <li><a href="#specs">Tech Specs</a></li>
+      <li><a href="#studio">Beltr &amp; OneScribe</a></li>
+    </ul>
+    <a class="nav__cta" href="https://github.com/CasaVargas/Nimbus/releases/latest">Download</a>
+  </div>
+</nav>
+
+<main id="main">
+
+<!-- ============ HERO ============ -->
+<header id="top" class="hero">
+  <div class="hero__inner reveal">
+    <img class="hero__icon" src="assets/app-icon.png" width="128" height="128" alt="Nimbus app icon: two layered clouds on a blue sky">
+    <p class="eyebrow">Nimbus for Mac</p>
+    <h1 class="hero__title">Every cloud you use.<br>One Mac app.</h1>
+    <p class="hero__sub">S3, Google Drive, OneDrive, Dropbox, SFTP and fifty more services become volumes on your Mac. Browse them like Finder. Show them in Finder. Copy and sync between them. No account. Nothing phoning home.</p>
+    <div class="hero__actions">
+      <a class="btn btn--primary" href="https://github.com/CasaVargas/Nimbus/releases/latest">Download for Mac</a>
+      <a class="link-arrow" href="https://github.com/CasaVargas/Nimbus">View the source</a>
+    </div>
+    <p class="hero__fine">Version 0.9.1 · macOS 15 or later · Apple silicon and Intel · GPL‑3.0 · Signed and notarized</p>
+    <p class="hero__fine hero__studio">Free, from the studio behind <a href="https://beltr.app/?utm_source=nimbus-site&amp;utm_medium=referral&amp;utm_campaign=nimbus-hero">Beltr</a> and <a href="https://apps.apple.com/us/app/onescribe-ai-note-scanner/id6756506734">OneScribe</a>.</p>
+  </div>
+  <figure class="hero__shot reveal delay-1">
+    <div class="window">
+      <img src="assets/home-light.png" width="1000" height="760" alt="Nimbus Home: one storage bar across every cloud, a row per cloud with a plain-language status, and a sign-in banner with the button that fixes it." fetchpriority="high">
+    </div>
+  </figure>
+</header>
+
+<!-- ============ PILLARS STRIP ============ -->
+<section class="strip" aria-label="At a glance">
+  <ul class="strip__list reveal">
+    <li><strong>50<span class="plus">+</span></strong><span>cloud providers, through rclone</span></li>
+    <li><strong>0</strong><span>accounts, sign‑ups or telemetry</span></li>
+    <li><strong>100%</strong><span>native Swift 6 and SwiftUI</span></li>
+    <li><strong>1</strong><span>engine: the rclone you already trust</span></li>
+  </ul>
+</section>
+
+<!-- ============ HOME ============ -->
+<section id="home" class="section section--dark">
+  <div class="wrap">
+    <header class="section__head reveal">
+      <p class="eyebrow eyebrow--blue">Home</p>
+      <h2>Is everything working?<br><span class="muted">One glance answers it.</span></h2>
+      <p class="lede">Nimbus opens on Home. One storage bar covers all your clouds. Every cloud gets a row with its capacity and a status in plain words, and when something needs you, the button that fixes it is right there.</p>
+    </header>
+    <figure class="shot shot--wide reveal">
+      <div class="window window--dark">
+        <img src="assets/home-dark.png" width="1000" height="760" alt="Nimbus Home in dark mode with the combined storage bar and a list of clouds." loading="lazy">
+      </div>
+    </figure>
+    <div class="grid grid--3 reveal">
+      <div class="card card--dark">
+        <h3>Plain language</h3>
+        <p>“Ready.” “Needs sign‑in.” “Can’t reach this server right now.” No rclone vocabulary anywhere outside Settings › Advanced.</p>
+      </div>
+      <div class="card card--dark">
+        <h3>One banner at a time</h3>
+        <p>When a cloud ends your session, Home says so and offers the sign‑in button. Files already on your Mac stay safe; new changes wait until you’re back.</p>
+      </div>
+      <div class="card card--dark">
+        <h3>Worth a look</h3>
+        <p>Gentle suggestions, like showing a cloud in Finder, with a one‑click action and an × to dismiss. Never a nag.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FINDER ============ -->
+<section id="finder" class="section">
+  <div class="wrap">
+    <header class="section__head reveal">
+      <p class="eyebrow eyebrow--blue">Finder</p>
+      <h2>It lives in Finder.<br><span class="muted">Right beside iCloud Drive.</span></h2>
+      <p class="lede">A File Provider extension lists each cloud in Finder’s sidebar. Files download when you open them, edits go back up, and macOS manages the local copies. Or mount a cloud the classic way as a network volume. Your choice, per volume.</p>
+    </header>
+
+    <figure class="shot shot--wide reveal">
+      <div class="window">
+        <img src="assets/volume-finder.png" width="1000" height="400" alt="A volume’s Finder tab in Nimbus: Personal Drive on Google Drive, 1.28 TB of 2 TB used, with the Finder switch on and the network-volume switch off." loading="lazy">
+      </div>
+    </figure>
+
+    <div class="bento reveal">
+      <article class="bento__item bento__item--tall">
+        <figure>
+          <img src="assets/finder-thumbnails.png" width="920" height="492" alt="A Finder window showing cloud photos and PDFs with real thumbnails before any file is downloaded." loading="lazy">
+        </figure>
+        <h3>Thumbnails before download</h3>
+        <p>Photos and PDFs in the cloud show real previews in Finder, rendered on demand and cached, so you can find the right file without pulling it down first.</p>
+      </article>
+      <article class="bento__item">
+        <figure class="bento__fig--small">
+          <img src="assets/keep-on-this-mac.png" width="240" height="143" alt="The Keep on this Mac switch in the inspector." loading="lazy">
+        </figure>
+        <h3>Keep on this Mac</h3>
+        <p>Pin a file or folder and it stays downloaded. Finder’s own “Keep Downloaded” and “Remove Download” commands work too, and the pin glyph shows in the list.</p>
+      </article>
+      <article class="bento__item">
+        <h3>Copy Share Link</h3>
+        <p>Right‑click a file in Finder, or use the inspector, and Nimbus asks the cloud for a public link and puts it on your clipboard. Only for clouds that can.</p>
+      </article>
+      <article class="bento__item bento__item--wide">
+        <h3>Server‑side changes just appear</h3>
+        <p>Add, rename or delete something from another device or the web, and Finder picks it up. Every refresh in Nimbus (and ⌘R) signals the working set, and the extension diffs each known folder against its last listing. No re‑import, no relaunch.</p>
+      </article>
+      <article class="bento__item">
+        <h3>Network volumes, restored</h3>
+        <p>Prefer a mount? rclone serves the cloud over NFS and the system’s own client mounts it. Mounts come back after a restart and unmount cleanly on quit.</p>
+      </article>
+      <article class="bento__item bento__item--wide">
+        <h3>Edits go back up</h3>
+        <p>Save a document in any app, make a folder, rename, move or trash, all from Finder. The extension carries each change to the cloud and the file keeps Nimbus’s icon and the name you gave the volume in the sidebar.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ BROWSER ============ -->
+<section id="browse" class="section section--gray">
+  <div class="wrap">
+    <header class="section__head reveal">
+      <p class="eyebrow eyebrow--blue">Browser</p>
+      <h2>Indistinguishable from Finder.<br><span class="muted">That was the whole point.</span></h2>
+      <p class="lede">Nimbus is SwiftUI and AppKit, not a web view in a frame. Selection, drag and drop, Quick Look, keyboard shortcuts and column sorting behave the way they do in Finder, because Finder was the bar.</p>
+    </header>
+
+    <div class="split reveal">
+      <figure class="shot">
+        <div class="window">
+          <img src="assets/browser-list.png" width="1000" height="700" alt="The Nimbus file browser in list view with system file icons, column headers and Finder-style cloud status glyphs." loading="lazy">
+        </div>
+      </figure>
+      <ul class="feature-list">
+        <li><h3>The icons macOS uses</h3><p>Files draw with the system’s own document icons and Finder’s folder, so a listing reads like one of Finder’s.</p></li>
+        <li><h3>Finder’s selection rules</h3><p>Click, shift‑click, ⌘‑click. Type a name to jump to it. Space for Quick Look. Column headers that sort.</p></li>
+        <li><h3>Cloud status, quietly</h3><p>A small cloud beside files not yet downloaded, a ring while one downloads, nothing at all for files already on disk.</p></li>
+        <li><h3>Drag between clouds</h3><p>Drop files from one volume onto another and Nimbus runs the copy through rclone and shows its progress.</p></li>
+      </ul>
+    </div>
+
+    <figure class="shot shot--wide reveal">
+      <div class="window">
+        <img src="assets/browser-grid-tiles.png" width="1008" height="448" alt="The Nimbus browser in icon view." loading="lazy">
+      </div>
+      <figcaption>Icon view, with the same selection and Quick Look behaviour as the list.</figcaption>
+    </figure>
+
+    <div class="split split--reverse reveal">
+      <figure class="shot">
+        <div class="window">
+          <img src="assets/volume-inspector.png" width="1000" height="700" alt="A volume in Nimbus with the inspector open on the right, showing a file’s cloud status and details." loading="lazy">
+        </div>
+      </figure>
+      <ul class="feature-list">
+        <li><h3>A remote is a volume</h3><p>Disk Utility shows you a drive: how full it is, what you can do to it, what is happening on it. Nimbus does that for a cloud, in one pane.</p></li>
+        <li><h3>Capacity you can see</h3><p>A bar under each volume in the sidebar and a used‑and‑free gauge in the pane, straight from the provider’s own quota.</p></li>
+        <li><h3>Four tabs, one place</h3><p>Files, Transfers, Finder and Settings, each scoped to that volume. Switching tabs never loses your place.</p></li>
+        <li><h3>The inspector</h3><p>Cloud status, size, dates, Keep on this Mac and the share link, for whatever you have selected.</p></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ADD CLOUD ============ -->
+<section id="setup" class="section">
+  <div class="wrap">
+    <div class="split reveal">
+      <div>
+        <p class="eyebrow eyebrow--blue">Add Cloud</p>
+        <h2>Sign in.<br><span class="muted">That’s the setup.</span></h2>
+        <p class="lede">Pick a service from the tiles. For Google Drive, OneDrive, Dropbox and friends, Nimbus opens the provider’s own sign‑in page in your browser. Nimbus never sees your password. For servers like S3, SFTP and WebDAV, it asks exactly the questions that backend needs and nothing more.</p>
+        <ul class="feature-list feature-list--tight">
+          <li><h3>rclone’s own questions</h3><p>The flow is driven by rclone’s configuration state machine, so a new backend in rclone works in Nimbus with no app update.</p></li>
+          <li><h3>Show all options when you want them</h3><p>Power users get every advanced field. Everyone else never sees them.</p></li>
+          <li><h3>Your existing config, as it is</h3><p>Nimbus reads and writes the standard rclone config file. The rclone command line keeps working next to it, and an existing file imports with a preview.</p></li>
+          <li><h3>Nothing half‑finished</h3><p>Cancel midway and no partial or unauthenticated remote is left behind.</p></li>
+        </ul>
+      </div>
+      <figure class="shot shot--sheet">
+        <img src="assets/add-cloud.png" width="600" height="760" alt="The Add Cloud sheet with service tiles for Google Drive, OneDrive, Dropbox and more, each with a one-line hint about how sign-in works." loading="lazy">
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MENU BAR ============ -->
+<section id="menubar" class="section section--dark">
+  <div class="wrap">
+    <header class="section__head reveal">
+      <p class="eyebrow eyebrow--blue">Menu Bar</p>
+      <h2>Close the window.<br><span class="muted">Nimbus keeps watch.</span></h2>
+      <p class="lede">Most of the time you’ll be in Finder, not in Nimbus. The menu bar glyph shows aggregate state, and one click opens a companion window with live transfers, every cloud, recent activity and quick actions.</p>
+    </header>
+    <div class="companions reveal">
+      <figure>
+        <img src="assets/companion-busy.png" width="340" height="523" alt="The menu bar companion while copying three items to Dropbox, with a progress bar and the list of clouds." loading="lazy">
+        <figcaption>While something is moving</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/companion-sign-in.png" width="340" height="465" alt="The menu bar companion asking you to sign in to a cloud again, with the button to do it." loading="lazy">
+        <figcaption>When a cloud needs you</figcaption>
+      </figure>
+      <div class="companions__copy">
+        <ul class="feature-list feature-list--tight">
+          <li><h3>Same truth everywhere</h3><p>Home and the menu bar compute status from one shared, unit‑tested model, so the two never disagree.</p></li>
+          <li><h3>Open at login</h3><p>Turn it on and Nimbus starts quietly in the menu bar, keeps your Finder volumes live and restores your network mounts.</p></li>
+          <li><h3>Notifications, when they matter</h3><p>A finished transfer, a failed one, a cloud that signed you out. Not a feed.</p></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COPY & SYNC ============ -->
+<section id="transfers" class="section section--gray">
+  <div class="wrap">
+    <div class="split reverse-on-wide reveal">
+      <div>
+        <p class="eyebrow eyebrow--blue">Copy &amp; Sync</p>
+        <h2>Any cloud to any cloud.<br><span class="muted">Or to this Mac.</span></h2>
+        <p class="lede">Copy or sync between any two volumes or local folders. Transfers show up in a drawer along the bottom while they run and as a progress capsule in the toolbar, like a Finder copy. Every volume keeps its own history.</p>
+        <ul class="feature-list feature-list--tight">
+          <li><h3>Conflicts, asked once</h3><p>Drag onto another cloud and Nimbus asks how to handle duplicates before anything moves.</p></li>
+          <li><h3>Speed you control</h3><p>A plain‑language speed menu limits bandwidth so a big sync never takes over your connection.</p></li>
+          <li><h3>History and notifications</h3><p>What moved, where, when, and whether it worked. A notification when a long job ends.</p></li>
+        </ul>
+      </div>
+      <figure class="shot shot--sheet">
+        <div class="window">
+          <img src="assets/settings-transfers.png" width="680" height="592" alt="The Transfers settings pane with the speed menu and notification options." loading="lazy">
+        </div>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SETTINGS ============ -->
+<section id="settings" class="section">
+  <div class="wrap">
+    <div class="split reveal">
+      <figure class="shot">
+        <div class="window window--dark">
+          <img src="assets/settings-general-dark.png" width="1360" height="1216" alt="The Nimbus Settings window in dark mode, laid out like System Settings." loading="lazy">
+        </div>
+      </figure>
+      <div>
+        <p class="eyebrow eyebrow--blue">Settings</p>
+        <h2>Modeled on<br>System Settings.</h2>
+        <p class="lede">Dense, sectioned, familiar. Engine status at a glance, launch at login, the speed menu, and an Advanced pane for the rclone path and the people who want to see the wiring.</p>
+        <ul class="feature-list feature-list--tight">
+          <li><h3>Diagnostics in one click</h3><p>Copy a sanitized system report or open the app’s logs in Console. No account data ever leaves the report unredacted.</p></li>
+          <li><h3>Light and dark</h3><p>Every screen follows the system appearance, with no custom themes to fight it.</p></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRIVACY ============ -->
+<section id="privacy" class="section section--dark">
+  <div class="wrap wrap--narrow">
+    <header class="section__head reveal">
+      <p class="eyebrow eyebrow--blue">Privacy</p>
+      <h2>The only process that<br>touches the network is rclone.</h2>
+      <p class="lede">No account. No sign‑in with Nimbus. No telemetry. No update pinging. Here is the complete list of what talks to what.</p>
+    </header>
+    <table class="table reveal">
+      <thead><tr><th>Who</th><th>When</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr><td>rclone, to the providers you configured</td><td>When you browse, copy, sync or open a file</td><td>Your remotes only</td></tr>
+        <tr><td>rclone, to the provider’s sign‑in page</td><td>Once per OAuth provider, during setup</td><td>Through your browser</td></tr>
+        <tr><td>Anything else</td><td>Never</td><td>There is nothing else</td></tr>
+      </tbody>
+    </table>
+    <p class="fine reveal">Nimbus is GPL‑3.0‑or‑later. You can read every line that runs on your Mac.</p>
+  </div>
+</section>
+
+<!-- ============ TECH SPECS ============ -->
+<section id="specs" class="section section--gray">
+  <div class="wrap">
+    <header class="section__head reveal">
+      <p class="eyebrow eyebrow--blue">Under the hood</p>
+      <h2>Built the way a Mac app<br>should be built.</h2>
+    </header>
+    <div class="grid grid--2 reveal">
+      <div class="card">
+        <h3>One engine, two clients</h3>
+        <p>The app and its Finder extension talk to the same local rclone through RcloneKit, a typed Swift client for rclone’s remote‑control API, over loopback. No provider is reimplemented in Swift.</p>
+      </div>
+      <div class="card">
+        <h3>Swift 6, strict concurrency, no packages</h3>
+        <p>SwiftUI with AppKit where it draws better: the file table is a virtualized NSTableView hosting SwiftUI rows. Zero third‑party Swift packages, and a pre‑build check fails the build if one appears.</p>
+      </div>
+      <div class="card">
+        <h3>Tested against the real rclone</h3>
+        <p>The configuration flow and listing semantics are pinned by tests that run the actual binary, so an rclone upgrade that changes behaviour fails loudly instead of silently.</p>
+      </div>
+      <div class="card">
+        <h3>Finder presence has one owner</h3>
+        <p>Showing or hiding a volume in Finder records your intent first, reconciles the File Provider domain in the background, and rolls back if registration fails.</p>
+      </div>
+    </div>
+
+    <h3 class="compare__title reveal">How it compares</h3>
+    <div class="table-scroll reveal">
+      <table class="table table--light compare">
+        <thead><tr><th></th><th>Nimbus</th><th>Mountain Duck</th><th>ExpanDrive</th><th>Cyberduck</th><th>rclone CLI</th></tr></thead>
+        <tbody>
+          <tr><th>Price model</th><td>Free, source and signed builds alike</td><td>One‑time license per major version</td><td>One‑time license per major version*</td><td>Free, paid on the Mac App Store</td><td>Free</td></tr>
+          <tr><th>Open source</th><td>Yes, GPL‑3.0</td><td>No</td><td>No</td><td>Yes, GPL‑3.0</td><td>Yes, MIT</td></tr>
+          <tr><th>UI</th><td>Native SwiftUI and AppKit</td><td>Cocoa over a Java core</td><td>Electron*</td><td>Cocoa over a Java core</td><td>None</td></tr>
+          <tr><th>Finder / mount</th><td>File Provider and NFS</td><td>File Provider and FUSE‑style</td><td>Mounts*</td><td>No mounting</td><td>FUSE or NFS</td></tr>
+          <tr><th>Providers</th><td>Everything rclone supports, 50+</td><td>Its own, about 20*</td><td>Its own*</td><td>Its own, about 20*</td><td>50+</td></tr>
+          <tr><th>Reuses your rclone config</th><td>Yes</td><td>No</td><td>No</td><td>No</td><td>n/a</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="fine">* Not verified against a current release. Corrections welcome.</p>
+  </div>
+</section>
+
+<!-- ============ FROM THE SAME STUDIO ============ -->
+<section id="studio" class="section section--gray">
+  <div class="wrap">
+    <header class="section__head reveal">
+      <p class="eyebrow eyebrow--blue">From the same studio</p>
+      <h2>Nimbus is free.<br><span class="muted">These two pay for it.</span></h2>
+      <p class="lede">Nimbus costs nothing. Not the source, not the signed app, and that will not change. Casa Vargas sells two apps, each bought once and kept, and they pay for the time. If Nimbus is useful to you, this is the way to say thanks.</p>
+    </header>
+    <div class="fund reveal">
+      <article class="fund__card">
+        <div class="fund__art fund__art--tv">
+          <div class="window window--dark"><img src="assets/beltr-tv.jpg" width="2560" height="1440" alt="Beltr on a TV: word-timed lyrics with a pitch guide above them." loading="lazy"></div>
+          <img class="fund__phone" src="assets/beltr-phone.webp" width="820" height="1673" alt="A phone joining a Beltr room by name." loading="lazy">
+        </div>
+        <div class="fund__body">
+          <div class="fund__name"><img src="assets/beltr-icon.png" width="44" height="44" alt=""><h3>Beltr</h3></div>
+          <p class="fund__what">Karaoke from the music you already own.</p>
+          <p class="fund__copy">Beltr turns the songs already on your computer into karaoke on your TV, and every phone in the room becomes a remote and a mic. Mac, Windows and Linux, with free phone and TV companions.</p>
+          <p class="fund__price">$19.99 once, five songs free to try</p>
+          <div class="hero__actions hero__actions--left">
+            <a class="btn btn--primary" href="https://beltr.app/?utm_source=nimbus-site&amp;utm_medium=referral&amp;utm_campaign=nimbus">Get Beltr</a>
+            <a class="link-arrow" href="https://casavargas.app/work/beltr/">Read the case study</a>
+          </div>
+        </div>
+      </article>
+      <article class="fund__card">
+        <div class="fund__art fund__art--phone">
+          <img class="fund__hero-phone" src="assets/onescribe-phone.webp" width="717" height="1464" alt="OneScribe reading a boarding pass into flight, gate, seat and boarding time." loading="lazy">
+        </div>
+        <div class="fund__body">
+          <div class="fund__name"><img src="assets/onescribe-icon.png" width="44" height="44" alt=""><h3>OneScribe</h3></div>
+          <p class="fund__what">A document scanner that reads what it scans.</p>
+          <p class="fund__copy">OneScribe reads what you scan and turns it into organized, searchable details, with the AI running on your iPhone or iPad. Nothing you scan leaves the device.</p>
+          <p class="fund__price">Free to scan; Pro is $9.99 once</p>
+          <div class="hero__actions hero__actions--left">
+            <a class="btn btn--primary" href="https://apps.apple.com/us/app/onescribe-ai-note-scanner/id6756506734">Get OneScribe on the App Store</a>
+            <a class="link-arrow" href="https://casavargas.app/work/onescribe/">Read the case study</a>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DOWNLOAD ============ -->
+<section id="download" class="cta">
+  <div class="wrap wrap--narrow reveal">
+    <img class="cta__icon" src="assets/app-icon.png" width="96" height="96" alt="">
+    <h2>Nimbus 0.9.1</h2>
+    <p class="lede">Free. Signed with a Developer ID certificate and notarized, so Gatekeeper opens it without a warning. Pre‑1.0, used daily by its author, and still growing.</p>
+    <div class="hero__actions">
+      <a class="btn btn--primary btn--large" href="https://github.com/CasaVargas/Nimbus/releases/latest/download/Nimbus-0.9.1.dmg">Download the DMG</a>
+      <a class="link-arrow" href="https://github.com/CasaVargas/Nimbus/releases">All releases</a>
+    </div>
+    <dl class="reqs">
+      <div><dt>Requires</dt><dd>macOS 15 Sequoia or later, Apple silicon or Intel</dd></div>
+      <div><dt>Engine</dt><dd>rclone on your PATH: <code>brew install rclone</code></dd></div>
+      <div><dt>Verify</dt><dd>A <code>.sha256</code> sits beside every DMG</dd></div>
+      <div><dt>License</dt><dd>GPL‑3.0‑or‑later. Free, source and signed builds alike</dd></div>
+    </dl>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer__inner">
+    <p>© 2026 Casa Vargas LLC. Nimbus is open source under GPL‑3.0‑or‑later.</p>
+    <ul>
+      <li><a href="https://github.com/CasaVargas/Nimbus">GitHub</a></li>
+      <li><a href="https://github.com/CasaVargas/Nimbus/releases">Releases</a></li>
+      <li><a href="https://github.com/CasaVargas/Nimbus/blob/main/CONTRIBUTING.md">Contributing</a></li>
+      <li><a href="https://github.com/CasaVargas/Nimbus/blob/main/SECURITY.md">Security</a></li>
+      <li><a href="https://casavargas.app">Casa Vargas</a></li>
+    </ul>
+    <p class="footer__fine">Finder, macOS and Mac are trademarks of Apple Inc. rclone is a trademark of its authors. Screenshots show a throwaway configuration with made‑up files.</p>
+  </div>
+</footer>
+
+<script src="site.js" defer></script>
+</body>
+</html>

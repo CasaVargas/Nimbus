@@ -9,6 +9,10 @@
 </p>
 
 <p align="center">
+  Free and open source, from the studio behind <a href="https://beltr.app/?utm_source=github&utm_medium=readme&utm_campaign=nimbus">Beltr</a> and <a href="https://apps.apple.com/us/app/onescribe-ai-note-scanner/id6756506734">OneScribe</a>.
+</p>
+
+<p align="center">
   <a href="https://github.com/CasaVargas/Nimbus/actions/workflows/ci.yml"><img src="https://github.com/CasaVargas/Nimbus/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2015%2B-blue" alt="macOS 15+">
   <img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue" alt="GPL-3.0-or-later">
@@ -116,12 +120,21 @@ Facts only; "unverified" means we did not confirm it against a current release. 
 
 | | Nimbus | Mountain Duck | ExpanDrive | Cyberduck | rclone CLI |
 |---|---|---|---|---|---|
-| Price model | One-time purchase for binaries; source is free | One-time license per major version | One-time license per major version (unverified) | Free (donations; paid on the Mac App Store) | Free |
+| Price model | Free, source and signed builds alike | One-time license per major version | One-time license per major version (unverified) | Free (donations; paid on the Mac App Store) | Free |
 | Open source | Yes, GPL-3.0-or-later | No | No | Yes, GPL-3.0 | Yes, MIT |
 | UI | Native SwiftUI/AppKit | Native Cocoa over a Java core | Electron for the UI (unverified) | Native Cocoa over a Java core | None (an experimental web GUI exists) |
 | Finder / mount | File Provider and NFS | File Provider and FUSE-style mounts | Mounts (unverified which mechanism) | No mounting; transfer client | FUSE (macFUSE) or NFS via `rclone mount` / `serve nfs` |
 | Providers | Everything rclone supports (50+) | Its own backends (roughly 20, unverified) | Its own backends (unverified count) | Its own backends (roughly 20, unverified) | 50+ |
 | Reuses your rclone config | Yes | No | No | No | n/a |
+
+## Support development
+
+Nimbus costs nothing: not the source, not the signed app, and that will not change. It is built by [Casa Vargas](https://casavargas.app), which pays for the time with two apps, each bought once and kept. If Nimbus is useful to you, the best way to say thanks is to try one of them:
+
+- **[Beltr](https://beltr.app/?utm_source=github&utm_medium=readme&utm_campaign=nimbus)**: karaoke from the music you already own, on your TV, with every phone in the room as a mic and remote. Mac, Windows and Linux. $19.99 once, five songs free to try.
+- **[OneScribe](https://apps.apple.com/us/app/onescribe-ai-note-scanner/id6756506734)**: a document scanner for iPhone and iPad that reads what it scans, with the AI running on the device. Free to scan; Pro is $9.99 once.
+
+Stars, bug reports and pull requests are welcome too.
 
 ## Contributing
 
@@ -131,7 +144,7 @@ Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) fo
 
 Nimbus is licensed under the GNU General Public License, version 3 or later (`SPDX-License-Identifier: GPL-3.0-or-later`). See [LICENSE](LICENSE). Copyright Casa Vargas LLC.
 
-The source is free to build and modify under those terms; prebuilt, signed binaries will be sold as a one-time purchase to fund development.
+Nimbus is free, source and signed builds alike. Development is paid for by Casa Vargas's other apps; see [Support development](#support-development).
 
 ### Legacy
 

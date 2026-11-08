@@ -77,3 +77,36 @@ struct VolumeHeader: View {
     .frame(width: 760)
     .padding(.bottom)
 }
+
+#if DEBUG
+/// The volume pane on its Finder tab, composed from the same parts the live
+/// pane uses, with demo data. Rendered for the website and README screenshots
+/// (docs/screenshots/volume-finder.png), where the page adds the window chrome.
+#Preview("Volume pane, Finder tab", traits: .fixedLayout(width: 1000, height: 560)) {
+    @Previewable @State var tab: VolumeTab = .finder
+    let remote = Remote(name: "Personal Drive", type: "drive", config: [:])
+    let quota = StorageQuota(used: 1_280_000_000_000, total: 2_000_000_000_000)
+    let inFinder = MountConfig(remote: "Personal Drive:", mountPoint: "", vfsMode: .readWrite, autoMount: true, backend: .fileProvider)
+    let asVolume = MountConfig(remote: "Personal Drive:", mountPoint: "/Volumes/Personal Drive", vfsMode: .readWrite, autoMount: false, backend: .nfs)
+    VStack(spacing: 0) {
+        VolumeHeader(
+            remote: remote,
+            providerName: "Google Drive",
+            quota: quota,
+            status: .connected,
+            isInFinder: true,
+            onPrimary: {}, onSync: {}, onEdit: {}
+        )
+        StorageGauge(quota: quota)
+        VolumeTabBar(selection: $tab)
+        Divider()
+        List {
+            MountRow(config: inFinder, state: .on, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {})
+            MountRow(config: asVolume, state: .off, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {})
+        }
+        .listStyle(.inset)
+    }
+    .background(DesignSystem.Color.semantic.surface)
+    .preferredColorScheme(.dark)
+}
+#endif
