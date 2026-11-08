@@ -14,6 +14,11 @@ struct SyncedItemRecord: Codable, Equatable, Sendable {
     let isDir: Bool
     let size: Int64
     let modTime: TimeInterval?
+    /// Keep Downloaded state (see `FileProviderItem.keepState`). A pin
+    /// changes nothing on the server, so without this a pin or unpin would
+    /// diff as "no change" and the system would never re-read the item's
+    /// content policy. Optional so snapshots saved by older builds decode.
+    var keepState: Int? = nil
 }
 
 /// Persisted baseline for one enumerated container (root or a subfolder).
@@ -66,7 +71,8 @@ enum SyncSnapshotStore {
                 name: file.name,
                 isDir: file.isDir,
                 size: file.size,
-                modTime: file.modTime?.timeIntervalSince1970
+                modTime: file.modTime?.timeIntervalSince1970,
+                keepState: item.keepState
             )
             return (item, record)
         }

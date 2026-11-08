@@ -1,9 +1,10 @@
 import FileProvider
 import os
 
-/// Enumerator for the two synthetic system containers every
-/// `NSFileProviderReplicatedExtension` must be able to enumerate:
-/// `.workingSet` and `.trashContainer`.
+/// Enumerator for the trash container, a synthetic system container every
+/// `NSFileProviderReplicatedExtension` must be able to enumerate. (The
+/// working set has its own enumerator: `WorkingSetEnumerator`, which reports
+/// Keep Downloaded changes.)
 ///
 /// Nimbus doesn't track a working set of materialized items independent of
 /// the browsed hierarchy, and rclone has no universal trash/recycle-bin
