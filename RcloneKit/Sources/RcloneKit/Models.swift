@@ -234,6 +234,62 @@ public struct Job: Codable, Sendable, Identifiable {
     public let finished: Bool
     public let success: Bool
     public let duration: Double
+    /// The change report of a `sync/sync` or `sync/copy` job started with
+    /// report flags. Other jobs put unrelated shapes in `output` (or none),
+    /// so it decodes as nil instead of failing the whole status.
+    public let output: SyncReport?
+
+    enum CodingKeys: String, CodingKey {
+        case id, group, startTime, endTime, error, finished, success, duration, output
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        group = try container.decode(String.self, forKey: .group)
+        startTime = try container.decode(String.self, forKey: .startTime)
+        endTime = try container.decode(String.self, forKey: .endTime)
+        error = try container.decode(String.self, forKey: .error)
+        finished = try container.decode(Bool.self, forKey: .finished)
+        success = try container.decode(Bool.self, forKey: .success)
+        duration = try container.decode(Double.self, forKey: .duration)
+        output = try? container.decodeIfPresent(SyncReport.self, forKey: .output)
+    }
+}
+
+/// The lists rclone returns for a sync/copy started with report flags
+/// (`missingOnDst`, `missingOnSrc`, `differ`, `error`). Paths are relative
+/// to the source/destination roots. A list is nil when it wasn't requested.
+public struct SyncReport: Codable, Sendable, Equatable {
+    public let missingOnDst: [String]?
+    public let missingOnSrc: [String]?
+    public let differ: [String]?
+    public let error: [String]?
+
+    public init(missingOnDst: [String]? = nil, missingOnSrc: [String]? = nil,
+                differ: [String]? = nil, error: [String]? = nil) {
+        self.missingOnDst = missingOnDst
+        self.missingOnSrc = missingOnSrc
+        self.differ = differ
+        self.error = error
+    }
+
+    /// True when no list was present at all (a job that wasn't a reporting sync).
+    var isAbsent: Bool { missingOnDst == nil && missingOnSrc == nil && differ == nil && error == nil }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        missingOnDst = try container.decodeIfPresent([String].self, forKey: .missingOnDst)
+        missingOnSrc = try container.decodeIfPresent([String].self, forKey: .missingOnSrc)
+        differ = try container.decodeIfPresent([String].self, forKey: .differ)
+        error = try container.decodeIfPresent([String].self, forKey: .error)
+        if isAbsent {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
+                                                    debugDescription: "not a sync report"))
+        }
+    }
+
+    enum CodingKeys: String, CodingKey { case missingOnDst, missingOnSrc, differ, error }
 }
 
 // MARK: - Statistics
@@ -246,6 +302,10 @@ public struct StatsResponse: Codable, Sendable {
     public let checks: Int
     public let transfers: Int
     public let deletes: Int
+    /// Server-side moves, including moves into `--backup-dir`.
+    public let renames: Int?
+    /// Directory entries listed so far (progress for checks and dry runs).
+    public let listed: Int?
     public let elapsedTime: Double
     public let totalBytes: Int64
     public let totalTransfers: Int
