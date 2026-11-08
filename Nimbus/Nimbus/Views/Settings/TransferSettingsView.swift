@@ -23,6 +23,46 @@ enum BandwidthLimitValidator {
     }
 }
 
+/// The speed-limit menu. rclone `--bwlimit` takes bytes per second with
+/// binary suffixes ("5M" = 5 MiB/s); the menu says "MB/s" because that's how
+/// people read speeds. Anything that isn't a preset is Custom, so a value set
+/// by hand (or by an older Nimbus) is shown as-is, never silently changed.
+enum SpeedLimitChoice: Hashable, CaseIterable {
+    case unlimited, mb1, mb5, mb10, mb25, mb50, custom
+
+    static let presets: [SpeedLimitChoice] = [.unlimited, .mb1, .mb5, .mb10, .mb25, .mb50]
+
+    /// The stored rclone value for a preset; nil for `.custom`.
+    var value: String? {
+        switch self {
+        case .unlimited: ""
+        case .mb1: "1M"
+        case .mb5: "5M"
+        case .mb10: "10M"
+        case .mb25: "25M"
+        case .mb50: "50M"
+        case .custom: nil
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .unlimited: "No limit"
+        case .mb1: "1 MB/s"
+        case .mb5: "5 MB/s"
+        case .mb10: "10 MB/s"
+        case .mb25: "25 MB/s"
+        case .mb50: "50 MB/s"
+        case .custom: "Custom…"
+        }
+    }
+
+    init(storedValue: String) {
+        let trimmed = storedValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        self = Self.presets.first { $0.value == trimmed } ?? .custom
+    }
+}
+
 @MainActor
 protocol TransferRuntimeConfiguring {
     func setBandwidthLimit(rate: String) async throws -> BandwidthLimitResponse
@@ -67,6 +107,7 @@ struct TransferSettingsView: View {
     private let initialNotificationAuthorizationStatus: NotificationAuthorizationStatus?
 
     @State private var bandwidthLimitDraft = ""
+    @State private var speedChoice: SpeedLimitChoice = .unlimited
     @State private var bandwidthInvalid = false
     @State private var bandwidthRuntimeError: String?
     @State private var concurrentTransfersRuntimeError: String?
@@ -90,6 +131,15 @@ struct TransferSettingsView: View {
         _notificationAuthorizationStatus = State(
             initialValue: initialNotificationAuthorizationStatus ?? .notDetermined
         )
+        // A draft passed in is known now, so set the speed menu's state here
+        // rather than in onAppear: the Custom field appears or not depending
+        // on it, and the first frame must already be right.
+        if let initialBandwidthLimitDraft {
+            _bandwidthLimitDraft = State(initialValue: initialBandwidthLimitDraft)
+            _speedChoice = State(initialValue: SpeedLimitChoice(storedValue: initialBandwidthLimitDraft))
+            _bandwidthInvalid = State(initialValue: !BandwidthLimitValidator.validate(initialBandwidthLimitDraft))
+            _hasInitializedBandwidthDraft = State(initialValue: true)
+        }
     }
 
     var body: some View {
@@ -102,6 +152,7 @@ struct TransferSettingsView: View {
                     updateConcurrentTransfers: updateConcurrentTransfers,
                     concurrentTransfersRuntimeError: concurrentTransfersRuntimeError,
                     isApplyingConcurrentTransfers: isApplyingConcurrentTransfers,
+                    speedChoice: Binding(get: { speedChoice }, set: chooseSpeed),
                     bandwidthLimitDraft: $bandwidthLimitDraft,
                     bandwidthInvalid: bandwidthInvalid,
                     bandwidthRuntimeError: bandwidthRuntimeError,
@@ -143,8 +194,22 @@ struct TransferSettingsView: View {
     private func initializeBandwidthLimitDraft() {
         guard !hasInitializedBandwidthDraft else { return }
         bandwidthLimitDraft = initialBandwidthLimitDraft ?? settings.bandwidthLimit
+        speedChoice = SpeedLimitChoice(storedValue: bandwidthLimitDraft)
         bandwidthInvalid = !BandwidthLimitValidator.validate(bandwidthLimitDraft)
         hasInitializedBandwidthDraft = true
+    }
+
+    /// A preset applies at once; Custom reveals the text field and waits for
+    /// the user to type (starting empty if the old value was a preset).
+    private func chooseSpeed(_ choice: SpeedLimitChoice) {
+        speedChoice = choice
+        if let value = choice.value {
+            bandwidthLimitDraft = value
+            commitBandwidthLimit()
+        } else if SpeedLimitChoice(storedValue: bandwidthLimitDraft) != .custom {
+            bandwidthLimitDraft = ""
+            bandwidthInvalid = false
+        }
     }
 
     private func commitBandwidthLimit() {
@@ -169,7 +234,7 @@ struct TransferSettingsView: View {
                     runtime: runtime
                 )
             } catch {
-                bandwidthRuntimeError = "Couldn't apply bandwidth limit: \(error.localizedDescription)"
+                bandwidthRuntimeError = "Couldn't apply the speed limit: \(error.localizedDescription)"
             }
         }
     }
@@ -188,7 +253,7 @@ struct TransferSettingsView: View {
                     runtime: runtime
                 )
             } catch {
-                concurrentTransfersRuntimeError = "Couldn't apply concurrent transfers: \(error.localizedDescription)"
+                concurrentTransfersRuntimeError = "Couldn't change copies at once: \(error.localizedDescription)"
             }
         }
     }
@@ -222,6 +287,7 @@ private struct TransferPerformanceSection: View {
     let updateConcurrentTransfers: (Int) -> Void
     let concurrentTransfersRuntimeError: String?
     let isApplyingConcurrentTransfers: Bool
+    @Binding var speedChoice: SpeedLimitChoice
     @Binding var bandwidthLimitDraft: String
     let bandwidthInvalid: Bool
     let bandwidthRuntimeError: String?
@@ -229,59 +295,73 @@ private struct TransferPerformanceSection: View {
     let commitBandwidthLimit: () -> Void
     @FocusState private var isBandwidthLimitFocused: Bool
 
+    private static let customHint = "Enter a speed like 500k, 2M or 1.5G (bytes per second)."
+
     var body: some View {
-        FormSection(
-            title: "Performance",
-            footer: "Higher concurrency improves throughput but uses more memory."
-        ) {
-            FormRow(label: "Concurrent Transfers", help: nil) {
-                Stepper(
-                    value: Binding(
-                        get: { concurrentTransfers },
-                        set: { updateConcurrentTransfers($0) }
-                    ),
-                    in: 1...32
+        FormSection(title: "Speed", footer: nil) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                FormRow(
+                    label: "Copies at once",
+                    help: "More is faster on a fast connection; fewer is gentler on your Mac and network."
                 ) {
-                    Text("\(concurrentTransfers)")
-                }
-                .frame(width: 140, alignment: .trailing)
-                .disabled(isApplyingConcurrentTransfers)
-                .accessibilityLabel("Concurrent Transfers")
-            }
-            if let concurrentTransfersRuntimeError {
-                runtimeError(concurrentTransfersRuntimeError)
-            }
-            FormRow(
-                label: "Bandwidth Limit",
-                help: "Leave empty for unlimited. Use a positive number with an optional k, M, G, or T suffix."
-            ) {
-                TextField("Unlimited", text: $bandwidthLimitDraft)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 180)
-                    .focused($isBandwidthLimitFocused)
-                    .disabled(isApplyingBandwidthLimit)
-                    .onSubmit(commitBandwidthLimit)
-                    .onChange(of: isBandwidthLimitFocused) { _, isFocused in
-                        if !isFocused {
-                            commitBandwidthLimit()
-                        }
+                    Stepper(
+                        value: Binding(
+                            get: { concurrentTransfers },
+                            set: { updateConcurrentTransfers($0) }
+                        ),
+                        in: 1...32
+                    ) {
+                        Text("\(concurrentTransfers)")
+                            .monospacedDigit()
                     }
-                    .accessibilityLabel("Bandwidth Limit")
-                    .accessibilityHint(
-                        bandwidthInvalid
-                            ? "Enter a positive number, optionally followed by k, M, G, or T."
-                            : "Leave empty for unlimited."
-                    )
+                    .frame(width: 140, alignment: .trailing)
+                    .disabled(isApplyingConcurrentTransfers)
+                    .accessibilityLabel("Copies at once")
+                    .accessibilityValue("\(concurrentTransfers)")
+                }
+                if let concurrentTransfersRuntimeError {
+                    runtimeError(concurrentTransfersRuntimeError)
+                }
             }
-            if bandwidthInvalid {
-                Text("Enter a positive number, optionally followed by k, M, G, or T.")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.statusError)
-                    .accessibilityLabel("Bandwidth limit error: Enter a positive number, optionally followed by k, M, G, or T.")
-                    .padding(.top, DesignSystem.Spacing.xs)
-            }
-            if let bandwidthRuntimeError {
-                runtimeError(bandwidthRuntimeError)
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                FormRow(label: "Speed limit", help: nil) {
+                    Picker("Speed limit", selection: $speedChoice) {
+                        ForEach(SpeedLimitChoice.presets, id: \.self) { choice in
+                            Text(verbatim: choice.title).tag(choice)
+                        }
+                        Divider()
+                        Text(verbatim: SpeedLimitChoice.custom.title).tag(SpeedLimitChoice.custom)
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .frame(width: 140, alignment: .trailing)
+                    .disabled(isApplyingBandwidthLimit)
+                    .accessibilityLabel("Speed limit")
+                }
+                if speedChoice == .custom {
+                    HStack {
+                        Spacer()
+                        TextField("e.g. 2M", text: $bandwidthLimitDraft)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 140)
+                            .focused($isBandwidthLimitFocused)
+                            .disabled(isApplyingBandwidthLimit)
+                            .onSubmit(commitBandwidthLimit)
+                            .onChange(of: isBandwidthLimitFocused) { _, isFocused in
+                                if !isFocused { commitBandwidthLimit() }
+                            }
+                            .accessibilityLabel("Custom speed limit")
+                            .accessibilityHint(Self.customHint)
+                    }
+                    Text(verbatim: Self.customHint)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundStyle(bandwidthInvalid ? DesignSystem.Color.semantic.statusError
+                                                          : DesignSystem.Color.semantic.textTertiary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                if let bandwidthRuntimeError {
+                    runtimeError(bandwidthRuntimeError)
+                }
             }
         }
     }
@@ -291,7 +371,6 @@ private struct TransferPerformanceSection: View {
             .font(DesignSystem.Typography.caption)
             .foregroundStyle(DesignSystem.Color.semantic.statusError)
             .accessibilityLabel("Transfer setting error: \(message)")
-            .padding(.top, DesignSystem.Spacing.xs)
     }
 }
 
@@ -304,47 +383,54 @@ private struct TransferBehaviorSection: View {
     let isRequestingNotificationAuthorization: Bool
 
     var body: some View {
-        FormSection(title: "Behavior", footer: nil) {
-            FormRow(label: "File Conflicts", help: "Used as the initial choice for new copy operations.") {
-                Picker("File Conflicts", selection: $conflictPolicy) {
-                    Text("Rename").tag(ConflictPolicy.rename)
+        FormSection(title: "Copying", footer: nil) {
+            FormRow(label: "If a file already exists", help: "You can still choose differently for each copy.") {
+                Picker("If a file already exists", selection: $conflictPolicy) {
+                    Text("Keep Both").tag(ConflictPolicy.rename)
                     Text("Skip").tag(ConflictPolicy.skip)
-                    Text("Overwrite").tag(ConflictPolicy.overwrite)
+                    Text("Replace").tag(ConflictPolicy.overwrite)
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
                 .frame(width: 140, alignment: .trailing)
-                .accessibilityLabel("File Conflicts")
+                .accessibilityLabel("If a file already exists")
             }
-            FormRow(label: "Transfer Notifications", help: nil) {
-                Picker("Transfer Notifications", selection: $notificationMode) {
-                    Text("Failures Only").tag(TransferNotificationMode.failuresOnly)
-                    Text("All Transfers").tag(TransferNotificationMode.allTransfers)
-                    Text("Off").tag(TransferNotificationMode.off)
+        }
+        FormSection(title: "Notifications and activity", footer: nil) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                FormRow(label: "Notify me", help: nil) {
+                    Picker("Notify me", selection: $notificationMode) {
+                        Text("When something fails").tag(TransferNotificationMode.failuresOnly)
+                        Text("After every copy").tag(TransferNotificationMode.allTransfers)
+                        Text("Never").tag(TransferNotificationMode.off)
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .frame(width: 190, alignment: .trailing)
+                    .accessibilityLabel("Notify me")
                 }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .frame(width: 140, alignment: .trailing)
-                .accessibilityLabel("Transfer Notifications")
+                if notificationMode != .off,
+                   notificationAuthorizationStatus == .denied
+                    || notificationAuthorizationError != nil
+                    || isRequestingNotificationAuthorization {
+                    NotificationAuthorizationStatusRow(
+                        status: notificationAuthorizationStatus,
+                        error: notificationAuthorizationError,
+                        isRequestingAuthorization: isRequestingNotificationAuthorization
+                    )
+                }
             }
-            if notificationMode != .off {
-                NotificationAuthorizationStatusRow(
-                    status: notificationAuthorizationStatus,
-                    error: notificationAuthorizationError,
-                    isRequestingAuthorization: isRequestingNotificationAuthorization
-                )
-            }
-            FormRow(label: "Keep Transfer History", help: nil) {
-                Picker("Keep Transfer History", selection: $historyRetention) {
-                    Text("7 Days").tag(TransferHistoryRetention.sevenDays)
-                    Text("30 Days").tag(TransferHistoryRetention.thirtyDays)
+            FormRow(label: "Keep activity for", help: nil) {
+                Picker("Keep activity for", selection: $historyRetention) {
+                    Text("7 days").tag(TransferHistoryRetention.sevenDays)
+                    Text("30 days").tag(TransferHistoryRetention.thirtyDays)
+                    Text("Until Nimbus quits").tag(TransferHistoryRetention.untilQuit)
                     Text("Forever").tag(TransferHistoryRetention.forever)
-                    Text("Until Nimbus Quits").tag(TransferHistoryRetention.untilQuit)
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
-                .frame(width: 160, alignment: .trailing)
-                .accessibilityLabel("Keep Transfer History")
+                .frame(width: 190, alignment: .trailing)
+                .accessibilityLabel("Keep activity for")
             }
         }
     }
@@ -360,12 +446,12 @@ private struct NotificationAuthorizationStatusRow: View {
             if isRequestingAuthorization {
                 ProgressView()
                     .controlSize(.small)
-                Text("Requesting notification permission...")
+                Text("Asking for permission to notify…")
             } else if status == .denied {
-                Label("Disabled in System Settings", systemImage: "bell.slash")
+                Label("Notifications are off for Nimbus in System Settings", systemImage: "bell.slash")
                     .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
                 Spacer()
-                Link("Open Notification Settings", destination: notificationSettingsURL)
+                Link("Turn On…", destination: notificationSettingsURL)
             } else if let error {
                 Label {
                     Text(verbatim: error)
@@ -385,7 +471,8 @@ private struct NotificationAuthorizationStatusRow: View {
 }
 
 #Preview {
-    TransferSettingsView()
+    TransferSettingsView(initialNotificationAuthorizationStatus: .authorized)
         .environment(AppSettings())
-        .frame(width: 680, height: 520)
+        .environment(RcloneDaemon())
+        .frame(width: 680, height: 560)
 }

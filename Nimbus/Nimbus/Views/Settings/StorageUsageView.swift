@@ -75,9 +75,9 @@ private enum CacheStoreError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unavailable:
-            "Nimbus could not access its local sync data."
+            "Nimbus couldn't read its Finder change records."
         case .notDirectory:
-            "Nimbus local sync data is not a directory."
+            "Nimbus's Finder change records are in an unexpected format."
         }
     }
 }
@@ -141,53 +141,54 @@ final class GeneralSettingsModel {
     }
 }
 
-struct StorageUsageView: View {
+/// "Finder change records": the File Provider extension's sync snapshots.
+/// Not a store of downloaded files, so it sits under Troubleshooting and
+/// says plainly what resetting does.
+struct FinderChangeRecordsRow: View {
     @State private var model: GeneralSettingsModel
-    @State private var showingClearConfirmation = false
+    @State private var showingResetConfirmation = false
 
     init(model: GeneralSettingsModel = GeneralSettingsModel()) {
         _model = State(initialValue: model)
     }
 
     var body: some View {
-        FormSection(
-            title: "Local Storage",
-            footer: "Nimbus stores lightweight Finder sync data locally. Finder manages materialized cloud files separately."
+        FormRow(
+            label: "Finder change records",
+            help: "Nimbus remembers what Finder has already seen so it only shows changes. Resetting makes Finder check every folder again. Your files aren't touched."
         ) {
-            FormRow(label: "Finder Sync Data", help: nil) {
-                cacheUsageValue
-            }
-            FormRow(label: "Clear Sync Data", help: nil) {
-                Button("Clear…", role: .destructive) {
-                    showingClearConfirmation = true
+            HStack(spacing: DesignSystem.Spacing.s) {
+                usageValue
+                Button("Reset…", role: .destructive) {
+                    showingResetConfirmation = true
                 }
                 .controlSize(.small)
-                .disabled(!canClearCache || model.isClearingCache)
-                .accessibilityLabel("Clear Finder Sync Data")
+                .disabled(!canReset || model.isClearingCache)
+                .accessibilityLabel("Reset Finder change records")
             }
         }
         .task { await model.loadCacheUsageIfNeeded() }
         .confirmationDialog(
-            "Remove Nimbus sync data?",
-            isPresented: $showingClearConfirmation,
+            "Reset Finder change records?",
+            isPresented: $showingResetConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Clear Sync Data", role: .destructive) {
+            Button("Reset", role: .destructive) {
                 Task { await model.clearCache() }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Finder-managed cloud files are unaffected. Nimbus rebuilds sync data as folders are enumerated.")
+            Text("Finder checks every folder again the next time you open it. Files in your clouds and on this Mac aren't touched.")
         }
     }
 
     @ViewBuilder
-    private var cacheUsageValue: some View {
+    private var usageValue: some View {
         switch model.cacheUsage {
         case .loading:
             ProgressView()
                 .controlSize(.small)
-                .accessibilityLabel("Calculating Finder sync storage")
+                .accessibilityLabel("Measuring Finder change records")
         case .available(let bytes):
             Text(verbatim: bytes == 0 ? "Empty" : ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
                 .font(DesignSystem.Typography.body)
@@ -201,15 +202,13 @@ struct StorageUsageView: View {
             }
             .font(DesignSystem.Typography.caption)
             .foregroundStyle(DesignSystem.Color.semantic.statusError)
-            .frame(maxWidth: 280, alignment: .trailing)
-            .accessibilityLabel("Finder sync data unavailable: \(error)")
+            .frame(maxWidth: 240, alignment: .trailing)
+            .accessibilityLabel("Finder change records unavailable: \(error)")
         }
     }
 
-    private var canClearCache: Bool {
-        if case .available(let bytes) = model.cacheUsage {
-            return bytes > 0
-        }
+    private var canReset: Bool {
+        if case .available(let bytes) = model.cacheUsage { return bytes > 0 }
         return false
     }
 }

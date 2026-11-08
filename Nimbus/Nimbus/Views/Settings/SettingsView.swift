@@ -32,7 +32,7 @@ struct SettingsView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            GeneralSettingsView(model: generalModel)
+            GeneralSettingsView()
                 .tag(SettingsTab.general)
                 .tabItem { Label(SettingsTab.general.title, systemImage: SettingsTab.general.systemImage) }
 
@@ -40,7 +40,7 @@ struct SettingsView: View {
                 .tag(SettingsTab.transfers)
                 .tabItem { Label(SettingsTab.transfers.title, systemImage: SettingsTab.transfers.systemImage) }
 
-            AdvancedSettingsView()
+            AdvancedSettingsView(storageModel: generalModel)
                 .tag(SettingsTab.advanced)
                 .tabItem { Label(SettingsTab.advanced.title, systemImage: SettingsTab.advanced.systemImage) }
         }

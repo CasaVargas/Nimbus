@@ -64,19 +64,16 @@ jobs:
             build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
-      # The three skips below are known, pre-existing failures that do not
+      # The two skips below are known, pre-existing failures that do not
       # indicate a regression:
       #   - EmptyStateTests/rendersWithCTA: ImageRenderer leaves a gap in the
       #     offscreen render that the perceptual-hash fixture does not tolerate.
       #   - RcloneConfigMachineTests: pins the question order of an older
       #     rclone release; Homebrew installs a newer one.
-      #   - The Settings pane snapshots (AdvancedSettingsViewTests/renders* and
-      #     GeneralSettingsViewTests/renders*): rendersRestartRequiredState
-      #     depends on test ordering even locally, and on the GitHub runner
-      #     (non-Retina virtual display, macOS 27) a different subset of the
-      #     Settings-Advanced-* / Settings-General-* fixtures exceeds the
-      #     perceptual-hash tolerance on each run. Environment drift, not a
-      #     regression; the non-snapshot tests in those suites still run.
+      # The Settings snapshots used to be skipped too. Their two causes are
+      # fixed in SnapshotHelpers: captures are a fixed 2x (no longer the
+      # display's scale), and each render gets its own window (concurrent
+      # suites used to swap content in a shared one mid-render).
       # TODO: fix each of these and remove the corresponding -skip-testing.
       - name: Test (unsigned)
         run: |
@@ -90,12 +87,6 @@ jobs:
             test \
             '-skip-testing:NimbusTests/EmptyStateTests/rendersWithCTA()' \
             -skip-testing:NimbusTests/RcloneConfigMachineTests \
-            '-skip-testing:NimbusTests/AdvancedSettingsViewTests/rendersAdvancedConnected()' \
-            '-skip-testing:NimbusTests/AdvancedSettingsViewTests/rendersRestartRequiredState()' \
-            '-skip-testing:NimbusTests/AdvancedSettingsViewTests/rendersDisconnectedState()' \
-            '-skip-testing:NimbusTests/AdvancedSettingsViewTests/rendersDaemonErrorState()' \
-            '-skip-testing:NimbusTests/GeneralSettingsViewTests/rendersGeneralPane()' \
-            '-skip-testing:NimbusTests/GeneralSettingsViewTests/rendersCacheFailure()' \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
       - name: Upload test results

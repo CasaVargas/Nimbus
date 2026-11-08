@@ -11,7 +11,7 @@ struct TransferSettingsViewTests {
             TransferSettingsView(notifier: NotificationAuthorizationFixture(status: .authorized))
                 .environment(settings())
                 .environment(RcloneDaemon()),
-            size: CGSize(width: 680, height: 520),
+            size: CGSize(width: 680, height: 640),
             named: "Settings-Transfers"
         )
     }
@@ -27,7 +27,7 @@ struct TransferSettingsViewTests {
             )
             .environment(settings)
             .environment(RcloneDaemon()),
-            size: CGSize(width: 680, height: 520),
+            size: CGSize(width: 680, height: 640),
             named: "Settings-Transfers-invalid-bandwidth"
         )
     }
@@ -40,7 +40,7 @@ struct TransferSettingsViewTests {
             )
                 .environment(settings())
                 .environment(RcloneDaemon()),
-            size: CGSize(width: 680, height: 520),
+            size: CGSize(width: 680, height: 640),
             named: "Settings-Transfers-notifications-denied"
         )
     }

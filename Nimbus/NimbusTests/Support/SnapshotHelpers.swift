@@ -9,8 +9,6 @@ enum SnapshotHelpers {
     /// Retained solely for hosted snapshots. Reusing one non-key window avoids
     /// AppKit's back-to-back window setup race while keeping focus out of the
     /// captured controls.
-    @MainActor private static var hostedWindow: NSWindow?
-    @MainActor private static var chromeWindow: NSWindow?
 
     /// Renders a SwiftUI view to a deterministic PNG `Data` blob via ImageRenderer.
     @MainActor
@@ -28,8 +26,14 @@ enum SnapshotHelpers {
     @MainActor
     static func renderHostedPNG<V: View>(_ view: V, size: CGSize) -> Data {
         let hostingView = NSHostingView(rootView: view)
-        let window = hostedWindow ?? makeHostedWindow(size: size)
-        window.setContentSize(size)
+        // A fresh window per render, never a shared one. Swift Testing runs
+        // suites concurrently on the main actor; while this render spins the
+        // run loop below, another test used to swap its own view into the
+        // shared window, and this one captured a detached view that fell
+        // back to the light default appearance. That was the "depends on
+        // test ordering" Settings flake.
+        let window = makeHostedWindow(size: size)
+        defer { window.orderOut(nil) }
         window.contentView = hostingView
 
         // Native SwiftUI controls finish configuring only once their hosting
@@ -40,10 +44,34 @@ enum SnapshotHelpers {
         RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
         window.display()
 
-        guard let bitmap = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
+        return captureAt2x(hostingView)
+    }
+
+    /// Captures `view` into a bitmap at exactly 2x its point size.
+    /// `bitmapImageRepForCachingDisplay` follows the screen's backing scale,
+    /// so the same test produced 1x images on a non-Retina display or CI's
+    /// virtual display and 2x on a Retina Mac, and the fixtures drifted
+    /// between machines. A fixed-scale rep makes the output the same everywhere.
+    @MainActor
+    private static func captureAt2x(_ view: NSView) -> Data {
+        let bounds = view.bounds
+        guard bounds.width > 0, bounds.height > 0,
+              let bitmap = NSBitmapImageRep(
+                bitmapDataPlanes: nil,
+                pixelsWide: Int(bounds.width * 2),
+                pixelsHigh: Int(bounds.height * 2),
+                bitsPerSample: 8,
+                samplesPerPixel: 4,
+                hasAlpha: true,
+                isPlanar: false,
+                colorSpaceName: .deviceRGB,
+                bytesPerRow: 0,
+                bitsPerPixel: 0
+              ) else {
             return Data()
         }
-        hostingView.cacheDisplay(in: hostingView.bounds, to: bitmap)
+        bitmap.size = bounds.size
+        view.cacheDisplay(in: bounds, to: bitmap)
         return bitmap.representation(using: .png, properties: [:]) ?? Data()
     }
 
@@ -56,8 +84,7 @@ enum SnapshotHelpers {
         configureWindow: (NSWindow) -> Void = { _ in }
     ) -> Data {
         let controller = NSHostingController(rootView: view.frame(width: contentSize.width, height: contentSize.height))
-        let window = chromeWindow ?? makeChromeWindow(contentSize: contentSize)
-        window.setContentSize(contentSize)
+        let window = makeChromeWindow(contentSize: contentSize)
         window.contentViewController = controller
         configureWindow(window)
 
@@ -79,12 +106,9 @@ enum SnapshotHelpers {
         // cacheDisplay, not dataWithPDF: the hosted SwiftUI content is
         // layer-backed and does not participate in PDF drawing, so the PDF
         // path captures only the window chrome (an empty dark frame).
-        guard let bitmap = frameView.bitmapImageRepForCachingDisplay(in: frameView.bounds) else {
-            return Data()
-        }
-        frameView.cacheDisplay(in: frameView.bounds, to: bitmap)
+        let png = captureAt2x(frameView)
         window.orderOut(nil)
-        return bitmap.representation(using: .png, properties: [:]) ?? Data()
+        return png
     }
 
     @MainActor
@@ -99,7 +123,6 @@ enum SnapshotHelpers {
         window.backgroundColor = .black
         window.hasShadow = false
         window.orderFront(nil)
-        hostedWindow = window
         return window
     }
 
@@ -119,7 +142,6 @@ enum SnapshotHelpers {
         window.titlebarAppearsTransparent = true
         window.toolbarStyle = .preference
         window.orderFront(nil)
-        chromeWindow = window
         return window
     }
 
@@ -253,12 +275,23 @@ enum SnapshotHelpers {
         let expectedHash = perceptualHash(of: expected)
         let distance = hammingDistance(renderedHash, expectedHash)
 
+        // Keep the losing render so a mismatch can be looked at, not guessed at.
+        var renderedPath = "(not saved)"
+        if distance > hashTolerance {
+            let failures = FileManager.default.temporaryDirectory
+                .appendingPathComponent("nimbus-snapshot-failures", isDirectory: true)
+            try? FileManager.default.createDirectory(at: failures, withIntermediateDirectories: true)
+            let url = failures.appendingPathComponent("\(name).png")
+            if (try? rendered.write(to: url)) != nil { renderedPath = url.path }
+        }
+
         #expect(
             distance <= hashTolerance,
             """
             Snapshot perceptual mismatch for \(name).
             Hamming distance: \(distance) bits (tolerance: \(hashTolerance)).
             Fixture: \(fixtureURL.path)
+            Rendered: \(renderedPath)
             Save the rendered PNG with NIMBUS_SNAPSHOT_RECORD=1 to update.
             """
         )

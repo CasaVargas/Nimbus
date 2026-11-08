@@ -20,32 +20,13 @@ struct GeneralSettingsViewTests {
     }
 
     @Test func rendersGeneralPane() throws {
-        let model = GeneralSettingsModel(
-            cacheStore: CacheStoreFixture(bytes: 4_194_304),
-            cacheUsage: .available(4_194_304)
-        )
         try SnapshotHelpers.assertHostedSnapshot(
-            GeneralSettingsView(model: model)
+            GeneralSettingsView()
                 .environment(AppSettings(defaults: isolatedDefaults()))
                 .environment(LaunchAtLoginService(refreshOnInit: false))
                 .preferredColorScheme(.dark),
-            size: CGSize(width: 680, height: 450),
+            size: CGSize(width: 680, height: 520),
             named: "Settings-General"
-        )
-    }
-
-    @Test func rendersCacheFailure() throws {
-        let model = GeneralSettingsModel(
-            cacheStore: CacheStoreFixture(error: "Cache folder is unavailable."),
-            cacheUsage: .failed("Cache folder is unavailable.")
-        )
-        try SnapshotHelpers.assertHostedSnapshot(
-            GeneralSettingsView(model: model)
-                .environment(AppSettings(defaults: isolatedDefaults()))
-                .environment(LaunchAtLoginService(refreshOnInit: false))
-                .preferredColorScheme(.dark),
-            size: CGSize(width: 680, height: 450),
-            named: "Settings-General-cache-error"
         )
     }
 

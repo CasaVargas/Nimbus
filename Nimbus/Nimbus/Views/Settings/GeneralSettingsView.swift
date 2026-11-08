@@ -1,24 +1,21 @@
 import AppKit
 import SwiftUI
 
+/// Everyday preferences: how Nimbus starts and looks, what happens to clouds
+/// you add later, and About. Network-drive defaults and troubleshooting live
+/// in Advanced.
 struct GeneralSettingsView: View {
-    @State private var model: GeneralSettingsModel
-
-    init(model: GeneralSettingsModel = GeneralSettingsModel()) {
-        _model = State(initialValue: model)
-    }
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
                 ApplicationSettingsSection()
-                FinderDefaultsSection()
-                StorageUsageView(model: model)
+                NewCloudsSection()
                 AboutSettingsSection()
             }
             .padding(DesignSystem.Spacing.xl)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .defaultScrollAnchor(.top)
         .accessibilityIdentifier("settings-general")
     }
 }
@@ -30,12 +27,20 @@ private struct ApplicationSettingsSection: View {
     var body: some View {
         @Bindable var settings = settings
 
-        FormSection(title: "Application", footer: nil) {
-            FormRow(label: "Launch at Login", help: nil) {
-                Toggle("", isOn: launchAtLoginBinding)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .accessibilityLabel("Launch at Login")
+        FormSection(title: "Nimbus", footer: nil) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                FormRow(label: "Open at Login", help: nil) {
+                    Toggle("", isOn: launchAtLoginBinding)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .accessibilityLabel("Open at Login")
+                }
+                if let error = launchAtLogin.lastError {
+                    Text(verbatim: error)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundStyle(DesignSystem.Color.semantic.statusError)
+                        .accessibilityLabel("Open at Login error: \(error)")
+                }
             }
             FormRow(label: "Appearance", help: nil) {
                 Picker("Appearance", selection: $settings.appearance) {
@@ -47,12 +52,6 @@ private struct ApplicationSettingsSection: View {
                 .labelsHidden()
                 .frame(width: 120, alignment: .trailing)
                 .accessibilityLabel("Appearance")
-            }
-            if let error = launchAtLogin.lastError {
-                Text(verbatim: error)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.statusError)
-                    .accessibilityLabel("Launch at login error: \(error)")
             }
         }
     }
@@ -71,37 +70,21 @@ private struct ApplicationSettingsSection: View {
     }
 }
 
-private struct FinderDefaultsSection: View {
+private struct NewCloudsSection: View {
     @Environment(AppSettings.self) private var settings
 
     var body: some View {
         @Bindable var settings = settings
 
         FormSection(
-            title: "Finder",
-            footer: "These defaults apply only to remote and mount configurations created later. Existing Finder domains and mounts are unchanged."
+            title: "New clouds",
+            footer: "Clouds you already have keep their own setting. Change one from its page in Nimbus."
         ) {
-            FormRow(label: "Add New Remotes to Finder", help: nil) {
+            FormRow(label: "Show new clouds in Finder", help: nil) {
                 Toggle("", isOn: $settings.addNewRemotesToFinder)
                     .toggleStyle(.switch)
                     .labelsHidden()
-                    .accessibilityLabel("Add New Remotes to Finder")
-            }
-            FormRow(label: "New Mount Access", help: nil) {
-                Picker("New Mount Access", selection: $settings.newMountAccess) {
-                    Text("Read & Write").tag(MountAccessDefault.readWrite)
-                    Text("Read Only").tag(MountAccessDefault.readOnly)
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .frame(width: 140, alignment: .trailing)
-                .accessibilityLabel("New Mount Access")
-            }
-            FormRow(label: "Mount New Volumes at Login", help: nil) {
-                Toggle("", isOn: $settings.newMountAutoMount)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .accessibilityLabel("Mount New Volumes at Login")
+                    .accessibilityLabel("Show new clouds in Finder")
             }
         }
     }
@@ -118,27 +101,36 @@ private struct AboutSettingsSection: View {
 
     var body: some View {
         FormSection(title: "About", footer: nil) {
-            HStack(spacing: DesignSystem.Spacing.m) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.m) {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
                     .interpolation(.high)
-                    .frame(width: 48, height: 48)
+                    .frame(width: 56, height: 56)
                     .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text("Nimbus")
                         .font(DesignSystem.Typography.headline)
                     Text("Version \(version) (\(build))")
                         .font(DesignSystem.Typography.caption)
                         .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                        .textSelection(.enabled)
                     Text("© 2026 CasaVargas LLC")
                         .font(DesignSystem.Typography.caption)
                         .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
                 }
                 Spacer()
-                Link("rclone", destination: URL(string: "https://rclone.org/")!)
-                    .accessibilityLabel("Visit rclone website")
             }
+            .padding(.vertical, DesignSystem.Spacing.xs)
+            HStack(spacing: DesignSystem.Spacing.l) {
+                Link("Website", destination: URL(string: "https://casavargas.app")!)
+                Link("Source Code", destination: URL(string: "https://github.com/CasaVargas/Nimbus")!)
+                Link("License", destination: URL(string: "https://github.com/CasaVargas/Nimbus/blob/main/LICENSE")!)
+                Spacer()
+                Link("Built on rclone", destination: URL(string: "https://rclone.org/")!)
+                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+            }
+            .font(DesignSystem.Typography.caption)
             .padding(.vertical, DesignSystem.Spacing.xs)
         }
     }
@@ -148,5 +140,5 @@ private struct AboutSettingsSection: View {
     GeneralSettingsView()
         .environment(AppSettings())
         .environment(LaunchAtLoginService())
-        .frame(width: 680, height: 450)
+        .frame(width: 680, height: 520)
 }
