@@ -9,6 +9,8 @@ struct VolumeView: View {
     let remote: Remote
     /// Every configured cloud, so an alias can show the service it points at.
     var allRemotes: [Remote] = []
+    /// A tab another surface asked for ("Show Transfers"); applied, then cleared.
+    @Binding var requestedTab: VolumeTab?
     var browseTarget: BrowseTarget?
     /// (source remote, source path) for the Copy & Sync tool.
     var onSync: (String, String) -> Void
@@ -84,6 +86,11 @@ struct VolumeView: View {
                     .help("Show or hide the inspector")
                 }
             }
+        }
+        .onChange(of: requestedTab, initial: true) { _, requested in
+            guard let requested else { return }
+            tab = requested
+            requestedTab = nil
         }
         .task(id: remote.name) {
             if browserModel == nil {

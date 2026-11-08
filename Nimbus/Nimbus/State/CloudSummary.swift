@@ -29,8 +29,13 @@ struct CloudSummary: Equatable {
     }
 
     struct Busy: Equatable {
+        enum Direction: Equatable { case up, down }
         let progress: Double
         let sentence: String
+        let direction: Direction
+        /// The cloud whose Transfers tab "Show Transfers" opens.
+        let focusCloud: String?
+        let eta: TimeInterval?
     }
 
     enum Overall: Equatable {
@@ -116,7 +121,7 @@ enum CloudSummaryBuilder {
                 overall = .noClouds
             } else if let attention {
                 overall = .needsAttention(attention)
-            } else if let busy = busySummary(activeTransfers, now: now) {
+            } else if let busy = busySummary(activeTransfers, cloudNames: Set(remotes.map(\.name))) {
                 overall = .busy(busy)
             } else {
                 overall = .allReady
@@ -224,18 +229,30 @@ enum CloudSummaryBuilder {
 
     // MARK: - Overall
 
-    private static func busySummary(_ active: [Transfer], now: Date) -> CloudSummary.Busy? {
+    /// Destinations that aren't a configured cloud are local paths, so a
+    /// batch where every destination is local reads as a download.
+    private static func busySummary(_ active: [Transfer], cloudNames: Set<String>) -> CloudSummary.Busy? {
         guard !active.isEmpty else { return nil }
         let progress = active.map(\.progress).reduce(0, +) / Double(active.count)
         let count = active.count == 1 ? "1 item" : "\(active.count) items"
         let destinations = Set(active.map { cloudName(of: $0.dstFs) })
+        let cloudDestinations = destinations.filter { cloudNames.contains($0) }
+        let isDownload = cloudDestinations.isEmpty
         let sentence: String
-        if destinations.count == 1, let dest = destinations.first {
+        if isDownload {
+            sentence = "Downloading \(count) to this Mac"
+        } else if destinations.count == 1, let dest = destinations.first {
             sentence = "Copying \(count) to \(dest)"
         } else {
             sentence = "Copying \(count)"
         }
-        return .init(progress: progress, sentence: sentence)
+        let focus = isDownload
+            ? active.map { cloudName(of: $0.srcFs) }.first { cloudNames.contains($0) }
+            : active.map { cloudName(of: $0.dstFs) }.first { cloudNames.contains($0) }
+        return .init(progress: progress, sentence: sentence,
+                     direction: isDownload ? .down : .up,
+                     focusCloud: focus,
+                     eta: active.compactMap(\.eta).max())
     }
 
     /// needsSignIn beats failing beats long-unreachable; sidebar order breaks
@@ -317,5 +334,64 @@ struct ActivityLine: Equatable, Identifiable {
         let path = parts.count > 1 ? String(parts[1]) : ""
         if let last = path.split(separator: "/").last { return String(last) }
         return String(parts.first ?? Substring(fs))
+    }
+}
+
+/// The menu bar glyph: a template SF Symbol per overall state.
+enum CompanionGlyph {
+    static func symbol(for overall: CloudSummary.Overall) -> String {
+        switch overall {
+        case .starting, .noClouds, .allReady: "icloud"
+        case .busy(let busy): busy.direction == .down ? "icloud.and.arrow.down" : "icloud.and.arrow.up"
+        case .needsAttention, .engineDown: "exclamationmark.icloud"
+        }
+    }
+
+    static func accessibilityLabel(for overall: CloudSummary.Overall) -> String {
+        "Nimbus: " + CompanionHeadline.title(for: overall)
+    }
+}
+
+/// The one-line answer to "is everything okay?", shared by the menu bar
+/// label and the companion header.
+enum CompanionHeadline {
+    static func title(for overall: CloudSummary.Overall) -> String {
+        switch overall {
+        case .starting: "Starting…"
+        case .engineDown: "Nimbus's connection engine stopped"
+        case .noClouds: "No clouds yet"
+        case .allReady: "Everything is ready"
+        case .busy(let busy): busy.sentence
+        case .needsAttention(let row):
+            switch row.health {
+            case .needsSignIn: "\(row.name) needs you to sign in"
+            case .failing: "Nimbus can't connect to \(row.name)"
+            default: "\(row.name) can't be reached"
+            }
+        }
+    }
+}
+
+extension CloudSummaryBuilder {
+    /// The summary for the live app state. One entry point so Home, the
+    /// companion and the menu bar label can never compute it differently.
+    @MainActor
+    static func live(
+        remotes: [Remote], status: RemoteStatusService, transfers: TransferStore,
+        providers: ProviderDirectory, settings: AppSettings, daemon: RcloneDaemon
+    ) -> CloudSummary {
+        build(
+            remotes: remotes,
+            statuses: status.statuses,
+            quotas: status.quotas,
+            activeTransfers: transfers.activeTransfers,
+            isInFinder: { FinderIntegration.isShown(remote: $0, settings: settings) },
+            providerName: { CloudNaming.providerName(forType: $0, directory: providers) },
+            lastConnected: status.lastConnected,
+            dismissedSuggestions: settings.dismissedSuggestions,
+            daemon: daemon.status,
+            now: Date(),
+            resolveType: { CloudNaming.resolvedType(of: $0, in: remotes) }
+        )
     }
 }

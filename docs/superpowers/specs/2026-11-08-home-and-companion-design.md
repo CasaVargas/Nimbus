@@ -361,3 +361,27 @@ Where the build differs from the sections above, the build wins:
   `RCLONE_CONFIG` on a Mac that has real domains would remove them. Verification used
   RenderPreview and unit tests. A real-app check needs a Mac or user account with no real
   Nimbus domains.
+
+## Phase 2 as built (2026-11-08)
+
+- **`CloudMonitor`** (`Services/CloudMonitor.swift`) owns the app-wide cloud list and refresh
+  cadence. It refreshes on every daemon connect, every 10 minutes, on `.nimbusRemotesChanged`,
+  and when the companion opens with data older than 2 minutes. Concurrent refreshes share one
+  run, and a failed list load keeps the previous list. This replaces the per-sidebar
+  `RemotesViewModel`. Selection reconciliation waits for `hasLoaded`.
+- **`AppRouter`** (`State/AppRouter.swift`) carries one-shot requests into the main window:
+  `.home`, `.cloud`, `.transfers`, `.signIn`, `.addCloud`. Because it's state rather than a
+  notification, a request survives the window being re-created to handle it. It replaces the
+  Phase 1 `.nimbusAddCloudRequested` notification. The main `WindowGroup` now has the id `main`.
+  The companion brings an open window forward, or calls `openWindow(id:)` when the window was
+  closed.
+- **`Busy` gained `direction`, `focusCloud`, and `eta`.** A batch whose destinations are all
+  local paths reads "Downloading N items to this Mac" and shows the down-arrow glyph.
+- **The companion header asks for attention before showing progress**, the same priority Home
+  uses. "Copying" is shown even for uploads, because one batch can mix uploads and cloud-to-cloud
+  copies.
+- **The gear menu has Settings…, an Open at Login toggle** (bound to `LaunchAtLoginService`),
+  and Quit Nimbus.
+- **Verified with RenderPreview of `CompanionContent`** (busy in light, needs sign-in in dark,
+  plus all-ready, no-clouds, and engine-down fixtures) and unit tests. Not run in the live app,
+  for the same File Provider domain-cleanup reason as Phase 1.

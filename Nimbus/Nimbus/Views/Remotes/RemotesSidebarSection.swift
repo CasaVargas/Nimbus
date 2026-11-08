@@ -1,17 +1,15 @@
 import SwiftUI
 import RcloneKit
 
-/// The REMOTES section of the sidebar. Loads remotes, probes their status,
-/// owns the add/import/edit/delete UI, and tells the parent which remotes
-/// exist so selection can be reconciled.
+/// The Clouds section of the sidebar. Lists the app-wide `CloudMonitor`'s
+/// clouds and owns the add/import/edit/remove UI; loading and probing live
+/// in the monitor so the menu bar sees the same list with the window closed.
 struct RemotesSidebarSection: View {
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(RemoteStatusService.self) private var statusService
+    @Environment(CloudMonitor.self) private var monitor
+    @Environment(AppRouter.self) private var router
 
-    /// Called every time the remote list (re)loads, with the current remotes.
-    var onRemotesLoaded: ([Remote]) -> Void
-
-    @State private var viewModel: RemotesViewModel?
     @State private var showAddRemote = false
     @State private var showImportConfig = false
     @State private var editingRemote: Remote?
@@ -19,13 +17,13 @@ struct RemotesSidebarSection: View {
 
     var body: some View {
         Section {
-            if let viewModel, !viewModel.remotes.isEmpty {
-                ForEach(viewModel.remotes, id: \.name) { remote in
+            if !monitor.remotes.isEmpty {
+                ForEach(monitor.remotes, id: \.name) { remote in
                     SidebarRemoteRow(
                         remote: remote,
                         status: statusService.statuses[remote.name] ?? .unknown,
                         quota: statusService.quotas[remote.name],
-                        iconType: CloudNaming.resolvedType(of: remote, in: viewModel.remotes),
+                        iconType: CloudNaming.resolvedType(of: remote, in: monitor.remotes),
                         onEdit: { editingRemote = remote },
                         onDelete: { deletingRemote = remote },
                         onReconnect: { Task { await statusService.probe(remote.name) } }
@@ -58,31 +56,16 @@ struct RemotesSidebarSection: View {
                 .help("Add a cloud or import one from rclone.conf")
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .nimbusRemotesChanged)) { _ in
-            Task { await reload() }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .nimbusAddCloudRequested)) { _ in
-            guard daemon.status == .connected else { return }
+        .onChange(of: router.pending, initial: true) {
+            guard daemon.status == .connected,
+                  router.take(where: { $0 == .addCloud }) != nil else { return }
             showAddRemote = true
         }
-        .task(id: daemon.status) {
-            // Reconciliation (onRemotesLoaded) fires only on a real list
-            // (re)load while connected. We deliberately do NOT fire it on
-            // daemon disconnect: that would feed nextSelection an empty list
-            // and deselect the user's remote on a transient hiccup. Daemon
-            // errors are surfaced in-pane by BrowserView, not by changing
-            // the sidebar selection.
-            guard daemon.status == .connected else { return }
-            if viewModel == nil {
-                viewModel = RemotesViewModel(client: daemon.client)
-            }
-            await reload()
-        }
         .sheet(isPresented: $showAddRemote) {
-            AddRemoteSheet(client: daemon.client, onDismiss: { Task { await reload() } })
+            AddRemoteSheet(client: daemon.client, onDismiss: { Task { await monitor.refresh() } })
         }
         .sheet(isPresented: $showImportConfig) {
-            ImportConfigSheet(onDismiss: { Task { await reload() } })
+            ImportConfigSheet(onDismiss: { Task { await monitor.refresh() } })
         }
         .sheet(isPresented: Binding(
             get: { editingRemote != nil },
@@ -90,7 +73,7 @@ struct RemotesSidebarSection: View {
         )) {
             if let remote = editingRemote {
                 EditRemoteSheet(client: daemon.client, remote: remote,
-                                onDismiss: { Task { await reload() } })
+                                onDismiss: { Task { await monitor.refresh() } })
             }
         }
         .confirmationDialog(
@@ -105,9 +88,7 @@ struct RemotesSidebarSection: View {
                 if let remote = deletingRemote {
                     let name = remote.name
                     Task {
-                        await viewModel?.deleteRemote(name: name)
-                        statusService.clear(name)
-                        await reload()
+                        await monitor.remove(name, client: daemon.client)
                     }
                 }
             }
@@ -115,16 +96,5 @@ struct RemotesSidebarSection: View {
         } message: {
             Text("Nimbus forgets how to reach this cloud. Files stored in the cloud aren't affected.")
         }
-    }
-
-    private func reload() async {
-        guard let viewModel else { return }
-        await viewModel.loadRemotes()
-        let names = viewModel.remotes.map(\.name)
-        // Report first, probe second: probing can block for seconds on a
-        // remote with an expired token, and the detail pane must not sit on
-        // "No Remotes Yet" while the sidebar already lists them.
-        onRemotesLoaded(viewModel.remotes)
-        if !names.isEmpty { await statusService.probeAll(names) }
     }
 }
