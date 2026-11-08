@@ -26,8 +26,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP="$ROOT_DIR/Nimbus/build/Build/Products/Release/Nimbus.app"
-APPEX="$APP/Contents/PlugIns/FileProviderExtension.appex"
+BUILT_APP="$ROOT_DIR/Nimbus/build/Build/Products/Release/Nimbus.app"
 DIST_DIR="${NIMBUS_DIST_DIR:-$ROOT_DIR/dist}"
 SIGN_IDENTITY="${NIMBUS_SIGN_IDENTITY:-}"
 NOTARY_PROFILE="${NIMBUS_NOTARY_PROFILE:-}"
@@ -38,10 +37,18 @@ if [ "${NIMBUS_SKIP_BUILD:-0}" != "1" ]; then
   bash "$ROOT_DIR/scripts/build-release.sh"
 fi
 
-if [ ! -d "$APP" ]; then
-  echo "error: $APP not found. Run scripts/build-release.sh first." >&2
+if [ ! -d "$BUILT_APP" ]; then
+  echo "error: $BUILT_APP not found. Run scripts/build-release.sh first." >&2
   exit 1
 fi
+
+# Work on a copy. The build products stay exactly as Xcode left them, so an
+# incremental rebuild never sees a half re-signed bundle.
+STAGE="$(mktemp -d "${TMPDIR:-/tmp}/nimbus-dmg.XXXXXX")"
+trap 'rm -rf "$STAGE"' EXIT
+ditto "$BUILT_APP" "$STAGE/Nimbus.app"
+APP="$STAGE/Nimbus.app"
+APPEX="$APP/Contents/PlugIns/FileProviderExtension.appex"
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")"
@@ -128,9 +135,6 @@ else
 fi
 
 log "Creating $DMG"
-STAGE="$(mktemp -d "${TMPDIR:-/tmp}/nimbus-dmg.XXXXXX")"
-trap 'rm -rf "$STAGE"' EXIT
-ditto "$APP" "$STAGE/Nimbus.app"
 ln -s /Applications "$STAGE/Applications"
 hdiutil create \
   -volname "$VOLNAME" \
