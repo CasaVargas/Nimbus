@@ -447,6 +447,28 @@ extension FileProviderExtension: NSFileProviderCustomAction {
         completionHandler: @escaping ((any Error)?) -> Void
     ) -> Progress {
         let progress = Progress(totalUnitCount: 1)
+        if ShareLinkAction.handles(actionIdentifier) {
+            refreshPort()
+            let rclone = self.rclone
+            let remoteName = domain.identifier.rawValue
+            let logger = self.logger
+            let handler = SendableBox(value: completionHandler)
+            let task = Task { @Sendable in
+                do {
+                    try await ShareLinkAction.perform(items: itemIdentifiers, remoteName: remoteName,
+                                                      rclone: rclone, logger: logger)
+                    progress.completedUnitCount = 1
+                    handler.value(nil)
+                } catch is CancellationError {
+                    handler.value(CocoaError(.userCancelled))
+                } catch {
+                    logger.error("Copy Share Link failed: \((error as NSError).domain, privacy: .public) \((error as NSError).code, privacy: .public)")
+                    handler.value(error)
+                }
+            }
+            progress.cancellationHandler = { task.cancel() }
+            return progress
+        }
         guard KeepDownloadedAction.handles(actionIdentifier) else {
             completionHandler(CocoaError(.featureUnsupported))
             return progress

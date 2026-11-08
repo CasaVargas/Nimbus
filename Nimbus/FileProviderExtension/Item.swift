@@ -30,6 +30,8 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
     let isPinned: Bool
     /// Kept downloaded because a folder above it is pinned.
     let isKeptByFolder: Bool
+    /// The cloud's service makes share links (rclone `PublicLink`).
+    let canShare: Bool
     private let isRoot: Bool
 
     /// Root downloads lazily; a pinned item downloads now and stays; every
@@ -52,7 +54,7 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
 
     /// Read by the Finder actions' activation rules (extension Info.plist).
     var userInfo: [AnyHashable: Any]? {
-        ["pinned": isPinned, "keptByFolder": isKeptByFolder]
+        ["pinned": isPinned, "keptByFolder": isKeptByFolder, "canShare": canShare]
     }
 
     /// Full path of `file` from the remote root (no remote-name prefix).
@@ -78,6 +80,7 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
         let keptByFolder = PinPolicy.keptByAncestor(identifier.rawValue, pins: pins, rootKey: PinPolicy.rootKey)
         self.isPinned = pinned
         self.isKeptByFolder = keptByFolder
+        self.canShare = CloudCapabilities.shared?.canShare(cloud: remoteName) ?? false
         self.isRoot = false
         self.filename = file.name
         self.contentModificationDate = file.modTime
@@ -112,6 +115,7 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
         self.itemIdentifier = identifier
         self.isPinned = PinStore.shared?.isPinned(identifier.rawValue, domain: remoteName) ?? false
         self.isKeptByFolder = false
+        self.canShare = false
         self.isRoot = true
         self.parentItemIdentifier = parent
         self.filename = name

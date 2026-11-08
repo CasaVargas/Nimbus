@@ -95,6 +95,9 @@ targets:
             - NSExtensionFileProviderActionIdentifier: app.casavargas.nimbus.allowRemovingDownload
               NSExtensionFileProviderActionName: Allow Removing Download
               NSExtensionFileProviderActionActivationRule: "fileproviderItems.@count > 0 AND SUBQUERY(fileproviderItems, $item, $item.userInfo.pinned == YES).@count == fileproviderItems.@count"
+            - NSExtensionFileProviderActionIdentifier: app.casavargas.nimbus.copyShareLink
+              NSExtensionFileProviderActionName: Copy Share Link
+              NSExtensionFileProviderActionActivationRule: "fileproviderItems.@count == 1 AND SUBQUERY(fileproviderItems, $item, $item.userInfo.canShare == YES).@count == 1"
 
   NimbusTests:
     type: bundle.unit-test

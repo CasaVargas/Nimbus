@@ -43,6 +43,14 @@
 				<key>NSExtensionFileProviderActionName</key>
 				<string>Allow Removing Download</string>
 			</dict>
+			<dict>
+				<key>NSExtensionFileProviderActionActivationRule</key>
+				<string>fileproviderItems.@count == 1 AND SUBQUERY(fileproviderItems, $item, $item.userInfo.canShare == YES).@count == 1</string>
+				<key>NSExtensionFileProviderActionIdentifier</key>
+				<string>app.casavargas.nimbus.copyShareLink</string>
+				<key>NSExtensionFileProviderActionName</key>
+				<string>Copy Share Link</string>
+			</dict>
 		</array>
 		<key>NSExtensionFileProviderDocumentGroup</key>
 		<string>group.app.casavargas.nimbus</string>
