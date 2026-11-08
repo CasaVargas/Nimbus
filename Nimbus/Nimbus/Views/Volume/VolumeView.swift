@@ -8,7 +8,8 @@ import os
 struct VolumeView: View {
     let remote: Remote
     var browseTarget: BrowseTarget?
-    var onSync: (String) -> Void
+    /// (source remote, source path) for the Copy & Sync tool.
+    var onSync: (String, String) -> Void
 
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(RemoteStatusService.self) private var statusService
@@ -17,11 +18,25 @@ struct VolumeView: View {
     @Environment(MountConfigStore.self) private var mountConfigs
     @Environment(AppSettings.self) private var settings
 
-    @State private var tab: VolumeTab = .files
+    @State private var tab: VolumeTab = Self.initialTab
     @State private var showEdit = false
+    @State private var browserModel: BrowserViewModel?
+    @State private var quickLookHost = QuickLookHost()
     @State private var integrationError: NimbusError?
 
     private static let quotaRefreshInterval: Duration = .seconds(300)
+
+    /// Debug builds honor `-debugInitialVolumeTab <files|transfers|finder|settings>`
+    /// so screenshots and UI checks can land on a tab without a click.
+    private static var initialTab: VolumeTab {
+        #if DEBUG
+        if let raw = UserDefaults.standard.string(forKey: "debugInitialVolumeTab"),
+           let tab = VolumeTab(rawValue: raw) {
+            return tab
+        }
+        #endif
+        return .files
+    }
 
     private var isInFinder: Bool {
         FinderIntegration.isShown(remote: remote.name, settings: settings)
@@ -36,7 +51,7 @@ struct VolumeView: View {
                 status: statusService.statuses[remote.name] ?? .unknown,
                 isInFinder: isInFinder,
                 onPrimary: { Task { await primaryAction() } },
-                onSync: { onSync(remote.name) },
+                onSync: { onSync(remote.name, "") },
                 onEdit: { showEdit = true }
             )
             if let quota = statusService.quotas[remote.name], quota.fraction != nil {
@@ -53,8 +68,23 @@ struct VolumeView: View {
             ToolbarItem(placement: .status) {
                 TransferPillView(onTap: { tab = .transfers })
             }
+            if tab == .files {
+                ToolbarItem(placement: .primaryAction) {
+                    @Bindable var settings = settings
+                    Toggle(isOn: $settings.inspectorVisible) {
+                        Label("Inspector", systemImage: "sidebar.right")
+                    }
+                    .help("Show or hide the inspector")
+                }
+            }
         }
         .task(id: remote.name) {
+            if browserModel == nil {
+                let model = BrowserViewModel(client: daemon.client)
+                model.remote = remote.name
+                model.path = browseTarget?.remote == remote.name ? (browseTarget?.path ?? "") : ""
+                browserModel = model
+            }
             if statusService.quotas[remote.name] == nil {
                 await statusService.refreshQuota(remote.name)
             }
@@ -86,15 +116,31 @@ struct VolumeView: View {
     @ViewBuilder
     private var tabContent: some View {
         ZStack {
-            BrowserView(
-                remoteName: remote.name,
-                initialPath: browseTarget?.remote == remote.name ? (browseTarget?.path ?? "") : "",
-                browseTarget: browseTarget,
-                showsToolbar: tab == .files
-            )
-            .opacity(tab == .files ? 1 : 0)
-            .allowsHitTesting(tab == .files)
-            .accessibilityHidden(tab != .files)
+            if let browserModel {
+                HStack(spacing: 0) {
+                    BrowserView(
+                        remoteName: remote.name,
+                        initialPath: browserModel.path,
+                        browseTarget: browseTarget,
+                        showsToolbar: tab == .files,
+                        sharedModel: browserModel
+                    )
+                    if settings.inspectorVisible {
+                        Divider()
+                        FileInspector(
+                            remote: remote.name,
+                            model: browserModel,
+                            onQuickLook: { items in Task { await quickLook(items) } },
+                            onCopy: { file in onSync(remote.name, file.isDir ? file.path : (file.path as NSString).deletingLastPathComponent) }
+                        )
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
+                }
+                .animation(DesignSystem.Motion.smooth, value: settings.inspectorVisible)
+                .opacity(tab == .files ? 1 : 0)
+                .allowsHitTesting(tab == .files)
+                .accessibilityHidden(tab != .files)
+            }
 
             switch tab {
             case .files:
@@ -110,6 +156,16 @@ struct VolumeView: View {
                     .background(DesignSystem.Color.semantic.surface)
             }
         }
+    }
+
+    private func quickLook(_ items: [FileItem]) async {
+        guard !items.isEmpty else { return }
+        let provider = QuickLookHost.provider(
+            forRemote: remote.name,
+            bridge: fileProviderBridge,
+            client: RcloneClientAdapter(client: daemon.client)
+        )
+        await quickLookHost.show(items: items, provider: provider, remote: remote.name)
     }
 
     private func primaryAction() async {

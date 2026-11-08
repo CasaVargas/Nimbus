@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var remotes: [Remote] = []
     /// Source remote to preselect when Copy & Sync opens from a volume.
     @State private var copySyncSource: String?
+    @State private var copySyncSourcePath: String?
     @Environment(AppSettings.self) private var settings
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(TransferStore.self) private var transferStore
@@ -110,8 +111,9 @@ struct ContentView: View {
                 VolumeView(
                     remote: remote,
                     browseTarget: browseTarget,
-                    onSync: { source in
+                    onSync: { source, path in
                         copySyncSource = source
+                        copySyncSourcePath = path
                         selection = .copySync
                     }
                 )
@@ -122,7 +124,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         case .copySync:
-            CopySyncView(initialSource: copySyncSource)
+            CopySyncView(initialSource: copySyncSource, initialSourcePath: copySyncSourcePath)
         case nil:
             noSelectionView
         }

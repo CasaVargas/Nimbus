@@ -25,7 +25,7 @@ struct StorageGauge: View {
 
             HStack(spacing: DesignSystem.Spacing.l) {
                 legend(color: tint, text: "Used \(quota.usedText ?? "--")")
-                legend(color: DesignSystem.Color.semantic.surfaceSubtle, text: "Free \(quota.freeText ?? "--")")
+                legend(color: DesignSystem.Color.semantic.separator, text: "Free \(quota.freeText ?? "--")")
                 Spacer()
                 Text("\(Int((fraction * 100).rounded()))% full")
                     .font(DesignSystem.Typography.caption)

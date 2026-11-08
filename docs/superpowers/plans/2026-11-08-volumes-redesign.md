@@ -39,11 +39,11 @@
 - Produces: `struct StorageQuota: Equatable { let used: Int64?; let total: Int64?; var free: Int64?; var fraction: Double?; var usedText: String?; var totalText: String?; var isNearlyFull: Bool; init(about: AboutResponse); init(used:total:) }`
 - Produces: `RemoteStatusService.quotas: [String: StorageQuota]`, `func refreshQuota(_ name: String) async`; `probe(_:)` stores the quota on success.
 
-- [ ] Write `StorageQuotaTests`: `fractionIsNilWithoutTotal`, `fractionAndFreeFromUsedAndTotal` (1_280_000_000_000 of 2_000_000_000_000 → 0.64, free 720 GB), `nearlyFullAbove90Percent`, `textsUseByteCountFormatter`.
-- [ ] Run tests, expect compile failure.
-- [ ] Implement `StorageQuota`; `isNearlyFull` is `fraction >= 0.9`.
-- [ ] Add `quotas` and `refreshQuota` to `RemoteStatusService`; `probe` sets `quotas[name] = StorageQuota(about:)` on success, removes it on failure; `clear` removes it.
-- [ ] Run tests, expect pass. Commit `feat(volumes): storage quota model and per-remote quota cache`.
+- [x] Write `StorageQuotaTests`: `fractionIsNilWithoutTotal`, `fractionAndFreeFromUsedAndTotal` (1_280_000_000_000 of 2_000_000_000_000 → 0.64, free 720 GB), `nearlyFullAbove90Percent`, `textsUseByteCountFormatter`.
+- [x] Run tests, expect compile failure.
+- [x] Implement `StorageQuota`; `isNearlyFull` is `fraction >= 0.9`.
+- [x] Add `quotas` and `refreshQuota` to `RemoteStatusService`; `probe` sets `quotas[name] = StorageQuota(about:)` on success, removes it on failure; `clear` removes it.
+- [x] Run tests, expect pass. Commit `feat(volumes): storage quota model and per-remote quota cache`.
 
 ### Task 2: Provider directory
 
@@ -54,8 +54,8 @@
 **Interfaces:**
 - Produces: `@Observable @MainActor final class ProviderDirectory { private(set) var descriptions: [String: String]; func load(client: RcloneClient) async; func displayName(forType: String) -> String }` where `displayName` falls back to the raw type capitalized.
 
-- [ ] Implement; inject with `.environment(providerDirectory)` on both scenes.
-- [ ] Build. Commit `feat(volumes): provider directory for human-readable backend names`.
+- [x] Implement; inject with `.environment(providerDirectory)` on both scenes.
+- [x] Build. Commit `feat(volumes): provider directory for human-readable backend names`.
 
 ### Task 3: Sidebar becomes Volumes + Tools
 
@@ -68,10 +68,10 @@
 - `RemotesSidebarSection.onRemotesLoaded: ([Remote]) -> Void` (was `[String]`).
 - `SidebarRemoteRow(remote:status:quota: StorageQuota?, ...)` draws a 3 pt capacity bar under the row when `quota?.fraction != nil`; tint accent, `statusWarning` when `isNearlyFull`.
 
-- [ ] Update `SidebarSelectionTests` to drop the `.mounts/.transfers` expectations and keep `.copySync`.
-- [ ] Remove the cases; section header "Volumes"; "Tools" section holds Copy & Sync; `AppCommands` Go menu: remove Mounts/Transfers items, keep Copy / Sync at ⌘⇧4.
-- [ ] `ContentView` keeps `remotes: [Remote]` and renders `VolumeView(remote:)` (Task 4) for `.remote(name)`; the `.mounts`/`.transfers` cases are deleted.
-- [ ] Build + tests. Commit `feat(volumes): sidebar lists volumes with capacity bars; Finder and Transfers panes removed`.
+- [x] Update `SidebarSelectionTests` to drop the `.mounts/.transfers` expectations and keep `.copySync`.
+- [x] Remove the cases; section header "Volumes"; "Tools" section holds Copy & Sync; `AppCommands` Go menu: remove Mounts/Transfers items, keep Copy / Sync at ⌘⇧4.
+- [x] `ContentView` keeps `remotes: [Remote]` and renders `VolumeView(remote:)` (Task 4) for `.remote(name)`; the `.mounts`/`.transfers` cases are deleted.
+- [x] Build + tests. Commit `feat(volumes): sidebar lists volumes with capacity bars; Finder and Transfers panes removed`.
 
 ### Task 4: VolumeView shell with header, gauge, tabs, Files
 
@@ -86,10 +86,10 @@
 - `StorageGauge(quota: StorageQuota)` hidden by caller when `quota.fraction == nil`.
 - `VolumeTabBar(selection: Binding<VolumeTab>)` underline style from tokens.
 
-- [ ] Build the shell; Files tab embeds `BrowserView`; other tabs show placeholder `EmptyState`s for now.
-- [ ] `BrowserView`'s `.toolbar` only applies when the Files tab is selected: wrap the `BrowserToolbar` modifier in `if tab == .files` at the `VolumeView` level by passing `showsToolbar: Bool` into `BrowserView`.
-- [ ] `.task(id: remote.name)` calls `statusService.refreshQuota(remote.name)` and repeats every 300 s.
-- [ ] Build, run, screenshot. Commit `feat(volumes): volume pane with header, storage gauge and tabs`.
+- [x] Build the shell; Files tab embeds `BrowserView`; other tabs show placeholder `EmptyState`s for now.
+- [x] `BrowserView`'s `.toolbar` only applies when the Files tab is selected: wrap the `BrowserToolbar` modifier in `if tab == .files` at the `VolumeView` level by passing `showsToolbar: Bool` into `BrowserView`.
+- [x] `.task(id: remote.name)` calls `statusService.refreshQuota(remote.name)` and repeats every 300 s.
+- [x] Build, run, screenshot. Commit `feat(volumes): volume pane with header, storage gauge and tabs`.
 
 ### Task 5: Transfers tab
 
@@ -97,9 +97,9 @@
 - Modify: `Views/Transfers/TransfersView.swift` (`var remoteFilter: String? = nil`), `State/TransferStore.swift` (static `func involves(_ transfer: Transfer, remote: String) -> Bool`)
 - Test: `Nimbus/NimbusTests/TransferRemoteFilterTests.swift`
 
-- [ ] Test: transfer with `srcFs: "Backups:x"`, `dstFs: "Personal Drive:y"` involves both, not "Personal"; `"Personal Drive2:z"` does not involve "Personal Drive".
-- [ ] Implement `involves` (prefix match on `"<remote>:"`); `TransfersView` filters active/completed through it when `remoteFilter` is set; empty-state copy "No transfers for this volume yet."
-- [ ] Wire into `VolumeView` `.transfers`. Commit `feat(volumes): per-volume transfers tab`.
+- [x] Test: transfer with `srcFs: "Backups:x"`, `dstFs: "Personal Drive:y"` involves both, not "Personal"; `"Personal Drive2:z"` does not involve "Personal Drive".
+- [x] Implement `involves` (prefix match on `"<remote>:"`); `TransfersView` filters active/completed through it when `remoteFilter` is set; empty-state copy "No transfers for this volume yet."
+- [x] Wire into `VolumeView` `.transfers`. Commit `feat(volumes): per-volume transfers tab`.
 
 ### Task 6: Finder tab and header verb
 
@@ -107,27 +107,27 @@
 - Modify: `Views/Mounts/MountsView.swift` (`var remoteFilter: String? = nil`; when set, hides `finderHeader`, filters `configs.configs`, and `AddMountSheet` preselects the remote via new `initialRemote: String?`), `Views/Mounts/AddMountSheet.swift`
 - Modify: `Views/Volume/VolumeView.swift`
 
-- [ ] `VolumeView` computes `isInFinder = !settings.disabledFileProviderDomains.contains(name) && fileProviderBridge.activeDomains.contains(name)`.
-- [ ] Primary verb: "Open in Finder" → `fileProviderBridge.urlForItem(remote:path:"")` then `NSWorkspace.shared.open`; "Show in Finder" → the same add-domain sequence `MountsView.toggle` uses for `.fileProvider` (extract into `FinderIntegration.enable(remote:settings:bridge:)` static helper in a new `Services/FinderIntegration.swift` and call it from both).
-- [ ] Finder tab empty state: "Show in Finder" and "Mount as Network Volume…" buttons.
-- [ ] Build, run, toggle once against a demo remote. Commit `feat(volumes): Finder tab and Show in Finder verb`.
+- [x] `VolumeView` computes `isInFinder = !settings.disabledFileProviderDomains.contains(name) && fileProviderBridge.activeDomains.contains(name)`.
+- [x] Primary verb: "Open in Finder" → `fileProviderBridge.urlForItem(remote:path:"")` then `NSWorkspace.shared.open`; "Show in Finder" → the same add-domain sequence `MountsView.toggle` uses for `.fileProvider` (extract into `FinderIntegration.enable(remote:settings:bridge:)` static helper in a new `Services/FinderIntegration.swift` and call it from both).
+- [x] Finder tab empty state: "Show in Finder" and "Mount as Network Volume…" buttons.
+- [x] Build, run, toggle once against a demo remote. Commit `feat(volumes): Finder tab and Show in Finder verb`.
 
 ### Task 7: Settings tab
 
 **Files:**
 - Create: `Views/Volume/VolumeSettingsTab.swift`
 
-- [ ] `FormSection("Configuration")` rows for `type` and each non-secret config key (skip keys containing `token`, `pass`, `secret`, `key`), `Edit Configuration…` → `EditRemoteSheet`, `Remove Volume…` → existing confirmation dialog copy, then `statusService.clear` and reload.
-- [ ] Commit `feat(volumes): settings tab`.
+- [x] `FormSection("Configuration")` rows for `type` and each non-secret config key (skip keys containing `token`, `pass`, `secret`, `key`), `Edit Configuration…` → `EditRemoteSheet`, `Remove Volume…` → existing confirmation dialog copy, then `statusService.clear` and reload.
+- [x] Commit `feat(volumes): settings tab`.
 
 ### Task 8: Transfer drawer and toolbar pill
 
 **Files:**
 - Create: `Views/Volume/TransferDrawer.swift`, `Views/Volume/TransferToolbarPill.swift`
 
-- [ ] Drawer: shown when `transferStore.activeTransfers` is non-empty; header "Transfers · N active · <speed>"; up to 4 `TransferRow`s; "+N more" switches tab to `.transfers`; collapse chevron with session `@State`.
-- [ ] Pill: `ToolbarItem(placement: .status)` capsule "N items to <dest remote>" with `ProgressView(value:)` 60 pt wide; tap → `.transfers` tab.
-- [ ] Commit `feat(volumes): transfer drawer and toolbar progress pill`.
+- [x] Drawer: shown when `transferStore.activeTransfers` is non-empty; header "Transfers · N active · <speed>"; up to 4 `TransferRow`s; "+N more" switches tab to `.transfers`; collapse chevron with session `@State`.
+- [x] Pill: `ToolbarItem(placement: .status)` capsule "N items to <dest remote>" with `ProgressView(value:)` 60 pt wide; tap → `.transfers` tab.
+- [x] Commit `feat(volumes): transfer drawer and toolbar progress pill`.
 
 ### Task 9: Inspector
 
@@ -135,13 +135,13 @@
 - Create: `Views/Volume/FileInspector.swift`
 - Modify: `State/AppSettings.swift` (`inspectorVisible: Bool`, default false), `Views/Browser/BrowserView.swift` (expose `viewModel.selection` + `sortedFiles` to the inspector via a `BrowserSelectionSnapshot` published through `.preference` or by hoisting `BrowserViewModel` creation into `VolumeView`)
 
-- [ ] Hoist: `VolumeView` owns `@State var browserModel: BrowserViewModel?` and passes it to `BrowserView(model:)`; inspector reads `model.selection.ids` and `model.sortedFiles`.
-- [ ] Inspector content per spec; actions Quick Look (reuse `QuickLookHost` path from `BrowserView.previewFiles`) and Copy to… (opens `FolderBrowserSheet` for a chosen destination remote, then `ConfirmCopySheet`).
-- [ ] Toolbar toggle `sidebar.right` bound to `settings.inspectorVisible`.
-- [ ] Commit `feat(volumes): file inspector`.
+- [x] Hoist: `VolumeView` owns `@State var browserModel: BrowserViewModel?` and passes it to `BrowserView(model:)`; inspector reads `model.selection.ids` and `model.sortedFiles`.
+- [x] Inspector content per spec; actions Quick Look (reuse `QuickLookHost` path from `BrowserView.previewFiles`) and Copy to… (opens `FolderBrowserSheet` for a chosen destination remote, then `ConfirmCopySheet`).
+- [x] Toolbar toggle `sidebar.right` bound to `settings.inspectorVisible`.
+- [x] Commit `feat(volumes): file inspector`.
 
 ### Task 10: Sync prefill, copy, screenshots
 
-- [ ] `CopySyncView(initialSource: String?)`; `ContentView` keeps `@State copySyncSource` set by `onSync`.
-- [ ] Onboarding secondary action text "Show it in Finder".
-- [ ] Capture `docs/screenshots/volume.png` (replace `browser-list.png` usage in README later). Update spec status. Commit `feat(volumes): sync prefill and screenshots`.
+- [x] `CopySyncView(initialSource: String?)`; `ContentView` keeps `@State copySyncSource` set by `onSync`.
+- [x] Onboarding secondary action text "Show it in Finder".
+- [x] Capture `docs/screenshots/volume.png` (replace `browser-list.png` usage in README later). Update spec status. Commit `feat(volumes): sync prefill and screenshots`.

@@ -59,7 +59,7 @@ struct TransfersView: View {
                     Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
                 }
             }
-            ToolbarItem(placement: .secondaryAction) {
+            ToolbarItem(placement: .primaryAction) {
                 Button(role: .destructive) {
                     Task { await transferStore.clearCompleted() }
                 } label: {

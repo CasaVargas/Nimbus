@@ -1,7 +1,7 @@
 # Volumes Redesign — Design
 
 **Date:** 2026-11-08
-**Status:** Approved (user chose "Direction 2: Volumes, borrowing from Direction 1" from the
+**Status:** Implemented 2026-11-08 (user chose "Direction 2: Volumes, borrowing from Direction 1" from the
 mockup review page)
 **Supersedes:** the Library/Finder/Transfers/Copy & Sync sidebar layout from the Phase 1–2
 specs. Browser internals (table, grid, selection, drag, Quick Look) are unchanged.

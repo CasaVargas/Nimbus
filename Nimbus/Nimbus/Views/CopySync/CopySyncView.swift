@@ -4,6 +4,7 @@ import RcloneKit
 struct CopySyncView: View {
     /// Remote to preselect as the source when opened from a volume's Sync… button.
     var initialSource: String? = nil
+    var initialSourcePath: String? = nil
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(TransferStore.self) private var store
     @State private var viewModel: CopySyncViewModel?
@@ -43,10 +44,16 @@ struct CopySyncView: View {
         .navigationTitle("Copy & Sync")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            if let initialSource, srcRemote.isEmpty { srcRemote = initialSource }
+            if let initialSource, srcRemote.isEmpty {
+                srcRemote = initialSource
+                srcPath = initialSourcePath ?? ""
+            }
         }
         .onChange(of: initialSource) { _, newValue in
-            if let newValue { srcRemote = newValue }
+            if let newValue {
+                srcRemote = newValue
+                srcPath = initialSourcePath ?? ""
+            }
         }
         .task(id: daemon.status) {
             guard daemon.status == .connected else { return }

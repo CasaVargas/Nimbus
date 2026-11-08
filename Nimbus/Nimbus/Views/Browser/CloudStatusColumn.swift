@@ -10,6 +10,7 @@ import RcloneKit
 struct CloudStatusColumn: View {
     let file: FileItem
     let remote: String
+    var style: StatusBadge.Style = .compact
 
     @Environment(TransferStore.self) private var transferStore
     @Environment(FileProviderBridge.self) private var bridge
@@ -24,7 +25,7 @@ struct CloudStatusColumn: View {
     @State private var isEvicted = false
 
     var body: some View {
-        StatusBadge(state: state, style: .compact)
+        StatusBadge(state: state, style: style)
             .task(id: queryKey) {
                 let materialized = await bridge.isItemMaterialized(remote: remote, path: file.path)
                 let evicted = await bridge.wasRecentlyEvicted(remote: remote, path: file.path)

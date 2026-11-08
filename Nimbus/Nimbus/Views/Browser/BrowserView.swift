@@ -12,6 +12,9 @@ struct BrowserView: View {
     /// items and menu actions step aside so ⌘N can't create folders from
     /// the Settings tab.
     var showsToolbar: Bool = true
+    /// Optional model owned by the parent (the volume pane shares it with
+    /// the inspector). When nil the browser creates and owns its own.
+    var sharedModel: BrowserViewModel? = nil
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(AppSettings.self) private var settings
     @Environment(BookmarkStore.self) private var bookmarkStore
@@ -117,9 +120,11 @@ struct BrowserView: View {
         }
         .navigationTitle(remoteName)
         .task {
-            let vm = BrowserViewModel(client: daemon.client)
-            vm.remote = remoteName
-            vm.path = initialPath
+            let vm = sharedModel ?? BrowserViewModel(client: daemon.client)
+            if vm.remote.isEmpty {
+                vm.remote = remoteName
+                vm.path = initialPath
+            }
             viewModel = vm
             await vm.loadFiles()
         }

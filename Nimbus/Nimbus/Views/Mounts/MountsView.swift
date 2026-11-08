@@ -40,6 +40,13 @@ struct MountsView: View {
                 await viewModel?.loadRemotes()
             }
             .task {
+                // A remote shown in Finder by default (the launch-time domain
+                // sync registers every remote not explicitly hidden) has no
+                // configuration record yet; write one so the Finder tab shows
+                // the switch that matches what Finder is already doing.
+                if let remoteFilter, FinderIntegration.isShown(remote: remoteFilter, settings: settings) {
+                    FinderIntegration.ensureConfig(remote: remoteFilter, store: configs, settings: settings)
+                }
                 mountManager.configs = configs.configs
                 await mountManager.refreshAll()
             }
