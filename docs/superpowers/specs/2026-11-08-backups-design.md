@@ -559,15 +559,19 @@ Each phase is its own PR, works on its own, and leaves `main` shippable.
 - **Destination quota.** A backup that fills the destination fails with the provider's error.
   Home's existing "almost full" suggestion covers the warning side.
 
-## Open questions (resolved 2026-11-08: approved with the spec's defaults)
+## Decided questions (2026-11-08)
 
-1. **Default mode for a new backup.** The spec defaults to **Mirror with versions on**: it reads as
-   "a backup" to most people and versions make removals recoverable. **Add only** is safer when
-   versions are off, and never surprises anyone, but the destination grows forever. Which default?
-2. **Default removal limit.** 100 files is a guess. A percentage would be better, but rclone has no
-   percentage option; it would need a pre-run listing.
-3. **Is decision 1 (in-app only) acceptable for v1?** If backups while Nimbus is quit are a
-   must, option D (a helper that owns the daemon) becomes its own project before Backups phase 2.
+These were open in the first draft. The user left the calls to the session that ran the
+competitive research, and it decided them as follows:
+
+1. **Default mode for a new backup: Mirror with versions on.** The versions folder makes
+   removals recoverable. Add only would grow the destination forever.
+2. **Default removal limit: 100 files, adjustable per job.** There's no percentage option, since
+   rclone would need a pre-run listing for one. The required preview before the first run makes
+   a count limit enough for v1.
+3. **Scheduling runs in the app only (decision 1, option A) for v1.** Nimbus already stays in the
+   menu bar and opens at login, and missed runs catch up once. Option D (a helper that owns the
+   daemon) is left for later.
 
 ## Phase 1 as built (2026-11-08, `feat/backups-phase1`)
 
