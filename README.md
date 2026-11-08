@@ -37,6 +37,8 @@ Nimbus is pre-1.0 and has not had a tagged release yet. Signed and notarized DMG
 
 ### Build from source
 
+You need Xcode 27 or later (earlier Xcode releases crash in IRGen while compiling this project), XcodeGen and rclone.
+
 ```bash
 brew install xcodegen rclone
 git clone https://github.com/CasaVargas/Nimbus.git
