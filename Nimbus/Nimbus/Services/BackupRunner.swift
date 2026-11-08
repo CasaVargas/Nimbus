@@ -1,0 +1,164 @@
+import Foundation
+import Observation
+import os
+
+/// Anything that can be asked to run a saved backup (the Backups screen
+/// today, the scheduler in phase 2).
+@MainActor
+protocol BackupLaunching: AnyObject {
+    func enqueue(_ jobID: UUID, trigger: BackupRunSummary.Trigger) async
+}
+
+/// Runs saved backups one at a time on the app's rclone daemon. Each run is
+/// a `.backup` transfer in `TransferStore`; when it finishes, the runner
+/// records `lastRun` and starts the next queued job.
+@Observable
+@MainActor
+final class BackupRunner: BackupLaunching {
+    enum Refusal: Equatable {
+        case notApproved
+        case alreadyQueuedOrRunning
+        case storeReadOnly
+        case daemonNotConnected
+        case unknownJob
+    }
+
+    /// Jobs waiting to start, in order.
+    private(set) var queue: [UUID] = []
+    private(set) var runningJobID: UUID?
+    private(set) var lastRefusal: Refusal?
+
+    @ObservationIgnored private var triggers: [UUID: BackupRunSummary.Trigger] = [:]
+    @ObservationIgnored private var runningRcloneJob: Int?
+    @ObservationIgnored private var isStarting = false
+    @ObservationIgnored private let store: BackupStore
+    @ObservationIgnored private let transfers: TransferStore
+    @ObservationIgnored private let client: any BackupRcloneClient
+    @ObservationIgnored private let isDaemonConnected: @MainActor () -> Bool
+    @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "backups")
+
+    init(
+        store: BackupStore,
+        transfers: TransferStore,
+        client: any BackupRcloneClient,
+        isDaemonConnected: @escaping @MainActor () -> Bool,
+        now: @escaping () -> Date = Date.init
+    ) {
+        self.store = store
+        self.transfers = transfers
+        self.client = client
+        self.isDaemonConnected = isDaemonConnected
+        self.now = now
+        transfers.onBackupFinished = { [weak self] id, summary in
+            await self?.runFinished(id, summary: summary)
+        }
+    }
+
+    var isRunningAnything: Bool { runningJobID != nil || !queue.isEmpty }
+
+    func isQueued(_ jobID: UUID) -> Bool { queue.contains(jobID) }
+
+    /// The active transfer of the running job, for progress.
+    func activeTransfer(for jobID: UUID) -> Transfer? {
+        guard runningJobID == jobID else { return nil }
+        return transfers.activeTransfers.first { $0.backup?.backupID == jobID }
+    }
+
+    func enqueue(_ jobID: UUID, trigger: BackupRunSummary.Trigger) async {
+        if let refusal = refusal(for: jobID) {
+            lastRefusal = refusal
+            logger.info("Backup \(jobID) not queued: \(String(describing: refusal))")
+            return
+        }
+        lastRefusal = nil
+        queue.append(jobID)
+        triggers[jobID] = trigger
+        await startNextIfIdle()
+    }
+
+    /// Stops a running job (the next one starts) or drops a queued one.
+    func stop(_ jobID: UUID) async {
+        if let index = queue.firstIndex(of: jobID) {
+            queue.remove(at: index)
+            triggers[jobID] = nil
+            return
+        }
+        guard runningJobID == jobID, let rcloneJob = runningRcloneJob else { return }
+        try? await client.stopJob(id: rcloneJob)
+        // Cancelling the transfer calls onBackupFinished, which records the
+        // run and starts the next job.
+        await transfers.cancelTransfer(jobId: rcloneJob)
+    }
+
+    private func refusal(for jobID: UUID) -> Refusal? {
+        guard store.isWritable else { return .storeReadOnly }
+        guard let job = store.job(id: jobID) else { return .unknownJob }
+        guard job.isApproved else { return .notApproved }
+        guard runningJobID != jobID, !queue.contains(jobID) else { return .alreadyQueuedOrRunning }
+        guard isDaemonConnected() else { return .daemonNotConnected }
+        return nil
+    }
+
+    private func startNextIfIdle() async {
+        guard runningJobID == nil, !isStarting else { return }
+        isStarting = true
+        defer { isStarting = false }
+
+        while runningJobID == nil, !queue.isEmpty {
+            let jobID = queue.removeFirst()
+            let trigger = triggers.removeValue(forKey: jobID) ?? .manual
+            // Re-check: the job may have been edited or deleted while queued.
+            guard let job = store.job(id: jobID), job.isApproved else {
+                logger.info("Skipping backup \(jobID): changed or removed while queued")
+                continue
+            }
+            let startedAt = now()
+            let request = BackupRequest.make(job: job, dryRun: false, stamp: BackupRequest.stamp(for: startedAt))
+            do {
+                let rcloneJob = try await client.startSync(request)
+                runningJobID = jobID
+                runningRcloneJob = rcloneJob
+                transfers.addTransfer(
+                    jobId: rcloneJob,
+                    operation: job.mode == .mirror ? .sync : .copy,
+                    srcFs: request.srcFs,
+                    dstFs: request.dstFs,
+                    origin: .backup,
+                    backup: Transfer.BackupContext(
+                        backupID: jobID,
+                        title: job.name,
+                        trigger: trigger,
+                        isMirrorWithVersions: job.mode == .mirror && job.versions.enabled,
+                        hadRemovalLimit: request.maxDelete != nil
+                    )
+                )
+            } catch {
+                let message = BackupErrorText.friendly(NimbusError.classify(error).message)
+                logger.error("Backup \(jobID) failed to start: \(message)")
+                await store.recordRun(id: jobID, summary: BackupRunSummary(
+                    startedAt: startedAt, finishedAt: now(), trigger: trigger,
+                    outcome: .failed(message), copied: 0, replaced: 0, removed: 0, errors: 1, bytes: 0
+                ))
+            }
+        }
+    }
+
+    private func runFinished(_ jobID: UUID, summary: BackupRunSummary) async {
+        var summary = summary
+        if case .failed(let raw) = summary.outcome {
+            summary = BackupRunSummary(
+                startedAt: summary.startedAt, finishedAt: summary.finishedAt, trigger: summary.trigger,
+                outcome: .failed(BackupErrorText.friendly(raw)),
+                copied: summary.copied, replaced: summary.replaced, removed: summary.removed,
+                errors: summary.errors, bytes: summary.bytes
+            )
+        }
+        await store.recordRun(id: jobID, summary: summary)
+        if runningJobID == jobID {
+            runningJobID = nil
+            runningRcloneJob = nil
+        }
+        await startNextIfIdle()
+    }
+}
