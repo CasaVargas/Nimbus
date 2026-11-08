@@ -52,7 +52,9 @@ extension RcloneClient {
     ///
     /// `askAll: false` asks only rclone's post-config questions. That is
     /// correct for OAuth backends (drive, dropbox, onedrive, box, pcloud),
-    /// which jump straight to `*oauth-islocal`. It is WRONG for credential
+    /// which reach `*oauth-islocal` within a step or two. (Since rclone 1.76
+    /// Drive asks `config_shared_client_id` first whenever no client_id is
+    /// set; callers answer it before looking for `.oauth`.) It is WRONG for credential
     /// backends (s3, sftp, b2, webdav): they ask nothing at all and rclone
     /// writes a stub remote with no host and no credentials. Callers detect
     /// the difference by whether this returns `.oauth`.

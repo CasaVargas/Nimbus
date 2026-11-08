@@ -37,12 +37,14 @@ Every fact below was verified against rclone 1.74 on 2026-08-30 and is recorded 
 | backend | total options | `all:true` steps |
 |---|---|---|
 | s3 (provider=AWS) | 78 | 13 |
-| drive | 52 | 8 |
+| drive | 52 | 9 (8 before rclone 1.76; the extra step is `config_shared_client_id`) |
 | sftp | 45 | 14 |
 
 `config_fs_advanced` is rclone's own basic/advanced gate. Nimbus surfaces it rather than inventing one.
 
 **`all:false` is safe only for OAuth backends.** For drive, dropbox, onedrive, box, and pcloud the first state is `*oauth-islocal,,,`, which is exactly the desired sign-in-only path. For s3, sftp, b2, and webdav it asks nothing at all and writes a stub `[name]\ntype = sftp` carrying no host and no credentials — a silently broken remote.
+
+**rclone 1.76: Drive asks one question before OAuth.** With no client_id, Drive's first `all:false` state is `client_id_warning` (`config_shared_client_id`: rclone's shared client_id is being retired, continue using it? default false), then `*oauth-islocal`. Nimbus answers it "true" on the user's behalf, wherever it appears in a walk, before deciding whether the backend is OAuth, so Drive stays a one-click sign-in. "false" only leads to client_id/client_secret fields, which "Show all options" already asks for up front, and a client_id entered there means rclone never asks. The re-sign-in flow gives the same answer. Verified against rclone 1.76.0 on 2026-11-08.
 
 **The first call persists a partial remote.** `config/create` writes `[name]\ntype = <backend>` before any question is answered.
 
