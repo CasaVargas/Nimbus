@@ -86,6 +86,10 @@ final class RcloneDaemon {
         concurrentTransfers: Int = 4
     ) async {
         guard status != .connected && status != .starting else { return }
+        guard mayStartDaemon else {
+            logger.info("Not starting rclone: this process is a test or preview host")
+            return
+        }
         let lifecycleID = UUID()
         self.lifecycleID = lifecycleID
         status = .starting
@@ -218,6 +222,16 @@ final class RcloneDaemon {
         ]
     }
 
+    /// A test or preview host never starts the real daemon or runs the
+    /// stale-daemon cleanup. Tests that drive `start()` on purpose inject
+    /// `TestStartupHooks`, which replace the cleanup and port probe.
+    private var mayStartDaemon: Bool {
+#if DEBUG
+        if testStartupHooks != nil { return true }
+#endif
+        return LaunchContext.current.managesSystemProcesses
+    }
+
     private func isCurrent(_ lifecycleID: UUID) -> Bool {
         self.lifecycleID == lifecycleID
     }
@@ -239,6 +253,7 @@ final class RcloneDaemon {
             return
         }
 #endif
+        guard LaunchContext.current.managesSystemProcesses else { return }
         await Self.killStaleRcloneDaemons(in: Self.portRange, logger: logger)
     }
 

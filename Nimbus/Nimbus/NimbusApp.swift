@@ -153,24 +153,22 @@ struct NimbusApp: App {
         return CGSize(width: 1000, height: 700)
     }
 
-    /// True when the process is the host of an XCTest/Swift Testing run.
-    /// The test host must NOT run production startup: spawning rclone,
-    /// sweeping mounts, or registering REAL File Provider domains from a
-    /// test run pollutes the developer's system — and the system-launched
-    /// Debug extension then holds the .appex busy, wedging the next build's
-    /// test launch ("test runner timed out while preparing to run tests").
-    private var isRunningTests: Bool {
-        let env = ProcessInfo.processInfo.environment
-        return env["XCTestConfigurationFilePath"] != nil
-            || env["XCTestBundlePath"] != nil
-            || env["XCTestSessionIdentifier"] != nil
+    /// True when the process only hosts a unit-test run or an Xcode preview.
+    /// Such a host must NOT run production startup: spawning rclone, ending
+    /// other rclone daemons, sweeping mounts, or registering REAL File
+    /// Provider domains pollutes the developer's system and breaks the
+    /// installed app running beside it. The system-launched Debug extension
+    /// also holds the .appex busy, wedging the next build's test launch
+    /// ("test runner timed out while preparing to run tests").
+    private var isHostedLaunch: Bool {
+        !LaunchContext.current.managesSystemProcesses
     }
 
     /// One-shot process setup: shutdown hook, stale-mount sweep, first
     /// daemon start. Everything that depends on a connected daemon lives in
     /// `onDaemonConnected`, which the `.task(id: daemon.status)` reruns.
     private func bootstrap() async {
-        guard !isRunningTests else { return }
+        guard !isHostedLaunch else { return }
         // Quit (⌘Q, logout, MenuBarExtra) must unmount volumes and stop the
         // daemon before the process dies — otherwise a restart finds orphan
         // `rclone serve nfs` children and stale NFS mounts.
@@ -215,7 +213,7 @@ struct NimbusApp: App {
     /// live mounts, addDomain is a no-op for registered domains, and
     /// syncState just rewrites the shared port/remotes snapshot.
     private func onDaemonConnected() async {
-        guard !isRunningTests else { return }
+        guard !isHostedLaunch else { return }
         // Every connect is a new rclone process: jobs from a previous one are
         // gone (and job ids restart), so end their transfers and let the
         // backup queue move on.
