@@ -46,7 +46,6 @@ struct HomeView: View {
                 restartEngine: restartEngine
             )
         )
-        .background(DesignSystem.Color.semantic.surface)
         .navigationTitle("Home")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {

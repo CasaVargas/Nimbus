@@ -128,28 +128,16 @@ enum CloudSummaryBuilder {
             }
         }
 
-        var used: Int64 = 0
-        var free: Int64?
-        var capacity: Int64 = 0
-        for row in rows {
-            guard let quota = row.quota else { continue }
-            if let u = quota.used { used += u }
-            if let total = quota.total {
-                capacity += total
-                if let f = quota.free { free = (free ?? 0) + f }
-            } else if let u = quota.used {
-                capacity += u
-            }
-        }
+        let totals = StorageTotals(quotas: rows.compactMap(\.quota))
 
         return CloudSummary(
             rows: rows,
             overall: overall,
             attention: attention,
             suggestions: suggestions(for: rows, dismissed: dismissedSuggestions),
-            usedBytes: used,
-            freeBytes: free,
-            capacityBytes: capacity
+            usedBytes: totals.usedBytes,
+            freeBytes: totals.freeBytes,
+            capacityBytes: totals.capacityBytes
         )
     }
 

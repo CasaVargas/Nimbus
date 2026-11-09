@@ -71,7 +71,6 @@ struct VolumeView: View {
             tabContent
             TransferDrawer(onShowAll: { tab = .transfers })
         }
-        .background(DesignSystem.Color.semantic.surface)
         .navigationTitle(remote.name)
         .toolbar {
             ToolbarItem(placement: .status) {

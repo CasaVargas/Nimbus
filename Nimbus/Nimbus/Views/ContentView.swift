@@ -22,6 +22,14 @@ struct ContentView: View {
 
     private var remotes: [Remote] { monitor.remotes }
 
+    /// An alias takes the colour of the backend it points at, the same way
+    /// it takes that backend's logo.
+    private var cloudColors: [String: DesignSystem.Stratosphere.CloudColor] {
+        DesignSystem.Stratosphere.CloudColors.assign(remotes.map {
+            (name: $0.name, provider: CloudNaming.resolvedType(of: $0, in: remotes))
+        })
+    }
+
     var body: some View {
         if !settings.onboardingComplete {
             OnboardingView()
@@ -43,9 +51,11 @@ struct ContentView: View {
             }
             .navigationSplitViewStyle(.balanced)
             .frame(minWidth: 800, minHeight: 600)
-            .background(DesignSystem.Color.semantic.surface)
-            .toolbarBackground(.visible, for: .windowToolbar)
-            .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
+            // One backdrop for the whole window, behind the sidebar and the
+            // toolbar as well as the detail.
+            .containerBackground(for: .window) { StratosphereBackdrop() }
+            .toolbarBackground(.hidden, for: .windowToolbar)
+            .environment(\.cloudColors, cloudColors)
             .toolbar {
                 if case .error(let message) = daemon.status {
                     ToolbarItem(placement: .status) {

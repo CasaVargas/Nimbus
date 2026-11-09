@@ -16,6 +16,64 @@ struct LogoTile: View {
     }
 }
 
+/// A symbol on a coloured tile, the same size and shape as a small
+/// `LogoTile`, for sidebar rows that aren't clouds.
+struct IconTile: View {
+    let systemImage: String
+    let color: DesignSystem.Stratosphere.CloudColor
+    var size: CGFloat = 24
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: size * 0.29, style: .continuous)
+            .fill(LinearGradient(colors: [color.start.color, color.end.color], startPoint: .top, endPoint: .bottom))
+            .frame(width: size, height: size)
+            .overlay {
+                Image(systemName: systemImage)
+                    .resizable()
+                    .scaledToFit()
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .frame(width: size * 0.56, height: size * 0.56)
+            }
+            .shadow(color: .black.opacity(0.28), radius: size * 0.12, y: size * 0.05)
+            .accessibilityHidden(true)
+    }
+}
+
+/// Every cloud's share of total storage as one bar, a segment per cloud.
+/// The remainder is free space.
+struct SegmentBar: View {
+    struct Segment: Identifiable {
+        let id: String
+        /// Share of the whole bar, 0...1.
+        let fraction: Double
+        let color: DesignSystem.Stratosphere.CloudColor
+    }
+
+    let segments: [Segment]
+    var height: CGFloat = 6
+
+    @Environment(\.stratosphere) private var palette
+
+    var body: some View {
+        GeometryReader { proxy in
+            let spacing: CGFloat = 2
+            let visible = segments.filter { $0.fraction > 0 }
+            let usable = max(proxy.size.width - spacing * CGFloat(visible.count), 0)
+            HStack(spacing: spacing) {
+                ForEach(visible) { segment in
+                    Capsule()
+                        .fill(segment.color.start.color)
+                        .frame(width: max(usable * segment.fraction, 2))
+                }
+                Capsule().fill(palette.track.color)
+            }
+        }
+        .frame(height: height)
+        .accessibilityHidden(true)
+    }
+}
+
 /// How full a cloud is, in that cloud's colour.
 struct UsageBar: View {
     /// 0...1. Values outside are clamped.

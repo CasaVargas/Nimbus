@@ -14,28 +14,37 @@ struct SidebarRemoteRow: View {
     let onDelete: () -> Void
     let onReconnect: () -> Void
 
+    @Environment(\.cloudColors) private var cloudColors
+
+    private var provider: String { iconType ?? remote.type }
+
+    /// The cloud's own colour, or the warning colour from 90% so a nearly
+    /// full drive is visible without opening it.
+    private var barColor: DesignSystem.Stratosphere.CloudColor {
+        if quota?.isNearlyFull ?? false { return DesignSystem.Stratosphere.CloudColors.nearlyFull }
+        return cloudColors[remote.name] ?? DesignSystem.Stratosphere.CloudColors.color(forProvider: provider)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: DesignSystem.Spacing.s) {
-                ProviderIcon(provider: iconType ?? remote.type, size: 18)
-                    .frame(width: 20)
+                LogoTile(provider: provider, size: .small)
 
                 Text(remote.name)
-                    .font(DesignSystem.Typography.body)
+                    .font(DesignSystem.Stratosphere.Typography.control)
                     .lineLimit(1)
 
                 Spacer(minLength: DesignSystem.Spacing.s)
 
-                Circle()
-                    .fill(status.tintColor)
-                    .frame(width: 7, height: 7)
+                StatusDot(status: status.stratosphere)
             }
             if let fraction = quota?.fraction {
-                CapacityBar(fraction: fraction, isNearlyFull: quota?.isNearlyFull ?? false)
-                    .padding(.leading, 28)
-                    .padding(.trailing, 15)
+                UsageBar(fraction: fraction, color: barColor, height: 3)
+                    .padding(.leading, 32)
+                    .padding(.trailing, 16)
             }
         }
+        .padding(.vertical, 2)
         .contentShape(Rectangle())
         .contextMenu {
             Button("Edit…", action: onEdit)
