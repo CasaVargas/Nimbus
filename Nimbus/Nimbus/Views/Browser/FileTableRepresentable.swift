@@ -45,6 +45,8 @@ struct FileTableRepresentable: NSViewRepresentable {
         let table = FileTableView()
         table.style = .inset
         table.usesAlternatingRowBackgroundColors = false
+        // The table draws on the tab's glass, not on its own fill.
+        table.backgroundColor = .clear
         table.allowsMultipleSelection = true
         table.rowHeight = FileRowView.rowHeight
         table.headerView = nil
@@ -67,6 +69,7 @@ struct FileTableRepresentable: NSViewRepresentable {
 
         let scroll = NSScrollView()
         scroll.documentView = table
+        scroll.drawsBackground = false
         scroll.hasVerticalScroller = true
         scroll.autohidesScrollers = true
         return scroll

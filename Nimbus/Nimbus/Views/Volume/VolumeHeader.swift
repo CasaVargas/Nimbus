@@ -15,47 +15,85 @@ struct VolumeHeader: View {
     let onSync: () -> Void
     let onEdit: () -> Void
 
+    @Environment(\.stratosphere) private var palette
+    @Environment(\.cloudColors) private var cloudColors
+
+    private typealias S = DesignSystem.Stratosphere
+
+    private var provider: String { badgeType ?? remote.type }
+
+    private var color: S.CloudColor {
+        cloudColors[remote.name] ?? S.CloudColors.color(forProvider: provider)
+    }
+
     var body: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.m) {
-            ProviderBadge(provider: badgeType ?? remote.type, size: 44)
-                .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 14) {
+                LogoTile(provider: provider, size: .large)
+                    .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(remote.name)
-                    .font(DesignSystem.Typography.title)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
-                    .lineLimit(1)
-                Text(verbatim: subtitle)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(remote.name)
+                        .font(S.Typography.pageTitle)
+                        .foregroundStyle(palette.textPrimary.color)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(verbatim: subtitle)
+                        .font(S.Typography.detail)
+                        .foregroundStyle(palette.textSecondary.color)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: DesignSystem.Spacing.l)
+
+                HStack(spacing: DesignSystem.Spacing.s) {
+                    Button(isInFinder ? "Open in Finder" : "Show in Finder", action: onPrimary)
+                        .buttonStyle(.primaryPill(.small))
+                    Button("Copy To…", action: onSync)
+                        .buttonStyle(.glassCapsule)
+                    Button("Edit", action: onEdit)
+                        .buttonStyle(.glassCapsule)
+                }
             }
-
-            Spacer(minLength: DesignSystem.Spacing.l)
-
-            HStack(spacing: DesignSystem.Spacing.s) {
-                Button(isInFinder ? "Open in Finder" : "Show in Finder", action: onPrimary)
-                    .buttonStyle(.borderedProminent)
-                Button("Copy To…", action: onSync)
-                    .buttonStyle(.bordered)
-                Button("Edit", action: onEdit)
-                    .buttonStyle(.bordered)
+            if let quota, let fraction = quota.fraction {
+                usage(quota, fraction: fraction)
             }
-            .controlSize(.regular)
         }
-        .padding(.horizontal, DesignSystem.Spacing.xl)
-        .padding(.top, DesignSystem.Spacing.l)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
+        .glassSurface(radius: S.Radius.header, tint: color)
+    }
+
+    /// How full the cloud is: a bar in its colour, then the numbers. Only
+    /// drawn when the backend reports a total.
+    private func usage(_ quota: StorageQuota, fraction: Double) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            UsageBar(fraction: fraction, color: quota.isNearlyFull ? S.CloudColors.nearlyFull : color, height: 12)
+            HStack(spacing: DesignSystem.Spacing.m) {
+                Text(verbatim: "\(quota.usedText ?? "--") used")
+                    .font(S.Typography.label)
+                    .foregroundStyle(palette.textPrimary.color)
+                Text(verbatim: "\(quota.freeText ?? "--") free")
+                    .font(S.Typography.detail)
+                    .foregroundStyle(palette.textSecondary.color)
+                Spacer()
+                Text("\(fraction, format: .percent.precision(.fractionLength(0))) full")
+                    .font(S.Typography.detail)
+                    .foregroundStyle(palette.textSecondary.color)
+            }
+            .monospacedDigit()
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Storage: \(quota.usedText ?? "unknown") used of \(quota.totalText ?? "unknown")")
     }
 
     private var subtitle: String {
         var parts: [String] = [providerName]
-        if let quota, let used = quota.usedText {
-            if let total = quota.totalText {
-                parts.append("\(used) of \(total) used")
-            } else {
-                parts.append("\(used) used")
-            }
+        // With a limit, the bar below carries the numbers. Without one,
+        // this line is the only place usage shows.
+        if let quota, quota.fraction == nil, let used = quota.usedText {
+            parts.append("\(used) used")
         }
         switch status {
         case .authNeeded, .unreachable, .error: parts.append(status.shortText)
@@ -74,8 +112,9 @@ struct VolumeHeader: View {
         isInFinder: true,
         onPrimary: {}, onSync: {}, onEdit: {}
     )
+    .padding()
     .frame(width: 760)
-    .padding(.bottom)
+    .background { StratosphereBackdrop() }
 }
 
 #if DEBUG
@@ -88,7 +127,7 @@ struct VolumeHeader: View {
     let quota = StorageQuota(used: 1_280_000_000_000, total: 2_000_000_000_000)
     let inFinder = MountConfig(remote: "Personal Drive:", mountPoint: "", vfsMode: .readWrite, autoMount: true, backend: .fileProvider)
     let asVolume = MountConfig(remote: "Personal Drive:", mountPoint: "/Volumes/Personal Drive", vfsMode: .readWrite, autoMount: false, backend: .nfs)
-    VStack(spacing: 0) {
+    VolumePaneLayout {
         VolumeHeader(
             remote: remote,
             providerName: "Google Drive",
@@ -97,16 +136,16 @@ struct VolumeHeader: View {
             isInFinder: true,
             onPrimary: {}, onSync: {}, onEdit: {}
         )
-        StorageGauge(quota: quota)
         VolumeTabBar(selection: $tab)
-        Divider()
         List {
             MountRow(config: inFinder, state: .on, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {})
             MountRow(config: asVolume, state: .off, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {})
         }
         .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .glassContentSurface()
     }
-    .background(DesignSystem.Color.semantic.surface)
+    .background { StratosphereBackdrop() }
     .preferredColorScheme(.dark)
 }
 
@@ -229,22 +268,30 @@ struct DemoWindow<Content: View>: View {
     let quota = StorageQuota(used: 1_280_000_000_000, total: 2_000_000_000_000)
     let files = DemoWindow<EmptyView>.files
     DemoWindow(title: "Personal", selection: .remote("Personal")) {
-        VolumeHeader(remote: remote, providerName: "Google Drive", quota: quota, status: .connected,
-                     isInFinder: true, onPrimary: {}, onSync: {}, onEdit: {})
-        StorageGauge(quota: quota)
-        VolumeTabBar(selection: $tab)
-        Divider()
-        FileTableHeader(sortField: $sortField, sortAscending: $sortAscending)
-        Divider()
-        VStack(spacing: 0) {
-            ForEach(files) { file in
-                FileRowView(file: file, remote: "Personal", isSelected: file.name == "Lease.pdf")
-                    .padding(.horizontal, 18)
-                    .background(file.name == "Lease.pdf" ? Color(nsColor: .selectedContentBackgroundColor) : .clear)
+        VolumePaneLayout {
+            VolumeHeader(remote: remote, providerName: "Google Drive", quota: quota, status: .connected,
+                         isInFinder: true, onPrimary: {}, onSync: {}, onEdit: {})
+            VolumeTabBar(selection: $tab)
+            VStack(spacing: 0) {
+                FileTableHeader(sortField: $sortField, sortAscending: $sortAscending)
+                Divider()
+                VStack(spacing: 0) {
+                    ForEach(files) { file in
+                        // Stands in for the AppKit table's inset selection.
+                        FileRowView(file: file, remote: "Personal", isSelected: file.name == "Lease.pdf")
+                            .padding(.horizontal, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(file.name == "Lease.pdf" ? Color(nsColor: .selectedContentBackgroundColor) : .clear)
+                            )
+                            .padding(.horizontal, 10)
+                    }
+                }
+                .padding(.top, DesignSystem.Spacing.xs)
+                Spacer(minLength: 0)
             }
+            .glassContentSurface()
         }
-        .padding(.top, DesignSystem.Spacing.xs)
-        Spacer(minLength: 0)
     }
 }
 
@@ -255,16 +302,18 @@ struct DemoWindow<Content: View>: View {
     let inFinder = MountConfig(remote: "Personal:", mountPoint: "", vfsMode: .readWrite, autoMount: true, backend: .fileProvider)
     let asVolume = MountConfig(remote: "Personal:", mountPoint: "/Volumes/Personal", vfsMode: .readWrite, autoMount: false, backend: .nfs)
     DemoWindow(title: "Personal", selection: .remote("Personal")) {
-        VolumeHeader(remote: remote, providerName: "Google Drive", quota: quota, status: .connected,
-                     isInFinder: true, onPrimary: {}, onSync: {}, onEdit: {})
-        StorageGauge(quota: quota)
-        VolumeTabBar(selection: $tab)
-        Divider()
-        List {
-            MountRow(config: inFinder, state: .on, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {})
-            MountRow(config: asVolume, state: .off, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {})
+        VolumePaneLayout {
+            VolumeHeader(remote: remote, providerName: "Google Drive", quota: quota, status: .connected,
+                         isInFinder: true, onPrimary: {}, onSync: {}, onEdit: {})
+            VolumeTabBar(selection: $tab)
+            List {
+                MountRow(config: inFinder, state: .on, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {})
+                MountRow(config: asVolume, state: .off, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {})
+            }
+            .listStyle(.inset)
+            .scrollContentBackground(.hidden)
+            .glassContentSurface()
         }
-        .listStyle(.inset)
     }
 }
 #endif

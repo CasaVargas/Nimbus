@@ -51,7 +51,7 @@ struct VolumeView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        VolumePaneLayout {
             VolumeHeader(
                 remote: remote,
                 badgeType: resolvedType,
@@ -63,12 +63,9 @@ struct VolumeView: View {
                 onSync: { onSync(remote.name, "") },
                 onEdit: { showEdit = true }
             )
-            if let quota = statusService.quotas[remote.name], quota.fraction != nil {
-                StorageGauge(quota: quota)
-            }
             VolumeTabBar(selection: $tab)
-            Divider()
             tabContent
+                .glassContentSurface()
             TransferDrawer(onShowAll: { tab = .transfers })
         }
         .navigationTitle(remote.name)
@@ -159,14 +156,15 @@ struct VolumeView: View {
             case .files:
                 EmptyView()
             case .transfers:
+                // No fill of their own: they sit on the tab's glass.
                 TransfersView(remoteFilter: remote.name)
-                    .background(DesignSystem.Color.semantic.surface)
+                    .scrollContentBackground(.hidden)
             case .finder:
                 MountsView(remoteFilter: remote.name)
-                    .background(DesignSystem.Color.semantic.surface)
+                    .scrollContentBackground(.hidden)
             case .settings:
                 VolumeSettingsTab(remote: remote, onEdit: { showEdit = true })
-                    .background(DesignSystem.Color.semantic.surface)
+                    .scrollContentBackground(.hidden)
             }
         }
     }
