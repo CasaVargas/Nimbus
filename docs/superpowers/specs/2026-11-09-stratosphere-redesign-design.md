@@ -49,7 +49,7 @@ A fixed, non-scrolling window background behind everything, including the sideba
 | Layer | Value |
 |---|---|
 | Base | linear, 160°: `#0B1640` → `#0A1030` (45%) → `#150C38` |
-| Glow 1 | radial at 80% / −10%, `#488CFF` at 62% → clear |
+| Glow 1 | radial at 80% / −10%, `#488CFF` at 50% → clear |
 | Glow 2 | radial at 6% / 110%, `#8854FF` at 60% → clear |
 | Glow 3 | radial at 100% / 100%, `#FF5CA8` at 26% → clear |
 
@@ -59,7 +59,7 @@ Implementation: one `StratosphereBackdrop` view. `MeshGradient` (macOS 15) is th
 
 | Token | Use | Value (dark) |
 |---|---|---|
-| `glass` | cards, sidebar, table container | white 12% → 5% vertical, 1 px white 16% border, blur behind |
+| `glass` | cards, sidebar, table container | white 10% → 5% vertical, 1 px white 16% border, blur behind |
 | `glassSheet` | sheets, menu bar panel | `#2E3C80` 94% → `#181E4C` 96%, 1 px white 20% border |
 | `track` | bar and ring tracks | white 15% |
 | `selection` | selected sidebar row, segmented choice | white 17% |
@@ -76,9 +76,9 @@ Glass is `glassEffect(_:in:)` on macOS 26 and later, and `.ultraThinMaterial` pl
 | `warning` | `#FFB84D` | needs sign-in, skipped |
 | `muted` | `#A9B1C6` | unreachable |
 | `error` | `#FF8080` | failed |
-| text | white 100% / 78% / 64% | primary / secondary / tertiary |
+| text | white 100% / 80% / 72% | primary / secondary / tertiary |
 
-Tertiary text is 64% white, not lower: it must hold 4.5:1 on the darkest part of the backdrop.
+These values were tuned in Phase 1. The first mockups used a 62% glow, 12% glass and 78% / 64% text, and the contrast tests failed with them: tertiary text on glass near the blue glow measured 3.4:1. With the values in these tables the worst case anywhere on the backdrop is 4.6:1. The tests sample the whole backdrop, so any later change to these numbers is checked.
 
 **Cloud colours.** Each remote gets a two-stop colour, assigned by provider from a table next to `ProviderIcon.Brand`, with a fallback sequence for providers without an entry and for a second remote on the same provider (so two Google accounts differ).
 
@@ -92,7 +92,7 @@ Tertiary text is 64% white, not lower: it must hold 4.5:1 on the darkest part of
 
 ### Type
 
-System fonts only. Display text uses `.fontDesign(.rounded)`; body text stays SF Pro.
+System fonts only. Display text uses the rounded design; body text stays SF Pro. Fixed sizes are defined once, in the Stratosphere token file; `scripts/lint-no-system-size.sh` still rejects `.system(size:)` in views.
 
 | Role | Size / weight | Design |
 |---|---|---|
