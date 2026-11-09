@@ -1,46 +1,36 @@
 import SwiftUI
 
-/// Underline tabs for the volume pane. Reference: the tab strip in Xcode's
-/// project editor and Disk Utility's First Aid / Partition / Erase row:
-/// text only, selected tab in primary weight with a 2 pt accent underline.
+/// A cloud's four tabs, as a glass segmented control.
 struct VolumeTabBar: View {
     @Binding var selection: VolumeTab
 
     var body: some View {
-        HStack(spacing: DesignSystem.Spacing.xs) {
-            ForEach(VolumeTab.allCases) { tab in
-                let isSelected = tab == selection
-                Button {
-                    withAnimation(DesignSystem.Motion.snappy) { selection = tab }
-                } label: {
-                    Text(tab.title)
-                        .font(DesignSystem.Typography.callout)
-                        .fontWeight(isSelected ? .semibold : .regular)
-                        .foregroundStyle(isSelected
-                                         ? DesignSystem.Color.semantic.textPrimary
-                                         : DesignSystem.Color.semantic.textSecondary)
-                        .padding(.horizontal, DesignSystem.Spacing.m)
-                        .padding(.vertical, DesignSystem.Spacing.s)
-                        .overlay(alignment: .bottom) {
-                            Rectangle()
-                                .fill(isSelected ? DesignSystem.Color.semantic.accent : .clear)
-                                .frame(height: 2)
-                        }
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-            }
-            Spacer()
+        HStack {
+            GlassSegmented(
+                options: VolumeTab.allCases.map { .init(value: $0, title: $0.title) },
+                selection: $selection
+            )
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, DesignSystem.Spacing.l)
-        .padding(.top, DesignSystem.Spacing.s)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Cloud sections")
     }
 }
 
+/// The spacing and margins of a cloud's page: header, tabs, content. One
+/// place, so the live pane and the screenshot previews can't drift.
+struct VolumePaneLayout<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.m, content: content)
+            .padding(.horizontal, 20)
+            .padding(.top, DesignSystem.Spacing.xs)
+            .padding(.bottom, DesignSystem.Spacing.l)
+    }
+}
+
 #Preview {
     @Previewable @State var tab: VolumeTab = .files
-    VolumeTabBar(selection: $tab).frame(width: 500)
+    VolumeTabBar(selection: $tab).padding().frame(width: 500).background { StratosphereBackdrop() }
 }

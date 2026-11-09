@@ -265,7 +265,6 @@ struct BrowserView: View {
             .padding(.horizontal, DesignSystem.Spacing.l)
             .frame(height: 38)
         }
-        .background(DesignSystem.Color.semantic.surfaceSubtle.opacity(0.45))
         .accessibilityLabel("Current folder")
     }
 

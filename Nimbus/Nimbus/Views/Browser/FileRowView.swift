@@ -17,7 +17,7 @@ struct FileRowView: View {
     /// (inactive window) selection keeps normal label colors over gray.
     var isEmphasized: Bool = true
 
-    static let rowHeight: CGFloat = 24
+    static let rowHeight: CGFloat = 30
     static let iconSize: CGFloat = 16
     static let statusColumnWidth: CGFloat = 28
     static let dateColumnWidth: CGFloat = 120

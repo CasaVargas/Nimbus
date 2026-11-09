@@ -29,6 +29,7 @@ extension DesignSystem.Stratosphere {
         public static let label = Font.body.weight(.semibold)
         public static let control = Font.body.weight(.medium)
         public static let detail = Font.callout
+        public static let segment = Font.callout.weight(.semibold)
     }
 }
 

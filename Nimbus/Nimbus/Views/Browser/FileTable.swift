@@ -66,8 +66,7 @@ struct FileTableHeader: View {
                 .frame(width: FileRowView.sizeColumnWidth, alignment: .trailing)
         }
         .padding(.horizontal, DesignSystem.Spacing.s + Self.insetStyleMargin)
-        .frame(height: 26)
-        .background(DesignSystem.Color.semantic.surface)
+        .frame(height: 30)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Column headers")
     }
