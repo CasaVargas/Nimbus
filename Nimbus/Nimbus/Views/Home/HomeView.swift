@@ -57,7 +57,8 @@ struct HomeView: View {
                     Label("Add Cloud", systemImage: "plus")
                         .labelStyle(.titleAndIcon)
                 }
-                .buttonStyle(.borderedProminent)
+                // Not prominent: Home's one filled button is in its hero
+                // or, when something is wrong, on the banner.
                 .disabled(daemon.status != .connected)
             }
         }

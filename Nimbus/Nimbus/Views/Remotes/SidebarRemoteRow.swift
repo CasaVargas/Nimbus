@@ -66,27 +66,6 @@ struct SidebarRemoteRow: View {
     }
 }
 
-/// The 3 pt capacity strip under a volume row. Accent while there is room,
-/// warning tint from 90% so a nearly full drive is visible without opening it.
-struct CapacityBar: View {
-    let fraction: Double
-    let isNearlyFull: Bool
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(DesignSystem.Color.semantic.separator.opacity(0.6))
-                Capsule()
-                    .fill(isNearlyFull ? DesignSystem.Color.semantic.statusWarning : DesignSystem.Color.semantic.accent)
-                    .frame(width: max(2, geo.size.width * fraction))
-            }
-        }
-        .frame(height: 3)
-        .accessibilityElement()
-        .accessibilityLabel("\(Int((fraction * 100).rounded())) percent full")
-    }
-}
-
 #Preview {
     List {
         Section("Volumes") {

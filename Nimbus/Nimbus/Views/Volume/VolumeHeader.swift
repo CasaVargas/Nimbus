@@ -203,10 +203,8 @@ struct DemoWindow<Content: View>: View {
                     Spacer()
                     Button("Copy Between Clouds…") {}
                     Button {} label: { Label("Add Cloud", systemImage: "plus") }
-                    Button {} label: { Image(systemName: "sidebar.trailing") }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
+                .buttonStyle(.glassCapsule)
                 .padding(.horizontal, DesignSystem.Spacing.l)
                 .frame(height: 52)
                 content()

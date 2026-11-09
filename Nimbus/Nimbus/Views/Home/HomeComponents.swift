@@ -1,132 +1,200 @@
 import SwiftUI
 
-/// Distinct system colors for the aggregate bar, indexed by `CloudSummary.Row.tint`.
-enum CloudTintPalette {
-    static let colors: [Color] = [.blue, .teal, .indigo, .orange, .pink, .green, .yellow, .gray]
-    static func color(_ slot: Int) -> Color { colors[min(max(slot, 0), colors.count - 1)] }
-}
-
 enum ByteText {
     static func format(_ bytes: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 }
 
-/// A grouped, inset container in System Settings' language: subtle fill,
-/// continuous corners, hairline edge.
+private typealias S = DesignSystem.Stratosphere
+
+/// A glass group: Home's lists and tips sit on these.
 struct HomeGroup<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0, content: content)
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                    .fill(DesignSystem.Color.semantic.surfaceSubtle)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                    .strokeBorder(DesignSystem.Color.semantic.separator.opacity(0.6), lineWidth: 0.5)
-            )
+            .glassSurface(radius: S.Radius.card)
     }
 }
 
 struct HomeSectionTitle: View {
     let text: String
+    @Environment(\.stratosphere) private var palette
+
     var body: some View {
         Text(verbatim: text)
-            .font(DesignSystem.Typography.headline)
+            .font(S.Typography.sectionTitle)
+            .foregroundStyle(palette.textPrimary.color)
             .padding(.leading, DesignSystem.Spacing.xs)
             .accessibilityAddTraits(.isHeader)
     }
 }
 
-// MARK: - Storage overview
-
-struct StorageOverview: View {
-    let summary: CloudSummary
-
-    private var headline: String {
-        let used = "\(ByteText.format(summary.usedBytes)) used"
-        guard let free = summary.freeBytes else { return used }
-        return "\(used), \(ByteText.format(free)) free"
+extension CloudSummary.Row {
+    /// This cloud's colour: the window's assignment, or its provider's
+    /// colour where no window assigned one (previews, the menu bar).
+    func color(in assigned: [String: DesignSystem.Stratosphere.CloudColor]) -> DesignSystem.Stratosphere.CloudColor {
+        assigned[name] ?? DesignSystem.Stratosphere.CloudColors.color(forProvider: providerType)
     }
 
-    var body: some View {
-        HomeGroup {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.m) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("All your clouds").font(DesignSystem.Typography.headline)
-                    Spacer()
-                    Text(verbatim: headline)
-                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-                }
-                StorageBar(summary: summary)
-                    .frame(height: 22)
-                legend
-            }
-            .padding(DesignSystem.Spacing.l)
+    var stratosphereStatus: StratosphereStatus {
+        switch health {
+        case .ready, .busy: .ok
+        case .needsSignIn: .warning
+        case .checking, .unreachable: .muted
+        case .failing: .error
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: accessibilityText))
+    }
+}
+
+// MARK: - Hero
+
+/// The top of Home: how much room there is, one sentence on how things
+/// stand, and every cloud's share of storage as a ring.
+struct HomeHero: View {
+    let summary: CloudSummary
+    /// True when nothing else on the screen is asking for a click, so Add
+    /// Cloud may be the filled button. With an attention banner showing,
+    /// the banner's fix is the primary action and this one goes quiet.
+    let addCloudIsPrimary: Bool
+    let isWide: Bool
+    let onAddCloud: () -> Void
+
+    @Environment(\.stratosphere) private var palette
+    @Environment(\.cloudColors) private var cloudColors
+
+    private var totals: StorageTotals { StorageTotals(quotas: summary.rows.compactMap(\.quota)) }
+
+    var body: some View {
+        Group {
+            if isWide {
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.xl) {
+                    words
+                    Spacer(minLength: 0)
+                    if totals.usedFraction != nil {
+                        ring.frame(width: 204, height: 204)
+                        legend.frame(width: 200)
+                    }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
+                    words
+                    if totals.usedFraction != nil {
+                        HStack(spacing: DesignSystem.Spacing.xl) {
+                            ring.frame(width: 160, height: 160)
+                            legend
+                        }
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var words: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.m) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
+                Text("All your clouds")
+                    .font(S.Typography.label)
+                    .foregroundStyle(palette.textSecondary.color)
+                Text(verbatim: HomeHeadline.title(for: summary))
+                    .font(S.Typography.hero)
+                    .foregroundStyle(palette.textPrimary.color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .accessibilityAddTraits(.isHeader)
+                Text(verbatim: HomeHeadline.sentence(for: summary))
+                    .font(S.Typography.lead)
+                    .foregroundStyle(palette.textSecondary.color)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 400, alignment: .leading)
+            }
+            .accessibilityElement(children: .combine)
+
+            if addCloudIsPrimary {
+                Button(action: onAddCloud) { Label("Add Cloud", systemImage: "plus") }
+                    .buttonStyle(.primaryPill)
+            } else {
+                Button(action: onAddCloud) { Label("Add Cloud", systemImage: "plus") }
+                    .buttonStyle(.glassCapsule)
+            }
+        }
+    }
+
+    private var ring: some View {
+        StorageRing(
+            segments: summary.rows.compactMap { row -> StorageRingSegment? in
+                guard let quota = row.quota else { return nil }
+                return StorageRingSegment(id: row.id, fraction: totals.share(of: quota),
+                                          color: row.color(in: cloudColors))
+            },
+            accessibilityLabel: Text(verbatim: ringSummary)
+        ) {
+            VStack(spacing: 2) {
+                if let fraction = totals.usedFraction {
+                    Text(fraction, format: .percent.precision(.fractionLength(0)))
+                        .font(S.Typography.ringValue)
+                        .monospacedDigit()
+                        .foregroundStyle(palette.textPrimary.color)
+                }
+                Text(verbatim: ringSummary)
+                    .font(S.Typography.detail)
+                    .monospacedDigit()
+                    .foregroundStyle(palette.textSecondary.color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            // Keep the words clear of the ring at its smaller size.
+            .padding(.horizontal, 26)
+        }
+    }
+
+    private var ringSummary: String {
+        "\(ByteText.format(totals.usedBytes)) of \(ByteText.format(totals.capacityBytes)) used"
     }
 
     private var legend: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 215), alignment: .leading)],
-                  alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+        VStack(alignment: .leading, spacing: 9) {
             ForEach(summary.rows) { row in
-                HStack(spacing: 6) {
-                    Circle().fill(CloudTintPalette.color(row.tint)).frame(width: 8, height: 8)
-                    Text(verbatim: row.name).fontWeight(.medium).lineLimit(1)
-                    Text(verbatim: legendDetail(row))
-                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-                        .lineLimit(1)
-                }
-                .font(DesignSystem.Typography.caption)
+                legendRow(
+                    swatch: row.quota?.used == nil ? palette.track.color : row.color(in: cloudColors).start.color,
+                    name: row.name,
+                    detail: Self.legendDetail(row)
+                )
+            }
+            if let free = totals.freeBytes {
+                legendRow(swatch: palette.track.color, name: "Free", detail: ByteText.format(free))
             }
         }
     }
 
-    private func legendDetail(_ row: CloudSummary.Row) -> String {
-        if let used = row.quota?.usedText {
-            return row.quota?.total == nil ? "\(used), billed by use" : used
+    private func legendRow(swatch: Color, name: String, detail: String) -> some View {
+        HStack(spacing: DesignSystem.Spacing.s) {
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(swatch)
+                .frame(width: 10, height: 10)
+                .accessibilityHidden(true)
+            Text(verbatim: name)
+                .font(S.Typography.label)
+                .foregroundStyle(palette.textPrimary.color)
+                .lineLimit(1)
+            Spacer(minLength: DesignSystem.Spacing.s)
+            Text(verbatim: detail)
+                .font(S.Typography.detail)
+                .monospacedDigit()
+                .foregroundStyle(palette.textSecondary.color)
+                .lineLimit(1)
         }
+        .accessibilityElement(children: .combine)
+    }
+
+    static func legendDetail(_ row: CloudSummary.Row) -> String {
+        if let used = row.quota?.usedText { return used }
         switch row.health {
         case .unreachable, .failing, .needsSignIn: return "not reachable"
         case .checking: return "checking…"
         case .ready, .busy: return "size not reported"
-        }
-    }
-
-    private var accessibilityText: String {
-        let parts = summary.rows.map { "\($0.name) \(legendDetail($0))" }
-        return "All your clouds, \(headline). " + parts.joined(separator: ", ")
-    }
-}
-
-struct StorageBar: View {
-    let summary: CloudSummary
-
-    var body: some View {
-        GeometryReader { geo in
-            let capacity = max(summary.capacityBytes, 1)
-            let segments = summary.rows.compactMap { row -> (Int, Int64)? in
-                guard let used = row.quota?.used, used > 0 else { return nil }
-                return (row.tint, used)
-            }
-            let gaps = CGFloat(max(segments.count - 1, 0)) * 2
-            let usable = max(geo.size.width - gaps, 0)
-            HStack(spacing: 2) {
-                ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
-                    Rectangle()
-                        .fill(CloudTintPalette.color(segment.0))
-                        .frame(width: max(2, usable * CGFloat(segment.1) / CGFloat(capacity)))
-                }
-                Spacer(minLength: 0)
-            }
-            .frame(width: geo.size.width, alignment: .leading)
-            .background(DesignSystem.Color.semantic.separator.opacity(0.45))
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            .animation(DesignSystem.Motion.smooth, value: summary.usedBytes)
         }
     }
 }
@@ -137,9 +205,11 @@ struct AttentionBanner: View {
     let row: CloudSummary.Row
     let onFix: () -> Void
 
-    private var tint: Color {
-        row.health == .failing ? DesignSystem.Color.semantic.statusError : DesignSystem.Color.semantic.statusWarning
-    }
+    @Environment(\.stratosphere) private var palette
+
+    private var isFailure: Bool { row.health == .failing }
+
+    private var tint: Color { isFailure ? palette.error.color : palette.warning.color }
 
     private var title: String {
         switch row.health {
@@ -174,33 +244,41 @@ struct AttentionBanner: View {
     }
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 18, style: .continuous)
         HStack(spacing: DesignSystem.Spacing.m) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.title3)
-                .foregroundStyle(tint)
+            Circle()
+                .fill(tint)
+                .frame(width: 36, height: 36)
+                .overlay {
+                    Image(systemName: "exclamationmark")
+                        .font(DesignSystem.Typography.bodyEmphasized)
+                        .foregroundStyle(.black.opacity(0.75))
+                }
+                .shadow(color: tint.opacity(0.5), radius: 9, y: 4)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: title).font(DesignSystem.Typography.bodyEmphasized)
+                Text(verbatim: title)
+                    .font(DesignSystem.Typography.bodyEmphasized)
+                    .foregroundStyle(palette.textPrimary.color)
                 Text(verbatim: message)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .font(S.Typography.detail)
+                    .foregroundStyle(palette.textSecondary.color)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: DesignSystem.Spacing.m)
             Button(buttonTitle, action: onFix)
-                .buttonStyle(.borderedProminent)
-                .tint(row.health == .failing ? nil : DesignSystem.Color.semantic.accent)
+                .buttonStyle(.primaryPill(.small))
         }
-        .padding(.horizontal, DesignSystem.Spacing.l)
-        .padding(.vertical, DesignSystem.Spacing.m)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                .fill(tint.opacity(0.1))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                .strokeBorder(tint.opacity(0.4), lineWidth: 0.5)
-        )
+        .padding(.leading, 14)
+        .padding(.trailing, DesignSystem.Spacing.m)
+        .padding(.vertical, 11)
+        .background {
+            shape.fill(LinearGradient(
+                colors: [tint.opacity(0.30), tint.opacity(0.10)],
+                startPoint: .leading, endPoint: .trailing
+            ))
+        }
+        .overlay(shape.strokeBorder(tint.opacity(0.5), lineWidth: 1))
         .accessibilityElement(children: .combine)
     }
 
@@ -209,21 +287,15 @@ struct AttentionBanner: View {
     }
 }
 
-// MARK: - Cloud rows
+// MARK: - Cloud cards
 
-struct HomeCloudRow: View {
+/// One cloud on Home: its logo, name, a sentence on how it's doing, and how
+/// full it is. The whole card opens the cloud.
+struct HomeCloudCard: View {
     let row: CloudSummary.Row
 
-    private var dotColor: Color {
-        switch row.health {
-        case .ready: DesignSystem.Color.semantic.statusOK
-        case .busy: DesignSystem.Color.semantic.accent
-        case .checking: DesignSystem.Color.semantic.textTertiary
-        case .needsSignIn: DesignSystem.Color.semantic.statusWarning
-        case .unreachable: DesignSystem.Color.semantic.statusMuted
-        case .failing: DesignSystem.Color.semantic.statusError
-        }
-    }
+    @Environment(\.stratosphere) private var palette
+    @Environment(\.cloudColors) private var cloudColors
 
     private var statusLine: String {
         if row.health == .unreachable, let last = row.lastConnected {
@@ -232,67 +304,71 @@ struct HomeCloudRow: View {
         return row.sentence
     }
 
-    var body: some View {
-        HStack(spacing: DesignSystem.Spacing.m) {
-            ProviderBadge(provider: row.providerType, size: 36)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(verbatim: row.name).font(DesignSystem.Typography.bodyEmphasized).lineLimit(1)
-                HStack(spacing: 6) {
-                    if row.health == .busy {
-                        ProgressView().controlSize(.mini)
-                    } else {
-                        Circle().fill(dotColor).frame(width: 7, height: 7)
-                    }
-                    Text(verbatim: statusLine).lineLimit(1)
-                    if row.isInFinder {
-                        Text("In Finder")
-                            .font(DesignSystem.Typography.caption2)
-                            .padding(.horizontal, 6).padding(.vertical, 1)
-                            .background(Capsule().fill(DesignSystem.Color.semantic.separator.opacity(0.5)))
-                    }
-                }
-                .font(DesignSystem.Typography.caption)
-                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-            }
-            Spacer(minLength: DesignSystem.Spacing.m)
-            usage
-                .frame(width: 150, alignment: .trailing)
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
-                .accessibilityHidden(true)
-        }
-        .padding(.horizontal, DesignSystem.Spacing.l)
-        .padding(.vertical, DesignSystem.Spacing.m)
-        .contentShape(Rectangle())
-        .opacity(row.health == .unreachable ? 0.7 : 1)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: "\(row.name), \(row.providerName), \(statusLine)\(row.isInFinder ? ", in Finder" : ""), \(usageText ?? "")"))
-        .accessibilityAddTraits(.isButton)
-    }
-
     private var usageText: String? {
         guard let quota = row.quota, let used = quota.usedText else { return nil }
         if let total = quota.totalText { return "\(used) of \(total)" }
-        return used
+        return "\(used), billed by use"
     }
 
-    @ViewBuilder
-    private var usage: some View {
-        VStack(alignment: .trailing, spacing: 5) {
-            if let quota = row.quota, let used = quota.usedText {
-                if let total = quota.totalText, let fraction = quota.fraction {
-                    Text(verbatim: "\(used) of \(total)")
-                    CapacityBar(fraction: fraction, isNearlyFull: quota.isNearlyFull)
-                } else {
-                    Text(verbatim: used)
-                    Text("Billed by what you store")
-                        .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+    var body: some View {
+        let color = row.color(in: cloudColors)
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
+            HStack(alignment: .top) {
+                LogoTile(provider: row.providerType)
+                Spacer(minLength: 0)
+                if row.isInFinder {
+                    Chip(text: Text("In Finder"))
                 }
             }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(verbatim: row.name)
+                    .font(S.Typography.sectionTitle)
+                    .foregroundStyle(palette.textPrimary.color)
+                    .lineLimit(1)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    if row.health == .busy {
+                        ProgressView().controlSize(.mini)
+                    } else {
+                        StatusDot(status: row.stratosphereStatus)
+                    }
+                    Text(verbatim: statusLine)
+                        .font(S.Typography.detail)
+                        .foregroundStyle(palette.textSecondary.color)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer(minLength: 0)
+            if let quota = row.quota, let fraction = quota.fraction {
+                UsageBar(fraction: fraction,
+                         color: quota.isNearlyFull ? DesignSystem.Stratosphere.CloudColors.nearlyFull : color)
+            }
+            if let usageText {
+                Text(verbatim: usageText)
+                    .font(S.Typography.detail)
+                    .monospacedDigit()
+                    .foregroundStyle(palette.textSecondary.color)
+                    .lineLimit(1)
+            }
         }
-        .font(DesignSystem.Typography.caption)
-        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 156, alignment: .topLeading)
+        .background(alignment: .topLeading) {
+            // The cloud's colour, as a glow behind its logo.
+            Circle()
+                .fill(RadialGradient(colors: [color.start.color.opacity(0.55), color.start.color.opacity(0)],
+                                     center: .center, startRadius: 0, endRadius: 80))
+                .frame(width: 160, height: 160)
+                .offset(x: -50, y: -60)
+                .accessibilityHidden(true)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: S.Radius.card, style: .continuous))
+        .glassSurface(radius: S.Radius.card)
+        .contentShape(RoundedRectangle(cornerRadius: S.Radius.card, style: .continuous))
+        .opacity(row.health == .unreachable ? 0.75 : 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: "\(row.name), \(row.providerName), \(statusLine)\(row.isInFinder ? ", in Finder" : ""), \(usageText ?? "")"))
+        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -303,26 +379,30 @@ struct SuggestionView: View {
     let onAct: () -> Void
     let onDismiss: () -> Void
 
+    @Environment(\.stratosphere) private var palette
+
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
             HStack(alignment: .firstTextBaseline) {
-                Text(verbatim: title).font(DesignSystem.Typography.bodyEmphasized)
+                Text(verbatim: title)
+                    .font(DesignSystem.Typography.bodyEmphasized)
+                    .foregroundStyle(palette.textPrimary.color)
                 Spacer()
                 Button(action: onDismiss) {
                     Image(systemName: "xmark").font(.caption2.weight(.semibold))
                 }
                 .buttonStyle(.borderless)
-                .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                .foregroundStyle(palette.textTertiary.color)
                 .help("Don't show this again")
                 .accessibilityLabel("Dismiss suggestion")
             }
             Text(verbatim: message)
-                .font(DesignSystem.Typography.caption)
-                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                .font(S.Typography.detail)
+                .foregroundStyle(palette.textSecondary.color)
                 .fixedSize(horizontal: false, vertical: true)
             Button(buttonTitle, action: onAct)
-                .controlSize(.small)
-                .padding(.top, 2)
+                .buttonStyle(.glassCapsule)
+                .padding(.top, 4)
         }
         .padding(DesignSystem.Spacing.m)
     }
@@ -358,22 +438,26 @@ struct SuggestionView: View {
 struct ActivityRow: View {
     let line: ActivityLine
 
+    @Environment(\.stratosphere) private var palette
+
     var body: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.s) {
-            Image(systemName: line.isFailure ? "exclamationmark.circle" : "checkmark.circle")
-                .foregroundStyle(line.isFailure ? DesignSystem.Color.semantic.statusError : DesignSystem.Color.semantic.textSecondary)
+        HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.s) {
+            Image(systemName: line.isFailure ? "exclamationmark.triangle" : "checkmark")
+                .fontWeight(.semibold)
+                .foregroundStyle(line.isFailure ? palette.error.color : palette.ok.color)
+                .frame(width: 18)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(verbatim: line.text).lineLimit(2)
-                Text(line.date, format: .relative(presentation: .named))
-                    .font(DesignSystem.Typography.caption2)
-                    .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
-            }
-            Spacer(minLength: 0)
+            Text(verbatim: line.text)
+                .foregroundStyle(palette.textPrimary.color)
+                .lineLimit(2)
+            Spacer(minLength: DesignSystem.Spacing.s)
+            Text(line.date, format: .relative(presentation: .named))
+                .foregroundStyle(palette.textTertiary.color)
+                .lineLimit(1)
         }
-        .font(DesignSystem.Typography.caption)
-        .padding(.horizontal, DesignSystem.Spacing.m)
-        .padding(.vertical, DesignSystem.Spacing.s)
+        .font(S.Typography.detail)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
