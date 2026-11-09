@@ -106,6 +106,7 @@ struct NimbusApp: App {
 
         #if DEBUG
         BenchScene()
+        StratosphereGalleryScene()
         #endif
 
         MenuBarExtra {
