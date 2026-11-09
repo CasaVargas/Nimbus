@@ -21,6 +21,12 @@ struct ConfigPage: Equatable {
         case oauth(ConfigQuestion)
         case advancedGate(ConfigQuestion)
         case finished
+        /// A question rclone asked AFTER the browser sign-in (Drive's
+        /// "Shared Drive?", OneDrive's drive choice). The remote already
+        /// holds the OAuth token, so the page carries exactly one question,
+        /// not yet answered, and submitting it walks forward from that
+        /// question's own state — never a replay from the start.
+        case afterSignIn
     }
     let questions: [ConfigQuestion]
     let boundary: Boundary
@@ -89,6 +95,12 @@ final class RemoteSetupFlow {
     /// if `name` is edited afterward, instead of whatever `name` currently
     /// holds.
     private var partialRemoteName: String?
+    /// Set once rclone's browser round-trip has succeeded for the current
+    /// partial remote, carrying the `askAll` that walk used. From then on
+    /// the remote holds an OAuth token, so the walk is forward-only: a
+    /// restart would delete the token and send the user back to Sign In.
+    /// Cleared whenever the partial remote is discarded.
+    private var signedInAskAll: Bool?
 
     /// Serializes walks: each call chains behind whichever one is already
     /// running, so `config/create`/delete calls from two walks can never
@@ -205,6 +217,9 @@ final class RemoteSetupFlow {
     }
 
     private func performRewalk() async {
+        // After sign-in there is nothing to restart to: the only way back
+        // through the walk is another browser round-trip.
+        guard signedInAskAll == nil else { return }
         phase = .loading
         do {
             await cleanUpPartialRemote()
@@ -241,8 +256,22 @@ final class RemoteSetupFlow {
         // signal at all. (This was implemented as a short-circuit once,
         // under the label "S1" in fix round 1's supplement, then withdrawn
         // once this tradeoff was traced through — do not reintroduce it.)
-        guard case .page = phase else { return }
+        guard case .page(let page) = phase else { return }
         phase = .creating
+        if page.boundary == .afterSignIn, let question = page.questions.first,
+           let askAll = signedInAskAll {
+            // Forward-only: answer this one question from its own state.
+            do {
+                let next = try await continueWalk(
+                    state: question.state,
+                    result: answer(for: question), askAll: askAll
+                )
+                advanceAfterSignIn(from: next, askAll: askAll)
+            } catch {
+                await fail(error)
+            }
+            return
+        }
         do {
             let resumed = try await replayAnsweringBoundary(askAll: askAll)
             await advance(from: resumed, askAll: askAll)
@@ -260,7 +289,8 @@ final class RemoteSetupFlow {
                 state: question.state,
                 result: "true", askAll: signInAskAll
             )
-            await advance(from: next, askAll: signInAskAll)
+            signedInAskAll = signInAskAll
+            advanceAfterSignIn(from: next, askAll: signInAskAll)
         } catch {
             await fail(error)
         }
@@ -411,6 +441,27 @@ final class RemoteSetupFlow {
         }
     }
 
+    /// Publishes the step rclone returned after the browser sign-in (or
+    /// after a question that followed it). Unlike `advance`, it never
+    /// answers ahead with defaults to batch a page: these questions are
+    /// real choices about the signed-in account (Drive's "Shared Drive?",
+    /// OneDrive's drive list), and a default answered on the user's behalf
+    /// could only be corrected by restarting — which costs the token.
+    private func advanceAfterSignIn(from step: ConfigStep, askAll: Bool) {
+        switch step {
+        case .question(let q), .advancedGate(let q):
+            phase = .page(ConfigPage(questions: [q], boundary: .afterSignIn))
+        case .oauth(let q):
+            phase = .signingIn(q, askAll: askAll)
+        case .done:
+            // Clear the cleanup target BEFORE publishing `.finished`, so a
+            // cancel racing the finish can never delete the new remote.
+            partialRemoteName = nil
+            signedInAskAll = nil
+            phase = .finished
+        }
+    }
+
     /// Walks from the start replaying `answers`, then answers whatever
     /// boundary that walk lands on and returns the step after it. Always
     /// re-derives the boundary from this fresh walk rather than trusting the
@@ -478,6 +529,7 @@ final class RemoteSetupFlow {
     }
 
     private func cleanUpPartialRemote() async {
+        signedInAskAll = nil
         guard let partialRemoteName else { return }
         await client.deletePartialRemote(name: partialRemoteName)
         self.partialRemoteName = nil

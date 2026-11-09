@@ -243,6 +243,77 @@ struct RemoteSetupFlowTests {
         #expect(flow.phase == .finished)
     }
 
+    @Test func questionAfterSignInIsAskedThenAnsweredWithoutSigningInAgain() async throws {
+        // rclone 1.76 Drive, verified against a live walk: after the browser
+        // round-trip it asks config_change_team_drive (state teamdrive_ok)
+        // before finishing. The remote already holds the OAuth token at that
+        // point, so answering must walk FORWARD. Replaying from the start
+        // deleted the signed-in remote and parked the user back on Sign In.
+        let client = ScriptedConfigClient()
+        let oauthQuestion = question("config_is_local", state: "*oauth-islocal,teamdrive,oauth,")
+        let teamDrive = question("config_change_team_drive", state: "teamdrive_ok", exclusive: true)
+        client.scriptFalse = [
+            .question(question("config_shared_client_id", state: "client_id_warning")),
+            .oauth(oauthQuestion),
+            .question(teamDrive),
+            .done,
+        ]
+        let flow = RemoteSetupFlow(provider: provider("drive"), client: client)
+        flow.name = "gdrive"
+        await flow.begin()
+        await flow.signIn()
+
+        // Shown, not pre-answered: rclone has not been told anything yet.
+        #expect(flow.phase == .page(ConfigPage(questions: [teamDrive], boundary: .afterSignIn)))
+        #expect(client.calls.last == "continue(*oauth-islocal,teamdrive,oauth,=true)")
+
+        // Exclusive answers restart the walk before sign-in; after it they
+        // must not, or the token is thrown away.
+        await flow.answerChanged(teamDrive, to: "false")
+        await flow.submitPage()
+
+        #expect(flow.phase == .finished)
+        #expect(client.calls.last == "continue(teamdrive_ok=false)")
+        #expect(client.calls.filter { $0.hasPrefix("start") }.count == 1)
+        #expect(client.deletedRemotes.isEmpty)
+
+        // The finished remote is the user's: a late cancel must not delete it.
+        await flow.cancel()
+        #expect(client.deletedRemotes.isEmpty)
+    }
+
+    @Test func rewalkAfterSignInKeepsTheSignedInRemote() async throws {
+        let client = ScriptedConfigClient()
+        let oauthQuestion = question("config_is_local", state: "*oauth-islocal,teamdrive,oauth,")
+        let teamDrive = question("config_change_team_drive", state: "teamdrive_ok", exclusive: true)
+        client.scriptFalse = [.oauth(oauthQuestion), .question(teamDrive), .done]
+        let flow = RemoteSetupFlow(provider: provider("drive"), client: client)
+        flow.name = "gdrive"
+        await flow.begin()
+        await flow.signIn()
+
+        await flow.rewalk()
+
+        #expect(flow.phase == .page(ConfigPage(questions: [teamDrive], boundary: .afterSignIn)))
+        #expect(client.deletedRemotes.isEmpty)
+    }
+
+    @Test func cancelOnAQuestionAfterSignInDeletesTheUnfinishedRemote() async throws {
+        let client = ScriptedConfigClient()
+        let oauthQuestion = question("config_is_local", state: "*oauth-islocal,teamdrive,oauth,")
+        let teamDrive = question("config_change_team_drive", state: "teamdrive_ok", exclusive: true)
+        client.scriptFalse = [.oauth(oauthQuestion), .question(teamDrive), .done]
+        let flow = RemoteSetupFlow(provider: provider("drive"), client: client)
+        flow.name = "gdrive"
+        await flow.begin()
+        await flow.signIn()
+
+        await flow.cancel()
+
+        #expect(client.deletedRemotes == ["gdrive"])
+        #expect(flow.phase == .naming)
+    }
+
     @Test func sharedClientIdWarningAfterTheAdvancedGateIsAnsweredToo() async throws {
         // With "Show all options" and client_id left blank, rclone 1.76 asks
         // the warning after the advanced gate instead. Submitting the page

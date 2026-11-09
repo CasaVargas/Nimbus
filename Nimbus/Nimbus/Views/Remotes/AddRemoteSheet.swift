@@ -137,7 +137,10 @@ struct AddRemoteSheet: View {
             case .page(let page):
                 ConfigPageForm(
                     page: page,
-                    showAllOptionsIsMeaningful: flow.isOAuthBackend == true,
+                    // Not after sign-in: the toggle restarts the walk, and
+                    // the walk can't restart once the remote holds a token.
+                    showAllOptionsIsMeaningful: flow.isOAuthBackend == true
+                        && page.boundary != .afterSignIn,
                     answers: flow.answers,
                     showAllOptions: Binding(
                         get: { flow.showAllOptions },
