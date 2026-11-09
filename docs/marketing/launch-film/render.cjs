@@ -1,7 +1,9 @@
 // Renders film.html frame by frame in headless Chromium and pipes PNG
 // frames into ffmpeg. Deterministic: frame n is film.seek(n / fps).
 //
-//   NODE_PATH="$(npm root -g)" node render.cjs [--fps 60] [--scale 2] [--from 0] [--to 61] [--out out/nimbus-launch.mp4]
+//   NODE_PATH=<node_modules with playwright> node render.cjs [--vertical] [--fps 60] [--scale 2] [--from 0] [--to 61] [--out out/nimbus-launch.mp4]
+//
+// --vertical renders the 9:16 cut (1080x1920) from the same film (film.html?v).
 //
 // --scale 2 renders at 3840x2160 and ffmpeg downsamples to 1080p (sharper text).
 const { chromium } = require('playwright');
@@ -16,13 +18,15 @@ const arg = (name, fallback) => {
 const fps = Number(arg('fps', 60));
 const scale = Number(arg('scale', 2));
 const from = Number(arg('from', 0));
-const out = path.resolve(__dirname, arg('out', 'out/nimbus-launch.mp4'));
+const vertical = process.argv.includes('--vertical');
+const out = path.resolve(__dirname, arg('out', vertical ? 'out/nimbus-launch-vertical.mp4' : 'out/nimbus-launch.mp4'));
 
 (async () => {
   fs.mkdirSync(path.dirname(out), { recursive: true });
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: scale });
-  await page.goto('file://' + path.join(__dirname, 'film.html') + '?render');
+  const size = vertical ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 };
+  const page = await browser.newPage({ viewport: size, deviceScaleFactor: scale });
+  await page.goto('file://' + path.join(__dirname, 'film.html') + (vertical ? '?render&v' : '?render'));
   await page.evaluate(() => window.ready);
   await page.evaluate(() => document.fonts.ready);
   const duration = await page.evaluate(() => window.DURATION);
@@ -32,7 +36,7 @@ const out = path.resolve(__dirname, arg('out', 'out/nimbus-launch.mp4'));
   const ffmpeg = spawn('ffmpeg', [
     '-y', '-loglevel', 'error',
     '-f', 'image2pipe', '-framerate', String(fps), '-i', '-',
-    '-vf', 'scale=1920:1080:flags=lanczos,format=yuv420p',
+    '-vf', `scale=${size.width}:${size.height}:flags=lanczos,format=yuv420p`,
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '14', '-tune', 'film',
     '-movflags', '+faststart', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709',
     out,

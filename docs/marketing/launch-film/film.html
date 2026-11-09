@@ -65,6 +65,12 @@
   .word { font-size: 150px; font-weight: 700; letter-spacing: -0.045em; white-space: nowrap; }
   .grad { background: linear-gradient(100deg, #8ab4ff 0%, #b69cff 45%, #6fe3ff 100%);
           -webkit-background-clip: text; background-clip: text; color: transparent; }
+  /* 9:16 (?v): narrower type that wraps inside the social-safe area. */
+  body.vertical .headline { font-size: 92px; white-space: normal; width: 940px; }
+  body.vertical .caption { font-size: 66px; white-space: normal; width: 920px; line-height: 1.12; }
+  body.vertical .word { font-size: 104px; }
+  body.vertical .caption .soft { display: block; }
+  body.vertical #icon { width: 220px; height: 220px; }
   #endUrl { font-size: 26px; font-weight: 500; color: var(--dim); letter-spacing: 0; white-space: nowrap; }
 </style>
 </head>
@@ -126,7 +132,38 @@
 
 <script>
 const DURATION = 61.0;
-const W = 1920, H = 1080;
+const VERTICAL = new URLSearchParams(location.search).has('v');
+const W = VERTICAL ? 1080 : 1920, H = VERTICAL ? 1920 : 1080;
+document.body.style.width = W + 'px';
+document.body.style.height = H + 'px';
+if (VERTICAL) document.body.classList.add('vertical');
+window.STAGE = { w: W, h: H };
+
+// Every position that differs between 16:9 and 9:16. Timing never differs.
+const L = VERTICAL ? {
+  spread: { rx: 470, ry: 860 },
+  leadSpots: [
+    { x: 330, y: 560, size: 72 }, { x: 770, y: 420, size: 68 }, { x: 310, y: 1240, size: 66 },
+    { x: 730, y: 1380, size: 64 }, { x: 640, y: 290, size: 58 }, { x: 540, y: 1540, size: 58 },
+  ],
+  widths: { wHome: 1000, pCompanion: 430, wBackups: 1000, sPreview: 880, sPicker: 860 },
+  home: { x: W / 2, y: 1030, backX: W / 2, backY: 1290, backScale: 0.85 }, c6: { x: W / 2, y: 620 },
+  companion: { x: W / 2, y: 46 }, c7: { x: W / 2, y: 900 },
+  backups: { y: 1010 }, preview: { y: 720 }, c8: { x: W / 2, y: 560 },
+  picker: { x: W / 2, y: 1090 }, c9: { x: W / 2, y: 440 },
+} : {
+  spread: { rx: 900, ry: 470 },
+  leadSpots: [
+    { x: 560, y: 330, size: 86 }, { x: 1390, y: 290, size: 80 }, { x: 430, y: 760, size: 76 },
+    { x: 1330, y: 780, size: 74 }, { x: 980, y: 170, size: 66 }, { x: 990, y: 915, size: 66 },
+  ],
+  widths: { wHome: 1480, pCompanion: 430, wBackups: 1460, sPreview: 800, sPicker: 660 },
+  home: { x: W / 2, y: H / 2 + 95, backX: 700, backY: H / 2 + 80, backScale: 0.78 }, c6: { x: W / 2, y: 112 },
+  companion: { x: 1540, y: 46 }, c7: { x: 700, y: 150 },
+  backups: { y: H / 2 + 90 }, preview: { y: 205 }, c8: { x: W / 2, y: 112 },
+  picker: { x: 1300, y: H / 2 + 20 }, c9: { x: 560, y: H / 2 },
+};
+for (const [id, width] of Object.entries(L.widths)) document.getElementById(id).style.width = width + 'px';
 
 // ---------- easing + helpers ----------
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -185,16 +222,13 @@ function clearOfLeads(x, y, hw, hh) {
 }
 function spot(hw = 0, hh = 0) {
   for (let n = 0; n < 120; n++) {
-    const p = { x: W / 2 + (rand() * 2 - 1) * 900, y: H / 2 + (rand() * 2 - 1) * 470 };
+    const p = { x: W / 2 + (rand() * 2 - 1) * L.spread.rx, y: H / 2 + (rand() * 2 - 1) * L.spread.ry };
     if (clearOfLeads(p.x, p.y, hw, hh)) return p;
   }
-  return { x: W / 2 + (rand() * 2 - 1) * 900, y: rand() < 0.5 ? 60 : H - 60 };
+  return { x: W / 2 + (rand() * 2 - 1) * L.spread.rx, y: rand() < 0.5 ? 60 : H - 60 };
 }
 
-const leadSpots = [
-  { x: 560, y: 330, size: 86 }, { x: 1390, y: 290, size: 80 }, { x: 430, y: 760, size: 76 },
-  { x: 1330, y: 780, size: 74 }, { x: 980, y: 170, size: 66 }, { x: 990, y: 915, size: 66 },
-];
+const leadSpots = L.leadSpots;
 lead.forEach((label, i) => leadBoxes.push({
   x: leadSpots[i].x, y: leadSpots[i].y, hw: label.length * leadSpots[i].size * 0.29, hh: leadSpots[i].size * 0.6,
 }));
@@ -280,10 +314,10 @@ function render(t) {
     const back = inOut(seg(t, 32.0, 33.1));
     const leave = inOut(seg(t, 37.0, 37.6));
     const drift = lerp(1, 1.025, seg(t, 24.6, 32));
-    const x = lerp(W / 2, 700, back);
-    const y = lerp(H / 2 + 95, H / 2 + 80, back) + (1 - rise) * 90;
-    place($('wHome'), { x, y, s: drift * lerp(1, 0.78, back), o: Math.min(rise, 1 - leave) });
-    riseText($('c6'), t, 25.2, 26.1, 31.3, 31.9, W / 2, 112);
+    const x = lerp(L.home.x, L.home.backX, back);
+    const y = lerp(L.home.y, L.home.backY, back) + (1 - rise) * 90;
+    place($('wHome'), { x, y, s: drift * lerp(1, L.home.backScale, back), o: Math.min(rise, 1 - leave) });
+    riseText($('c6'), t, 25.2, 26.1, 31.3, 31.9, L.c6.x, L.c6.y);
   }
 
   // Beat 7: the menu bar companion.
@@ -291,8 +325,8 @@ function render(t) {
     const bar = env(t, 32.2, 32.9, 37.0, 37.6);
     $('menubar').style.opacity = bar.toFixed(3);
     const drop = expoOut(seg(t, 32.7, 33.7));
-    place($('pCompanion'), { x: 1540, y: 46 + (1 - drop) * -30, ax: 0.5, ay: 0, o: Math.min(drop, 1 - inOut(seg(t, 37.0, 37.6))) });
-    riseText($('c7'), t, 33.2, 34.1, 36.8, 37.4, 700, 150);
+    place($('pCompanion'), { x: L.companion.x, y: L.companion.y + (1 - drop) * -30, ax: 0.5, ay: 0, o: Math.min(drop, 1 - inOut(seg(t, 37.0, 37.6))) });
+    riseText($('c7'), t, 33.2, 34.1, 36.8, 37.4, L.c7.x, L.c7.y);
   }
 
   // Beat 8: Backups, then the preview sheet over it.
@@ -300,19 +334,19 @@ function render(t) {
     const rise = expoOut(seg(t, 37.6, 38.9));
     const leave = inOut(seg(t, 45.0, 45.6));
     const back = inOut(seg(t, 40.8, 41.8));
-    place($('wBackups'), { y: H / 2 + 90 + (1 - rise) * 90, s: lerp(1, 0.96, back), o: Math.min(rise, 1 - leave) * lerp(1, 0.55, back) });
+    place($('wBackups'), { y: L.backups.y + (1 - rise) * 90, s: lerp(1, 0.96, back), o: Math.min(rise, 1 - leave) * lerp(1, 0.55, back) });
     const sheet = expoOut(seg(t, 40.9, 42.0));
-    place($('sPreview'), { y: 205 + (1 - sheet) * -60, ay: 0, o: Math.min(sheet, 1 - leave) });
-    riseText($('c8a'), t, 38.1, 39.0, 40.6, 41.1, W / 2, 112);
-    riseText($('c8b'), t, 41.4, 42.3, 44.9, 45.5, W / 2, 112);
+    place($('sPreview'), { y: L.preview.y + (1 - sheet) * -60, ay: 0, o: Math.min(sheet, 1 - leave) });
+    riseText($('c8a'), t, 38.1, 39.0, 40.6, 41.1, L.c8.x, L.c8.y);
+    riseText($('c8b'), t, 41.4, 42.3, 44.9, 45.5, L.c8.x, L.c8.y);
   }
 
   // Beat 9: Add Cloud.
   {
     const rise = expoOut(seg(t, 45.6, 46.9));
     const leave = inOut(seg(t, 50.4, 51.0));
-    place($('sPicker'), { x: 1300, y: H / 2 + 20 + (1 - rise) * 90, s: lerp(1, 1.02, seg(t, 45.6, 51)), o: Math.min(rise, 1 - leave) });
-    riseText($('c9'), t, 46.1, 47.0, 50.3, 50.9, 560, H / 2);
+    place($('sPicker'), { x: L.picker.x, y: L.picker.y + (1 - rise) * 90, s: lerp(1, 1.02, seg(t, 45.6, 51)), o: Math.min(rise, 1 - leave) });
+    riseText($('c9'), t, 46.1, 47.0, 50.3, 50.9, L.c9.x, L.c9.y);
   }
 
   // Beat 10: three words.

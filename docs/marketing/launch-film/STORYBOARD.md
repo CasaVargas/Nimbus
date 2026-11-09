@@ -1,6 +1,6 @@
 # Nimbus launch film: "Where do you even start?"
 
-**Length:** about 60 s. **Format:** 1920 × 1080, 60 fps, H.264 MP4. **Look:** a keynote product film. Black stage, SF Pro Display, large tight type, slow eased motion, one idea per beat, generous silence.
+**Length:** about 60 s. **Format:** 1920 × 1080 and a 9:16 cut at 1080 × 1920, both 60 fps H.264 MP4 with the same timeline. In 9:16, captions stack on two lines (the dimmed half on its own line), windows span the frame width, and all type stays inside the social safe area. **Look:** a keynote product film. Black stage, SF Pro Display, large tight type, slow eased motion, one idea per beat, generous silence.
 **Sound:** none in this cut. A licensed music bed goes on in editing (see "Music" below).
 **Source:** `film.html` is a deterministic animation: every frame is a pure function of `t`. `render.mjs` steps it frame by frame in headless Chromium and pipes the frames to ffmpeg. App screens come from Nimbus's own SwiftUI views with fixture data (no personal data), rendered at 2× by a temporary capture test.
 
