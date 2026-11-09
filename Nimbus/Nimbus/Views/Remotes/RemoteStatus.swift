@@ -31,6 +31,17 @@ enum RemoteStatus: Equatable, Sendable {
         }
     }
 
+    /// The Stratosphere status this maps to. "Checking" and "can't reach"
+    /// share the quiet tone: neither is something the user must fix.
+    var stratosphere: StratosphereStatus {
+        switch self {
+        case .unknown, .unreachable: return .muted
+        case .connected: return .ok
+        case .authNeeded: return .warning
+        case .error: return .error
+        }
+    }
+
     var accessibilityLabel: String {
         switch self {
         case .unknown: return "Status checking"

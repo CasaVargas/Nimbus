@@ -130,6 +130,10 @@ struct DemoWindow<Content: View>: View {
         ]
     }
 
+    static var cloudColors: [String: DesignSystem.Stratosphere.CloudColor] {
+        DesignSystem.Stratosphere.CloudColors.assign(remotes.map { (name: $0.0.name, provider: $0.0.type) })
+    }
+
     static var files: [FileItem] {
         let day: TimeInterval = 86_400
         func item(_ name: String, _ size: Int64, _ mime: String, dir: Bool = false, ago: Double) -> FileItem {
@@ -150,7 +154,9 @@ struct DemoWindow<Content: View>: View {
     var body: some View {
         HStack(spacing: 0) {
             List(selection: .constant(Optional(selection))) {
-                Label("Home", systemImage: "house").tag(SidebarSelection.home)
+                SidebarToolLabel(title: "Home", systemImage: "house.fill",
+                                 color: DesignSystem.Stratosphere.CloudColors.home)
+                    .tag(SidebarSelection.home)
                 Section {
                     ForEach(Self.remotes, id: \.0.name) { remote, status, quota in
                         SidebarRemoteRow(remote: remote, status: status, quota: quota,
@@ -165,14 +171,30 @@ struct DemoWindow<Content: View>: View {
                     }
                 }
                 Section("Tools") {
-                    Label("Copy Between Clouds", systemImage: "arrow.triangle.2.circlepath")
+                    SidebarToolLabel(title: "Backups", systemImage: "clock.arrow.circlepath",
+                                     color: DesignSystem.Stratosphere.CloudColors.backups)
+                        .tag(SidebarSelection.backups)
+                    SidebarToolLabel(title: "Copy Between Clouds", systemImage: "arrow.left.arrow.right",
+                                     color: DesignSystem.Stratosphere.CloudColors.copy)
                         .tag(SidebarSelection.copySync)
                 }
             }
             .listStyle(.sidebar)
-            .frame(width: 236)
+            .scrollContentBackground(.hidden)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                SidebarStorageSummary(
+                    totals: StorageTotals(quotas: Self.remotes.compactMap(\.2)),
+                    clouds: Self.remotes.compactMap { remote, _, quota in
+                        quota.map { (name: remote.name, quota: $0, color: Self.cloudColors[remote.name]) }
+                    }
+                )
+                .padding(DesignSystem.Spacing.s)
+            }
             .padding(.top, 38)
-            .background(.ultraThinMaterial)
+            .frame(width: 228)
+            // Stands in for the system's floating sidebar.
+            .glassSurface()
+            .padding(10)
 
             VStack(spacing: 0) {
                 HStack(spacing: DesignSystem.Spacing.m) {
@@ -187,12 +209,11 @@ struct DemoWindow<Content: View>: View {
                 .controlSize(.regular)
                 .padding(.horizontal, DesignSystem.Spacing.l)
                 .frame(height: 52)
-                .background(DesignSystem.Color.semantic.surface)
-                Divider()
                 content()
             }
-            .background(DesignSystem.Color.semantic.surface)
         }
+        .background { StratosphereBackdrop() }
+        .environment(\.cloudColors, Self.cloudColors)
         .preferredColorScheme(.dark)
         .environment(FileProviderBridge())
         .environment(AppSettings(defaults: UserDefaults(suiteName: "DemoWindowPreview")!))

@@ -33,6 +33,10 @@ extension DesignSystem.Stratosphere {
 }
 
 extension EnvironmentValues {
+    /// Each cloud's colour by remote name, assigned once for the window so
+    /// the sidebar, Home and a cloud's own page agree.
+    @Entry var cloudColors: [String: DesignSystem.Stratosphere.CloudColor] = [:]
+
     /// The Stratosphere palette for the current appearance.
     var stratosphere: DesignSystem.Stratosphere.Palette {
         DesignSystem.Stratosphere.Palette.resolve(colorScheme)
