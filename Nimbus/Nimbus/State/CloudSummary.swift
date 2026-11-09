@@ -360,6 +360,35 @@ enum CompanionHeadline {
     }
 }
 
+/// Home's hero: the one big line and the sentence under it.
+enum HomeHeadline {
+    /// Free space when any cloud has a limit; otherwise usage, because
+    /// pay-as-you-go storage has no "free"; otherwise how many clouds.
+    static func title(for summary: CloudSummary) -> String {
+        if let free = summary.freeBytes { return "\(ByteText.format(free)) free" }
+        if summary.usedBytes > 0 { return "\(ByteText.format(summary.usedBytes)) used" }
+        return cloudCount(summary)
+    }
+
+    /// What's used and where, then the same status line the menu bar shows.
+    static func sentence(for summary: CloudSummary) -> String {
+        var parts: [String] = []
+        if summary.freeBytes != nil {
+            parts.append("\(ByteText.format(summary.usedBytes)) used across \(cloudCount(summary)).")
+        } else if summary.usedBytes > 0 {
+            parts.append("Across \(cloudCount(summary)).")
+        }
+        let status = CompanionHeadline.title(for: summary.overall)
+        let ended = status.last.map { ".…!?".contains($0) } ?? false
+        parts.append(ended ? status : status + ".")
+        return parts.joined(separator: " ")
+    }
+
+    private static func cloudCount(_ summary: CloudSummary) -> String {
+        summary.rows.count == 1 ? "1 cloud" : "\(summary.rows.count) clouds"
+    }
+}
+
 extension CloudSummaryBuilder {
     /// The summary for the live app state. One entry point so Home, the
     /// companion and the menu bar label can never compute it differently.

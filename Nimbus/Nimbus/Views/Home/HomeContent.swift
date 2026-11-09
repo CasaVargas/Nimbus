@@ -23,13 +23,14 @@ struct HomeContent: View {
     var actions = HomeActions()
 
     @State private var width: CGFloat = 900
+    @Environment(\.stratosphere) private var palette
 
     var body: some View {
         switch summary.overall {
         case .starting:
             VStack(spacing: DesignSystem.Spacing.m) {
                 ProgressView().controlSize(.large)
-                Text("Starting…").foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                Text("Starting…").foregroundStyle(palette.textSecondary.color)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .engineDown(let message):
@@ -49,20 +50,28 @@ struct HomeContent: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
-                StorageOverview(summary: summary)
+                HomeHero(
+                    summary: summary,
+                    addCloudIsPrimary: summary.attention == nil,
+                    isWide: width >= 820,
+                    onAddCloud: actions.addCloud
+                )
                 if let row = summary.attention {
                     AttentionBanner(row: row, onFix: { actions.fix(row) })
                         .transition(.opacity)
                 }
+                cloudGrid
                 if width >= 820 {
-                    HStack(alignment: .top, spacing: DesignSystem.Spacing.xl) {
-                        cloudList.frame(maxWidth: .infinity)
-                        sideColumn.frame(width: 270)
+                    HStack(alignment: .top, spacing: DesignSystem.Spacing.m) {
+                        activityColumn.frame(maxWidth: .infinity)
+                        if !summary.suggestions.isEmpty {
+                            suggestionColumn.frame(width: 300)
+                        }
                     }
                 } else {
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
-                        cloudList
-                        sideColumn
+                        if !summary.suggestions.isEmpty { suggestionColumn }
+                        activityColumn
                     }
                 }
             }
@@ -75,13 +84,15 @@ struct HomeContent: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
 
-    private var cloudList: some View {
+    private var cloudGrid: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
             HomeSectionTitle(text: "Your clouds")
-            HomeGroup {
-                ForEach(Array(summary.rows.enumerated()), id: \.element.id) { index, row in
-                    if index > 0 { Divider().padding(.leading, 64) }
-                    Button { actions.openCloud(row.name) } label: { HomeCloudRow(row: row) }
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 158, maximum: 260), spacing: DesignSystem.Spacing.m)],
+                alignment: .leading, spacing: DesignSystem.Spacing.m
+            ) {
+                ForEach(summary.rows) { row in
+                    Button { actions.openCloud(row.name) } label: { HomeCloudCard(row: row) }
                         .buttonStyle(.plain)
                         .contextMenu { rowMenu(row) }
                 }
@@ -104,38 +115,37 @@ struct HomeContent: View {
         Button("Copy Between Clouds…", action: actions.copyBetweenClouds)
     }
 
-    private var sideColumn: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
-            if !summary.suggestions.isEmpty {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
-                    HomeSectionTitle(text: "Worth a look")
-                    HomeGroup {
-                        ForEach(Array(summary.suggestions.enumerated()), id: \.element.id) { index, suggestion in
-                            if index > 0 { Divider() }
-                            SuggestionView(
-                                suggestion: suggestion,
-                                onAct: { actions.act(suggestion) },
-                                onDismiss: { actions.dismiss(suggestion) }
-                            )
-                        }
-                    }
+    private var suggestionColumn: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
+            HomeSectionTitle(text: "Worth a look")
+            HomeGroup {
+                ForEach(Array(summary.suggestions.enumerated()), id: \.element.id) { index, suggestion in
+                    if index > 0 { Divider() }
+                    SuggestionView(
+                        suggestion: suggestion,
+                        onAct: { actions.act(suggestion) },
+                        onDismiss: { actions.dismiss(suggestion) }
+                    )
                 }
             }
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
-                HomeSectionTitle(text: "Recent activity")
-                HomeGroup {
-                    if activity.isEmpty {
-                        Text("Copies and moves between clouds show up here.")
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-                            .padding(DesignSystem.Spacing.m)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else {
-                        ForEach(Array(activity.enumerated()), id: \.element.id) { index, line in
-                            if index > 0 { Divider() }
-                            Button { actions.openCloud(line.cloud) } label: { ActivityRow(line: line) }
-                                .buttonStyle(.plain)
-                        }
+        }
+    }
+
+    private var activityColumn: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
+            HomeSectionTitle(text: "Recent activity")
+            HomeGroup {
+                if activity.isEmpty {
+                    Text("Copies and moves between clouds show up here.")
+                        .font(DesignSystem.Stratosphere.Typography.detail)
+                        .foregroundStyle(palette.textSecondary.color)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    ForEach(Array(activity.enumerated()), id: \.element.id) { index, line in
+                        if index > 0 { Divider() }
+                        Button { actions.openCloud(line.cloud) } label: { ActivityRow(line: line) }
+                            .buttonStyle(.plain)
                     }
                 }
             }
@@ -149,14 +159,15 @@ struct HomeContent: View {
                 .frame(width: 96, height: 96)
                 .accessibilityHidden(true)
             Text("Add your first cloud")
-                .font(DesignSystem.Typography.titleEmphasized)
+                .font(DesignSystem.Stratosphere.Typography.pageTitle)
+                .foregroundStyle(palette.textPrimary.color)
             Text(verbatim: noCloudsMessage)
-                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                .font(DesignSystem.Stratosphere.Typography.lead)
+                .foregroundStyle(palette.textSecondary.color)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 420)
-            Button("Add Cloud", action: actions.addCloud)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+            Button(action: actions.addCloud) { Label("Add Cloud", systemImage: "plus") }
+                .buttonStyle(.primaryPill)
         }
         .padding(DesignSystem.Spacing.xxl)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -216,25 +227,30 @@ enum HomePreviewData {
         summary: HomePreviewData.summary(rows, overall: .needsAttention(HomePreviewData.work), attention: HomePreviewData.work,
                                          suggestions: [.notInFinder(HomePreviewData.archive)]),
         activity: HomePreviewData.activity, providerCount: 72)
+        .background { StratosphereBackdrop() }
 }
 
 #Preview("All ready", traits: .fixedLayout(width: 1000, height: 620)) {
     let rows = [HomePreviewData.personal, HomePreviewData.workReady, HomePreviewData.archive]
     HomeContent(summary: HomePreviewData.summary(rows, overall: .allReady), activity: [], providerCount: 72)
+        .background { StratosphereBackdrop() }
 }
 
 #Preview("Busy, narrow", traits: .fixedLayout(width: 700, height: 760)) {
     let rows = [HomePreviewData.personal, HomePreviewData.dropbox]
     HomeContent(summary: HomePreviewData.summary(rows, overall: .busy(.init(progress: 0.4, sentence: "Copying 3 items to Dropbox", direction: .up, focusCloud: "Dropbox", eta: 120))),
                 activity: HomePreviewData.activity, providerCount: 72)
+        .background { StratosphereBackdrop() }
 }
 
 #Preview("No clouds", traits: .fixedLayout(width: 900, height: 600)) {
     HomeContent(summary: HomePreviewData.summary([], overall: .noClouds), activity: [], providerCount: 72)
+        .background { StratosphereBackdrop() }
 }
 
 #Preview("Engine down", traits: .fixedLayout(width: 900, height: 600)) {
     HomeContent(summary: HomePreviewData.summary([], overall: .engineDown("rclone exited with status 1")), activity: [], providerCount: 72)
+        .background { StratosphereBackdrop() }
 }
 
 #Preview("Window: Home", traits: .fixedLayout(width: 1280, height: 800)) {

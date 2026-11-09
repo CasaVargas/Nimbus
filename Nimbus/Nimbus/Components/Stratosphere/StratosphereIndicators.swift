@@ -102,16 +102,20 @@ struct UsageBar: View {
     }
 }
 
+/// One cloud's arc of a `StorageRing`. Outside the generic ring type so
+/// callers can build a list of them without naming the ring's label.
+struct StorageRingSegment: Identifiable {
+    let id: String
+    /// Share of the whole ring, 0...1.
+    let fraction: Double
+    let color: DesignSystem.Stratosphere.CloudColor
+}
+
 /// Storage across every cloud as one ring, a segment per cloud. The caller
 /// supplies what goes in the middle and the spoken summary; the legend
 /// beside it is the readable detail.
 struct StorageRing<Label: View>: View {
-    struct Segment: Identifiable {
-        let id: String
-        /// Share of the whole ring, 0...1.
-        let fraction: Double
-        let color: DesignSystem.Stratosphere.CloudColor
-    }
+    typealias Segment = StorageRingSegment
 
     let segments: [Segment]
     var lineWidth: CGFloat = 20
