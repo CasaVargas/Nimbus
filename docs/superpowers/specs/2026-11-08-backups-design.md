@@ -1,7 +1,7 @@
 # Backups — Design
 
 **Date:** 2026-11-08
-**Status:** Approved 2026-11-08 with the defaults below (open questions resolved to the spec's proposals). Phase 1 shipped in #25 (2026-11-08). Phase 2 built on `feat/backups-phase2` (2026-11-10), live checks pending; phase 3 not started.
+**Status:** Approved 2026-11-08 with the defaults below (open questions resolved to the spec's proposals). Phase 1 shipped in #25 (2026-11-08). Phases 2 and 3 built on `feat/backups-phase2` (2026-11-10, PR #48), live checks pending.
 **Roadmap:** item 2 of the competitive research's recommended order (Tolaria
 `nimbus/nimbus-competitive-feature-gaps-research.md`), and the north star's phase 4 "scheduled syncs".
 **Builds on:** `Views/CopySync/` (the one-off copy/sync screen), `State/TransferStore.swift`,
@@ -684,3 +684,60 @@ ahead, sleep across a slot and one catch-up on wake, quit during a run, a limit-
 need a Mac account without real File Provider domains and were not run. RenderPreview was not
 available to the build session; the Schedule section and the Backups footer were checked with an
 offscreen render in light and dark, before the picker labels changed.
+
+## Phase 3 as built (2026-11-10, `feat/backups-phase2`, same PR as phase 2)
+
+Where the build differs from the sections above, the build wins.
+
+- **What a prune can delete.** Only direct children of the job's versions folder whose names
+  parse exactly as a run stamp, and only folders. The pruner never purges an empty path, a cloud
+  root or `/`, and skips when versions are off or the listing fails. A missing versions folder
+  means nothing to prune yet. A versions folder on this Mac is pruned through rclone too.
+- **Cut-off.** Each Keep has one extra day of grace (30 days prunes stamps more than 31 days old),
+  and the newest stamp folder is never pruned, so a time-zone change or a clock set forward can't
+  remove recent versions. Ages come from folder names, in the Mac's current time zone.
+- **When it runs.** After a run recorded as completed, off the queue: the next backup doesn't wait
+  for it, and a prune failure is only logged. A prune doesn't hold off quit; the next completed
+  run lists the folder again and finishes it.
+- **A prune follows the job as it is now.** Before each purge it checks that the job still exists,
+  versions are still on, the versions folder is unchanged and the stamp is still past the cut-off.
+  Changing Keep for, turning versions off, moving the versions folder or deleting the backup stops
+  it; at most the one purge already under way completes.
+- **Shared versions folders.** Backups whose versions folders are the same path prune with the
+  longest Keep among them; Forever on any of them means nothing is pruned. Folders are compared as
+  path text after trimming slashes.
+- **Keep for** is not fingerprinted: changing it needs no new preview, and a shorter Keep takes
+  effect at the next completed run.
+- **Show Versions.** For a cloud it opens the browser at the versions path. On this Mac it opens
+  the versions folder when it exists (it is hidden, so it is opened, not selected) and reveals the
+  destination folder when it doesn't. Disabled when versions are off.
+- **Home "Worth a look".** One note per backup at most, ordered stopped, failed, hasn't run, each
+  with **Open Backups**:
+  - "<name> stopped <when>" for a backup stopped at its removal limit and not approved since.
+  - "<name> failed <when>" for a last run that failed within 7 days. Cancelled runs don't count.
+  - "<name> hasn't run in N days" (or "N hours" under a day) when three or more slots have been
+    missed. The first draft said more than three; the plan's own example needs three.
+  - <when> is "last night" for a run that started after 6 PM yesterday or before 6 AM today, else
+    "today", "yesterday" or "N days ago".
+  - No note for a backup that is queued or running, and no "hasn't run" while the scheduler has a
+    catch-up pending, so the note shows only for a backup the scheduler is not about to run.
+- **Recent activity.** "Backed up <name>", "Backup <name> failed", and "Backup <name> stopped" for
+  a limit hit. A cancelled run has no line. Clicking a backup's line opens Backups on that job.
+
+Known and left as is:
+
+- Two backups that reach one versions folder through different spellings (an alias, a case-only
+  difference, `/tmp` and `/private/tmp`) are not seen as sharing it. Per-backup ownership of stamp
+  folders would close this.
+- A stamp-named folder that the user put in a custom versions folder is pruned like any other.
+- "Hasn't run" never shows for a backup whose every run is cancelled, and can show for a few
+  seconds at launch before the scheduler starts.
+- Show Versions for a cloud before any versions exist opens a folder that isn't there yet.
+
+### Verification
+
+`NimbusTests`: 640 tests pass. `RcloneKit`: 58 pass, untouched by phases 2 and 3.
+
+Not verified: anything in the running app, including a real prune against a cloud, Show Versions
+navigation, and Home with live backups. Home's suggestions and the Keep for picker were checked
+with offscreen renders in light and dark.
