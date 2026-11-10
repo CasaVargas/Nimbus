@@ -137,16 +137,21 @@ struct HomeHero: View {
                         .font(S.Typography.ringValue)
                         .monospacedDigit()
                         .foregroundStyle(palette.textPrimary.color)
+                        // Never wrap "34%" onto two lines, however narrow
+                        // the caption under it is.
+                        .lineLimit(1)
+                        .fixedSize()
                 }
-                Text(verbatim: ringSummary)
+                // Short on purpose: the full sentence doesn't fit inside the
+                // ring at its smaller size. The headline already says what's
+                // used; this adds what it's out of.
+                Text(verbatim: "of \(ByteText.format(totals.capacityBytes))")
                     .font(S.Typography.detail)
                     .monospacedDigit()
                     .foregroundStyle(palette.textSecondary.color)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
             }
-            // Keep the words clear of the ring at its smaller size.
-            .padding(.horizontal, 26)
         }
     }
 

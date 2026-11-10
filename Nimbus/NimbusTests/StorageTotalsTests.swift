@@ -32,6 +32,34 @@ struct StorageTotalsTests {
         #expect(totals.share(of: StorageQuota(used: 5, total: 10)) == 0)
     }
 
+    @Test func aPooledAccountsFreeSpaceIsLeftOut() {
+        // A Google Workspace account reports its whole organisation's pool
+        // (hundreds of TB) as its limit. Counting that as free space makes
+        // every other cloud round to nothing.
+        let personal = StorageQuota(used: 38 * gb, total: 215 * gb)
+        let pooled = StorageQuota(used: 23 * gb, total: 424_300 * gb)
+        let totals = StorageTotals(quotas: [personal, pooled])
+        #expect(totals.usedBytes == 61 * gb)
+        #expect(totals.freeBytes == 177 * gb)
+        // The pooled account widens the bar only by what it uses, the same
+        // as pay-as-you-go storage.
+        #expect(totals.capacityBytes == 238 * gb)
+    }
+
+    @Test func aLargePersonalPlanStillCounts() {
+        // 30 TB is the biggest consumer plan around; it must not be mistaken
+        // for a pool.
+        let totals = StorageTotals(quotas: [StorageQuota(used: 1_000 * gb, total: 30_000 * gb)])
+        #expect(totals.freeBytes == 29_000 * gb)
+        #expect(totals.capacityBytes == 30_000 * gb)
+    }
+
+    @Test func onlyPooledAccountsMeansNoFreeFigure() {
+        let totals = StorageTotals(quotas: [StorageQuota(used: 23 * gb, total: 424_300 * gb)])
+        #expect(totals.freeBytes == nil)
+        #expect(totals.capacityBytes == 23 * gb)
+    }
+
     @Test func shareIsACloudsUsageOverTheWholeBar() {
         let personal = StorageQuota(used: 1_000 * gb, total: 2_000 * gb)
         let totals = StorageTotals(quotas: [personal, StorageQuota(used: 0, total: 2_000 * gb)])
