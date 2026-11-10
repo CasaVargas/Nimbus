@@ -184,6 +184,8 @@ final class TransferStore {
     private var retention: TransferHistoryRetention
     private let notifications: any TransferNotifying
     private var notificationMode: TransferNotificationMode
+    /// Notification deliveries in flight.
+    @ObservationIgnored private var deliveries: [UUID: Task<Void, Never>] = [:]
     private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "transfer-store")
     /// Called once per finished backup run (completed, failed, limit hit or
     /// cancelled). `BackupRunner` records `lastRun` and starts the next job.
@@ -251,9 +253,7 @@ final class TransferStore {
         if let index = transfers.firstIndex(where: { $0.status.isActive && $0.jobID == jobId }) {
             transfers[index].status = .completed
             transfers[index].completedAt = Date()
-            if let record = transfers[index].record {
-                await notifications.deliver(record, mode: notificationMode)
-            }
+            deliverNotification(for: transfers[index].record)
             await persistRetainedHistory()
         }
     }
@@ -262,9 +262,7 @@ final class TransferStore {
         if let index = transfers.firstIndex(where: { $0.status.isActive && $0.jobID == jobId }) {
             transfers[index].status = .failed(error)
             transfers[index].completedAt = Date()
-            if let record = transfers[index].record {
-                await notifications.deliver(record, mode: notificationMode)
-            }
+            deliverNotification(for: transfers[index].record)
             await persistRetainedHistory()
         }
     }
@@ -277,6 +275,28 @@ final class TransferStore {
             let finished = attachBackupSummary(at: index, outcome: .cancelled, stats: nil, now: now)
             await persistRetainedHistory()
             await notifyBackupFinished(finished)
+        }
+    }
+
+    /// Posts the notification without waiting for it. Delivery can wait on
+    /// the system's permission prompt for as long as nobody answers it, and
+    /// a finished transfer must still be saved, reported to the backup
+    /// runner and cleared from the poll loop.
+    private func deliverNotification(for record: TransferRecord?) {
+        guard let record else { return }
+        let notifications = notifications
+        let mode = notificationMode
+        let id = UUID()
+        deliveries[id] = Task { [weak self] in
+            await notifications.deliver(record, mode: mode)
+            self?.deliveries[id] = nil
+        }
+    }
+
+    /// Waits for every notification handed off so far. Tests only.
+    func waitForNotifications() async {
+        while let task = deliveries.values.first {
+            await task.value
         }
     }
 
@@ -329,9 +349,7 @@ final class TransferStore {
         let finished = attachBackupSummary(at: index, outcome: outcome, stats: stats, now: now)
         transfers[index].status = status
         transfers[index].completedAt = now
-        if let record = transfers[index].record {
-            await notifications.deliver(record, mode: notificationMode)
-        }
+        deliverNotification(for: transfers[index].record)
         await persistRetainedHistory()
         await notifyBackupFinished(finished)
     }
