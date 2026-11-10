@@ -342,6 +342,9 @@ final class MountManager {
     }
 
     func cleanupStaleMounts() async {
+        // A test or preview host owns no mounts, so every mount and NFS
+        // server it can see belongs to another running copy of the app.
+        guard LaunchContext.current.managesSystemProcesses else { return }
         await killOrphanServeProcesses()
 
         let process = Process()
