@@ -193,12 +193,20 @@ struct StatusDot: View {
 struct Chip: View {
     let text: Text
     var status: StratosphereStatus?
+    /// A small symbol before the words, for chips that name a feature.
+    var systemImage: String?
 
     @Environment(\.stratosphere) private var palette
 
     var body: some View {
         HStack(spacing: 5) {
             if let status { StatusDot(status: status) }
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(DesignSystem.Stratosphere.Typography.chip)
+                    .foregroundStyle(palette.textSecondary.color)
+                    .accessibilityHidden(true)
+            }
             text
                 .font(DesignSystem.Stratosphere.Typography.chip)
                 .foregroundStyle(palette.textPrimary.color)

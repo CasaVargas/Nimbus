@@ -69,18 +69,7 @@ struct OnboardingView: View {
 
     private var hero: some View {
         VStack(spacing: DesignSystem.Spacing.m) {
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .interpolation(.high)
-                .frame(width: 128, height: 128)
-                .padding(36)
-                .background {
-                    Circle().fill(RadialGradient(
-                        colors: [palette.actionTop.color.opacity(0.6), palette.actionTop.color.opacity(0)],
-                        center: .center, startRadius: 40, endRadius: 100
-                    ))
-                }
-                .accessibilityHidden(true)
+            constellation
             Text("Every cloud, one window")
                 .font(DesignSystem.Stratosphere.Typography.hero)
                 .foregroundStyle(palette.textPrimary.color)
@@ -94,12 +83,60 @@ struct OnboardingView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 460)
+            HStack(spacing: DesignSystem.Spacing.s) {
+                Chip(text: Text("Shows up in Finder"), systemImage: "folder")
+                Chip(text: Text("Copies cloud to cloud"), systemImage: "arrow.left.arrow.right")
+                Chip(text: Text("Backs up on a schedule"), systemImage: "checkmark.shield")
+            }
+            .padding(.top, DesignSystem.Spacing.xs)
             Label("Private by design · Powered by macOS File Provider", systemImage: "checkmark.shield")
                 .font(DesignSystem.Stratosphere.Typography.detail)
                 .foregroundStyle(palette.textTertiary.color)
         }
         .padding(.bottom, DesignSystem.Spacing.l)
     }
+
+    /// The app icon in a halo with the services it reaches floating around
+    /// it. Decoration only: the sentence below names the services.
+    private var constellation: some View {
+        ZStack {
+            Circle()
+                .fill(RadialGradient(
+                    colors: [palette.actionTop.color.opacity(0.6), palette.actionTop.color.opacity(0)],
+                    center: .center, startRadius: 40, endRadius: 110
+                ))
+                .frame(width: 220, height: 220)
+            ForEach(Self.satellites, id: \.provider) { satellite in
+                LogoTile(provider: satellite.provider, size: satellite.size)
+                    .rotationEffect(.degrees(satellite.tilt))
+                    .offset(x: satellite.x, y: satellite.y)
+            }
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 128, height: 128)
+                .shadow(color: palette.actionGlow.color, radius: 22, y: 12)
+        }
+        .frame(width: 520, height: 220)
+        .accessibilityHidden(true)
+    }
+
+    private struct Satellite {
+        let provider: String
+        let size: LogoTile.Size
+        let x: CGFloat
+        let y: CGFloat
+        let tilt: Double
+    }
+
+    private static let satellites: [Satellite] = [
+        .init(provider: "drive", size: .large, x: -170, y: -52, tilt: -10),
+        .init(provider: "dropbox", size: .medium, x: -214, y: 38, tilt: 8),
+        .init(provider: "box", size: .compact, x: -120, y: 82, tilt: -4),
+        .init(provider: "onedrive", size: .large, x: 172, y: -60, tilt: 9),
+        .init(provider: "b2", size: .medium, x: 208, y: 30, tilt: -8),
+        .init(provider: "iclouddrive", size: .compact, x: 118, y: 84, tilt: 6),
+    ]
 
     @ViewBuilder
     private var cardStack: some View {
