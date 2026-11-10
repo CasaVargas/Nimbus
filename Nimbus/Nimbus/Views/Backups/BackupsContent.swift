@@ -31,6 +31,10 @@ struct BackupsContent: View {
     let loadState: BackupStore.LoadState
     let actions: Actions
 
+    @Environment(\.stratosphere) private var palette
+
+    private typealias S = DesignSystem.Stratosphere
+
     var body: some View {
         VStack(spacing: 0) {
             banner
@@ -43,15 +47,81 @@ struct BackupsContent: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List {
-                    ForEach(rows) { row in
-                        BackupRow(row: row, actions: actions, isWritable: isWritable)
-                            .contextMenu { menu(for: row) }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.m) {
+                        hero
+                        Text("Your backups")
+                            .font(S.Typography.sectionTitle)
+                            .foregroundStyle(palette.textPrimary.color)
+                            .padding(.leading, DesignSystem.Spacing.xs)
+                            .padding(.top, DesignSystem.Spacing.xs)
+                            .accessibilityAddTraits(.isHeader)
+                        ForEach(rows) { row in
+                            BackupRow(row: row, actions: actions, isWritable: isWritable)
+                                .contextMenu { menu(for: row) }
+                        }
+                        Label("Every backup shows a preview before it removes or replaces anything.",
+                              systemImage: "checkmark.shield")
+                            .font(S.Typography.detail)
+                            .foregroundStyle(palette.textTertiary.color)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, DesignSystem.Spacing.s)
                     }
+                    .padding(.horizontal, DesignSystem.Spacing.xl)
+                    .padding(.vertical, DesignSystem.Spacing.l)
+                    .frame(maxWidth: 900)
+                    .frame(maxWidth: .infinity)
                 }
-                .listStyle(.inset)
             }
         }
+    }
+
+    /// How the backups stand as a whole, and the way to add one.
+    private var hero: some View {
+        let headline = BackupsHeadline(statuses: rows.map(\.status))
+        let tone: Color = switch headline.tone {
+        case .ok: palette.ok.color
+        case .warning: palette.warning.color
+        case .neutral: palette.actionTop.color
+        }
+        let shape = RoundedRectangle(cornerRadius: S.Radius.header, style: .continuous)
+        return HStack(spacing: DesignSystem.Spacing.l) {
+            Circle()
+                .fill(tone)
+                .frame(width: 60, height: 60)
+                .overlay {
+                    Image(systemName: headline.tone == .warning ? "exclamationmark.shield.fill" : "checkmark.shield.fill")
+                        .font(DesignSystem.Typography.largeTitle)
+                        .foregroundStyle(.black.opacity(0.7))
+                }
+                .shadow(color: tone.opacity(0.45), radius: 14, y: 6)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(verbatim: headline.title)
+                    .font(S.Typography.pageTitle)
+                    .foregroundStyle(palette.textPrimary.color)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
+                    .accessibilityAddTraits(.isHeader)
+                if let sentence = headline.sentence {
+                    Text(verbatim: sentence)
+                        .font(S.Typography.lead)
+                        .foregroundStyle(palette.textSecondary.color)
+                }
+            }
+            Spacer(minLength: DesignSystem.Spacing.m)
+            if isWritable {
+                Button(action: actions.newBackup) { Label("New Backup", systemImage: "plus") }
+                    .buttonStyle(.primaryPill)
+            }
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 20)
+        .background {
+            shape.fill(LinearGradient(colors: [tone.opacity(0.26), tone.opacity(0.04)],
+                                      startPoint: .leading, endPoint: .trailing))
+        }
+        .glassSurface(radius: S.Radius.header)
     }
 
     private var isWritable: Bool {
@@ -67,12 +137,12 @@ struct BackupsContent: View {
         case .corrupt:
             bannerView(
                 text: "Nimbus couldn't read your saved backups, so it set the file aside and started a new list.",
-                tint: DesignSystem.Color.semantic.statusWarning
+                tint: palette.warning.color
             )
         case .readOnly:
             bannerView(
                 text: "These backups were saved by a newer version of Nimbus. Update Nimbus to change them.",
-                tint: DesignSystem.Color.semantic.statusWarning
+                tint: palette.warning.color
             )
         case .loaded, .notLoaded:
             EmptyView()
@@ -85,15 +155,16 @@ struct BackupsContent: View {
                 .foregroundStyle(tint)
                 .accessibilityHidden(true)
             Text(text)
-                .font(DesignSystem.Typography.caption)
-                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                .font(S.Typography.detail)
+                .foregroundStyle(palette.textPrimary.color)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer()
             Button("Show in Finder", action: actions.showFileInFinder)
-                .controlSize(.small)
+                .buttonStyle(.glassCapsule)
         }
-        .padding(DesignSystem.Spacing.m)
-        .background(tint.opacity(0.10))
+        .padding(.horizontal, DesignSystem.Spacing.xl)
+        .padding(.vertical, DesignSystem.Spacing.m)
+        .background(tint.opacity(0.18))
     }
 
     @ViewBuilder
@@ -127,38 +198,55 @@ struct BackupRow: View {
     let actions: BackupsContent.Actions
     var isWritable = true
 
+    @Environment(\.stratosphere) private var palette
+    @Environment(\.cloudColors) private var cloudColors
+
+    private typealias S = DesignSystem.Stratosphere
+
     var body: some View {
-        HStack(spacing: DesignSystem.Spacing.m) {
+        HStack(spacing: 14) {
             leadingIcon
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(verbatim: row.job.name)
-                    .font(DesignSystem.Typography.headline)
+                    .font(S.Typography.sectionTitle)
+                    .foregroundStyle(palette.textPrimary.color)
                     .lineLimit(1)
                 Text(verbatim: Self.route(row.job))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .font(S.Typography.detail)
+                    .foregroundStyle(palette.textSecondary.color)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                HStack(spacing: DesignSystem.Spacing.s) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    StatusDot(status: status)
                     Text(verbatim: row.status.sentence)
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(tint)
+                        .font(S.Typography.detail)
+                        .foregroundStyle(palette.textPrimary.color)
                         .lineLimit(2)
-                    if let progress = row.status.progress {
-                        ProgressView(value: progress)
-                            .progressViewStyle(.linear)
-                            .frame(maxWidth: 120)
-                    }
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                Text(verbatim: row.scheduleLine)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                if let progress = row.status.progress {
+                    UsageBar(fraction: progress, color: barColor)
+                        .frame(maxWidth: 260)
+                }
             }
             Spacer(minLength: DesignSystem.Spacing.m)
-            trailingButton
-                .disabled(!isWritable && !row.isRunning)
+            VStack(alignment: .trailing, spacing: DesignSystem.Spacing.s) {
+                Label {
+                    Text(verbatim: row.scheduleLine)
+                } icon: {
+                    Image(systemName: "clock")
+                }
+                .font(S.Typography.detail)
+                .foregroundStyle(palette.textSecondary.color)
+                .lineLimit(1)
+                trailingButton
+                    .buttonStyle(.glassCapsule)
+                    .disabled(!isWritable && !row.isRunning)
+            }
         }
-        .padding(.vertical, DesignSystem.Spacing.xs)
+        .padding(.horizontal, DesignSystem.Spacing.l)
+        .padding(.vertical, 14)
+        .glassSurface(radius: S.Radius.card)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(BackupStatus.accessibilityLabel(job: row.job, status: row.status, scheduleLine: row.scheduleLine))
     }
@@ -166,13 +254,9 @@ struct BackupRow: View {
     @ViewBuilder
     private var leadingIcon: some View {
         if let type = row.destinationType {
-            ProviderBadge(provider: type, size: 32)
+            LogoTile(provider: type)
         } else {
-            Image(systemName: "desktopcomputer")
-                .font(DesignSystem.Typography.title)
-                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-                .frame(width: 32, height: 32)
-                .accessibilityHidden(true)
+            IconTile(systemImage: "desktopcomputer", color: S.CloudColors.sequence[6], size: 42)
         }
     }
 
@@ -190,14 +274,21 @@ struct BackupRow: View {
         }
     }
 
-    private var tint: Color {
+    /// Shown beside the sentence, so the colour never carries it alone.
+    private var status: StratosphereStatus {
         switch row.status.tint {
-        case .info: DesignSystem.Color.semantic.statusInfo
-        case .secondary: DesignSystem.Color.semantic.textSecondary
-        case .warning: DesignSystem.Color.semantic.statusWarning
-        case .error: DesignSystem.Color.semantic.statusError
-        case .ok: DesignSystem.Color.semantic.statusOK
+        case .ok, .info: .ok
+        case .secondary: .muted
+        case .warning: .warning
+        case .error: .error
         }
+    }
+
+    /// The destination cloud's colour while a backup runs.
+    private var barColor: S.CloudColor {
+        if let cloud = row.job.destination.cloudName, let color = cloudColors[cloud] { return color }
+        if let type = row.destinationType { return S.CloudColors.color(forProvider: type) }
+        return S.CloudColors.home
     }
 
     /// "Documents → b2 › mac-backup/Documents".
@@ -269,16 +360,20 @@ enum BackupsFixtures {
 
 #Preview("Every status") {
     BackupsContent(rows: BackupsFixtures.everyStatus, loadState: .loaded, actions: .init())
-        .frame(width: 720, height: 640)
+        .frame(width: 900, height: 860)
+        .background { StratosphereBackdrop() }
+        .preferredColorScheme(.dark)
 }
 
 #Preview("Empty") {
     BackupsContent(rows: [], loadState: .loaded, actions: .init())
         .frame(width: 720, height: 420)
+        .background { StratosphereBackdrop() }
 }
 
 #Preview("Newer file, dark") {
     BackupsContent(rows: Array(BackupsFixtures.everyStatus.suffix(2)), loadState: .readOnly(version: 2), actions: .init())
-        .frame(width: 720, height: 360)
+        .frame(width: 720, height: 460)
+        .background { StratosphereBackdrop() }
         .preferredColorScheme(.dark)
 }
