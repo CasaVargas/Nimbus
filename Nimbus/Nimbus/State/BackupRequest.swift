@@ -9,12 +9,26 @@ enum BackupRequest {
 
     /// Folder name for one run's versions: `yyyy-MM-dd HHmmss`, local time.
     static func stamp(for date: Date, timeZone: TimeZone = .current) -> String {
+        stampFormatter(timeZone: timeZone).string(from: date)
+    }
+
+    /// The run date a versions folder name stands for, or nil when the name
+    /// isn't exactly a stamp this formatter would write (so "2026-13-40
+    /// 999999", "notes" or a time that doesn't exist in `timeZone` are nil).
+    static func date(fromStamp name: String, timeZone: TimeZone) -> Date? {
+        let formatter = stampFormatter(timeZone: timeZone)
+        guard let date = formatter.date(from: name), formatter.string(from: date) == name else { return nil }
+        return date
+    }
+
+    private static func stampFormatter(timeZone: TimeZone) -> DateFormatter {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.timeZone = timeZone
+        formatter.isLenient = false
         formatter.dateFormat = "yyyy-MM-dd HHmmss"
-        return formatter.string(from: date)
+        return formatter
     }
 
     static func make(job: BackupJob, dryRun: Bool, stamp: String) -> SyncRequest {

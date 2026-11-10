@@ -14,6 +14,8 @@ struct ContentView: View {
     @State private var copySyncSource: String?
     @State private var copySyncSourcePath: String?
     @State private var pendingBackupDraft: BackupJob?
+    /// A backup a notification asked to open on.
+    @State private var backupFocus: UUID?
     @Environment(AppSettings.self) private var settings
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(TransferStore.self) private var transferStore
@@ -109,12 +111,19 @@ struct ContentView: View {
             selection = .home
         case .cloud(let name):
             selection = .remote(name)
+        case .browse(let name, let path):
+            requestedVolumeTab = .files
+            selection = .remote(name)
+            browseTarget = BrowseTarget(remote: name, path: path)
         case .transfers(let name):
             requestedVolumeTab = .transfers
             selection = .remote(name)
         case .signIn(let name):
             selection = .home
             pendingSignIn = name
+        case .backups(let id):
+            backupFocus = id
+            selection = .backups
         case .addCloud:
             break
         }
@@ -188,6 +197,7 @@ struct ContentView: View {
         case .backups:
             BackupsView(
                 pendingDraft: $pendingBackupDraft,
+                focusedJob: $backupFocus,
                 onShowHistory: { cloud in
                     requestedVolumeTab = .transfers
                     selection = .remote(cloud)

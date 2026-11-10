@@ -50,13 +50,27 @@ struct CloudSummary: Equatable {
     enum Suggestion: Equatable, Identifiable {
         case nearlyFull(Row)
         case notInFinder(Row)
+        case backup(BackupNote)
 
         var id: String {
             switch self {
             case .nearlyFull(let row): "full:\(row.id)"
             case .notInFinder(let row): "finder:\(row.id)"
+            case .backup(let note): note.dismissKey
             }
         }
+    }
+
+    /// One saved backup that needs a look. The sentence is the whole title:
+    /// "Documents to B2 hasn't run in 3 days".
+    struct BackupNote: Equatable {
+        enum Kind: Equatable { case stopped, failed, hasntRun }
+        let jobID: UUID
+        let kind: Kind
+        let sentence: String
+        /// Names the run it is about, so dismissing today's failure doesn't
+        /// hide the next one.
+        let dismissKey: String
     }
 
     let rows: [Row]
@@ -98,6 +112,10 @@ enum CloudSummaryBuilder {
         dismissedSuggestions: Set<String>,
         daemon: RcloneDaemon.Status,
         now: Date,
+        backups: [BackupJob] = [],
+        busyBackups: Set<UUID> = [],
+        backupCatchUpPending: Bool = false,
+        calendar: Calendar = .autoupdatingCurrent,
         resolveType: (Remote) -> String = { $0.type }
     ) -> CloudSummary {
         let rows = remotes.enumerated().map { index, remote in
@@ -134,7 +152,9 @@ enum CloudSummaryBuilder {
             rows: rows,
             overall: overall,
             attention: attention,
-            suggestions: suggestions(for: rows, dismissed: dismissedSuggestions),
+            suggestions: suggestions(
+                for: rows, backups: backups, busyBackups: busyBackups, backupCatchUpPending: backupCatchUpPending,
+                dismissed: dismissedSuggestions, now: now, calendar: calendar),
             usedBytes: totals.usedBytes,
             freeBytes: totals.freeBytes,
             capacityBytes: totals.capacityBytes
@@ -256,9 +276,13 @@ enum CloudSummaryBuilder {
     }
 
     private static func suggestions(
-        for rows: [CloudSummary.Row], dismissed: Set<String>
+        for rows: [CloudSummary.Row], backups: [BackupJob], busyBackups: Set<UUID>, backupCatchUpPending: Bool,
+        dismissed: Set<String>, now: Date, calendar: Calendar
     ) -> [CloudSummary.Suggestion] {
-        var result: [CloudSummary.Suggestion] = []
+        // A backup that needs you outranks storage tips.
+        var result: [CloudSummary.Suggestion] = BackupSuggestions
+            .notes(for: backups, now: now, calendar: calendar, busy: busyBackups, catchUpPending: backupCatchUpPending)
+            .map { .backup($0) }
         for row in rows where (row.quota?.fraction ?? 0) >= nearlyFullThreshold {
             result.append(.nearlyFull(row))
         }
@@ -279,8 +303,9 @@ struct ActivityLine: Equatable, Identifiable {
     let text: String
     let date: Date
     let isFailure: Bool
-    /// The cloud a click should open (the destination).
-    let cloud: String
+    /// Where a click goes: the destination cloud, or for a backup the
+    /// Backups screen on that job (its destination may be on this Mac).
+    let route: AppRouter.Route
 
     static func lines(from finished: [Transfer], limit: Int = 5) -> [ActivityLine] {
         finished
@@ -289,6 +314,12 @@ struct ActivityLine: Equatable, Identifiable {
                 let dest = CloudSummaryBuilder.cloudName(of: transfer.dstFs)
                 let item = itemName(of: transfer.srcFs)
                 let text: String
+                if transfer.origin == .backup {
+                    guard let backupText = backupText(for: transfer, item: item) else { return nil }
+                    return ActivityLine(id: transfer.id, text: backupText, date: date,
+                                        isFailure: isBackupFailure(transfer),
+                                        route: .backups(transfer.backup?.backupID))
+                }
                 switch transfer.status {
                 case .completed:
                     let verb = switch transfer.operation {
@@ -309,11 +340,32 @@ struct ActivityLine: Equatable, Identifiable {
                 }
                 return ActivityLine(id: transfer.id, text: text, date: date,
                                     isFailure: { if case .failed = transfer.status { true } else { false } }(),
-                                    cloud: dest)
+                                    route: .cloud(dest))
             }
             .sorted { $0.date > $1.date }
             .prefix(limit)
             .map { $0 }
+    }
+
+    /// "Backed up Documents to B2", "Backup Documents to B2 failed", or
+    /// "Backup Documents to B2 stopped" for a run that hit its removal limit.
+    /// Cancelled runs say nothing, like any other cancelled transfer.
+    private static func backupText(for transfer: Transfer, item: String) -> String? {
+        let title = transfer.backup.map(\.title).flatMap { $0.isEmpty ? nil : $0 } ?? item
+        if case .limitHit = transfer.summary?.outcome { return "Backup \(title) stopped" }
+        switch transfer.status {
+        case .completed: return "Backed up \(title)"
+        case .failed: return "Backup \(title) failed"
+        case .cancelled, .active: return nil
+        }
+    }
+
+    /// A failed run or one stopped at its removal limit, from the run
+    /// itself, never from the job's name.
+    private static func isBackupFailure(_ transfer: Transfer) -> Bool {
+        if case .limitHit = transfer.summary?.outcome { return true }
+        if case .failed = transfer.status { return true }
+        return false
     }
 
     /// "Personal:Photos/Yosemite 2026" → "Yosemite 2026"; a bare "Personal:" → "Personal".
@@ -322,6 +374,103 @@ struct ActivityLine: Equatable, Identifiable {
         let path = parts.count > 1 ? String(parts[1]) : ""
         if let last = path.split(separator: "/").last { return String(last) }
         return String(parts.first ?? Substring(fs))
+    }
+}
+
+/// What Home says about saved backups that need a look. Pure: the caller
+/// supplies the clock and calendar. Whether and when a job runs on schedule
+/// is `BackupSchedulePlanner`'s call; nothing here re-derives it.
+enum BackupSuggestions {
+    /// A run that failed stops being news after this long.
+    static let failedWindow: TimeInterval = 7 * 24 * 60 * 60
+    /// "Hasn't run" needs at least this many missed slots.
+    static let missedSlotsMinimum = 3
+
+    /// At most one note per job: stopped, then failed, then hasn't run; the
+    /// list is in that order too, store order within a kind. Paused,
+    /// unapproved and manual jobs never get one, and neither does a job in
+    /// `busy` (queued, starting or running): its run is the answer.
+    /// While `catchUpPending` (the scheduler is about to run every due job)
+    /// no job "hasn't run"; failed and stopped notes still show.
+    static func notes(for jobs: [BackupJob], now: Date, calendar: Calendar,
+                      busy: Set<UUID> = [], catchUpPending: Bool = false) -> [CloudSummary.BackupNote] {
+        let planner = BackupSchedulePlanner(calendar: calendar)
+        let notes = jobs.compactMap { job -> CloudSummary.BackupNote? in
+            guard !busy.contains(job.id) else { return nil }
+            return note(for: job, planner: planner, catchUpPending: catchUpPending, now: now, calendar: calendar)
+        }
+        // By kind, store order within one: Home shows two, and a stopped job
+        // is the only kind that never runs again on its own.
+        return [CloudSummary.BackupNote.Kind.stopped, .failed, .hasntRun].flatMap { kind in
+            notes.filter { $0.kind == kind }
+        }
+    }
+
+    private static func note(
+        for job: BackupJob, planner: BackupSchedulePlanner, catchUpPending: Bool, now: Date, calendar: Calendar
+    ) -> CloudSummary.BackupNote? {
+        guard job.isApproved, !job.isPaused, planner.nextRun(for: job) != nil else { return nil }
+        if let run = job.lastRun {
+            if job.isStoppedAtRemovalLimit {
+                return .init(jobID: job.id, kind: .stopped,
+                             sentence: "\(job.name) stopped \(when(run.startedAt, now: now, calendar: calendar))",
+                             dismissKey: key("stopped", job, run.startedAt))
+            }
+            if case .failed = run.outcome, now.timeIntervalSince(run.startedAt) <= failedWindow {
+                return .init(jobID: job.id, kind: .failed,
+                             sentence: "\(job.name) failed \(when(run.startedAt, now: now, calendar: calendar))",
+                             dismissKey: key("failed", job, run.startedAt))
+            }
+        }
+        guard !catchUpPending, let first = planner.eligibleNextRun(for: job), first <= now,
+              missedSlots(from: first, schedule: job.schedule, now: now, calendar: calendar) >= missedSlotsMinimum
+        else { return nil }
+        let since = job.lastRun?.startedAt ?? job.approvedAt ?? job.createdAt
+        return .init(jobID: job.id, kind: .hasntRun,
+                     sentence: "\(job.name) hasn't run in \(elapsed(since: since, now: now, calendar: calendar))",
+                     dismissKey: key("overdue", job, since))
+    }
+
+    private static func key(_ kind: String, _ job: BackupJob, _ date: Date) -> String {
+        "backup-\(kind):\(job.id.uuidString):\(Int(date.timeIntervalSince1970))"
+    }
+
+    /// Slots from `first` (the first slot after the anchor) up to `now`,
+    /// counting no further than the minimum.
+    private static func missedSlots(from first: Date, schedule: BackupSchedule, now: Date, calendar: Calendar) -> Int {
+        var count = 0
+        var slot: Date? = first
+        while let current = slot, current <= now, count < missedSlotsMinimum {
+            count += 1
+            slot = schedule.nextRun(after: current, calendar: calendar)
+        }
+        return count
+    }
+
+    /// "3 days", "1 day", or "5 hours" when under a day.
+    static func elapsed(since: Date, now: Date, calendar: Calendar) -> String {
+        let days = calendar.dateComponents([.day], from: since, to: now).day ?? 0
+        if days >= 1 { return days == 1 ? "1 day" : "\(days) days" }
+        let hours = max(0, calendar.dateComponents([.hour], from: since, to: now).hour ?? 0)
+        return hours == 1 ? "1 hour" : "\(hours) hours"
+    }
+
+    /// "last night" (6 PM yesterday to 6 AM today), else "today", "yesterday"
+    /// or "N days ago", by calendar day.
+    static func when(_ date: Date, now: Date, calendar: Calendar) -> String {
+        let today = calendar.startOfDay(for: now)
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: today),
+           let nightStart = calendar.date(bySettingHour: 18, minute: 0, second: 0, of: yesterday),
+           let nightEnd = calendar.date(bySettingHour: 6, minute: 0, second: 0, of: today),
+           date >= nightStart, date < nightEnd {
+            return "last night"
+        }
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: date), to: today).day ?? 0
+        switch days {
+        case ..<1: return "today"
+        case 1: return "yesterday"
+        default: return "\(days) days ago"
+        }
     }
 }
 
@@ -395,7 +544,8 @@ extension CloudSummaryBuilder {
     @MainActor
     static func live(
         remotes: [Remote], status: RemoteStatusService, transfers: TransferStore,
-        providers: ProviderDirectory, settings: AppSettings, daemon: RcloneDaemon
+        providers: ProviderDirectory, settings: AppSettings, daemon: RcloneDaemon,
+        backups: BackupStore, runner: BackupRunner, scheduler: BackupScheduler
     ) -> CloudSummary {
         build(
             remotes: remotes,
@@ -408,6 +558,9 @@ extension CloudSummaryBuilder {
             dismissedSuggestions: settings.dismissedSuggestions,
             daemon: daemon.status,
             now: Date(),
+            backups: backups.jobs,
+            busyBackups: runner.busyJobIDs,
+            backupCatchUpPending: scheduler.isCatchUpPending,
             resolveType: { CloudNaming.resolvedType(of: $0, in: remotes) }
         )
     }

@@ -20,6 +20,7 @@ struct NimbusApp: App {
     @State private var router = AppRouter()
     @State private var backupStore: BackupStore
     @State private var backupRunner: BackupRunner
+    @State private var backupScheduler: BackupScheduler
 
     /// Guards the parts of daemon-connect handling that must run once per
     /// process (pollers, monitors); the rest of `onDaemonConnected` is
@@ -46,12 +47,27 @@ struct NimbusApp: App {
         _transferStore = State(initialValue: transfers)
         let backups = BackupStore()
         _backupStore = State(initialValue: backups)
-        _backupRunner = State(initialValue: BackupRunner(
+        let runner = BackupRunner(
             store: backups,
             transfers: transfers,
             client: d.client,
             isDaemonConnected: { d.status == .connected }
-        ))
+        )
+        _backupRunner = State(initialValue: runner)
+        let scheduler = BackupScheduler(
+            store: backups,
+            launcher: runner,
+            planner: BackupSchedulePlanner(calendar: .autoupdatingCurrent),
+            busy: { runner.busyJobIDs }
+        )
+        _backupScheduler = State(initialValue: scheduler)
+        // A lost scheduled run is left unrecorded; re-plan so it is caught up.
+        runner.onRunLost = { [weak scheduler] in scheduler?.replan() }
+        // The runner first, so the scheduler's busy set is current when it re-plans.
+        backups.onJobsChanged = { [weak runner, weak scheduler] in
+            runner?.jobsDidChange()
+            scheduler?.replan()
+        }
     }
 
     var body: some Scene {
@@ -67,6 +83,7 @@ struct NimbusApp: App {
                     .environment(transferStore)
                     .environment(backupStore)
                     .environment(backupRunner)
+                    .environment(backupScheduler)
                     .environment(bookmarkStore)
                     .environment(launchAtLogin)
                     .environment(statusService)
@@ -118,6 +135,9 @@ struct NimbusApp: App {
                     .environment(providerDirectory)
                     .environment(launchAtLogin)
                     .environment(cloudMonitor)
+                    .environment(backupStore)
+                    .environment(backupRunner)
+                    .environment(backupScheduler)
                     .environment(router)
             }
         } label: {
@@ -128,6 +148,10 @@ struct NimbusApp: App {
                 .environment(transferStore)
                 .environment(providerDirectory)
                 .environment(cloudMonitor)
+                .environment(backupStore)
+                .environment(backupRunner)
+                .environment(backupScheduler)
+                .environment(router)
         }
         .menuBarExtraStyle(.window)
 
@@ -175,6 +199,24 @@ struct NimbusApp: App {
         let transfers = transferStore
         let mounts = mountManager
         let rclone = daemon
+        let runner = backupRunner
+        appDelegate.shouldConfirmQuit = { runner.isRunningAnything }
+        let backups = backupStore
+        appDelegate.interruptedBackupRunsAgain = {
+            QuitDecision.runsAgain(interrupting: runner.busyJobIDs.compactMap { backups.job(id: $0) })
+        }
+        let router = router
+        appDelegate.onBackupNotificationClick = { id in
+            NSApp.setActivationPolicy(.regular)
+            NSApp.activate()
+            router.pending = .backups(id)
+            if router.isMainWindowOpen,
+               let window = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) {
+                window.makeKeyAndOrderFront(nil)
+            } else {
+                router.needsWindow = true
+            }
+        }
         appDelegate.shutdownHandler = {
             transfers.stopPolling()
             await mounts.stopAll()
@@ -224,6 +266,10 @@ struct NimbusApp: App {
             transferStore.startPolling(client: daemon.client)
             mountManager.startHealthMonitor()
             cloudMonitor.startPeriodicRefresh()
+            backupScheduler.start()
+        } else {
+            // Runs missed while the daemon was down catch up after the settle delay.
+            backupScheduler.replan(catchingUp: true)
         }
         // Every (re)connect reloads the cloud list and probes each cloud, so
         // Home, the sidebar and the menu bar start from fresh status.

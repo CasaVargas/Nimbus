@@ -1,0 +1,122 @@
+import Foundation
+import Testing
+@testable import Nimbus
+
+struct BackupSchedulePlannerTests {
+    static let planner = BackupSchedulePlanner(calendar: BackupJobTests.newYork)
+
+    static func date(_ string: String) -> Date { BackupJobTests.date(string) }
+
+    static func summary(startedAt: Date, outcome: BackupRunSummary.Outcome = .completed) -> BackupRunSummary {
+        BackupRunSummary(
+            startedAt: startedAt, finishedAt: startedAt.addingTimeInterval(60),
+            trigger: .scheduled, outcome: outcome,
+            copied: 0, replaced: 0, removed: 0, errors: 0, bytes: 0
+        )
+    }
+
+    /// An approved, unpaused daily 02:00 job created well before any test clock.
+    static func job(
+        schedule: BackupSchedule = .daily(hour: 2, minute: 0),
+        lastRunStart: Date? = nil,
+        outcome: BackupRunSummary.Outcome = .completed
+    ) -> BackupJob {
+        var job = BackupJobTests.job()
+        job.schedule = schedule
+        job.approvedFingerprint = job.fingerprint
+        job.approvedAt = date("2026-11-01T08:00:00-05:00")
+        job.lastRun = lastRunStart.map { summary(startedAt: $0, outcome: outcome) }
+        return job
+    }
+
+    @Test func missedSlotsRunOnce() {
+        let job = Self.job(lastRunStart: Self.date("2026-11-07T02:00:00-05:00"))
+        let now = Self.date("2026-11-10T09:00:00-05:00")
+        #expect(Self.planner.dueJobs([job], now: now, busy: []) == [job.id])
+    }
+
+    @Test func pausedNeverDue() {
+        var job = Self.job(lastRunStart: Self.date("2026-11-07T02:00:00-05:00"))
+        job.isPaused = true
+        let now = Self.date("2026-11-10T09:00:00-05:00")
+        #expect(Self.planner.dueJobs([job], now: now, busy: []).isEmpty)
+        #expect(Self.planner.nextWake([job], now: now) == nil)
+    }
+
+    @Test func unapprovedNeverDue() {
+        var job = Self.job(lastRunStart: Self.date("2026-11-07T02:00:00-05:00"))
+        job.approvedFingerprint = nil
+        let now = Self.date("2026-11-10T09:00:00-05:00")
+        #expect(Self.planner.dueJobs([job], now: now, busy: []).isEmpty)
+        #expect(Self.planner.nextWake([job], now: now) == nil)
+    }
+
+    @Test func busyNotDueTwice() {
+        let job = Self.job(lastRunStart: Self.date("2026-11-07T02:00:00-05:00"))
+        let now = Self.date("2026-11-10T09:00:00-05:00")
+        #expect(Self.planner.dueJobs([job], now: now, busy: [job.id]).isEmpty)
+    }
+
+    @Test func manualNeverDue() {
+        let job = Self.job(schedule: .manual, lastRunStart: Self.date("2026-11-07T02:00:00-05:00"))
+        let now = Self.date("2026-11-10T09:00:00-05:00")
+        #expect(Self.planner.nextRun(for: job) == nil)
+        #expect(Self.planner.dueJobs([job], now: now, busy: []).isEmpty)
+        #expect(Self.planner.nextWake([job], now: now) == nil)
+    }
+
+    @Test func failedRunWaitsForNextSlot() {
+        let job = Self.job(lastRunStart: Self.date("2026-11-10T02:00:00-05:00"), outcome: .failed("boom"))
+        let now = Self.date("2026-11-10T09:00:00-05:00")
+        #expect(Self.planner.dueJobs([job], now: now, busy: []).isEmpty)
+        #expect(Self.planner.nextRun(for: job) == Self.date("2026-11-11T02:00:00-05:00"))
+    }
+
+    @Test func nextWakeIsEarliest() {
+        let now = Self.date("2026-11-10T09:00:00-05:00")
+        // Next runs: tomorrow 02:00, today 10:00, and 09:00 (now: already due).
+        let tomorrow = Self.job(lastRunStart: Self.date("2026-11-10T02:00:00-05:00"))
+        let at10 = Self.job(schedule: .hourly, lastRunStart: Self.date("2026-11-10T09:00:00-05:00"))
+        let dueNow = Self.job(schedule: .hourly, lastRunStart: Self.date("2026-11-10T08:30:00-05:00"))
+        #expect(Self.planner.nextWake([tomorrow, at10], now: now) == Self.date("2026-11-10T10:00:00-05:00"))
+        #expect(Self.planner.nextWake([tomorrow], now: now) == Self.date("2026-11-11T02:00:00-05:00"))
+        // A due job is not a wake time: it is in `dueJobs`, and the scheduler
+        // runs it through its settle pass rather than timing it.
+        #expect(Self.planner.dueJobs([tomorrow, at10, dueNow], now: now, busy: []) == [dueNow.id])
+        #expect(Self.planner.nextWake([tomorrow, dueNow], now: now) == Self.date("2026-11-11T02:00:00-05:00"))
+        #expect(Self.planner.nextWake([dueNow], now: now) == nil)
+        #expect(Self.planner.nextWake([], now: now) == nil)
+    }
+
+    @Test func limitHitStopsScheduledRunsUntilReapproved() {
+        let stoppedAt = Self.date("2026-11-10T02:00:00-05:00")
+        var job = Self.job(lastRunStart: stoppedAt, outcome: .limitHit)
+        let tomorrow = Self.date("2026-11-11T09:00:00-05:00")
+        // Approved before the stopped run: neither due nor a wake time.
+        #expect(Self.planner.dueJobs([job], now: tomorrow, busy: []).isEmpty)
+        #expect(Self.planner.nextWake([job], now: Self.date("2026-11-10T09:00:00-05:00")) == nil)
+        #expect(Self.planner.eligibleNextRun(for: job) == nil)
+
+        // Previewed and approved again after it: due again.
+        job.approvedAt = Self.date("2026-11-10T08:00:00-05:00")
+        #expect(Self.planner.dueJobs([job], now: tomorrow, busy: []) == [job.id])
+        #expect(Self.planner.nextWake([job], now: Self.date("2026-11-10T09:00:00-05:00"))
+            == Self.date("2026-11-11T02:00:00-05:00"))
+    }
+
+    @Test func neverRunAnchorsOnApproval() {
+        var job = Self.job()
+        job.approvedAt = Self.date("2026-11-10T10:00:00-05:00")
+        let now = Self.date("2026-11-10T11:00:00-05:00")
+        #expect(Self.planner.nextRun(for: job) == Self.date("2026-11-11T02:00:00-05:00"))
+        #expect(Self.planner.dueJobs([job], now: now, busy: []).isEmpty)
+    }
+
+    @Test func neverRunWithoutApprovalDateAnchorsOnCreation() {
+        var job = Self.job()
+        job.approvedAt = nil
+        #expect(Self.planner.nextRun(for: job) != nil)
+        #expect(Self.planner.nextRun(for: job) == BackupSchedule.daily(hour: 2, minute: 0)
+            .nextRun(after: job.createdAt, calendar: BackupJobTests.newYork))
+    }
+}

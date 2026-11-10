@@ -23,8 +23,21 @@ final class MockBackupClient: BackupRcloneClient, @unchecked Sendable {
     func setStats(group: String, _ stats: StatsResponse) { lock.withLock { _stats[group] = stats } }
     func failStarts(with error: Error?) { lock.withLock { _startError = error } }
 
+    /// Runs once, inside the next `startSync`, before it returns: the start
+    /// request is in flight while it runs.
+    func onNextStart(_ hook: @escaping @MainActor @Sendable () async -> Void) {
+        lock.withLock { _onNextStart = hook }
+    }
+    private var _onNextStart: (@MainActor @Sendable () async -> Void)?
+
     func startSync(_ request: SyncRequest) async throws -> Int {
-        try lock.withLock {
+        if let hook = lock.withLock({ () -> (@MainActor @Sendable () async -> Void)? in
+            defer { _onNextStart = nil }
+            return _onNextStart
+        }) {
+            await hook()
+        }
+        return try lock.withLock {
             if let error = _startError { throw error }
             _requests.append(request)
             defer { _nextID += 1 }
@@ -48,6 +61,62 @@ final class MockBackupClient: BackupRcloneClient, @unchecked Sendable {
 
     func stopJob(id: Int) async throws {
         lock.withLock { _stopped.append(id) }
+    }
+
+    // MARK: Versions pruning
+
+    struct Call: Hashable { let fs: String; let remote: String }
+    private var _listings: [Call: [FileItem]] = [:]
+    private var _listError: Error?
+    private var _purgeError: Error?
+    private var _listCalls: [Call] = []
+    private var _purges: [Call] = []
+    private var _onList: (@Sendable () async -> Void)?
+    private var _onPurge: (@Sendable (Call) async -> Void)?
+
+    var listCalls: [Call] { lock.withLock { _listCalls } }
+    var purges: [Call] { lock.withLock { _purges } }
+
+    func setListing(fs: String, remote: String, _ items: [FileItem]) {
+        lock.withLock { _listings[Call(fs: fs, remote: remote)] = items }
+    }
+    func failLists(with error: Error?) { lock.withLock { _listError = error } }
+    func failPurges(with error: Error?) { lock.withLock { _purgeError = error } }
+    /// Runs inside each `listFiles` before it returns; a test can hold a listing open.
+    func onList(_ hook: (@Sendable () async -> Void)?) { lock.withLock { _onList = hook } }
+
+    func listFiles(fs: String, remote: String) async throws -> [FileItem] {
+        let hook = lock.withLock { () -> (@Sendable () async -> Void)? in
+            _listCalls.append(Call(fs: fs, remote: remote))
+            return _onList
+        }
+        if let hook { await hook() }
+        return try lock.withLock {
+            if let error = _listError { throw error }
+            return _listings[Call(fs: fs, remote: remote)] ?? []
+        }
+    }
+
+    /// Runs inside each successful `purge`, after it is recorded and before
+    /// it returns; a test can change the job between two purges.
+    func onPurge(_ hook: (@Sendable (Call) async -> Void)?) { lock.withLock { _onPurge = hook } }
+
+    func purge(fs: String, remote: String) async throws {
+        let call = Call(fs: fs, remote: remote)
+        let hook = try lock.withLock { () -> (@Sendable (Call) async -> Void)? in
+            if let error = _purgeError { throw error }
+            _purges.append(call)
+            return _onPurge
+        }
+        if let hook { await hook(call) }
+    }
+}
+
+extension BackupFixtures {
+    /// A listing entry as `operations/list` returns it.
+    static func listed(_ name: String, isDir: Bool = true, modTime: Date? = nil) -> FileItem {
+        FileItem(path: name, name: name, size: isDir ? -1 : 10, mimeType: isDir ? "inode/directory" : "text/plain",
+                 modTime: modTime, isDir: isDir, fileID: nil, qualifiedRemotePath: name)
     }
 }
 

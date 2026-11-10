@@ -7,13 +7,18 @@ import RcloneKit
 struct BackupsView: View {
     /// A pre-filled new backup from Copy Between Clouds' "Save as Backup…".
     @Binding var pendingDraft: BackupJob?
+    /// A backup to scroll to, set by a notification click and consumed here.
+    @Binding var focusedJob: UUID?
     /// Opens a cloud's Transfers tab.
     var onShowHistory: (String) -> Void = { _ in }
+
+    @Environment(AppRouter.self) private var router
 
     @Environment(BackupStore.self) private var store
     @Environment(BackupRunner.self) private var runner
     @Environment(CloudMonitor.self) private var monitor
     @Environment(RcloneDaemon.self) private var daemon
+    @Environment(LaunchAtLoginService.self) private var launchAtLogin
 
     private struct EditorRequest: Identifiable {
         let id = UUID()
@@ -28,11 +33,24 @@ struct BackupsView: View {
     @State private var previewAfterEditor: BackupJob?
     @State private var editAfterPreview: BackupJob?
     @State private var engineAlert = false
+    @State private var scrollTarget: UUID?
 
     var body: some View {
         TimelineView(.everyMinute) { context in
-            BackupsContent(rows: rows(now: context.date), loadState: store.loadState, actions: actions)
+            BackupsContent(
+                rows: rows(now: context.date),
+                loadState: store.loadState,
+                actions: actions,
+                openAtLoginNote: showsOpenAtLoginNote ? launchAtLogin.enabledBinding : nil,
+                scrollTarget: scrollTarget
+            )
         }
+        .onChange(of: focusedJob, initial: true) {
+            guard let id = focusedJob else { return }
+            focusedJob = nil
+            scrollTarget = id
+        }
+        .task { launchAtLogin.refresh() }
         .navigationTitle("Backups")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -106,6 +124,10 @@ struct BackupsView: View {
         }
     }
 
+    private var showsOpenAtLoginNote: Bool {
+        OpenAtLoginNote.isShown(schedules: store.jobs.map(\.schedule), openAtLoginIsOn: launchAtLogin.isEnabled)
+    }
+
     private var deleteTitle: String {
         guard let job = deleting else { return "" }
         return String(localized: "Delete the backup “\(job.name)”?")
@@ -143,6 +165,19 @@ struct BackupsView: View {
             preview: { id in previewing = store.job(id: id) },
             backUpNow: { id in Task { await backUpNow(id) } },
             stop: { id in Task { await runner.stop(id) } },
+            showVersions: { id in
+                guard let job = store.job(id: id) else { return }
+                switch VersionsReveal.target(for: job, versionsFolderExists: Self.localVersionsFolderExists(job)) {
+                case .browse(let cloud, let path):
+                    router.pending = .browse(cloud: cloud, path: path)
+                case .open(let url):
+                    NSWorkspace.shared.open(url)
+                case .reveal(let url):
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                case .unavailable:
+                    break
+                }
+            },
             showHistory: { id in
                 guard let job = store.job(id: id),
                       let cloud = job.destination.cloudName ?? job.source.cloudName else { return }
@@ -172,6 +207,13 @@ struct BackupsView: View {
         }
         await runner.enqueue(id, trigger: .manual)
         if runner.lastRefusal == .daemonNotConnected { engineAlert = true }
+    }
+
+    /// Whether the job's versions folder exists on this Mac (false for a cloud).
+    private static func localVersionsFolderExists(_ job: BackupJob) -> Bool {
+        guard case .local(let path)? = job.versionsEndpoint else { return false }
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory.boolValue
     }
 
     /// A copy with a new identity, no approval and no history.

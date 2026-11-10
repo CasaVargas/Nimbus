@@ -54,6 +54,7 @@ struct Transfer: Identifiable {
         let isMirrorWithVersions: Bool
         /// The run had `MaxDelete`, so "failed to delete" means the limit hit.
         let hadRemovalLimit: Bool
+        var removalLimit: Int? = nil
     }
 
     var id: UUID { nimbusUUID }
@@ -388,8 +389,11 @@ final class TransferStore {
             stats: stats,
             isMirrorWithVersions: backup.isMirrorWithVersions
         )
-        transfers[index].summary = summary
-        return (backup.backupID, summary)
+        var withLimit = summary
+        withLimit.removalLimit = backup.removalLimit
+        withLimit.movesToVersions = backup.isMirrorWithVersions
+        transfers[index].summary = withLimit
+        return (backup.backupID, withLimit)
     }
 
     private func notifyBackupFinished(_ finished: (UUID, BackupRunSummary)?) async {

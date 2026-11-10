@@ -19,6 +19,10 @@ final class BackupStore {
     private(set) var jobs: [BackupJob] = []
     private(set) var loadState: LoadState = .notLoaded
 
+    /// Called after every change to a job's schedule inputs (edit, delete,
+    /// approval, pause, finished run) so the scheduler can re-plan.
+    @ObservationIgnored var onJobsChanged: (@MainActor () -> Void)?
+
     @ObservationIgnored private let file: any BackupsPersisting
     @ObservationIgnored private let writer: BackupsWriter
     @ObservationIgnored private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "backups")
@@ -64,12 +68,14 @@ final class BackupStore {
             jobs.append(job)
         }
         await persist()
+        onJobsChanged?()
     }
 
     func delete(id: UUID) async {
         guard isWritable else { return }
         jobs.removeAll { $0.id == id }
         await persist()
+        onJobsChanged?()
     }
 
     /// Records approval of a preview. Ignored when the job changed since the
@@ -80,18 +86,21 @@ final class BackupStore {
         jobs[index].approvedFingerprint = fingerprint
         jobs[index].approvedAt = now
         await persist()
+        onJobsChanged?()
     }
 
     func recordRun(id: UUID, summary: BackupRunSummary) async {
         guard let index = jobs.firstIndex(where: { $0.id == id }) else { return }
         jobs[index].lastRun = summary
         await persist()
+        onJobsChanged?()
     }
 
     func setPaused(id: UUID, _ paused: Bool) async {
         guard let index = jobs.firstIndex(where: { $0.id == id }) else { return }
         jobs[index].isPaused = paused
         await persist()
+        onJobsChanged?()
     }
 
     /// Edits are refused until the file loaded cleanly (or was missing), so a

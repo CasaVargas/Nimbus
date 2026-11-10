@@ -73,8 +73,11 @@ struct BackupStatus: Equatable {
             let day = symbols.indices.contains(weekday - 1) ? symbols[weekday - 1] : ""
             base = String(localized: "Every \(day) at \(at(hour, minute))")
         }
-        guard !job.isPaused, job.isApproved,
-              let next = job.schedule.nextRun(after: now, calendar: calendar) else { return base }
+        // The planner is the one source of truth for when the job runs. No
+        // "next" when it won't run on its schedule (unapproved, paused, stopped
+        // at its removal limit) or is overdue and waiting for catch-up.
+        guard let next = BackupSchedulePlanner(calendar: calendar).eligibleNextRun(for: job),
+              next > now else { return base }
         return base + " · " + String(localized: "next \(nextText(next, now: now, calendar: calendar))")
     }
 

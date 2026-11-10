@@ -77,6 +77,29 @@ struct AppRouterTests {
         #expect(router.take(where: { $0 == .addCloud }) == .addCloud)
         #expect(router.pending == nil)
     }
+
+    @MainActor @Test func windowRequestIsConsumedOnceAndOnlyWhenNoWindowIsOpen() {
+        let router = AppRouter()
+        #expect(!router.takeWindowRequest())
+        router.pending = .backups(nil)  // a companion action: no request
+        #expect(!router.takeWindowRequest())
+        router.needsWindow = true
+        #expect(router.takeWindowRequest())
+        #expect(!router.takeWindowRequest())
+        router.needsWindow = true
+        router.isMainWindowOpen = true
+        #expect(!router.takeWindowRequest())
+        #expect(!router.needsWindow)
+    }
+
+    @Test func backupsRouteCarriesAnOptionalJob() {
+        let router = AppRouter()
+        let id = UUID()
+        router.pending = .backups(id)
+        #expect(router.take(where: { $0 == .addCloud }) == nil)
+        #expect(router.take(where: { if case .backups = $0 { true } else { false } }) == .backups(id))
+        #expect(AppRouter.Route.backups(nil) != .backups(id))
+    }
 }
 
 @Suite("Companion glyph and headline")

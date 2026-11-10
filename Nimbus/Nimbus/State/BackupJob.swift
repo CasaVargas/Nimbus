@@ -90,6 +90,15 @@ extension BackupJob {
     /// A job may run only after its current shape was previewed and approved.
     var isApproved: Bool { approvedFingerprint == fingerprint }
 
+    /// The last run stopped at the removal limit, after removing up to the
+    /// limit, and nobody has previewed and approved the job since. Scheduled
+    /// runs wait for that approval, so they never keep removing files the
+    /// user hasn't seen.
+    var isStoppedAtRemovalLimit: Bool {
+        guard let lastRun, lastRun.outcome == .limitHit else { return false }
+        return (approvedAt ?? .distantPast) < lastRun.startedAt
+    }
+
     /// Where replaced and removed files go, or nil when versions are off.
     var versionsEndpoint: TransferEndpoint? {
         guard versions.enabled else { return nil }
@@ -220,12 +229,19 @@ struct BackupRunSummary: Codable, Hashable, Sendable {
     let startedAt: Date
     let finishedAt: Date
     let trigger: Trigger
-    let outcome: Outcome
+    var outcome: Outcome
     let copied: Int
     let replaced: Int
     let removed: Int
     let errors: Int
     let bytes: Int64
+    /// The job's removal limit when the run started; names the number in the
+    /// "stopped" notification. Absent in summaries saved before it existed.
+    var removalLimit: Int? = nil
+    /// Mirror with versions: replaced and removed files were moved into the
+    /// versions folder, not deleted. Optional so summaries saved by earlier
+    /// builds (no key) still decode; nil reads as false.
+    var movesToVersions: Bool? = nil
 }
 
 extension BackupRunSummary.Outcome: Codable {

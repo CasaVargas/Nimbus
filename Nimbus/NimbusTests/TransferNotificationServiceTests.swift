@@ -141,6 +141,158 @@ struct TransferNotificationServiceTests {
         #expect(await notifier.deliveredOutcomes.isEmpty)
     }
 
+    // MARK: Backups
+
+    @Test func backupSuccessCopy() async {
+        let center = NotificationCenterSpy(authorizationStatus: .authorized)
+        let service = TransferNotificationService(center: center)
+
+        await service.deliver(backupRecord(.completed, copied: 12, replaced: 1, removed: 1, versions: true),
+                              mode: .allTransfers)
+
+        let request = await center.requests.first
+        #expect(request?.title == "Backed up Documents to B2")
+        #expect(request?.body == "13 files backed up, 2 moved to versions.")
+        #expect(request?.backupID == Self.backupID)
+    }
+
+    @Test func backupSuccessBodyHandlesOneAndNone() async {
+        #expect(TransferNotificationService.backupBody(copied: 1, replaced: 0, removed: 0, versions: false) == "1 file backed up.")
+        #expect(TransferNotificationService.backupBody(copied: 0, replaced: 0, removed: 0, versions: false) == "No changes.")
+        #expect(TransferNotificationService.backupBody(copied: 0, replaced: 0, removed: 0, versions: true) == "No changes.")
+    }
+
+    @Test func removalOnlyRunWithVersionsSaysMovedToVersions() {
+        #expect(TransferNotificationService.backupBody(copied: 0, replaced: 0, removed: 40, versions: true)
+            == "40 moved to versions.")
+    }
+
+    @Test func removalOnlyRunWithoutVersionsSaysRemoved() {
+        #expect(TransferNotificationService.backupBody(copied: 0, replaced: 0, removed: 40, versions: false)
+            == "40 removed.")
+    }
+
+    @Test func removalOnlyRunSingular() {
+        #expect(TransferNotificationService.backupBody(copied: 0, replaced: 0, removed: 1, versions: false)
+            == "1 removed.")
+        // A replaced file is backed up as well as moved to versions.
+        #expect(TransferNotificationService.backupBody(copied: 0, replaced: 1, removed: 0, versions: true)
+            == "1 file backed up, 1 moved to versions.")
+    }
+
+    @Test func copiedAndRemovedWithoutVersions() {
+        #expect(TransferNotificationService.backupBody(copied: 5, replaced: 0, removed: 2, versions: false)
+            == "5 files backed up, 2 removed.")
+    }
+
+    @Test func backupFailureUsesTheFriendlySummaryReason() async {
+        let center = NotificationCenterSpy(authorizationStatus: .authorized)
+        let service = TransferNotificationService(center: center)
+
+        await service.deliver(
+            backupRecord(.failed("failed to delete 3 files"), summary: .failed("Access denied\nmore"), copied: 0),
+            mode: .failuresOnly)
+        await service.deliver(
+            backupRecord(.failed("directory not found"), summary: .failed("directory not found"), copied: 0),
+            mode: .failuresOnly)
+
+        let bodies = await center.requests.map(\.body)
+        #expect(bodies == ["Access denied", "The source folder isn't available. Is the drive connected?"])
+    }
+
+    @Test func backupFailureCopy() async {
+        let center = NotificationCenterSpy(authorizationStatus: .authorized)
+        let service = TransferNotificationService(center: center)
+
+        await service.deliver(backupRecord(.failed("Network unavailable\nsecond line")), mode: .failuresOnly)
+
+        let request = await center.requests.first
+        #expect(request?.title == "Backup Documents to B2 failed")
+        #expect(request?.body == "Network unavailable")
+        #expect(request?.backupID == Self.backupID)
+    }
+
+    @Test func backupLimitHitNotifiesUnderFailuresOnly() async {
+        let center = NotificationCenterSpy(authorizationStatus: .authorized)
+        let service = TransferNotificationService(center: center)
+
+        await service.deliver(backupRecord(.failed("failed to delete 100 files"), summary: .limitHit, limit: 100),
+                              mode: .failuresOnly)
+
+        let request = await center.requests.first
+        #expect(request?.title == "Backup Documents to B2 stopped")
+        #expect(request?.body == "It would have removed more than 100 files. Open Nimbus to preview it.")
+        #expect(request?.backupID == Self.backupID)
+    }
+
+    @Test func backupSuccessSilentUnderFailuresOnly() async {
+        let center = NotificationCenterSpy(authorizationStatus: .notDetermined)
+        let service = TransferNotificationService(center: center)
+
+        await service.deliver(backupRecord(.completed), mode: .failuresOnly)
+
+        #expect(await center.requests.isEmpty)
+        #expect(await center.requestAuthorizationCallCount == 0)
+    }
+
+    enum BackupResult: String, CaseIterable, Sendable { case success, failure, limitHit }
+
+    /// The spec's exit gate: each backup result under each notification mode.
+    @Test(arguments: BackupResult.allCases, [TransferNotificationMode.off, .failuresOnly, .allTransfers])
+    func backupNotificationsFollowTheMode(_ result: BackupResult, _ mode: TransferNotificationMode) async {
+        let center = NotificationCenterSpy(authorizationStatus: .authorized)
+        let service = TransferNotificationService(center: center)
+        let record = switch result {
+        case .success: backupRecord(.completed, copied: 2, removed: 0)
+        case .failure: backupRecord(.failed("Network unavailable"))
+        case .limitHit: backupRecord(.failed("failed to delete 100 files"), summary: .limitHit, limit: 100)
+        }
+
+        await service.deliver(record, mode: mode)
+
+        let expected: String? = switch (mode, result) {
+        case (.off, _), (.failuresOnly, .success): nil
+        case (_, .success): "Backed up Documents to B2"
+        case (_, .failure): "Backup Documents to B2 failed"
+        case (_, .limitHit): "Backup Documents to B2 stopped"
+        }
+        let requests = await center.requests
+        #expect(requests.map(\.title) == (expected.map { [$0] } ?? []))
+        #expect(requests.allSatisfy { $0.backupID == Self.backupID })
+    }
+
+    @Test func backupIDRoundTripsThroughUserInfo() {
+        let request = TransferNotificationRequest(identifier: "x", title: "t", body: "b", backupID: Self.backupID)
+        #expect(TransferNotificationRequest.backupID(fromUserInfo: request.userInfo) == Self.backupID)
+        #expect(TransferNotificationRequest.backupID(fromUserInfo: [:]) == nil)
+        #expect(TransferNotificationRequest(identifier: "x", title: "t", body: "b").userInfo.isEmpty)
+    }
+
+    private static let backupID = UUID(uuidString: "00000000-0000-0000-0000-0000000000B1")!
+
+    private func backupRecord(
+        _ outcome: TransferOutcome,
+        summary: BackupRunSummary.Outcome? = nil,
+        copied: Int = 3,
+        replaced: Int = 0,
+        removed: Int = 1,
+        versions: Bool = false,
+        limit: Int? = nil
+    ) -> TransferRecord {
+        var record = record(outcome: outcome, origin: .backup)
+        record.backupID = Self.backupID
+        record.title = "Documents to B2"
+        var run = BackupRunSummary(
+            startedAt: record.startedAt, finishedAt: record.completedAt, trigger: .scheduled,
+            outcome: summary ?? { if case .failed(let m) = outcome { .failed(m) } else { .completed } }(),
+            copied: copied, replaced: replaced, removed: removed, errors: 0, bytes: 10
+        )
+        run.movesToVersions = versions
+        run.removalLimit = limit
+        record.summary = run
+        return record
+    }
+
     private var completedRecord: TransferRecord {
         record(outcome: .completed)
     }
@@ -149,7 +301,7 @@ struct TransferNotificationServiceTests {
         record(outcome: .failed("Network unavailable"))
     }
 
-    private func record(outcome: TransferOutcome) -> TransferRecord {
+    private func record(outcome: TransferOutcome, origin: TransferOrigin = .manual) -> TransferRecord {
         TransferRecord(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
             jobID: 7,
@@ -159,7 +311,7 @@ struct TransferNotificationServiceTests {
             startedAt: Date(timeIntervalSince1970: 1_700_000_000),
             completedAt: Date(timeIntervalSince1970: 1_700_000_060),
             outcome: outcome,
-            origin: .manual
+            origin: origin
         )
     }
 }

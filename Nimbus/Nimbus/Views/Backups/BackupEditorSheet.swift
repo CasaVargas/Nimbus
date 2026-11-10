@@ -11,6 +11,7 @@ struct BackupEditorSheet: View {
     let onSave: (BackupJob, Bool) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(LaunchAtLoginService.self) private var launchAtLogin
 
     @State private var name: String
     /// The last name Nimbus suggested; a name the user typed is never replaced.
@@ -21,9 +22,11 @@ struct BackupEditorSheet: View {
     @State private var versionsEnabled: Bool
     @State private var versionsInside: Bool
     @State private var versionsFolder: TransferEndpoint?
+    @State private var versionsKeep: BackupJob.Versions.Keep
     @State private var excludes: [String]
     @State private var limitEnabled: Bool
     @State private var limit: Int
+    @State private var schedule: BackupScheduleDraft
 
     init(
         original: BackupJob?,
@@ -50,9 +53,11 @@ struct BackupEditorSheet: View {
             _versionsInside = State(initialValue: true)
             _versionsFolder = State(initialValue: nil)
         }
+        _versionsKeep = State(initialValue: seed?.versions.keep ?? .forever)
         _excludes = State(initialValue: seed?.excludes ?? BackupJob.macJunkExcludes)
         _limitEnabled = State(initialValue: seed.map { $0.removalLimit != nil } ?? true)
         _limit = State(initialValue: seed?.removalLimit ?? 100)
+        _schedule = State(initialValue: BackupScheduleDraft(seed?.schedule ?? .manual))
     }
 
     var body: some View {
@@ -85,6 +90,7 @@ struct BackupEditorSheet: View {
                 if mode == .mirror {
                     safetySection
                 }
+                scheduleSection
             }
         } actions: {
             Button("Cancel") { dismiss() }
@@ -148,6 +154,12 @@ struct BackupEditorSheet: View {
                         endpoint: $versionsFolder
                     )
                 }
+                Picker("Keep for", selection: $versionsKeep) {
+                    Text("Forever").tag(BackupJob.Versions.Keep.forever)
+                    Text("30 days").tag(BackupJob.Versions.Keep.days30)
+                    Text("90 days").tag(BackupJob.Versions.Keep.days90)
+                    Text("1 year").tag(BackupJob.Versions.Keep.year1)
+                }
             } else if mode == .mirror {
                 DestructiveCallout(message: "Files removed from the source will be deleted from \(destination.map(BackupRow.describe) ?? String(localized: "the destination")) for good.")
             }
@@ -174,6 +186,39 @@ struct BackupEditorSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var scheduleSection: some View {
+        FormSection(title: "Schedule", footer: nil) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
+                Picker("Run", selection: $schedule.kind) {
+                    ForEach(BackupScheduleDraft.Kind.allCases, id: \.self) { kind in
+                        Text(verbatim: kind.label).tag(kind)
+                    }
+                }
+                if schedule.kind.showsWeekday {
+                    Picker("On", selection: $schedule.weekday) {
+                        ForEach(Array(Calendar.current.weekdaySymbols.enumerated()), id: \.offset) { index, name in
+                            Text(verbatim: name).tag(index + 1)
+                        }
+                    }
+                }
+                if schedule.kind.showsTime {
+                    DatePicker(
+                        "At",
+                        selection: Binding(
+                            get: { schedule.timeDate() },
+                            set: { schedule.setTime(from: $0) }
+                        ),
+                        displayedComponents: .hourAndMinute
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if OpenAtLoginNote.isShown(schedules: [schedule.schedule], openAtLoginIsOn: launchAtLogin.isEnabled) {
+                OpenAtLoginNoteView(isOn: launchAtLogin.enabledBinding)
+            }
         }
     }
 
@@ -214,12 +259,14 @@ struct BackupEditorSheet: View {
         job.mode = mode
         job.excludes = excludes.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         job.versions.enabled = versionsEnabled
+        job.versions.keep = versionsKeep
         if versionsEnabled, !versionsInside, let versionsFolder {
             job.versions.location = .custom(versionsFolder)
         } else {
             job.versions.location = .insideDestination
         }
         job.removalLimit = limitEnabled ? limit : nil
+        job.schedule = schedule.schedule
         return job
     }
 
@@ -255,6 +302,21 @@ struct BackupEditorSheet: View {
         client: RcloneClient(),
         onSave: { _, _ in }
     )
+    .environment(LaunchAtLoginService(refreshOnInit: false))
+}
+
+#Preview("Weekly schedule with Open at Login note") {
+    BackupEditorSheet(
+        original: BackupsFixtures.job(
+            "Documents to B2",
+            source: .local(path: "/Users/jonathan/Documents"),
+            destination: .cloud(remote: "b2", path: "mac-backup/Documents")
+        ) { $0.schedule = .weekly(weekday: 6, hour: 21, minute: 30) },
+        remoteNames: ["b2", "gdrive"],
+        client: RcloneClient(),
+        onSave: { _, _ in }
+    )
+    .environment(LaunchAtLoginService(refreshOnInit: false))
 }
 
 #Preview("Add only, dark") {
@@ -268,5 +330,6 @@ struct BackupEditorSheet: View {
         client: RcloneClient(),
         onSave: { _, _ in }
     )
+    .environment(LaunchAtLoginService(refreshOnInit: false))
     .preferredColorScheme(.dark)
 }

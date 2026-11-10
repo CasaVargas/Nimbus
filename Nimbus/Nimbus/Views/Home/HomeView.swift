@@ -19,13 +19,17 @@ struct HomeView: View {
     @Environment(FileProviderBridge.self) private var fileProviderBridge
     @Environment(MountConfigStore.self) private var mountConfigs
     @Environment(AppRouter.self) private var router
+    @Environment(BackupStore.self) private var backupStore
+    @Environment(BackupRunner.self) private var backupRunner
+    @Environment(BackupScheduler.self) private var backupScheduler
 
     @State private var reconnecting: CloudSummary.Row?
     @State private var finderError: NimbusError?
 
     private var summary: CloudSummary {
         CloudSummaryBuilder.live(remotes: remotes, status: statusService, transfers: transferStore,
-                                 providers: providers, settings: settings, daemon: daemon)
+                                 providers: providers, settings: settings, daemon: daemon,
+                                 backups: backupStore, runner: backupRunner, scheduler: backupScheduler)
     }
 
     var body: some View {
@@ -35,6 +39,9 @@ struct HomeView: View {
             providerCount: Set(providers.descriptions.values).count,
             actions: HomeActions(
                 openCloud: onOpenCloud,
+                openActivity: { route in
+                    if case .cloud(let name) = route { onOpenCloud(name) } else { router.pending = route }
+                },
                 fix: fix,
                 act: act(on:),
                 dismiss: { settings.dismissedSuggestions.insert($0.id) },
@@ -99,6 +106,7 @@ struct HomeView: View {
         switch suggestion {
         case .nearlyFull(let row): onOpenCloud(row.name)
         case .notInFinder(let row): Task { await showInFinder(row.name) }
+        case .backup(let note): router.pending = .backups(note.jobID)
         }
     }
 

@@ -12,13 +12,17 @@ struct CompanionView: View {
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(LaunchAtLoginService.self) private var launchAtLogin
     @Environment(AppRouter.self) private var router
+    @Environment(BackupStore.self) private var backupStore
+    @Environment(BackupRunner.self) private var backupRunner
+    @Environment(BackupScheduler.self) private var backupScheduler
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         CompanionContent(
             summary: CloudSummaryBuilder.live(
                 remotes: monitor.remotes, status: statusService, transfers: transferStore,
-                providers: providers, settings: settings, daemon: daemon),
+                providers: providers, settings: settings, daemon: daemon,
+                backups: backupStore, runner: backupRunner, scheduler: backupScheduler),
             activity: ActivityLine.lines(from: transferStore.completedTransfers, limit: 3),
             openAtLogin: Binding(
                 get: { launchAtLogin.isEnabled },
@@ -28,6 +32,7 @@ struct CompanionView: View {
             ),
             actions: CompanionActions(
                 openCloud: { router.open(.cloud($0), openWindow: openWindow) },
+                openActivity: { router.open($0, openWindow: openWindow) },
                 signIn: { router.open(.signIn($0.name), openWindow: openWindow) },
                 fix: { row in
                     if row.health == .unreachable {
@@ -40,6 +45,7 @@ struct CompanionView: View {
                     router.open(cloud.map(AppRouter.Route.transfers) ?? .home, openWindow: openWindow)
                 },
                 addCloud: { router.open(.addCloud, openWindow: openWindow) },
+                showBackups: { router.open(.backups(nil), openWindow: openWindow) },
                 openNimbus: { router.open(nil, openWindow: openWindow) },
                 restartEngine: {
                     Task {
@@ -66,13 +72,26 @@ struct CompanionMenuBarLabel: View {
     @Environment(ProviderDirectory.self) private var providers
     @Environment(AppSettings.self) private var settings
     @Environment(RcloneDaemon.self) private var daemon
+    @Environment(AppRouter.self) private var router
+    @Environment(BackupStore.self) private var backupStore
+    @Environment(BackupRunner.self) private var backupRunner
+    @Environment(BackupScheduler.self) private var backupScheduler
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         let overall = CloudSummaryBuilder.live(
             remotes: monitor.remotes, status: statusService, transfers: transferStore,
-            providers: providers, settings: settings, daemon: daemon
+            providers: providers, settings: settings, daemon: daemon,
+            backups: backupStore, runner: backupRunner, scheduler: backupScheduler
         ).overall
         Image(systemName: CompanionGlyph.symbol(for: overall))
             .accessibilityLabel(Text(verbatim: CompanionGlyph.accessibilityLabel(for: overall)))
+            // A notification click posts a route even when the window was
+            // closed; this label is always alive, so it can reopen the window.
+            .onChange(of: router.needsWindow) {
+                if router.takeWindowRequest() {
+                    router.open(nil, openWindow: openWindow)
+                }
+            }
     }
 }

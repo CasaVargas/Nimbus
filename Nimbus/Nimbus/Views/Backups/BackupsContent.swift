@@ -20,6 +20,7 @@ struct BackupsContent: View {
         var preview: (UUID) -> Void = { _ in }
         var backUpNow: (UUID) -> Void = { _ in }
         var stop: (UUID) -> Void = { _ in }
+        var showVersions: (UUID) -> Void = { _ in }
         var showHistory: (UUID) -> Void = { _ in }
         var copyCommand: (UUID) -> Void = { _ in }
         var duplicate: (UUID) -> Void = { _ in }
@@ -30,6 +31,10 @@ struct BackupsContent: View {
     let rows: [Row]
     let loadState: BackupStore.LoadState
     let actions: Actions
+    /// Non-nil shows the Open at Login note with this toggle.
+    var openAtLoginNote: Binding<Bool>? = nil
+    /// A backup to scroll to, e.g. from a notification.
+    var scrollTarget: UUID? = nil
 
     @Environment(\.stratosphere) private var palette
 
@@ -42,11 +47,12 @@ struct BackupsContent: View {
                 EmptyState(
                     icon: "clock.arrow.circlepath",
                     title: "Back up a folder automatically",
-                    message: "Copy a folder on this Mac or in one cloud to another cloud, as often as you like. You see what will change before anything runs.",
+                    message: "Copy a folder on this Mac or in one cloud to another cloud on a schedule. You see what will change before anything runs.",
                     action: isWritable ? .init(label: "New Backup…", perform: actions.newBackup) : nil
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
+                ScrollViewReader { proxy in
                 ScrollView {
                     GlassGroup {
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.m) {
@@ -59,7 +65,14 @@ struct BackupsContent: View {
                             .accessibilityAddTraits(.isHeader)
                         ForEach(rows) { row in
                             BackupRow(row: row, actions: actions, isWritable: isWritable)
+                                .id(row.id)
                                 .contextMenu { menu(for: row) }
+                        }
+                        if let openAtLoginNote {
+                            OpenAtLoginNoteView(isOn: openAtLoginNote)
+                                .padding(.horizontal, DesignSystem.Spacing.l)
+                                .padding(.vertical, 14)
+                                .glassSurface(radius: S.Radius.card)
                         }
                         Label("Every backup shows a preview before it removes or replaces anything.",
                               systemImage: "checkmark.shield")
@@ -73,6 +86,11 @@ struct BackupsContent: View {
                     .frame(maxWidth: 900)
                     .frame(maxWidth: .infinity)
                     }
+                }
+                .onChange(of: scrollTarget, initial: true) {
+                    guard let scrollTarget else { return }
+                    withAnimation(DesignSystem.Motion.smooth) { proxy.scrollTo(scrollTarget, anchor: .center) }
+                }
                 }
             }
         }
@@ -185,6 +203,8 @@ struct BackupsContent: View {
                 .disabled(!isWritable || !row.job.isApproved)
         }
         Divider()
+        Button("Show Versions") { actions.showVersions(id) }
+            .disabled(VersionsReveal.target(for: row.job, versionsFolderExists: false) == .unavailable)
         Button("Show History") { actions.showHistory(id) }
         Button("Copy rclone Command") { actions.copyCommand(id) }
         Button("Duplicate") { actions.duplicate(id) }
@@ -363,6 +383,21 @@ enum BackupsFixtures {
 #Preview("Every status") {
     BackupsContent(rows: BackupsFixtures.everyStatus, loadState: .loaded, actions: .init())
         .frame(width: 900, height: 860)
+        .background { StratosphereBackdrop() }
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Open at Login footer") {
+    BackupsContent(rows: Array(BackupsFixtures.everyStatus.prefix(3)), loadState: .loaded, actions: .init(),
+                   openAtLoginNote: .constant(false))
+        .frame(width: 900, height: 700)
+        .background { StratosphereBackdrop() }
+}
+
+#Preview("Open at Login footer, dark") {
+    BackupsContent(rows: Array(BackupsFixtures.everyStatus.prefix(3)), loadState: .loaded, actions: .init(),
+                   openAtLoginNote: .constant(false))
+        .frame(width: 900, height: 700)
         .background { StratosphereBackdrop() }
         .preferredColorScheme(.dark)
 }

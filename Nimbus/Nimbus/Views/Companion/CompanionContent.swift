@@ -3,10 +3,13 @@ import SwiftUI
 /// Everything the companion can ask its owner to do.
 struct CompanionActions {
     var openCloud: (String) -> Void = { _ in }
+    /// A recent activity line: its cloud, or Backups on its job.
+    var openActivity: (AppRouter.Route) -> Void = { _ in }
     var signIn: (CloudSummary.Row) -> Void = { _ in }
     var fix: (CloudSummary.Row) -> Void = { _ in }
     var showTransfers: (String?) -> Void = { _ in }
     var addCloud: () -> Void = {}
+    var showBackups: () -> Void = {}
     var openNimbus: () -> Void = {}
     var restartEngine: () -> Void = {}
     var quit: () -> Void = {}
@@ -53,7 +56,7 @@ struct CompanionContent: View {
                 Divider()
                 section("Recent activity") {
                     ForEach(activity.prefix(3)) { line in
-                        Button { actions.openCloud(line.cloud) } label: {
+                        Button { actions.openActivity(line.route) } label: {
                             HStack(alignment: .top, spacing: DesignSystem.Spacing.s) {
                                 Image(systemName: line.isFailure ? "exclamationmark.triangle" : "checkmark")
                                     .fontWeight(.semibold)
@@ -221,6 +224,7 @@ struct CompanionContent: View {
                     .buttonStyle(.primaryPill(.small))
             }
             Menu {
+                Button("Backups…", action: actions.showBackups)
                 SettingsLink { Text("Settings…") }
                 Toggle("Open at Login", isOn: $openAtLogin)
                 Divider()

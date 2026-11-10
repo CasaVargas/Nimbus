@@ -4,6 +4,8 @@ import SwiftUI
 /// a pure function of `CloudSummary` and previews need no live services.
 struct HomeActions {
     var openCloud: (String) -> Void = { _ in }
+    /// A recent activity line: its cloud, or Backups on its job.
+    var openActivity: (AppRouter.Route) -> Void = { _ in }
     var fix: (CloudSummary.Row) -> Void = { _ in }
     var act: (CloudSummary.Suggestion) -> Void = { _ in }
     var dismiss: (CloudSummary.Suggestion) -> Void = { _ in }
@@ -146,7 +148,7 @@ struct HomeContent: View {
                 } else {
                     ForEach(Array(activity.enumerated()), id: \.element.id) { index, line in
                         if index > 0 { Divider() }
-                        Button { actions.openCloud(line.cloud) } label: { ActivityRow(line: line) }
+                        Button { actions.openActivity(line.route) } label: { ActivityRow(line: line) }
                             .buttonStyle(.plain)
                     }
                 }
@@ -218,8 +220,8 @@ enum HomePreviewData {
     }
 
     static let activity: [ActivityLine] = [
-        .init(id: UUID(), text: "Copied Yosemite 2026 to Photo Archive", date: now.addingTimeInterval(-7_200), isFailure: false, cloud: "Photo Archive"),
-        .init(id: UUID(), text: "Couldn't copy Client Work to Dropbox", date: now.addingTimeInterval(-90_000), isFailure: true, cloud: "Dropbox"),
+        .init(id: UUID(), text: "Copied Yosemite 2026 to Photo Archive", date: now.addingTimeInterval(-7_200), isFailure: false, route: .cloud("Photo Archive")),
+        .init(id: UUID(), text: "Couldn't copy Client Work to Dropbox", date: now.addingTimeInterval(-90_000), isFailure: true, route: .cloud("Dropbox")),
     ]
 }
 
