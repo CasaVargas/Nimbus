@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/window-home.png" width="900" alt="The Nimbus window on Home: a sidebar of clouds with capacity bars, one storage bar across all of them, and a row per cloud in plain words">
+  <img src="docs/screenshots/window-home.png" width="900" alt="The Nimbus window on Home: a sidebar of clouds with capacity bars, how much is free across all of them, a storage ring, and a card per cloud with its status in plain words. Demo data.">
 </p>
 
 ## Why
