@@ -191,6 +191,14 @@ struct BackupStatusTests {
         #expect(label == "Documents to B2, \(status.sentence), Manual")
     }
 
+    /// The Backups screen's clock ticks once a minute, so a run that ends
+    /// mid-minute is ahead of it until the next tick.
+    @Test func relativeNeverReadsAsTheFuture() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        #expect(BackupStatus.relative(now.addingTimeInterval(36), now: now) == BackupStatus.relative(now, now: now))
+        #expect(!BackupStatus.relative(now.addingTimeInterval(36), now: now).hasPrefix("in "))
+    }
+
     @Test func fileCountsAgreeInNumber() {
         #expect(BackupStatus.fileCount(1) == "1 file")
         #expect(BackupStatus.fileCount(2) == "2 files")

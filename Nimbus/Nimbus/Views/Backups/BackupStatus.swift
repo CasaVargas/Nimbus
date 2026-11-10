@@ -86,12 +86,14 @@ struct BackupStatus: Equatable {
         count == 1 ? String(localized: "1 file") : String(localized: "\(count) files")
     }
 
-    /// "2 hours ago", "yesterday".
+    /// "2 hours ago", "yesterday". Never the future: `now` comes from a
+    /// clock that ticks once a minute, so a run that just ended is ahead of
+    /// it and would read "in 36 seconds".
     static func relative(_ date: Date, now: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.dateTimeStyle = .named
         formatter.unitsStyle = .full
-        return formatter.localizedString(for: date, relativeTo: now)
+        return formatter.localizedString(for: min(date, now), relativeTo: now)
     }
 
     private static func etaText(_ seconds: TimeInterval) -> String? {
