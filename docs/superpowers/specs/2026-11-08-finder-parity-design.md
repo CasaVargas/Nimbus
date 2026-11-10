@@ -1,7 +1,7 @@
 # Finder Parity — Design
 
 **Date:** 2026-11-08
-**Status:** Direction chosen ("Finder parity first", from the competitive research); spec awaiting review
+**Status:** Built 2026-11-08 in three PRs: Keep Downloaded (#18), Copy Share Link (#20), Thumbnails (#21). See "As built" at the end for what was left out and what was never checked live.
 **Research:** `docs/superpowers/reports/2026-11-08-competitive-feature-gaps.md`
 **Area:** `Nimbus/FileProviderExtension/` mainly, plus RcloneKit and the browser inspector
 
@@ -224,3 +224,22 @@ Each phase is its own PR:
   controls accordingly.
 - The exact glyph for "pinned" in the file list. An SF Symbol `pin.fill` at caption size is
   suggested.
+
+## As built (2026-11-08)
+
+All three phases merged the day the spec was written, before the spec itself reached `main` (#45).
+
+Left out of the build:
+
+- **Stop Sharing.** `publicLink(fs:remote:expire:unlink:)` takes `unlink`, and nothing in the app
+  calls it. The list of services where rclone supports unlink was never confirmed.
+- **Expiry choices.** The inspector offers 1 day and 7 days, and only for S3 and B2. The spec's
+  Never and 30 days options, and expiry on other services that accept it, are not there.
+
+Never checked in the running app:
+
+- The inspector's Keep on this Mac switch (#18: onboarding was showing).
+- The thumbnail cache's location after the EPERM fix (#21).
+- The "Share link copied" banner (#20: the test install had no notification permission).
+- Share links on a real Google Drive, and the action's absence on SFTP. #20 was checked against a
+  local S3 server and an alias cloud only.
