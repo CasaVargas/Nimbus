@@ -51,7 +51,7 @@ struct ConfigPageForm: View {
                 FormSection(title: "Configuration", footer: nil) {
                     ForEach(visibleQuestions, id: \.option.name) { question in
                         FormRow(
-                            label: LocalizedStringKey(question.option.name),
+                            label: LocalizedStringKey(ConfigFieldLabel.label(forOption: question.option.name)),
                             help: question.option.help.isEmpty
                                 ? nil
                                 : LocalizedStringKey(question.option.help)
