@@ -32,6 +32,7 @@ struct CompanionView: View {
             ),
             actions: CompanionActions(
                 openCloud: { router.open(.cloud($0), openWindow: openWindow) },
+                openActivity: { router.open($0, openWindow: openWindow) },
                 signIn: { router.open(.signIn($0.name), openWindow: openWindow) },
                 fix: { row in
                     if row.health == .unreachable {

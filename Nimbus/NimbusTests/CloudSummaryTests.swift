@@ -187,7 +187,8 @@ struct CloudSummaryTests {
         #expect(lines.map(\.text) == ["Couldn't sync Personal to Dropbox",
                                       "Copied Yosemite 2026 to Archive"])
         #expect(lines[0].isFailure)
-        #expect(lines[1].cloud == "Archive")
+        #expect(lines[1].route == .cloud("Archive"))
+        #expect(lines[0].route == .cloud("Dropbox"))
     }
     // MARK: Aliases
 
@@ -246,10 +247,11 @@ struct CloudSummaryTests {
         BackupSuggestions.notes(for: jobs, now: now, calendar: cal).map(\.sentence)
     }
 
-    func backupTransfer(_ title: String, status: TransferStatus, outcome: BackupRunSummary.Outcome? = nil) -> Transfer {
-        var t = Transfer(jobID: 1, operation: .sync, srcFs: "/Users/me/Documents", dstFs: "B2:docs",
+    func backupTransfer(_ title: String, status: TransferStatus, outcome: BackupRunSummary.Outcome? = nil,
+                        dstFs: String = "B2:docs", backupID: UUID = UUID()) -> Transfer {
+        var t = Transfer(jobID: 1, operation: .sync, srcFs: "/Users/me/Documents", dstFs: dstFs,
                          startedAt: now, completedAt: now, status: status, origin: .backup, nimbusUUID: UUID())
-        t.backup = .init(backupID: UUID(), title: title, trigger: .scheduled,
+        t.backup = .init(backupID: backupID, title: title, trigger: .scheduled,
                          isMirrorWithVersions: false, hadRemovalLimit: true)
         if let outcome {
             t.summary = BackupRunSummary(startedAt: now, finishedAt: now, trigger: .scheduled, outcome: outcome,
@@ -264,7 +266,25 @@ struct CloudSummaryTests {
         ])
         #expect(lines.map(\.text) == ["Backed up Documents to B2"])
         #expect(lines[0].isFailure == false)
-        #expect(lines[0].cloud == "B2")
+    }
+
+    @Test func backupActivityFailureComesFromTheRunNotTheText() {
+        let completed = ActivityLine.lines(from: [backupTransfer("Photos failed", status: .completed)])
+        #expect(completed.map(\.text) == ["Backed up Photos failed"])
+        #expect(completed[0].isFailure == false)
+        let stopped = ActivityLine.lines(from: [backupTransfer("Photos", status: .failed("max-delete"), outcome: .limitHit)])
+        #expect(stopped[0].isFailure)
+        let failed = ActivityLine.lines(from: [backupTransfer("Photos", status: .failed("boom"))])
+        #expect(failed[0].isFailure)
+    }
+
+    @Test func backupActivityOpensBackupsOnThatJob() {
+        let id = UUID()
+        let toCloud = ActivityLine.lines(from: [backupTransfer("Documents to B2", status: .completed, backupID: id)])
+        #expect(toCloud[0].route == .backups(id))
+        let onThisMac = ActivityLine.lines(from: [
+            backupTransfer("Documents", status: .failed("boom"), dstFs: "/Volumes/Backup/Documents", backupID: id)])
+        #expect(onThisMac[0].route == .backups(id))
     }
 
     @Test func activityLineForFailedStoppedAndCancelledBackups() {

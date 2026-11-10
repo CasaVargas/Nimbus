@@ -39,6 +39,9 @@ struct HomeView: View {
             providerCount: Set(providers.descriptions.values).count,
             actions: HomeActions(
                 openCloud: onOpenCloud,
+                openActivity: { route in
+                    if case .cloud(let name) = route { onOpenCloud(name) } else { router.pending = route }
+                },
                 fix: fix,
                 act: act(on:),
                 dismiss: { settings.dismissedSuggestions.insert($0.id) },

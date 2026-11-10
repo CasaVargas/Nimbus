@@ -303,8 +303,9 @@ struct ActivityLine: Equatable, Identifiable {
     let text: String
     let date: Date
     let isFailure: Bool
-    /// The cloud a click should open (the destination).
-    let cloud: String
+    /// Where a click goes: the destination cloud, or for a backup the
+    /// Backups screen on that job (its destination may be on this Mac).
+    let route: AppRouter.Route
 
     static func lines(from finished: [Transfer], limit: Int = 5) -> [ActivityLine] {
         finished
@@ -316,8 +317,8 @@ struct ActivityLine: Equatable, Identifiable {
                 if transfer.origin == .backup {
                     guard let backupText = backupText(for: transfer, item: item) else { return nil }
                     return ActivityLine(id: transfer.id, text: backupText, date: date,
-                                        isFailure: backupText.hasSuffix("failed") || backupText.hasSuffix("stopped"),
-                                        cloud: dest)
+                                        isFailure: isBackupFailure(transfer),
+                                        route: .backups(transfer.backup?.backupID))
                 }
                 switch transfer.status {
                 case .completed:
@@ -339,7 +340,7 @@ struct ActivityLine: Equatable, Identifiable {
                 }
                 return ActivityLine(id: transfer.id, text: text, date: date,
                                     isFailure: { if case .failed = transfer.status { true } else { false } }(),
-                                    cloud: dest)
+                                    route: .cloud(dest))
             }
             .sorted { $0.date > $1.date }
             .prefix(limit)
@@ -357,6 +358,14 @@ struct ActivityLine: Equatable, Identifiable {
         case .failed: return "Backup \(title) failed"
         case .cancelled, .active: return nil
         }
+    }
+
+    /// A failed run or one stopped at its removal limit, from the run
+    /// itself, never from the job's name.
+    private static func isBackupFailure(_ transfer: Transfer) -> Bool {
+        if case .limitHit = transfer.summary?.outcome { return true }
+        if case .failed = transfer.status { return true }
+        return false
     }
 
     /// "Personal:Photos/Yosemite 2026" → "Yosemite 2026"; a bare "Personal:" → "Personal".
