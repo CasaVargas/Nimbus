@@ -48,6 +48,7 @@ struct BackupsContent: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
+                    GlassGroup {
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.m) {
                         hero
                         Text("Your backups")
@@ -71,6 +72,7 @@ struct BackupsContent: View {
                     .padding(.vertical, DesignSystem.Spacing.l)
                     .frame(maxWidth: 900)
                     .frame(maxWidth: .infinity)
+                    }
                 }
             }
         }
