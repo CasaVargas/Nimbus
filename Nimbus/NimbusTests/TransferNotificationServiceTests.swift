@@ -141,6 +141,89 @@ struct TransferNotificationServiceTests {
         #expect(await notifier.deliveredOutcomes.isEmpty)
     }
 
+    // MARK: Backups
+
+    @Test func backupSuccessCopy() async {
+        let center = NotificationCenterSpy(authorizationStatus: .authorized)
+        let service = TransferNotificationService(center: center)
+
+        await service.deliver(backupRecord(.completed, copied: 12, replaced: 1), mode: .allTransfers)
+
+        let request = await center.requests.first
+        #expect(request?.title == "Backed up Documents to B2")
+        #expect(request?.body == "12 files backed up, 2 moved to versions.")
+        #expect(request?.backupID == Self.backupID)
+    }
+
+    @Test func backupSuccessBodyHandlesOneAndNone() async {
+        #expect(TransferNotificationService.backupBody(copied: 1, replaced: 0, removed: 0) == "1 file backed up.")
+        #expect(TransferNotificationService.backupBody(copied: 0, replaced: 0, removed: 0) == "No changes.")
+    }
+
+    @Test func backupFailureCopy() async {
+        let center = NotificationCenterSpy(authorizationStatus: .authorized)
+        let service = TransferNotificationService(center: center)
+
+        await service.deliver(backupRecord(.failed("Network unavailable\nsecond line")), mode: .failuresOnly)
+
+        let request = await center.requests.first
+        #expect(request?.title == "Backup Documents to B2 failed")
+        #expect(request?.body == "Network unavailable")
+        #expect(request?.backupID == Self.backupID)
+    }
+
+    @Test func backupLimitHitNotifiesUnderFailuresOnly() async {
+        let center = NotificationCenterSpy(authorizationStatus: .authorized)
+        let service = TransferNotificationService(center: center)
+
+        await service.deliver(backupRecord(.failed("failed to delete 100 files"), summary: .limitHit, limit: 100),
+                              mode: .failuresOnly)
+
+        let request = await center.requests.first
+        #expect(request?.title == "Backup Documents to B2 stopped")
+        #expect(request?.body == "It would have removed more than 100 files. Open Nimbus to preview it.")
+        #expect(request?.backupID == Self.backupID)
+    }
+
+    @Test func backupSuccessSilentUnderFailuresOnly() async {
+        let center = NotificationCenterSpy(authorizationStatus: .notDetermined)
+        let service = TransferNotificationService(center: center)
+
+        await service.deliver(backupRecord(.completed), mode: .failuresOnly)
+
+        #expect(await center.requests.isEmpty)
+        #expect(await center.requestAuthorizationCallCount == 0)
+    }
+
+    @Test func backupIDRoundTripsThroughUserInfo() {
+        let request = TransferNotificationRequest(identifier: "x", title: "t", body: "b", backupID: Self.backupID)
+        #expect(TransferNotificationRequest.backupID(fromUserInfo: request.userInfo) == Self.backupID)
+        #expect(TransferNotificationRequest.backupID(fromUserInfo: [:]) == nil)
+        #expect(TransferNotificationRequest(identifier: "x", title: "t", body: "b").userInfo.isEmpty)
+    }
+
+    private static let backupID = UUID(uuidString: "00000000-0000-0000-0000-0000000000B1")!
+
+    private func backupRecord(
+        _ outcome: TransferOutcome,
+        summary: BackupRunSummary.Outcome? = nil,
+        copied: Int = 3,
+        replaced: Int = 0,
+        limit: Int? = nil
+    ) -> TransferRecord {
+        var record = record(outcome: outcome, origin: .backup)
+        record.backupID = Self.backupID
+        record.title = "Documents to B2"
+        var run = BackupRunSummary(
+            startedAt: record.startedAt, finishedAt: record.completedAt, trigger: .scheduled,
+            outcome: summary ?? { if case .failed(let m) = outcome { .failed(m) } else { .completed } }(),
+            copied: copied, replaced: replaced, removed: 1, errors: 0, bytes: 10
+        )
+        run.removalLimit = limit
+        record.summary = run
+        return record
+    }
+
     private var completedRecord: TransferRecord {
         record(outcome: .completed)
     }
@@ -149,7 +232,7 @@ struct TransferNotificationServiceTests {
         record(outcome: .failed("Network unavailable"))
     }
 
-    private func record(outcome: TransferOutcome) -> TransferRecord {
+    private func record(outcome: TransferOutcome, origin: TransferOrigin = .manual) -> TransferRecord {
         TransferRecord(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
             jobID: 7,
@@ -159,7 +242,7 @@ struct TransferNotificationServiceTests {
             startedAt: Date(timeIntervalSince1970: 1_700_000_000),
             completedAt: Date(timeIntervalSince1970: 1_700_000_060),
             outcome: outcome,
-            origin: .manual
+            origin: origin
         )
     }
 }

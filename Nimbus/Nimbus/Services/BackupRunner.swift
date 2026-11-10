@@ -145,7 +145,8 @@ final class BackupRunner: BackupLaunching {
                         title: job.name,
                         trigger: trigger,
                         isMirrorWithVersions: job.mode == .mirror && job.versions.enabled,
-                        hadRemovalLimit: request.maxDelete != nil
+                        hadRemovalLimit: request.maxDelete != nil,
+                        removalLimit: request.maxDelete
                     )
                 )
             } catch {

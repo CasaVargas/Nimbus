@@ -30,6 +30,10 @@ struct BackupsContent: View {
     let rows: [Row]
     let loadState: BackupStore.LoadState
     let actions: Actions
+    /// Non-nil shows the Open at Login note with this toggle.
+    var openAtLoginNote: Binding<Bool>? = nil
+    /// A backup to scroll to, e.g. from a notification.
+    var scrollTarget: UUID? = nil
 
     @Environment(\.stratosphere) private var palette
 
@@ -47,6 +51,7 @@ struct BackupsContent: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
+                ScrollViewReader { proxy in
                 ScrollView {
                     GlassGroup {
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.m) {
@@ -59,7 +64,14 @@ struct BackupsContent: View {
                             .accessibilityAddTraits(.isHeader)
                         ForEach(rows) { row in
                             BackupRow(row: row, actions: actions, isWritable: isWritable)
+                                .id(row.id)
                                 .contextMenu { menu(for: row) }
+                        }
+                        if let openAtLoginNote {
+                            OpenAtLoginNoteView(isOn: openAtLoginNote)
+                                .padding(.horizontal, DesignSystem.Spacing.l)
+                                .padding(.vertical, 14)
+                                .glassSurface(radius: S.Radius.card)
                         }
                         Label("Every backup shows a preview before it removes or replaces anything.",
                               systemImage: "checkmark.shield")
@@ -73,6 +85,11 @@ struct BackupsContent: View {
                     .frame(maxWidth: 900)
                     .frame(maxWidth: .infinity)
                     }
+                }
+                .onChange(of: scrollTarget, initial: true) {
+                    guard let scrollTarget else { return }
+                    withAnimation(DesignSystem.Motion.smooth) { proxy.scrollTo(scrollTarget, anchor: .center) }
+                }
                 }
             }
         }
@@ -363,6 +380,21 @@ enum BackupsFixtures {
 #Preview("Every status") {
     BackupsContent(rows: BackupsFixtures.everyStatus, loadState: .loaded, actions: .init())
         .frame(width: 900, height: 860)
+        .background { StratosphereBackdrop() }
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Open at Login footer") {
+    BackupsContent(rows: Array(BackupsFixtures.everyStatus.prefix(3)), loadState: .loaded, actions: .init(),
+                   openAtLoginNote: .constant(false))
+        .frame(width: 900, height: 700)
+        .background { StratosphereBackdrop() }
+}
+
+#Preview("Open at Login footer, dark") {
+    BackupsContent(rows: Array(BackupsFixtures.everyStatus.prefix(3)), loadState: .loaded, actions: .init(),
+                   openAtLoginNote: .constant(false))
+        .frame(width: 900, height: 700)
         .background { StratosphereBackdrop() }
         .preferredColorScheme(.dark)
 }

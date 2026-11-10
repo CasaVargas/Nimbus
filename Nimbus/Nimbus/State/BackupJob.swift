@@ -226,6 +226,9 @@ struct BackupRunSummary: Codable, Hashable, Sendable {
     let removed: Int
     let errors: Int
     let bytes: Int64
+    /// The job's removal limit when the run started; names the number in the
+    /// "stopped" notification. Absent in summaries saved before it existed.
+    var removalLimit: Int? = nil
 }
 
 extension BackupRunSummary.Outcome: Codable {

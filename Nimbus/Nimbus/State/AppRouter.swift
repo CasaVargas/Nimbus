@@ -15,6 +15,8 @@ final class AppRouter {
         case transfers(String)
         case signIn(String)
         case addCloud
+        /// The Backups screen, scrolled to a job when there is one.
+        case backups(UUID?)
     }
 
     var pending: Route?

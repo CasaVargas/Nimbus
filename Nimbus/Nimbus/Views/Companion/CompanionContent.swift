@@ -7,6 +7,7 @@ struct CompanionActions {
     var fix: (CloudSummary.Row) -> Void = { _ in }
     var showTransfers: (String?) -> Void = { _ in }
     var addCloud: () -> Void = {}
+    var showBackups: () -> Void = {}
     var openNimbus: () -> Void = {}
     var restartEngine: () -> Void = {}
     var quit: () -> Void = {}
@@ -221,6 +222,7 @@ struct CompanionContent: View {
                     .buttonStyle(.primaryPill(.small))
             }
             Menu {
+                Button("Backups…", action: actions.showBackups)
                 SettingsLink { Text("Settings…") }
                 Toggle("Open at Login", isOn: $openAtLogin)
                 Divider()

@@ -77,6 +77,15 @@ struct AppRouterTests {
         #expect(router.take(where: { $0 == .addCloud }) == .addCloud)
         #expect(router.pending == nil)
     }
+
+    @Test func backupsRouteCarriesAnOptionalJob() {
+        let router = AppRouter()
+        let id = UUID()
+        router.pending = .backups(id)
+        #expect(router.take(where: { $0 == .addCloud }) == nil)
+        #expect(router.take(where: { if case .backups = $0 { true } else { false } }) == .backups(id))
+        #expect(AppRouter.Route.backups(nil) != .backups(id))
+    }
 }
 
 @Suite("Companion glyph and headline")

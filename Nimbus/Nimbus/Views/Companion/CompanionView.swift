@@ -40,6 +40,7 @@ struct CompanionView: View {
                     router.open(cloud.map(AppRouter.Route.transfers) ?? .home, openWindow: openWindow)
                 },
                 addCloud: { router.open(.addCloud, openWindow: openWindow) },
+                showBackups: { router.open(.backups(nil), openWindow: openWindow) },
                 openNimbus: { router.open(nil, openWindow: openWindow) },
                 restartEngine: {
                     Task {
@@ -66,6 +67,8 @@ struct CompanionMenuBarLabel: View {
     @Environment(ProviderDirectory.self) private var providers
     @Environment(AppSettings.self) private var settings
     @Environment(RcloneDaemon.self) private var daemon
+    @Environment(AppRouter.self) private var router
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         let overall = CloudSummaryBuilder.live(
@@ -74,5 +77,12 @@ struct CompanionMenuBarLabel: View {
         ).overall
         Image(systemName: CompanionGlyph.symbol(for: overall))
             .accessibilityLabel(Text(verbatim: CompanionGlyph.accessibilityLabel(for: overall)))
+            // A notification click posts a route even when the window was
+            // closed; this label is always alive, so it can reopen the window.
+            .onChange(of: router.pending) {
+                if case .backups = router.pending, !router.isMainWindowOpen {
+                    router.open(nil, openWindow: openWindow)
+                }
+            }
     }
 }

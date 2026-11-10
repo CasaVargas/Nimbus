@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 @main
 struct NimbusApp: App {
@@ -138,6 +139,7 @@ struct NimbusApp: App {
                 .environment(transferStore)
                 .environment(providerDirectory)
                 .environment(cloudMonitor)
+                .environment(router)
         }
         .menuBarExtraStyle(.window)
 
@@ -185,6 +187,19 @@ struct NimbusApp: App {
         let transfers = transferStore
         let mounts = mountManager
         let rclone = daemon
+        let runner = backupRunner
+        appDelegate.shouldConfirmQuit = { runner.isRunningAnything }
+        let router = router
+        appDelegate.onBackupNotificationClick = { id in
+            NSApp.setActivationPolicy(.regular)
+            NSApp.activate()
+            router.pending = .backups(id)
+            if router.isMainWindowOpen,
+               let window = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) {
+                window.makeKeyAndOrderFront(nil)
+            }
+        }
+        UNUserNotificationCenter.current().delegate = appDelegate
         appDelegate.shutdownHandler = {
             transfers.stopPolling()
             await mounts.stopAll()

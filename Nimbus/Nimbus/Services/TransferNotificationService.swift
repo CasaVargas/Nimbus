@@ -12,6 +12,18 @@ struct TransferNotificationRequest: Equatable, Sendable {
     let identifier: String
     let title: String
     let body: String
+    /// Set for backup notifications, so a click can open that backup.
+    var backupID: UUID? = nil
+
+    static let backupIDKey = "backupID"
+
+    var userInfo: [String: String] {
+        backupID.map { [Self.backupIDKey: $0.uuidString] } ?? [:]
+    }
+
+    static func backupID(fromUserInfo userInfo: [AnyHashable: Any]) -> UUID? {
+        (userInfo[backupIDKey] as? String).flatMap(UUID.init(uuidString:))
+    }
 }
 
 protocol TransferNotificationCenter: Sendable {
@@ -71,6 +83,9 @@ struct TransferNotificationService: TransferNotifying, Sendable {
     }
 
     private func request(for record: TransferRecord) -> TransferNotificationRequest {
+        if record.origin == .backup, let backupID = record.backupID {
+            return backupRequest(for: record, backupID: backupID)
+        }
         let operation = record.operation.rawValue.capitalized
         let isFailure: Bool
         switch record.outcome {
@@ -87,6 +102,45 @@ struct TransferNotificationService: TransferNotifying, Sendable {
             title: isFailure ? "Transfer Failed" : "Transfer Complete",
             body: "\(operation) transfer \(isFailure ? "failed" : "completed")."
         )
+    }
+}
+
+extension TransferNotificationService {
+    private func backupRequest(for record: TransferRecord, backupID: UUID) -> TransferNotificationRequest {
+        let name = record.title ?? ""
+        let title: String
+        let body: String
+        switch record.summary?.outcome {
+        case .limitHit:
+            title = String(localized: "Backup \(name) stopped")
+            if let limit = record.summary?.removalLimit {
+                body = String(localized: "It would have removed more than \(limit) files. Open Nimbus to preview it.")
+            } else {
+                body = String(localized: "It would have removed more files than the limit allows. Open Nimbus to preview it.")
+            }
+        default:
+            if case .failed(let message) = record.outcome {
+                title = String(localized: "Backup \(name) failed")
+                body = message.split(whereSeparator: \.isNewline).first.map(String.init) ?? message
+            } else {
+                title = String(localized: "Backed up \(name)")
+                body = Self.backupBody(copied: record.summary?.copied ?? 0,
+                                       replaced: record.summary?.replaced ?? 0,
+                                       removed: record.summary?.removed ?? 0)
+            }
+        }
+        return TransferNotificationRequest(identifier: record.id.uuidString, title: title, body: body, backupID: backupID)
+    }
+
+    /// "12 files backed up, 1 moved to versions." Replaced files only exist
+    /// when versions are on, so moves are claimed only then: a removal alone
+    /// could be a real delete.
+    static func backupBody(copied: Int, replaced: Int, removed: Int) -> String {
+        let moved = replaced > 0 ? replaced + removed : 0
+        if copied == 0, moved == 0 { return String(localized: "No changes.") }
+        let backedUp = copied == 1 ? String(localized: "1 file backed up") : String(localized: "\(copied) files backed up")
+        guard moved > 0 else { return backedUp + "." }
+        return backedUp + ", " + String(localized: "\(moved) moved to versions") + "."
     }
 }
 
@@ -132,6 +186,7 @@ private final class UserNotificationCenterAdapter: @unchecked Sendable, Transfer
         content.title = request.title
         content.body = request.body
         content.sound = .default
+        content.userInfo = request.userInfo
 
         try await center.add(UNNotificationRequest(identifier: request.identifier, content: content, trigger: nil))
     }

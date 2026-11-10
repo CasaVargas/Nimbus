@@ -7,6 +7,8 @@ import RcloneKit
 struct BackupsView: View {
     /// A pre-filled new backup from Copy Between Clouds' "Save as Backup…".
     @Binding var pendingDraft: BackupJob?
+    /// A backup to scroll to, set by a notification click and consumed here.
+    @Binding var focusedJob: UUID?
     /// Opens a cloud's Transfers tab.
     var onShowHistory: (String) -> Void = { _ in }
 
@@ -14,6 +16,7 @@ struct BackupsView: View {
     @Environment(BackupRunner.self) private var runner
     @Environment(CloudMonitor.self) private var monitor
     @Environment(RcloneDaemon.self) private var daemon
+    @Environment(LaunchAtLoginService.self) private var launchAtLogin
 
     private struct EditorRequest: Identifiable {
         let id = UUID()
@@ -28,11 +31,24 @@ struct BackupsView: View {
     @State private var previewAfterEditor: BackupJob?
     @State private var editAfterPreview: BackupJob?
     @State private var engineAlert = false
+    @State private var scrollTarget: UUID?
 
     var body: some View {
         TimelineView(.everyMinute) { context in
-            BackupsContent(rows: rows(now: context.date), loadState: store.loadState, actions: actions)
+            BackupsContent(
+                rows: rows(now: context.date),
+                loadState: store.loadState,
+                actions: actions,
+                openAtLoginNote: showsOpenAtLoginNote ? launchAtLogin.enabledBinding : nil,
+                scrollTarget: scrollTarget
+            )
         }
+        .onChange(of: focusedJob, initial: true) {
+            guard let id = focusedJob else { return }
+            focusedJob = nil
+            scrollTarget = id
+        }
+        .task { launchAtLogin.refresh() }
         .navigationTitle("Backups")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -104,6 +120,10 @@ struct BackupsView: View {
         } message: {
             Text("Backups can run once it has started again. Open Home to restart it.")
         }
+    }
+
+    private var showsOpenAtLoginNote: Bool {
+        OpenAtLoginNote.isShown(schedules: store.jobs.map(\.schedule), openAtLoginIsOn: launchAtLogin.isEnabled)
     }
 
     private var deleteTitle: String {
