@@ -228,6 +228,10 @@ final class BackupRunner: BackupLaunching {
     /// Deletes the job's versions folders past its Keep for, in the
     /// background: a slow listing never holds up the next queued job, and a
     /// failure is only logged. One prune per job at a time.
+    ///
+    /// A prune is not part of the quit guard (`isRunningAnything`): a
+    /// cut-off purge is idempotent, so one cut short by quit is finished by
+    /// the next completed run, which lists the folder again.
     private func startPruning(_ jobID: UUID) {
         guard pruning[jobID] == nil, let job = store.job(id: jobID), job.versions.enabled else { return }
         // Other jobs may keep versions in the same folder for longer.
