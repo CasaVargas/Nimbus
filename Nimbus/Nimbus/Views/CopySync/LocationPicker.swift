@@ -19,6 +19,7 @@ struct LocationPicker: View {
     @State private var isBrowsing = false
 
     private static let thisMacTag = "\u{0}this-mac"
+    private static let rowPathWidth: CGFloat = 270
 
     var body: some View {
         Group {
@@ -27,7 +28,12 @@ struct LocationPicker: View {
                 FormRow(label: label, help: nil) {
                     HStack(spacing: DesignSystem.Spacing.s) {
                         menu.frame(width: 140)
-                        pathControls(fieldWidth: 200)
+                        // One width for every kind of place, so the menus of
+                        // stacked rows line up whatever each row holds.
+                        HStack(spacing: DesignSystem.Spacing.s) {
+                            pathControls(fieldWidth: .infinity)
+                        }
+                        .frame(width: Self.rowPathWidth, alignment: .leading)
                     }
                 }
             case .stacked:
@@ -78,10 +84,11 @@ struct LocationPicker: View {
             .help("Browse folders")
             .accessibilityLabel("Browse folders in \(remote)")
         case nil:
-            TextField("/", text: .constant(""))
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: fieldWidth)
-                .disabled(true)
+            // No dead text field before a place is chosen.
+            Text("No folder chosen yet")
+                .font(DesignSystem.Typography.caption)
+                .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                .frame(maxWidth: fieldWidth, minHeight: 22, alignment: .leading)
         }
     }
 
@@ -94,7 +101,7 @@ struct LocationPicker: View {
             Text(verbatim: FileManager.default.displayName(atPath: path))
                 .lineLimit(1)
                 .truncationMode(.middle)
-                .frame(maxWidth: 170, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .help(path)
             Button("Change…") { chooseMacFolder() }
         }

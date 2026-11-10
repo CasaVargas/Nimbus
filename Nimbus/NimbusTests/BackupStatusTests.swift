@@ -190,4 +190,10 @@ struct BackupStatusTests {
         let label = BackupStatus.accessibilityLabel(job: job, status: status, scheduleLine: "Manual")
         #expect(label == "Documents to B2, \(status.sentence), Manual")
     }
+
+    @Test func fileCountsAgreeInNumber() {
+        #expect(BackupStatus.fileCount(1) == "1 file")
+        #expect(BackupStatus.fileCount(2) == "2 files")
+        #expect(BackupStatus.fileCount(0) == "0 files")
+    }
 }

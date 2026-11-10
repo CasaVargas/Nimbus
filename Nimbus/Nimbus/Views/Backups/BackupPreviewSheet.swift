@@ -191,7 +191,7 @@ struct BackupPreviewContent: View {
         .accessibilityElement(children: .combine)
 
         if preview.limitHit {
-            DestructiveCallout(message: "This would remove more than \(context.removalLimit ?? 0) files, so the removal limit would stop it. Check the list, then edit the backup to raise or turn off the limit.")
+            DestructiveCallout(message: "This would remove more than \(BackupStatus.fileCount(context.removalLimit ?? 0)), so the removal limit would stop it. Check the list, then edit the backup to raise or turn off the limit.")
         }
         if !preview.errors.isEmpty {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
@@ -229,7 +229,10 @@ struct BackupPreviewContent: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
         }
-        .listStyle(.bordered)
+        // The sheet's own glass surface, not the system's opaque list box.
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .glassContentSurface()
         .frame(minHeight: 220)
         .overlay {
             if paths.isEmpty {

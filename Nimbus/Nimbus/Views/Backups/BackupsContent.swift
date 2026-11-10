@@ -66,7 +66,6 @@ struct BackupsContent: View {
                         ForEach(rows) { row in
                             BackupRow(row: row, actions: actions, isWritable: isWritable)
                                 .id(row.id)
-                                .contextMenu { menu(for: row) }
                         }
                         if let openAtLoginNote {
                             OpenAtLoginNoteView(isOn: openAtLoginNote)
@@ -187,32 +186,6 @@ struct BackupsContent: View {
         .background(tint.opacity(0.18))
     }
 
-    @ViewBuilder
-    private func menu(for row: Row) -> some View {
-        let id = row.job.id
-        Button("Edit…") { actions.edit(id) }
-            .disabled(!isWritable || row.isRunning)
-        Button("Preview…") { actions.preview(id) }
-            .disabled(!isWritable || row.isRunning)
-        if row.isRunning {
-            Button("Stop") { actions.stop(id) }
-        } else if row.isQueued {
-            Button("Cancel Backup") { actions.stop(id) }
-        } else {
-            Button("Back Up Now") { actions.backUpNow(id) }
-                .disabled(!isWritable || !row.job.isApproved)
-        }
-        Divider()
-        Button("Show Versions") { actions.showVersions(id) }
-            .disabled(VersionsReveal.target(for: row.job, versionsFolderExists: false) == .unavailable)
-        Button("Show History") { actions.showHistory(id) }
-        Button("Copy rclone Command") { actions.copyCommand(id) }
-        Button("Duplicate") { actions.duplicate(id) }
-            .disabled(!isWritable)
-        Divider()
-        Button("Delete…", role: .destructive) { actions.delete(id) }
-            .disabled(!isWritable || row.isRunning)
-    }
 }
 
 struct BackupRow: View {
@@ -251,6 +224,8 @@ struct BackupRow: View {
                         .frame(maxWidth: 260)
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(BackupStatus.accessibilityLabel(job: row.job, status: row.status, scheduleLine: row.scheduleLine))
             Spacer(minLength: DesignSystem.Spacing.m)
             VStack(alignment: .trailing, spacing: DesignSystem.Spacing.s) {
                 Label {
@@ -261,16 +236,62 @@ struct BackupRow: View {
                 .font(S.Typography.detail)
                 .foregroundStyle(palette.textSecondary.color)
                 .lineLimit(1)
-                trailingButton
-                    .buttonStyle(.glassCapsule)
-                    .disabled(!isWritable && !row.isRunning)
+                .accessibilityHidden(true)
+                HStack(spacing: DesignSystem.Spacing.s) {
+                    trailingButton
+                        .buttonStyle(.glassCapsule)
+                        .disabled(!isWritable && !row.isRunning)
+                    Menu {
+                        menuItems
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .frame(width: 18, height: 18)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .foregroundStyle(palette.textSecondary.color)
+                    .help("More actions")
+                    .accessibilityLabel("More actions for \(row.job.name)")
+                }
             }
         }
         .padding(.horizontal, DesignSystem.Spacing.l)
         .padding(.vertical, 14)
         .glassSurface(radius: S.Radius.card)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(BackupStatus.accessibilityLabel(job: row.job, status: row.status, scheduleLine: row.scheduleLine))
+        .contextMenu { menuItems }
+        // The text reads as one element; the buttons stay their own, so
+        // pressing the row does not start a backup.
+        .accessibilityElement(children: .contain)
+    }
+
+    /// Everything a backup can do. Shown from the row's More button and
+    /// on right-click, so Edit is not hidden behind a secondary click.
+    @ViewBuilder
+    private var menuItems: some View {
+        let id = row.job.id
+        Button("Edit…") { actions.edit(id) }
+            .disabled(!isWritable || row.isRunning)
+        Button("Preview…") { actions.preview(id) }
+            .disabled(!isWritable || row.isRunning)
+        if row.isRunning {
+            Button("Stop") { actions.stop(id) }
+        } else if row.isQueued {
+            Button("Cancel Backup") { actions.stop(id) }
+        } else {
+            Button("Back Up Now") { actions.backUpNow(id) }
+                .disabled(!isWritable || !row.job.isApproved)
+        }
+        Divider()
+        Button("Show Versions") { actions.showVersions(id) }
+            .disabled(VersionsReveal.target(for: row.job, versionsFolderExists: false) == .unavailable)
+        Button("Show History") { actions.showHistory(id) }
+        Button("Copy rclone Command") { actions.copyCommand(id) }
+        Button("Duplicate") { actions.duplicate(id) }
+            .disabled(!isWritable)
+        Divider()
+        Button("Delete…", role: .destructive) { actions.delete(id) }
+            .disabled(!isWritable || row.isRunning)
     }
 
     @ViewBuilder
