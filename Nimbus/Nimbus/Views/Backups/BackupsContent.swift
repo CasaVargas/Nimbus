@@ -20,6 +20,7 @@ struct BackupsContent: View {
         var preview: (UUID) -> Void = { _ in }
         var backUpNow: (UUID) -> Void = { _ in }
         var stop: (UUID) -> Void = { _ in }
+        var showVersions: (UUID) -> Void = { _ in }
         var showHistory: (UUID) -> Void = { _ in }
         var copyCommand: (UUID) -> Void = { _ in }
         var duplicate: (UUID) -> Void = { _ in }
@@ -202,6 +203,8 @@ struct BackupsContent: View {
                 .disabled(!isWritable || !row.job.isApproved)
         }
         Divider()
+        Button("Show Versions") { actions.showVersions(id) }
+            .disabled(VersionsReveal.target(for: row.job) == .unavailable)
         Button("Show History") { actions.showHistory(id) }
         Button("Copy rclone Command") { actions.copyCommand(id) }
         Button("Duplicate") { actions.duplicate(id) }

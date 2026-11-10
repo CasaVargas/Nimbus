@@ -62,6 +62,54 @@ final class MockBackupClient: BackupRcloneClient, @unchecked Sendable {
     func stopJob(id: Int) async throws {
         lock.withLock { _stopped.append(id) }
     }
+
+    // MARK: Versions pruning
+
+    struct Call: Hashable { let fs: String; let remote: String }
+    private var _listings: [Call: [FileItem]] = [:]
+    private var _listError: Error?
+    private var _purgeError: Error?
+    private var _listCalls: [Call] = []
+    private var _purges: [Call] = []
+    private var _onList: (@Sendable () async -> Void)?
+
+    var listCalls: [Call] { lock.withLock { _listCalls } }
+    var purges: [Call] { lock.withLock { _purges } }
+
+    func setListing(fs: String, remote: String, _ items: [FileItem]) {
+        lock.withLock { _listings[Call(fs: fs, remote: remote)] = items }
+    }
+    func failLists(with error: Error?) { lock.withLock { _listError = error } }
+    func failPurges(with error: Error?) { lock.withLock { _purgeError = error } }
+    /// Runs inside each `listFiles` before it returns; a test can hold a listing open.
+    func onList(_ hook: (@Sendable () async -> Void)?) { lock.withLock { _onList = hook } }
+
+    func listFiles(fs: String, remote: String) async throws -> [FileItem] {
+        let hook = lock.withLock { () -> (@Sendable () async -> Void)? in
+            _listCalls.append(Call(fs: fs, remote: remote))
+            return _onList
+        }
+        if let hook { await hook() }
+        return try lock.withLock {
+            if let error = _listError { throw error }
+            return _listings[Call(fs: fs, remote: remote)] ?? []
+        }
+    }
+
+    func purge(fs: String, remote: String) async throws {
+        try lock.withLock {
+            if let error = _purgeError { throw error }
+            _purges.append(Call(fs: fs, remote: remote))
+        }
+    }
+}
+
+extension BackupFixtures {
+    /// A listing entry as `operations/list` returns it.
+    static func listed(_ name: String, isDir: Bool = true, modTime: Date? = nil) -> FileItem {
+        FileItem(path: name, name: name, size: isDir ? -1 : 10, mimeType: isDir ? "inode/directory" : "text/plain",
+                 modTime: modTime, isDir: isDir, fileID: nil, qualifiedRemotePath: name)
+    }
 }
 
 /// Transfer history that never touches disk.

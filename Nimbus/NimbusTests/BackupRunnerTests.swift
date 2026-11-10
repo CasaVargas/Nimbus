@@ -41,6 +41,7 @@ struct BackupRunnerTests {
         let activity = ActivityRecorder()
         let runner = BackupRunner(store: store, transfers: transfers, client: client,
                                   isDaemonConnected: { connected }, now: { self.now },
+                                  timeZone: { TimeZone(identifier: "America/New_York")! },
                                   beginActivity: activity.begin, endActivity: activity.end)
         return Harness(runner: runner, store: store, transfers: transfers, client: client, activity: activity)
     }
@@ -415,5 +416,113 @@ struct BackupRunnerTests {
         h.client.failStarts(with: URLError(.cannotConnectToHost))
         await h.runner.enqueue(job.id, trigger: .manual)
         #expect(!h.activity.isHeld)
+    }
+
+    // MARK: - Versions pruning
+
+    /// Holds a call open until released.
+    actor Gate {
+        private var isOpen = false
+        private var waiters: [CheckedContinuation<Void, Never>] = []
+        func wait() async {
+            if isOpen { return }
+            await withCheckedContinuation { waiters.append($0) }
+        }
+        func release() {
+            isOpen = true
+            waiters.forEach { $0.resume() }
+            waiters = []
+        }
+    }
+
+    private func oldStamp() -> String {
+        BackupRequest.stamp(for: now.addingTimeInterval(-40 * 86_400), timeZone: TimeZone(identifier: "America/New_York")!)
+    }
+
+    private func addPrunableJob(_ h: Harness, name: String = "Docs") async -> BackupJob {
+        h.client.setListing(fs: "b2:", remote: "\(name)/.nimbus-versions", [BackupFixtures.listed(oldStamp())])
+        return await addJob(h, name: name) { $0.versions.keep = .days30 }
+    }
+
+    @Test func completedRunPrunesOldVersions() async {
+        let h = await harness()
+        let job = await addPrunableJob(h)
+        await h.runner.enqueue(job.id, trigger: .manual)
+        await finish(h, rcloneJob: 100)
+        await h.runner.waitForPruning()
+        #expect(h.client.purges == [.init(fs: "b2:", remote: "Docs/.nimbus-versions/\(oldStamp())")])
+    }
+
+    @Test func failedRunDoesNotPrune() async {
+        let h = await harness()
+        let job = await addPrunableJob(h)
+        await h.runner.enqueue(job.id, trigger: .manual)
+        await finish(h, rcloneJob: 100, success: false, error: "boom")
+        await h.runner.waitForPruning()
+        #expect(h.client.listCalls.isEmpty)
+        #expect(h.client.purges.isEmpty)
+    }
+
+    @Test func limitHitRunDoesNotPrune() async {
+        let h = await harness()
+        let job = await addPrunableJob(h)
+        await h.runner.enqueue(job.id, trigger: .manual)
+        await h.transfers.handleFinished(
+            jobID: 100,
+            job: BackupFixtures.job(id: 100, finished: true, success: false, error: "failed to delete 4 files"),
+            stats: BackupFixtures.stats(transfers: 0, deletes: 100, renames: 0, lastError: "--max-delete threshold reached"),
+            now: now
+        )
+        await h.runner.waitForPruning()
+        #expect(h.store.job(id: job.id)?.lastRun?.outcome == .limitHit)
+        #expect(h.client.purges.isEmpty)
+    }
+
+    @Test func stoppedRunDoesNotPrune() async {
+        let h = await harness()
+        let job = await addPrunableJob(h)
+        await h.runner.enqueue(job.id, trigger: .manual)
+        await h.runner.stop(job.id)
+        await h.runner.waitForPruning()
+        #expect(h.client.purges.isEmpty)
+    }
+
+    @Test func lostRunDoesNotPrune() async {
+        let h = await harness()
+        let job = await addPrunableJob(h)
+        await h.runner.enqueue(job.id, trigger: .manual)
+        await h.transfers.abandonActiveTransfers(now: now)
+        await h.runner.waitForPruning()
+        #expect(h.store.job(id: job.id)?.lastRun?.outcome == .failed(TransferStore.lostRunMessage))
+        #expect(h.client.purges.isEmpty)
+    }
+
+    @Test func slowPruneDoesNotDelayNextJob() async {
+        let h = await harness()
+        let first = await addPrunableJob(h, name: "A")
+        let second = await addJob(h, name: "B")
+        let gate = Gate()
+        h.client.onList { await gate.wait() }
+        await h.runner.enqueue(first.id, trigger: .manual)
+        await h.runner.enqueue(second.id, trigger: .manual)
+        await finish(h, rcloneJob: 100)
+        #expect(h.client.requests.count == 2)
+        #expect(h.runner.runningJobID == second.id)
+        #expect(h.store.job(id: first.id)?.lastRun?.outcome == .completed)
+        await gate.release()
+        await h.runner.waitForPruning()
+        #expect(h.client.purges.count == 1)
+    }
+
+    @Test func pruneFailureLeavesRunCompleted() async {
+        let h = await harness()
+        let job = await addPrunableJob(h)
+        h.client.failLists(with: URLError(.timedOut))
+        await h.runner.enqueue(job.id, trigger: .manual)
+        await finish(h, rcloneJob: 100)
+        await h.runner.waitForPruning()
+        #expect(h.store.job(id: job.id)?.lastRun?.outcome == .completed)
+        #expect(h.client.purges.isEmpty)
+        #expect(h.runner.isRunningAnything == false)
     }
 }

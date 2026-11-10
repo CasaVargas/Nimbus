@@ -12,6 +12,8 @@ final class AppRouter {
     enum Route: Equatable {
         case home
         case cloud(String)
+        /// A cloud's Files tab, opened at a folder (Show Versions).
+        case browse(cloud: String, path: String)
         case transfers(String)
         case signIn(String)
         case addCloud

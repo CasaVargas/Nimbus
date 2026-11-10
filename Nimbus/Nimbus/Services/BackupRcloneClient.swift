@@ -8,6 +8,11 @@ protocol BackupRcloneClient: Sendable {
     func jobStatus(id: Int) async throws -> Job
     func getStats(group: String?) async throws -> StatsResponse
     func stopJob(id: Int) async throws
+    /// One folder's direct children (`operations/list`), for versions pruning.
+    func listFiles(fs: String, remote: String) async throws -> [FileItem]
+    /// Deletes a folder and everything in it (`operations/purge`). Only
+    /// `VersionsPruner` calls this, with a path it has checked.
+    func purge(fs: String, remote: String) async throws
 }
 
 extension RcloneClient: BackupRcloneClient {}

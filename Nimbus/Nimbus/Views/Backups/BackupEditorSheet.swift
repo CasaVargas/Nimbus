@@ -22,6 +22,7 @@ struct BackupEditorSheet: View {
     @State private var versionsEnabled: Bool
     @State private var versionsInside: Bool
     @State private var versionsFolder: TransferEndpoint?
+    @State private var versionsKeep: BackupJob.Versions.Keep
     @State private var excludes: [String]
     @State private var limitEnabled: Bool
     @State private var limit: Int
@@ -52,6 +53,7 @@ struct BackupEditorSheet: View {
             _versionsInside = State(initialValue: true)
             _versionsFolder = State(initialValue: nil)
         }
+        _versionsKeep = State(initialValue: seed?.versions.keep ?? .forever)
         _excludes = State(initialValue: seed?.excludes ?? BackupJob.macJunkExcludes)
         _limitEnabled = State(initialValue: seed.map { $0.removalLimit != nil } ?? true)
         _limit = State(initialValue: seed?.removalLimit ?? 100)
@@ -152,6 +154,12 @@ struct BackupEditorSheet: View {
                         endpoint: $versionsFolder
                     )
                 }
+                Picker("Keep for", selection: $versionsKeep) {
+                    Text("Forever").tag(BackupJob.Versions.Keep.forever)
+                    Text("30 days").tag(BackupJob.Versions.Keep.days30)
+                    Text("90 days").tag(BackupJob.Versions.Keep.days90)
+                    Text("1 year").tag(BackupJob.Versions.Keep.year1)
+                }
             } else if mode == .mirror {
                 DestructiveCallout(message: "Files removed from the source will be deleted from \(destination.map(BackupRow.describe) ?? String(localized: "the destination")) for good.")
             }
@@ -251,6 +259,7 @@ struct BackupEditorSheet: View {
         job.mode = mode
         job.excludes = excludes.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         job.versions.enabled = versionsEnabled
+        job.versions.keep = versionsKeep
         if versionsEnabled, !versionsInside, let versionsFolder {
             job.versions.location = .custom(versionsFolder)
         } else {

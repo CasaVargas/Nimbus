@@ -12,6 +12,8 @@ struct BackupsView: View {
     /// Opens a cloud's Transfers tab.
     var onShowHistory: (String) -> Void = { _ in }
 
+    @Environment(AppRouter.self) private var router
+
     @Environment(BackupStore.self) private var store
     @Environment(BackupRunner.self) private var runner
     @Environment(CloudMonitor.self) private var monitor
@@ -163,6 +165,17 @@ struct BackupsView: View {
             preview: { id in previewing = store.job(id: id) },
             backUpNow: { id in Task { await backUpNow(id) } },
             stop: { id in Task { await runner.stop(id) } },
+            showVersions: { id in
+                guard let job = store.job(id: id) else { return }
+                switch VersionsReveal.target(for: job) {
+                case .browse(let cloud, let path):
+                    router.pending = .browse(cloud: cloud, path: path)
+                case .finder(let url):
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                case .unavailable:
+                    break
+                }
+            },
             showHistory: { id in
                 guard let job = store.job(id: id),
                       let cloud = job.destination.cloudName ?? job.source.cloudName else { return }

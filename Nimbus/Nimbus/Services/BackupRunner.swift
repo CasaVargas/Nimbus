@@ -39,12 +39,15 @@ final class BackupRunner: BackupLaunching {
     /// the daemon down can't loop. Cleared when any run of the job is recorded.
     @ObservationIgnored private var retriedAfterLoss: Set<UUID> = []
     @ObservationIgnored private var runningRcloneJob: Int?
+    /// Versions prunes in flight, by job.
+    @ObservationIgnored private var pruning: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var isStarting = false
     @ObservationIgnored private let store: BackupStore
     @ObservationIgnored private let transfers: TransferStore
     @ObservationIgnored private let client: any BackupRcloneClient
     @ObservationIgnored private let isDaemonConnected: @MainActor () -> Bool
     @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private let timeZone: () -> TimeZone
     @ObservationIgnored private let beginActivity: @MainActor (String) -> any NSObjectProtocol
     @ObservationIgnored private let endActivity: @MainActor (any NSObjectProtocol) -> Void
     /// Keeps the Mac from idle-sleeping from the first run until the queue empties.
@@ -57,6 +60,7 @@ final class BackupRunner: BackupLaunching {
         client: any BackupRcloneClient,
         isDaemonConnected: @escaping @MainActor () -> Bool,
         now: @escaping () -> Date = Date.init,
+        timeZone: @escaping () -> TimeZone = { TimeZone.current },
         beginActivity: @escaping @MainActor (String) -> any NSObjectProtocol = {
             ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled], reason: $0)
         },
@@ -69,6 +73,7 @@ final class BackupRunner: BackupLaunching {
         self.client = client
         self.isDaemonConnected = isDaemonConnected
         self.now = now
+        self.timeZone = timeZone
         self.beginActivity = beginActivity
         self.endActivity = endActivity
         transfers.onBackupFinished = { [weak self] id, summary in
@@ -215,8 +220,40 @@ final class BackupRunner: BackupLaunching {
             onRunLost?()
         } else {
             await record(jobID, summary)
+            if summary.outcome == .completed { startPruning(jobID) }
         }
         await startNextIfIdle()
+    }
+
+    /// Deletes the job's versions folders past its Keep for, in the
+    /// background: a slow listing never holds up the next queued job, and a
+    /// failure is only logged. One prune per job at a time.
+    private func startPruning(_ jobID: UUID) {
+        guard pruning[jobID] == nil, let job = store.job(id: jobID),
+              job.versions.enabled, job.versions.keep != .forever else { return }
+        let client = client
+        let now = now()
+        let timeZone = timeZone()
+        let logger = logger
+        pruning[jobID] = Task { [weak self] in
+            let outcome = await VersionsPruner.prune(job: job, client: client, now: now, timeZone: timeZone)
+            switch outcome {
+            case .skipped:
+                break
+            case .pruned(let names):
+                if !names.isEmpty { logger.info("Backup \(jobID): removed \(names.count) old versions folders") }
+            case .failed(let message):
+                logger.error("Backup \(jobID): couldn't remove old versions: \(message)")
+            }
+            self?.pruning[jobID] = nil
+        }
+    }
+
+    /// Waits for every versions prune started so far. Tests only.
+    func waitForPruning() async {
+        while let task = pruning.values.first {
+            await task.value
+        }
     }
 
     private func record(_ jobID: UUID, _ summary: BackupRunSummary) async {

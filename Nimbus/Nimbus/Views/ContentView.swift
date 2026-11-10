@@ -111,6 +111,10 @@ struct ContentView: View {
             selection = .home
         case .cloud(let name):
             selection = .remote(name)
+        case .browse(let name, let path):
+            requestedVolumeTab = .files
+            selection = .remote(name)
+            browseTarget = BrowseTarget(remote: name, path: path)
         case .transfers(let name):
             requestedVolumeTab = .transfers
             selection = .remote(name)
