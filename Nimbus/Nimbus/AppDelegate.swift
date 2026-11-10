@@ -17,6 +17,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// True while a backup is running or queued (set by NimbusApp). When it
     /// returns true, quitting asks first.
     var shouldConfirmQuit: (@MainActor () -> Bool)?
+    /// True when a running or queued backup runs again after a quit (set by
+    /// NimbusApp); picks the alert's sentence.
+    var interruptedBackupRunsAgain: (@MainActor () -> Bool)?
     /// Opens the Backups screen, on a job when the notification names one.
     var onBackupNotificationClick: (@MainActor (UUID?) -> Void)? {
         didSet {
@@ -45,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func confirmQuit() -> Bool {
         let alert = NSAlert()
-        alert.messageText = QuitDecision.alertMessage
+        alert.messageText = QuitDecision.alertMessage(runsAgain: interruptedBackupRunsAgain?() ?? true)
         alert.addButton(withTitle: String(localized: "Quit"))
         alert.addButton(withTitle: String(localized: "Cancel"))
         NSApp.activate()

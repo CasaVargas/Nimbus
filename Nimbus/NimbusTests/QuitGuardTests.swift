@@ -14,9 +14,34 @@ struct QuitGuardTests {
         #expect(QuitDecision.make(isBackupRunning: false, isPowerOff: true) == .quit)
     }
 
-    @Test func alertCopyIsTheSpecs() {
-        #expect(QuitDecision.alertMessage
-            == "A backup is running. If you quit, it stops and runs again the next time Nimbus opens.")
+    static let specSentence = "A backup is running. If you quit, it stops and runs again the next time Nimbus opens."
+    static let shortSentence = "A backup is running. If you quit, it stops."
+
+    /// The alert for quitting while `jobs` are running or queued.
+    private func message(_ jobs: [BackupJob]) -> String {
+        QuitDecision.alertMessage(runsAgain: QuitDecision.runsAgain(interrupting: jobs))
+    }
+
+    private func job(_ schedule: BackupSchedule, paused: Bool = false) -> BackupJob {
+        var job = BackupJobTests.job()
+        job.schedule = schedule
+        job.isPaused = paused
+        return job
+    }
+
+    @Test func scheduledJobRunningKeepsTheSpecsSentence() {
+        #expect(message([job(.daily(hour: 2, minute: 0))]) == Self.specSentence)
+        #expect(message([job(.hourly)]) == Self.specSentence)
+    }
+
+    @Test func manualJobRunningSaysOnlyThatItStops() {
+        #expect(message([job(.manual)]) == Self.shortSentence)
+        // A paused job's schedule doesn't run it again either.
+        #expect(message([job(.weekly(weekday: 2, hour: 9, minute: 0), paused: true)]) == Self.shortSentence)
+    }
+
+    @Test func manualRunningWithScheduledQueuedKeepsTheSpecsSentence() {
+        #expect(message([job(.manual), job(.daily(hour: 2, minute: 0))]) == Self.specSentence)
     }
 }
 

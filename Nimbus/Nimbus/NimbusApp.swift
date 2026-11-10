@@ -192,6 +192,10 @@ struct NimbusApp: App {
         let rclone = daemon
         let runner = backupRunner
         appDelegate.shouldConfirmQuit = { runner.isRunningAnything }
+        let backups = backupStore
+        appDelegate.interruptedBackupRunsAgain = {
+            QuitDecision.runsAgain(interrupting: runner.busyJobIDs.compactMap { backups.job(id: $0) })
+        }
         let router = router
         appDelegate.onBackupNotificationClick = { id in
             NSApp.setActivationPolicy(.regular)
