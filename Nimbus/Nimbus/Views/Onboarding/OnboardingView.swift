@@ -12,6 +12,7 @@ struct OnboardingView: View {
     @State private var showAddRemote = false
     @State private var showAddMount = false
     @State private var mountsViewModel: MountsViewModel?
+    @Environment(\.stratosphere) private var palette
 
     private var hasRemotes: Bool { !remotes.isEmpty }
     // Phase 2b: hasMounts reflects config presence, not actual mount state.
@@ -35,7 +36,7 @@ struct OnboardingView: View {
             .animation(DesignSystem.Motion.smooth, value: hasMounts)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(DesignSystem.Color.semantic.surface)
+        .background { StratosphereBackdrop() }
         .sheet(isPresented: $showAddRemote) {
             AddRemoteSheet(client: daemon.client, onDismiss: {
                 Task { await refreshRemotes() }
@@ -72,17 +73,30 @@ struct OnboardingView: View {
                 .resizable()
                 .interpolation(.high)
                 .frame(width: 128, height: 128)
+                .padding(36)
+                .background {
+                    Circle().fill(RadialGradient(
+                        colors: [palette.actionTop.color.opacity(0.6), palette.actionTop.color.opacity(0)],
+                        center: .center, startRadius: 40, endRadius: 100
+                    ))
+                }
                 .accessibilityHidden(true)
-            Text("Welcome to Nimbus")
-                .font(DesignSystem.Typography.largeTitle)
-                .fontWeight(.semibold)
-                .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
-            Text("Your cloud storage, managed natively.")
-                .font(DesignSystem.Typography.body)
-                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+            Text("Every cloud, one window")
+                .font(DesignSystem.Stratosphere.Typography.hero)
+                .foregroundStyle(palette.textPrimary.color)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.6)
+                .accessibilityAddTraits(.isHeader)
+            Text("Browse, copy and back up across Google Drive, OneDrive, Dropbox and dozens more.")
+                .font(DesignSystem.Stratosphere.Typography.lead)
+                .foregroundStyle(palette.textSecondary.color)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 460)
             Label("Private by design · Powered by macOS File Provider", systemImage: "checkmark.shield")
-                .font(DesignSystem.Typography.caption)
-                .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                .font(DesignSystem.Stratosphere.Typography.detail)
+                .foregroundStyle(palette.textTertiary.color)
         }
         .padding(.bottom, DesignSystem.Spacing.l)
     }
