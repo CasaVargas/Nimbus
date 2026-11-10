@@ -164,12 +164,20 @@ struct TransferNotificationServiceTests {
 
     @Test func removalOnlyRunWithVersionsSaysMovedToVersions() {
         #expect(TransferNotificationService.backupBody(copied: 0, replaced: 0, removed: 40, versions: true)
-            == "0 files backed up, 40 moved to versions.")
+            == "40 moved to versions.")
     }
 
     @Test func removalOnlyRunWithoutVersionsSaysRemoved() {
         #expect(TransferNotificationService.backupBody(copied: 0, replaced: 0, removed: 40, versions: false)
-            == "0 files backed up, 40 removed.")
+            == "40 removed.")
+    }
+
+    @Test func removalOnlyRunSingular() {
+        #expect(TransferNotificationService.backupBody(copied: 0, replaced: 0, removed: 1, versions: false)
+            == "1 removed.")
+        // A replaced file is backed up as well as moved to versions.
+        #expect(TransferNotificationService.backupBody(copied: 0, replaced: 1, removed: 0, versions: true)
+            == "1 file backed up, 1 moved to versions.")
     }
 
     @Test func copiedAndRemovedWithoutVersions() {
@@ -225,6 +233,32 @@ struct TransferNotificationServiceTests {
 
         #expect(await center.requests.isEmpty)
         #expect(await center.requestAuthorizationCallCount == 0)
+    }
+
+    enum BackupResult: String, CaseIterable, Sendable { case success, failure, limitHit }
+
+    /// The spec's exit gate: each backup result under each notification mode.
+    @Test(arguments: BackupResult.allCases, [TransferNotificationMode.off, .failuresOnly, .allTransfers])
+    func backupNotificationsFollowTheMode(_ result: BackupResult, _ mode: TransferNotificationMode) async {
+        let center = NotificationCenterSpy(authorizationStatus: .authorized)
+        let service = TransferNotificationService(center: center)
+        let record = switch result {
+        case .success: backupRecord(.completed, copied: 2, removed: 0)
+        case .failure: backupRecord(.failed("Network unavailable"))
+        case .limitHit: backupRecord(.failed("failed to delete 100 files"), summary: .limitHit, limit: 100)
+        }
+
+        await service.deliver(record, mode: mode)
+
+        let expected: String? = switch (mode, result) {
+        case (.off, _), (.failuresOnly, .success): nil
+        case (_, .success): "Backed up Documents to B2"
+        case (_, .failure): "Backup Documents to B2 failed"
+        case (_, .limitHit): "Backup Documents to B2 stopped"
+        }
+        let requests = await center.requests
+        #expect(requests.map(\.title) == (expected.map { [$0] } ?? []))
+        #expect(requests.allSatisfy { $0.backupID == Self.backupID })
     }
 
     @Test func backupIDRoundTripsThroughUserInfo() {

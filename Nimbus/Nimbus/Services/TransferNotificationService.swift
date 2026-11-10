@@ -140,17 +140,22 @@ extension TransferNotificationService {
 
     /// "13 files backed up, 2 moved to versions." Replaced files count as
     /// backed up. Removals are moves into versions only for a mirror with
-    /// versions; otherwise they are real deletes.
+    /// versions; otherwise they are real deletes. A run that only removed
+    /// says just that: "40 moved to versions." or "40 removed."
     static func backupBody(copied: Int, replaced: Int, removed: Int, versions: Bool) -> String {
         let backedUpCount = copied + replaced
         let gone = versions ? replaced + removed : removed
         if backedUpCount == 0, gone == 0 { return String(localized: "No changes.") }
-        let backedUp = backedUpCount == 1
-            ? String(localized: "1 file backed up")
-            : String(localized: "\(backedUpCount) files backed up")
-        guard gone > 0 else { return backedUp + "." }
-        let tail = versions ? String(localized: "\(gone) moved to versions") : String(localized: "\(gone) removed")
-        return backedUp + ", " + tail + "."
+        var parts: [String] = []
+        if backedUpCount > 0 {
+            parts.append(backedUpCount == 1
+                ? String(localized: "1 file backed up")
+                : String(localized: "\(backedUpCount) files backed up"))
+        }
+        if gone > 0 {
+            parts.append(versions ? String(localized: "\(gone) moved to versions") : String(localized: "\(gone) removed"))
+        }
+        return parts.joined(separator: ", ") + "."
     }
 }
 
