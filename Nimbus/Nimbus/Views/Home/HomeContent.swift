@@ -49,6 +49,7 @@ struct HomeContent: View {
 
     private var content: some View {
         ScrollView {
+            GlassGroup {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
                 HomeHero(
                     summary: summary,
@@ -80,6 +81,7 @@ struct HomeContent: View {
             .frame(maxWidth: 1100)
             .frame(maxWidth: .infinity)
             .animation(DesignSystem.Motion.smooth, value: summary.attention?.id)
+            }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
