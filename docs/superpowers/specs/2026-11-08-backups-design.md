@@ -1,7 +1,7 @@
 # Backups — Design
 
 **Date:** 2026-11-08
-**Status:** Approved 2026-11-08 with the defaults below (open questions resolved to the spec's proposals). Phase 1 shipped in #25 (2026-11-08). Phases 2 and 3 built on `feat/backups-phase2` (2026-11-10, PR #48), live checks pending.
+**Status:** Approved 2026-11-08 with the defaults below (open questions resolved to the spec's proposals). Phase 1 shipped in #25 (2026-11-08). Phases 2 and 3 built on `feat/backups-phase2` (2026-11-10, PR #48). Live checks run 2026-11-10; see "Live checks" at the end for what passed and the open problems.
 **Roadmap:** item 2 of the competitive research's recommended order (Tolaria
 `nimbus/nimbus-competitive-feature-gaps-research.md`), and the north star's phase 4 "scheduled syncs".
 **Builds on:** `Views/CopySync/` (the one-off copy/sync screen), `State/TransferStore.swift`,
@@ -741,3 +741,51 @@ Known and left as is:
 Not verified: anything in the running app, including a real prune against a cloud, Show Versions
 navigation, and Home with live backups. Home's suggestions and the Keep for picker were checked
 with offscreen renders in light and dark.
+
+## Live checks (2026-11-10)
+
+Run on a signed Debug build installed in `/Applications`, with two test jobs between scratch
+folders on the Mac (one daily, mirror, removal limit 1; one manual). `BackupLiveTests` also passed
+against rclone 1.76.0.
+
+Passed:
+
+- **Scheduled run.** A daily job with its slot six minutes ahead started at the slot to the second
+  and was recorded with trigger `scheduled`.
+- **Quit alert.** Quit Nimbus during a run shows the alert, with the "runs again the next time
+  Nimbus opens" sentence only for a job that has a schedule. Quit stops the app and rclone.
+- **Catch-up after quit.** A scheduled run cut off by quit ran again about a minute after relaunch
+  and was recorded with trigger `catchUp`.
+- **Removal limit.** With a limit of 1 and two files gone from the source, the run moved one file
+  to versions, stopped, and the row read "Stopped … would remove more than 1 files".
+
+Not checked:
+
+- **Sleep across a slot.** Skipped.
+- **The "stopped" notification.** Nimbus has no notification permission on the test Mac (the
+  system prompt was never answered), so no banner could appear.
+
+Problems found, most serious first:
+
+1. **A catch-up after quit can fail and leave Backups stuck.** Quit left a `.partial` file in the
+   destination. The catch-up run copied everything else, then rclone failed moving that leftover
+   into versions (`rename … .partial …: no such file or directory`). Home showed "Backup … failed",
+   but the row stayed on "Backing up… 0%" with rclone idle, Stop did nothing, and no `lastRun` was
+   saved. Only quitting and reopening cleared it; the next catch-up then completed. Not yet
+   diagnosed. Two separate questions: why the runner never leaves the running state, and whether a
+   mirror should try to version rclone's own `.partial` leftovers at all.
+2. **"Save and Preview…" can show the wrong preview.** Saving a second job opened a preview that
+   said "Everything is already backed up" for an empty destination; rclone's dry run for the same
+   request lists four files, and opening Preview… again showed them. The first save of the session
+   opened no preview at all. Approving from that sheet would approve changes the user never saw.
+   Not yet diagnosed; a stale previewer state shown for the new job is the likely cause.
+3. **A manual run cut off by quit leaves no trace.** For a job with a schedule the alert promises
+   it "runs again the next time Nimbus opens", but a manual run whose slot was already met is not
+   due, so nothing reruns, the row still says "Backed up … ago" and the header says up to date,
+   with the destination half written.
+4. **"Backed up in 36 seconds".** The status used the Backups screen's once-a-minute clock as
+   "now", so a run that had just ended read as the future. Fixed with these checks
+   (`BackupStatus.relative` never reports a future time).
+5. Smaller: pressing a backup's row with VoiceOver's default action starts the backup; "more than
+   1 files"; a local-to-local run ignores the speed limit, as rclone clones or copies in place.
+
