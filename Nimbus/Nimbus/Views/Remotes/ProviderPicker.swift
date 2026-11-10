@@ -12,17 +12,28 @@ struct ProviderPicker: View {
     /// Shown as the last "storage you run or rent" chip when set.
     var onImport: (() -> Void)? = nil
     @State private var search = ""
+    @Environment(\.stratosphere) private var palette
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.m) {
-            TextField(searchPrompt, text: $search)
-                .textFieldStyle(.roundedBorder)
+            HStack(spacing: DesignSystem.Spacing.s) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(palette.textTertiary.color)
+                    .accessibilityHidden(true)
+                TextField(searchPrompt, text: $search)
+                    .textFieldStyle(.plain)
+                    .foregroundStyle(palette.textPrimary.color)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.m)
+            .frame(height: 36)
+            .background(Capsule().fill(palette.glassBottom.color))
+            .overlay(Capsule().strokeBorder(palette.glassBorder.color, lineWidth: 1))
 
             if search.isEmpty {
                 if !popular.isEmpty {
                     sectionTitle("Popular")
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: DesignSystem.Spacing.s), count: 4),
-                              spacing: DesignSystem.Spacing.s) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4),
+                              spacing: 10) {
                         ForEach(popular, id: \.provider.name) { entry in
                             ProviderTile(entry: entry, onPick: { onPick(entry.provider) })
                         }
@@ -47,7 +58,7 @@ struct ProviderPicker: View {
             } else if filtered.isEmpty {
                 Text("No services match “\(search)”.")
                     .font(DesignSystem.Typography.body)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .foregroundStyle(palette.textSecondary.color)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, DesignSystem.Spacing.xl)
             } else {
@@ -86,8 +97,8 @@ struct ProviderPicker: View {
 
     private func sectionTitle(_ title: String) -> some View {
         Text(verbatim: title)
-            .font(DesignSystem.Typography.headline)
-            .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+            .font(DesignSystem.Stratosphere.Typography.label)
+            .foregroundStyle(palette.textPrimary.color)
             .padding(.top, DesignSystem.Spacing.xs)
             .accessibilityAddTraits(.isHeader)
     }
@@ -149,35 +160,32 @@ private struct ProviderTile: View {
     let entry: PickerCatalog.Entry
     let onPick: () -> Void
     @State private var hovering = false
+    @Environment(\.stratosphere) private var palette
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 18, style: .continuous)
         Button(action: onPick) {
-            VStack(spacing: 6) {
-                ProviderBadge(provider: entry.provider.prefix, size: 40)
+            VStack(spacing: 7) {
+                LogoTile(provider: entry.provider.prefix)
                 Text(verbatim: entry.title)
-                    .font(DesignSystem.Typography.callout.weight(.semibold))
-                    .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                    .font(DesignSystem.Stratosphere.Typography.label)
+                    .foregroundStyle(palette.textPrimary.color)
                     .lineLimit(1)
                 if let hint = entry.hint {
                     Text(verbatim: hint)
-                        .font(DesignSystem.Typography.caption2)
-                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundStyle(palette.textTertiary.color)
                         .multilineTextAlignment(.center)
                         .lineLimit(2, reservesSpace: true)
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, DesignSystem.Spacing.m)
+            .padding(.top, 14)
+            .padding(.bottom, DesignSystem.Spacing.s)
             .padding(.horizontal, DesignSystem.Spacing.xs)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                    .fill(DesignSystem.Color.semantic.surfaceSubtle.opacity(hovering ? 1 : 0.55))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                    .strokeBorder(DesignSystem.Color.semantic.separator.opacity(0.6), lineWidth: 0.5)
-            )
+            .contentShape(shape)
+            .background(shape.fill(hovering ? palette.selection.color : palette.glassBottom.color))
+            .overlay(shape.strokeBorder(hovering ? palette.actionTop.color : palette.glassBorder.color, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
@@ -191,24 +199,24 @@ private struct ProviderChip: View {
     let prefix: String?
     let onPick: () -> Void
     @State private var hovering = false
+    @Environment(\.stratosphere) private var palette
 
     var body: some View {
         Button(action: onPick) {
-            HStack(spacing: 6) {
+            HStack(spacing: 7) {
                 if let prefix {
-                    ProviderBadge(provider: prefix, size: 18)
+                    ProviderBadge(provider: prefix, size: 20)
                 }
                 Text(verbatim: title)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(prefix == nil ? DesignSystem.Color.semantic.accent
-                                                   : DesignSystem.Color.semantic.textPrimary)
+                    .font(DesignSystem.Stratosphere.Typography.control)
+                    .foregroundStyle(palette.textPrimary.color)
                     .lineLimit(1)
             }
-            .padding(.leading, prefix == nil ? 10 : 5)
-            .padding(.trailing, 10)
-            .frame(height: 28)
-            .background(Capsule().fill(DesignSystem.Color.semantic.surfaceSubtle.opacity(hovering ? 1 : 0.55)))
-            .overlay(Capsule().strokeBorder(DesignSystem.Color.semantic.separator.opacity(0.6), lineWidth: 0.5))
+            .padding(.leading, prefix == nil ? 14 : 6)
+            .padding(.trailing, 14)
+            .frame(height: 32)
+            .background(Capsule().fill(hovering ? palette.selection.color : palette.glassBottom.color))
+            .overlay(Capsule().strokeBorder(palette.glassBorder.color, lineWidth: 1))
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -267,6 +275,7 @@ private struct ProviderRow: View {
     let provider: Provider
     let onPick: () -> Void
     @State private var hovering = false
+    @Environment(\.stratosphere) private var palette
 
     var body: some View {
         Button(action: onPick) {
@@ -275,11 +284,11 @@ private struct ProviderRow: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(verbatim: provider.description)
                         .font(DesignSystem.Typography.body)
-                        .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                        .foregroundStyle(palette.textPrimary.color)
                         .lineLimit(1)
                     Text(verbatim: provider.name)
                         .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                        .foregroundStyle(palette.textTertiary.color)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
@@ -288,8 +297,8 @@ private struct ProviderRow: View {
             .padding(.vertical, 5)
             .contentShape(Rectangle())
             .background(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.pill, style: .continuous)
-                    .fill(DesignSystem.Color.semantic.surfaceSubtle)
+                RoundedRectangle(cornerRadius: DesignSystem.Stratosphere.Radius.row, style: .continuous)
+                    .fill(palette.selection.color)
                     .opacity(hovering ? 1 : 0)
             )
         }
@@ -332,7 +341,8 @@ private func previewProviders() -> [Provider] {
             ProviderPicker(providers: previewProviders(), onPick: { _ in }, onImport: {})
         }
     }, actions: {
-        Button("Cancel") {}
+        Button("Cancel") {}.buttonStyle(.glassCapsule)
     })
+    .preferredColorScheme(.dark)
 }
 #endif

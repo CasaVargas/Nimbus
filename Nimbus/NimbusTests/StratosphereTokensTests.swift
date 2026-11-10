@@ -74,6 +74,14 @@ struct StratosphereTokensTests {
     }
 
     @Test(arguments: ["dark", "light"])
+    func textHoldsContrastOnSheetsAndOnGlassInsideThem(name: String) {
+        let palette = name == "dark" ? S.Palette.dark : S.Palette.light
+        let sheet = [palette.sheetTop, palette.sheetBottom]
+        let surfaces = sheet + sheet.flatMap { [palette.glassTop.over($0), palette.glassBottom.over($0)] }
+        #expect(worstContrast(of: palette.textTertiary, on: surfaces) >= 4.5)
+    }
+
+    @Test(arguments: ["dark", "light"])
     func opaqueFallbackSurfaceHoldsContrast(name: String) {
         // Reduce Transparency swaps glass for this fill.
         let palette = name == "dark" ? S.Palette.dark : S.Palette.light

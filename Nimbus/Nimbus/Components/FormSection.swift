@@ -10,6 +10,9 @@ struct FormSection<Content: View>: View {
     let footer: LocalizedStringKey?
     @ViewBuilder let content: () -> Content
 
+    @Environment(\.stratosphere) private var palette
+    @Environment(\.isOnStratosphereSheet) private var isOnSheet
+
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
             if let title {
@@ -31,12 +34,14 @@ struct FormSection<Content: View>: View {
             }
             .padding(DesignSystem.Spacing.m)
             .background(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                    .fill(DesignSystem.Color.semantic.surfaceSubtle)
+                RoundedRectangle(cornerRadius: isOnSheet ? 16 : DesignSystem.Radius.card, style: .continuous)
+                    .fill(fill)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                    .strokeBorder(DesignSystem.Color.semantic.separator.opacity(0.6), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: isOnSheet ? 16 : DesignSystem.Radius.card, style: .continuous)
+                    .strokeBorder(isOnSheet ? palette.glassBorder.color
+                                            : DesignSystem.Color.semantic.separator.opacity(0.6),
+                                  lineWidth: isOnSheet ? 1 : 0.5)
             )
             if let footer {
                 Text(footer)
@@ -46,6 +51,15 @@ struct FormSection<Content: View>: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+}
+
+extension FormSection {
+    /// On a Stratosphere sheet: the sheet's colour lifted the way glass
+    /// would lift it, but opaque, since nothing shows through a sheet.
+    /// Anywhere else (Settings, until it is restyled): the system fill.
+    private var fill: Color {
+        isOnSheet ? palette.glassTop.over(palette.sheetTop).color : DesignSystem.Color.semantic.surfaceSubtle
     }
 }
 
