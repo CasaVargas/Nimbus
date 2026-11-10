@@ -1,7 +1,7 @@
 # Backups — Design
 
 **Date:** 2026-11-08
-**Status:** Approved 2026-11-08 with the defaults below (open questions resolved to the spec's proposals). Phase 1 shipped in #25 (2026-11-08); phases 2 and 3 not started.
+**Status:** Approved 2026-11-08 with the defaults below (open questions resolved to the spec's proposals). Phase 1 shipped in #25 (2026-11-08). Phase 2 built on `feat/backups-phase2` (2026-11-10), live checks pending; phase 3 not started.
 **Roadmap:** item 2 of the competitive research's recommended order (Tolaria
 `nimbus/nimbus-competitive-feature-gaps-research.md`), and the north star's phase 4 "scheduled syncs".
 **Builds on:** `Views/CopySync/` (the one-off copy/sync screen), `State/TransferStore.swift`,
@@ -627,3 +627,60 @@ Not verified: the full GUI flow in the running app. Launching a second Nimbus on
 would run its stale-daemon cleanup against the installed app's rclone. Screens were checked
 with RenderPreview (every row status, editor in both modes, every preview state, light and
 dark).
+
+## Phase 2 as built (2026-11-10, `feat/backups-phase2`)
+
+Where the build differs from the sections above, the build wins.
+
+- **An overdue job runs after any replan, not only after launch, wake or reconnect.** A job whose
+  slot has already passed (a run that outlasted its next slot, a job resumed after days paused, a
+  Manual job switched to Daily) goes through the 60-second settle pass as soon as a job edit or a
+  finished run replans. `BackupStore` replans after `recordRun` as well as after edits.
+- **Clock and time-zone changes settle and catch up**, the same as wake. A timer that fires more
+  than 5 minutes after its slot (a Mac that slept through it) also waits the settle delay and runs
+  as a catch-up; within 5 minutes it runs at once as scheduled.
+- **A job stopped at its removal limit doesn't run on schedule again until it is approved again.**
+  A limit-hit run has already removed up to the limit, so repeating it every slot would empty the
+  destination a slice at a time. Previewing and approving after the stopped run resumes the
+  schedule. Back Up Now is not gated by this.
+- **The row's "next …" comes from the planner.** It shows only when the job will run on schedule
+  and the next run is in the future. An overdue, paused, unapproved or limit-stopped job shows the
+  schedule alone ("Every day at 2:00 AM").
+- **Pausing stops a queued scheduled run.** Pausing drops the job's queued scheduled or catch-up
+  entry, and the runner skips a paused job at start. Back Up Now on a paused job still runs.
+- **A run lost to a daemon restart counts as missed, once.** This replaces phase 1's "ends as
+  failed" for scheduled and catch-up runs: the first loss records no last run, so the reconnect
+  catch-up runs the job again; a second loss in a row records the failure and the job waits for
+  its next slot. A lost Back Up Now still records as failed. The Transfers entry for the lost run
+  is written as failed either way, and its notification still says the backup failed.
+- **Quit alert copy depends on the job.** When a running or queued job has a schedule and isn't
+  paused: "A backup is running. If you quit, it stops and runs again the next time Nimbus opens."
+  Otherwise: "A backup is running. If you quit, it stops." Queued jobs count as running here.
+- **Success notification body.** "N files backed up" counts copied plus replaced. With versions on
+  a mirror, ", M moved to versions" counts replaced plus removed; otherwise ", M removed". A clause
+  whose count is zero is left out ("40 moved to versions."); "No changes." only when all are zero.
+  The failure body is the friendly error shown on the row, first line.
+- **Schedule picker labels:** Manual only, Every hour, Every day, Every week, with **At** and **On**
+  controls beside it.
+- **Saved files.** Run summaries gain optional `removalLimit` and `movesToVersions`. Files written
+  by phase 1 load unchanged; the jobs file stays version 1.
+- **Notification clicks.** The notification delegate is set before launch finishes and a click
+  that arrives early is held until the app can route it. The route is `AppRouter.Route.backups`.
+
+Known and left as is:
+
+- Stopping a queued scheduled run doesn't record a run, so the job is still due and comes back
+  about a minute after the next store change.
+- The quit alert's long sentence also shows for a Back Up Now on a scheduled job whose next slot
+  is in the future, and for a job stopped at its removal limit; neither runs again on launch.
+- Re-approving an overdue job runs it about a minute after approval.
+
+### Verification
+
+`NimbusTests`: 563 tests pass. `RcloneKit` is untouched by this phase.
+
+Not verified: everything in the running app. The phase 2 live checks (a daily job two minutes
+ahead, sleep across a slot and one catch-up on wake, quit during a run, a limit-hit notification)
+need a Mac account without real File Provider domains and were not run. RenderPreview was not
+available to the build session; the Schedule section and the Backups footer were checked with an
+offscreen render in light and dark, before the picker labels changed.
