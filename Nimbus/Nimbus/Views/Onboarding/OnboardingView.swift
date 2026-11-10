@@ -86,7 +86,7 @@ struct OnboardingView: View {
             HStack(spacing: DesignSystem.Spacing.s) {
                 Chip(text: Text("Shows up in Finder"), systemImage: "folder")
                 Chip(text: Text("Copies cloud to cloud"), systemImage: "arrow.left.arrow.right")
-                Chip(text: Text("Backs up on a schedule"), systemImage: "checkmark.shield")
+                Chip(text: Text("Backs up your folders"), systemImage: "checkmark.shield")
             }
             .padding(.top, DesignSystem.Spacing.xs)
             Label("Private by design · Powered by macOS File Provider", systemImage: "checkmark.shield")
