@@ -370,8 +370,8 @@ struct ActivityLine: Equatable, Identifiable {
 enum BackupSuggestions {
     /// A run that failed stops being news after this long.
     static let failedWindow: TimeInterval = 7 * 24 * 60 * 60
-    /// "Hasn't run" needs more than this many missed slots.
-    static let missedSlotsThreshold = 3
+    /// "Hasn't run" needs at least this many missed slots.
+    static let missedSlotsMinimum = 3
 
     /// At most one note per job: stopped, then failed, then hasn't run.
     /// Paused, unapproved and manual jobs never get one.
@@ -397,7 +397,7 @@ enum BackupSuggestions {
             }
         }
         guard let first = planner.eligibleNextRun(for: job), first <= now,
-              missedSlots(from: first, schedule: job.schedule, now: now, calendar: calendar) > missedSlotsThreshold
+              missedSlots(from: first, schedule: job.schedule, now: now, calendar: calendar) >= missedSlotsMinimum
         else { return nil }
         let since = job.lastRun?.startedAt ?? job.approvedAt ?? job.createdAt
         return .init(jobID: job.id, kind: .hasntRun,
@@ -410,11 +410,11 @@ enum BackupSuggestions {
     }
 
     /// Slots from `first` (the first slot after the anchor) up to `now`,
-    /// counting no further than one past the threshold.
+    /// counting no further than the minimum.
     private static func missedSlots(from first: Date, schedule: BackupSchedule, now: Date, calendar: Calendar) -> Int {
         var count = 0
         var slot: Date? = first
-        while let current = slot, current <= now, count <= missedSlotsThreshold {
+        while let current = slot, current <= now, count < missedSlotsMinimum {
             count += 1
             slot = schedule.nextRun(after: current, calendar: calendar)
         }

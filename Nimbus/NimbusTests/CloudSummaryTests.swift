@@ -278,17 +278,18 @@ struct CloudSummaryTests {
     }
 
     @Test func overdueSuggestion() {
-        // Last ran 02:30; slots 03:00 on the 4th..7th are four, 3 days 1 hour on.
-        let now = at(7, 3, 30)
-        let j = job(lastRun: (at(4, 2, 30), .completed))
-        #expect(suggestions([j], now: now) == ["Documents to B2 hasn't run in 3 days"])
+        // Daily 2:00 AM; last run started at the slot, three days ago.
+        let j = job(.daily(hour: 2, minute: 0), lastRun: (at(4, 2), .completed))
+        #expect(suggestions([j], now: at(7, 3)) == ["Documents to B2 hasn't run in 3 days"])
         let s = build([remote("B2")], statuses: [:], dismissed: [])
         #expect(s.suggestions.allSatisfy { if case .backup = $0 { false } else { true } })
     }
 
-    @Test func overdueNeedsMoreThanThreeSlots() {
-        let j = job(lastRun: (at(4, 2, 30), .completed))
-        #expect(suggestions([j], now: at(7, 2, 59)).isEmpty)   // three slots passed
+    @Test func overdueNeedsThreeMissedSlots() {
+        let j = job(.daily(hour: 2, minute: 0), lastRun: (at(4, 2), .completed))
+        #expect(suggestions([j], now: at(6, 3)).isEmpty)          // two slots missed
+        #expect(suggestions([j], now: at(7, 1, 59)).isEmpty)      // third slot not yet
+        #expect(suggestions([j], now: at(7, 2)).count == 1)       // exactly three
     }
 
     @Test func overdueReadsInHoursUnderADayAndSingularForms() {
