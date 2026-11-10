@@ -183,3 +183,78 @@ struct BackupJobTests {
         #expect(manual == #"{"kind":"manual"}"#)
     }
 }
+
+/// JSON as phase 1 wrote it: no `movesToVersions`, no `removalLimit`.
+enum Phase1JSON {
+    static let summary = """
+    {"bytes":10,"copied":3,"errors":0,"finishedAt":"2026-11-06T21:21:30Z","outcome":"completed",
+     "removed":1,"replaced":1,"startedAt":"2026-11-06T21:20:00Z","trigger":"manual"}
+    """
+
+    static let backupsFile = """
+    {"version":1,"jobs":[{
+      "createdAt":"2026-11-06T21:20:00Z",
+      "destination":{"kind":"cloud","path":"mac","remote":"b2"},
+      "excludes":[".DS_Store"],
+      "id":"55B48132-F41E-4F2F-B564-1A59315D5FFC",
+      "isPaused":false,
+      "lastRun":\(summary),
+      "mode":"mirror","name":"Documents to b2","removalLimit":100,
+      "schedule":{"kind":"manual"},
+      "source":{"kind":"local","path":"/Users/j/Documents"},
+      "versions":{"enabled":true,"keep":"forever","location":{"kind":"insideDestination"}}
+    }]}
+    """
+
+    static let history = """
+    {"version":2,"records":[{
+      "backupID":"55B48132-F41E-4F2F-B564-1A59315D5FFC",
+      "completedAt":815692890,"destination":"b",
+      "id":"C0238F32-D50A-45A7-A353-F225AB5393F0","jobID":1,"operation":"sync","origin":"backup",
+      "outcome":{"completed":{}},"source":"a","startedAt":815692800,
+      "summary":{"bytes":10,"copied":3,"errors":0,"finishedAt":815692890,"outcome":"completed",
+                 "removed":1,"replaced":1,"startedAt":815692800,"trigger":"manual"},
+      "title":"T"
+    }]}
+    """
+}
+
+@Suite("Summaries saved by earlier builds")
+struct SummaryCompatibilityTests {
+    private func tempURL(_ name: String) -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("SummaryCompat-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent(name)
+    }
+
+    private func write(_ json: String, to url: URL) throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(json.utf8).write(to: url)
+    }
+
+    @Test func summaryWithoutNewKeysDecodes() throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let summary = try decoder.decode(BackupRunSummary.self, from: Data(Phase1JSON.summary.utf8))
+        #expect(summary.copied == 3)
+        #expect(summary.removalLimit == nil)
+        #expect(summary.movesToVersions != true)
+    }
+
+    @Test func phase1BackupsFileLoads() async throws {
+        let url = tempURL("backups-v1.json")
+        try write(Phase1JSON.backupsFile, to: url)
+        let jobs = try await BackupsFile(url: url).load()
+        #expect(jobs.count == 1)
+        #expect(jobs.first?.lastRun?.outcome == .completed)
+        #expect(jobs.first?.lastRun?.movesToVersions != true)
+    }
+
+    @Test func phase1HistoryRecordWithSummaryLoads() async throws {
+        let url = tempURL("transfer-history.json")
+        try write(Phase1JSON.history, to: url)
+        let records = try await TransferHistoryFile(url: url).load()
+        #expect(records.count == 1)
+        #expect(records.first?.summary?.copied == 3)
+    }
+}

@@ -230,8 +230,9 @@ struct BackupRunSummary: Codable, Hashable, Sendable {
     /// "stopped" notification. Absent in summaries saved before it existed.
     var removalLimit: Int? = nil
     /// Mirror with versions: replaced and removed files were moved into the
-    /// versions folder, not deleted. Absent (false) in older summaries.
-    var movesToVersions: Bool = false
+    /// versions folder, not deleted. Optional so summaries saved by earlier
+    /// builds (no key) still decode; nil reads as false.
+    var movesToVersions: Bool? = nil
 }
 
 extension BackupRunSummary.Outcome: Codable {
