@@ -135,6 +135,55 @@ struct BackupStatusTests {
         #expect(line == "Every hour")
     }
 
+    /// Started `hoursAgo` before `now` (16:00).
+    private func started(_ outcome: BackupRunSummary.Outcome, hoursAgo: Double) -> BackupRunSummary {
+        let start = now.addingTimeInterval(-hoursAgo * 3600)
+        return BackupRunSummary(startedAt: start, finishedAt: start.addingTimeInterval(60),
+                                trigger: .scheduled, outcome: outcome, copied: 0, replaced: 0,
+                                removed: 0, errors: 0, bytes: 0)
+    }
+
+    @Test func scheduleLineOverdueHasNoNext() {
+        // Last ran three days ago at 02:00: its next run is past, waiting for catch-up.
+        let line = BackupStatus.scheduleLine(
+            job: job { $0.schedule = .daily(hour: 2, minute: 0); $0.lastRun = started(.completed, hoursAgo: 86) },
+            now: now, calendar: Self.newYork)
+        #expect(line.hasPrefix("Every day at 2:00"))
+        #expect(!line.contains("next"))
+    }
+
+    @Test func scheduleLineLimitHitHasNoNext() {
+        let line = BackupStatus.scheduleLine(
+            job: job { $0.schedule = .daily(hour: 2, minute: 0); $0.lastRun = started(.limitHit, hoursAgo: 14) },
+            now: now, calendar: Self.newYork)
+        #expect(line.hasPrefix("Every day at 2:00"))
+        #expect(!line.contains("next"))
+    }
+
+    @Test func scheduleLineAfterThisMorningsRunShowsPlannersSlot() {
+        // A daily 02:00 job that ran at 02:00 this morning.
+        let daily = job { $0.schedule = .daily(hour: 2, minute: 0); $0.lastRun = started(.completed, hoursAgo: 14) }
+        let line = BackupStatus.scheduleLine(job: daily, now: now, calendar: Self.newYork)
+        let time = BackupJobTests.date("2026-11-09T02:00:00-05:00")
+            .formatted(Date.FormatStyle(date: .omitted, time: .shortened, timeZone: Self.newYork.timeZone))
+        #expect(line.hasSuffix(" · next tomorrow at \(time)"))
+    }
+
+    @Test func scheduleLineHourlyFollowsLastRunNotTheClock() {
+        // Ran at 15:30; the planner's next slot, 16:00, is now and so already
+        // due: no "next" (the clock alone would say 17:00).
+        let line = BackupStatus.scheduleLine(
+            job: job { $0.schedule = .hourly; $0.lastRun = started(.completed, hoursAgo: 0.5) },
+            now: now, calendar: Self.newYork)
+        #expect(line == "Every hour")
+    }
+
+    @Test func scheduleLineUnapprovedHasNoNext() {
+        let line = BackupStatus.scheduleLine(job: job(approved: false) { $0.schedule = .hourly },
+                                             now: now, calendar: Self.newYork)
+        #expect(line == "Every hour")
+    }
+
     @Test func accessibilityLabelIsOneSentence() {
         let job = job { $0.name = "Documents to B2"; $0.lastRun = run(.completed) }
         let status = BackupStatus.make(job: job, isRunning: false, isQueued: false, transfer: nil, now: now)
