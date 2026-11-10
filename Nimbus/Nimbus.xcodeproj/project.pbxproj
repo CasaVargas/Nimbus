@@ -116,6 +116,7 @@
 		7556E68F8D67B85B04E1E136 /* ShimmerModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = F32C605A79BB39D3677407F6 /* ShimmerModifier.swift */; };
 		75B3A0A5D3F81285E50A5EDC /* Notifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6333630F2E2BF0455B8D1D /* Notifications.swift */; };
 		775AC50C7F80C02365EFEF33 /* RemoteSetupFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49337EE8003B1CBE6A0A96C /* RemoteSetupFlowTests.swift */; };
+		77F61AA5DF809733F8032BB8 /* BackupSchedulerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40594F213DB91EC6586B650 /* BackupSchedulerTests.swift */; };
 		79CD5B771150740985B6CFA1 /* Colors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CCCEBA204DCFCEBF2063D66 /* Colors.swift */; };
 		7A02124117B9F0D4A3988039 /* AdvancedSettingsViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925D421BD7102774371B0F56 /* AdvancedSettingsViewTests.swift */; };
 		7A9519473E31A44CCAC876B2 /* TransferPillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BE9DC38BF56203102E23236 /* TransferPillView.swift */; };
@@ -491,6 +492,7 @@
 		B1381D75853A2DC244378857 /* CloudStatusLabelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudStatusLabelTests.swift; sourceTree = "<group>"; };
 		B1813355BB10E9306891A015 /* DragDropCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragDropCoordinatorTests.swift; sourceTree = "<group>"; };
 		B27D0FC2F26DE97E5EE0C98B /* GeneralSettingsViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsViewTests.swift; sourceTree = "<group>"; };
+		B40594F213DB91EC6586B650 /* BackupSchedulerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupSchedulerTests.swift; sourceTree = "<group>"; };
 		B4BBDEBA281F41466C04A187 /* AddRemoteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRemoteSheet.swift; sourceTree = "<group>"; };
 		B66BA5D854765E4D13BAFE5D /* SheetChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetChromeTests.swift; sourceTree = "<group>"; };
 		B8C0D0BC95A7D1919E7FB034 /* SidebarSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarSelectionTests.swift; sourceTree = "<group>"; };
@@ -1032,6 +1034,7 @@
 				A855F33877E33DFE4DBD3A20 /* BackupRequestTests.swift */,
 				086C038EB001CCFAB4A7037A /* BackupRunnerTests.swift */,
 				48BB934F0F2053789F5CC470 /* BackupSchedulePlannerTests.swift */,
+				B40594F213DB91EC6586B650 /* BackupSchedulerTests.swift */,
 				9CE10A23B8CE67C3A3AE3D2E /* BackupsHeadlineTests.swift */,
 				82BDE5116D17F104D93791BA /* BackupStatusTests.swift */,
 				4427E2718B09557E9EC0126A /* BackupStoreTests.swift */,
@@ -1500,6 +1503,7 @@
 				8C44D08C51E3D9BA736FA735 /* BackupRequestTests.swift in Sources */,
 				357F73DC423B3C1ACD3832DA /* BackupRunnerTests.swift in Sources */,
 				DBFA9D0F4F39320F6FBE025D /* BackupSchedulePlannerTests.swift in Sources */,
+				77F61AA5DF809733F8032BB8 /* BackupSchedulerTests.swift in Sources */,
 				4D31D60D2C17CA471EA49807 /* BackupStatusTests.swift in Sources */,
 				8A72028DDA826D983172BDB6 /* BackupStoreTests.swift in Sources */,
 				235AA0FE71613057F81EF398 /* BackupsHeadlineTests.swift in Sources */,

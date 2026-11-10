@@ -36,6 +36,10 @@ final class BackupRunner: BackupLaunching {
     @ObservationIgnored private let client: any BackupRcloneClient
     @ObservationIgnored private let isDaemonConnected: @MainActor () -> Bool
     @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private let beginActivity: @MainActor (String) -> any NSObjectProtocol
+    @ObservationIgnored private let endActivity: @MainActor (any NSObjectProtocol) -> Void
+    /// Keeps the Mac from idle-sleeping from the first run until the queue empties.
+    @ObservationIgnored private var sleepActivity: (any NSObjectProtocol)?
     @ObservationIgnored private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "backups")
 
     init(
@@ -43,13 +47,21 @@ final class BackupRunner: BackupLaunching {
         transfers: TransferStore,
         client: any BackupRcloneClient,
         isDaemonConnected: @escaping @MainActor () -> Bool,
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        beginActivity: @escaping @MainActor (String) -> any NSObjectProtocol = {
+            ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled], reason: $0)
+        },
+        endActivity: @escaping @MainActor (any NSObjectProtocol) -> Void = {
+            ProcessInfo.processInfo.endActivity($0)
+        }
     ) {
         self.store = store
         self.transfers = transfers
         self.client = client
         self.isDaemonConnected = isDaemonConnected
         self.now = now
+        self.beginActivity = beginActivity
+        self.endActivity = endActivity
         transfers.onBackupFinished = { [weak self] id, summary in
             await self?.runFinished(id, summary: summary)
         }
@@ -119,6 +131,9 @@ final class BackupRunner: BackupLaunching {
                 let rcloneJob = try await client.startSync(request)
                 runningJobID = jobID
                 runningRcloneJob = rcloneJob
+                if sleepActivity == nil {
+                    sleepActivity = beginActivity("Backing up \(job.name)")
+                }
                 transfers.addTransfer(
                     jobId: rcloneJob,
                     operation: job.mode == .mirror ? .sync : .copy,
@@ -141,6 +156,10 @@ final class BackupRunner: BackupLaunching {
                     outcome: .failed(message), copied: 0, replaced: 0, removed: 0, errors: 1, bytes: 0
                 ))
             }
+        }
+        if runningJobID == nil, let activity = sleepActivity {
+            endActivity(activity)
+            sleepActivity = nil
         }
     }
 

@@ -20,6 +20,7 @@ struct NimbusApp: App {
     @State private var router = AppRouter()
     @State private var backupStore: BackupStore
     @State private var backupRunner: BackupRunner
+    @State private var backupScheduler: BackupScheduler
 
     /// Guards the parts of daemon-connect handling that must run once per
     /// process (pollers, monitors); the rest of `onDaemonConnected` is
@@ -46,12 +47,21 @@ struct NimbusApp: App {
         _transferStore = State(initialValue: transfers)
         let backups = BackupStore()
         _backupStore = State(initialValue: backups)
-        _backupRunner = State(initialValue: BackupRunner(
+        let runner = BackupRunner(
             store: backups,
             transfers: transfers,
             client: d.client,
             isDaemonConnected: { d.status == .connected }
-        ))
+        )
+        _backupRunner = State(initialValue: runner)
+        let scheduler = BackupScheduler(
+            store: backups,
+            launcher: runner,
+            planner: BackupSchedulePlanner(calendar: .autoupdatingCurrent),
+            busy: { Set(runner.queue).union(runner.runningJobID.map { [$0] } ?? []) }
+        )
+        _backupScheduler = State(initialValue: scheduler)
+        backups.onJobsChanged = { [weak scheduler] in scheduler?.replan() }
     }
 
     var body: some Scene {
@@ -224,6 +234,10 @@ struct NimbusApp: App {
             transferStore.startPolling(client: daemon.client)
             mountManager.startHealthMonitor()
             cloudMonitor.startPeriodicRefresh()
+            backupScheduler.start()
+        } else {
+            // Runs missed while the daemon was down catch up after the settle delay.
+            backupScheduler.replan(catchingUp: true)
         }
         // Every (re)connect reloads the cloud list and probes each cloud, so
         // Home, the sidebar and the menu bar start from fresh status.

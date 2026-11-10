@@ -13,6 +13,22 @@ struct BackupRunnerTests {
         let store: BackupStore
         let transfers: TransferStore
         let client: MockBackupClient
+        let activity: ActivityRecorder
+    }
+
+    /// Stands in for `ProcessInfo` begin/endActivity.
+    @MainActor
+    final class ActivityRecorder {
+        private(set) var reasons: [String] = []
+        private(set) var ended = 0
+        var isHeld: Bool { reasons.count > ended }
+
+        func begin(_ reason: String) -> any NSObjectProtocol {
+            reasons.append(reason)
+            return NSObject()
+        }
+
+        func end(_ token: any NSObjectProtocol) { ended += 1 }
     }
 
     private func harness(connected: Bool = true) async -> Harness {
@@ -22,9 +38,11 @@ struct BackupRunnerTests {
         await store.load()
         let transfers = TransferStore(history: InMemoryTransferHistory())
         let client = MockBackupClient()
+        let activity = ActivityRecorder()
         let runner = BackupRunner(store: store, transfers: transfers, client: client,
-                                  isDaemonConnected: { connected }, now: { self.now })
-        return Harness(runner: runner, store: store, transfers: transfers, client: client)
+                                  isDaemonConnected: { connected }, now: { self.now },
+                                  beginActivity: activity.begin, endActivity: activity.end)
+        return Harness(runner: runner, store: store, transfers: transfers, client: client, activity: activity)
     }
 
     private func addJob(_ h: Harness, name: String = "Docs", approved: Bool = true,
@@ -198,5 +216,33 @@ struct BackupRunnerTests {
         await h.runner.stop(second.id)
         #expect(h.runner.queue.isEmpty)
         #expect(h.client.stopped.isEmpty)
+    }
+
+    @Test func sleepIsHeldUntilQueueEmpties() async {
+        let h = await harness()
+        let first = await addJob(h, name: "A")
+        let second = await addJob(h, name: "B")
+        #expect(!h.activity.isHeld)
+
+        await h.runner.enqueue(first.id, trigger: .scheduled)
+        await h.runner.enqueue(second.id, trigger: .scheduled)
+        #expect(h.activity.reasons == ["Backing up A"])
+        #expect(h.activity.isHeld)
+
+        await finish(h, rcloneJob: 100)
+        #expect(h.activity.isHeld)
+        #expect(h.activity.reasons.count == 1)
+
+        await finish(h, rcloneJob: 101)
+        #expect(!h.activity.isHeld)
+        #expect(h.activity.ended == 1)
+    }
+
+    @Test func failedStartDoesNotHoldSleep() async {
+        let h = await harness()
+        let job = await addJob(h)
+        h.client.failStarts(with: URLError(.cannotConnectToHost))
+        await h.runner.enqueue(job.id, trigger: .manual)
+        #expect(!h.activity.isHeld)
     }
 }
