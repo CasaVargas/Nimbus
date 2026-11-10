@@ -123,8 +123,9 @@ enum VersionsPruner {
         var pruned: [String] = []
         for name in foldersToPrune(names: names, keep: keep, now: now, timeZone: timeZone) {
             guard let target = purgeTarget(job: job, stamp: name) else { continue }
-            // Nothing suspends between this answer and the purge request
-            // but the hop back off the main actor.
+            // Between this answer and the request going out there is only
+            // the hop off the main actor and building the request, so a
+            // change that lands then lets at most this one purge through.
             guard await mayPurge(name) else { return .stopped(pruned) }
             do {
                 try await client.purge(fs: target.fs, remote: target.remote)

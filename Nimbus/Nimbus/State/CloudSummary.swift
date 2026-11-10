@@ -387,8 +387,9 @@ enum BackupSuggestions {
     static let missedSlotsMinimum = 3
 
     /// At most one note per job: stopped, then failed, then hasn't run; the
-    /// list is in that order too, store order within a kind. Paused, unapproved and manual jobs never get one, and neither does a
-    /// job in `busy` (queued, starting or running): its run is the answer.
+    /// list is in that order too, store order within a kind. Paused,
+    /// unapproved and manual jobs never get one, and neither does a job in
+    /// `busy` (queued, starting or running): its run is the answer.
     /// While `catchUpPending` (the scheduler is about to run every due job)
     /// no job "hasn't run"; failed and stopped notes still show.
     static func notes(for jobs: [BackupJob], now: Date, calendar: Calendar,
