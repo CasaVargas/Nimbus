@@ -12,13 +12,21 @@ struct StorageTotals: Equatable {
     /// without one, so the bar never overflows.
     let capacityBytes: Int64
 
+    /// A limit this large is an organisation's shared pool, not one
+    /// person's plan: a Google Workspace account reports the whole pool
+    /// (hundreds of TB) as its total. Counting that as free space makes
+    /// every other cloud round to nothing, so a pooled account is added up
+    /// like pay-as-you-go storage: its usage counts, its limit doesn't.
+    /// 100 TB sits well above the largest personal plans (30 TB).
+    static let pooledLimitBytes: Int64 = 100_000_000_000_000
+
     init(quotas: [StorageQuota]) {
         var used: Int64 = 0
         var free: Int64?
         var capacity: Int64 = 0
         for quota in quotas {
             if let u = quota.used { used += u }
-            if let total = quota.total {
+            if let total = quota.total, total < Self.pooledLimitBytes {
                 capacity += total
                 if let f = quota.free { free = (free ?? 0) + f }
             } else if let u = quota.used {
