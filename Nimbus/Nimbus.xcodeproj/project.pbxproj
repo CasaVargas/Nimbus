@@ -131,6 +131,7 @@
 		81F55A8DE19D46C519E33712 /* ReconnectSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4328B67A9FB19E650B68BE55 /* ReconnectSheet.swift */; };
 		82C6F7FC98368F62321D1896 /* BackupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86F0BDA98F826F645673A3B3 /* BackupStore.swift */; };
 		833FC20DDC68505108B49A43 /* RcloneKit in Frameworks */ = {isa = PBXBuildFile; productRef = 11AF8C8943FA319B962BF492 /* RcloneKit */; };
+		83AD19D4F9EDC719860FB38B /* CloudStatusLabelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1381D75853A2DC244378857 /* CloudStatusLabelTests.swift */; };
 		844029015E27C6AE33F6BC56 /* FileTableCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EA2E3EFFF4F7667BA7CC0D1 /* FileTableCoordinator.swift */; };
 		85B9B26757E3EEC92EC600F3 /* BackupLiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C67320068644DCE2B4CEC7C /* BackupLiveTests.swift */; };
 		868A767D68F2BE6D9372BA77 /* NewRemoteIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C1C9540E39ED23E36F3CD3A /* NewRemoteIntegration.swift */; };
@@ -481,6 +482,7 @@
 		ADEDCF3F309AB2843957D1B7 /* QuickLookHostTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookHostTests.swift; sourceTree = "<group>"; };
 		AF7DD3A807EA1EDFB8319331 /* MountDefaultsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountDefaultsTests.swift; sourceTree = "<group>"; };
 		B07A2E84E597DE37C122A15B /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
+		B1381D75853A2DC244378857 /* CloudStatusLabelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudStatusLabelTests.swift; sourceTree = "<group>"; };
 		B1813355BB10E9306891A015 /* DragDropCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragDropCoordinatorTests.swift; sourceTree = "<group>"; };
 		B27D0FC2F26DE97E5EE0C98B /* GeneralSettingsViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsViewTests.swift; sourceTree = "<group>"; };
 		B4BBDEBA281F41466C04A187 /* AddRemoteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRemoteSheet.swift; sourceTree = "<group>"; };
@@ -1026,6 +1028,7 @@
 				4427E2718B09557E9EC0126A /* BackupStoreTests.swift */,
 				CD9BC07B84EE8699B766E881 /* BandwidthLimitValidatorTests.swift */,
 				E6490BA2EA4A02A038CD3151 /* CloudCapabilitiesTests.swift */,
+				B1381D75853A2DC244378857 /* CloudStatusLabelTests.swift */,
 				F2CB5729D5F43D8787260D73 /* CloudSummaryTests.swift */,
 				126788804458460F15A0FBB3 /* CompanionTests.swift */,
 				F2C314376120423C1E134660 /* ConfigFieldLabelTests.swift */,
@@ -1490,6 +1493,7 @@
 				235AA0FE71613057F81EF398 /* BackupsHeadlineTests.swift in Sources */,
 				FAF51C71F488F47CE9D1AC63 /* BandwidthLimitValidatorTests.swift in Sources */,
 				1873E4425A1FD0100792E7D0 /* CloudCapabilitiesTests.swift in Sources */,
+				83AD19D4F9EDC719860FB38B /* CloudStatusLabelTests.swift in Sources */,
 				9AE8D1A6286D124164457D6B /* CloudSummaryTests.swift in Sources */,
 				361F9316981A55716C767BFB /* CompanionTests.swift in Sources */,
 				7C36E9378E37CE1AE196A408 /* ConfigFieldLabelTests.swift in Sources */,

@@ -11,6 +11,11 @@ struct CloudStatusColumn: View {
     let file: FileItem
     let remote: String
     var style: StatusBadge.Style = .compact
+    /// Adds the state in words after the glyph: the file table's
+    /// "On this Mac" column.
+    var showsLabel = false
+    /// True on a selected, emphasized row, where text turns white.
+    var isInverted = false
 
     @Environment(TransferStore.self) private var transferStore
     @Environment(FileProviderBridge.self) private var bridge
@@ -36,6 +41,21 @@ struct CloudStatusColumn: View {
                     .accessibilityLabel("Kept on this Mac")
             }
             StatusBadge(state: state, style: style)
+            if showsLabel {
+                // The compact badge draws nothing for a local file (a calm
+                // column of glyphs); with words beside it, say it with a mark.
+                if state == .local, !file.isDir, !isKept {
+                    Image(systemName: "checkmark")
+                        .font(DesignSystem.Typography.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(isInverted ? Color.white : DesignSystem.Color.semantic.statusOK)
+                        .accessibilityHidden(true)
+                }
+                Text(verbatim: CloudStatusLabel.text(state: state, isKept: isKept, isDirectory: file.isDir))
+                    .font(DesignSystem.Typography.callout)
+                    .foregroundStyle(isInverted ? Color.white.opacity(0.85) : DesignSystem.Color.semantic.textSecondary)
+                    .lineLimit(1)
+            }
         }
         .task(id: queryKey) {
             refreshKept()
@@ -99,5 +119,23 @@ struct CloudStatusColumn: View {
             }
         }
         return nil
+    }
+}
+
+/// The words for a file's state in the "On this Mac" column. Pure, so every
+/// case is unit tested.
+enum CloudStatusLabel {
+    static func text(state: CloudStatus, isKept: Bool, isDirectory: Bool) -> String {
+        if case .downloading(let progress) = state {
+            return "Copying \(Int((progress * 100).rounded()))%"
+        }
+        if case .error = state { return "Problem" }
+        if isKept { return "Kept on this Mac" }
+        if isDirectory { return "--" }
+        switch state {
+        case .local: return "Downloaded"
+        case .cloud, .evicted: return "In cloud"
+        case .downloading, .error: return ""
+        }
     }
 }

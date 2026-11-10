@@ -54,8 +54,6 @@ struct FileTableHeader: View {
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.s) {
             Color.clear
-                .frame(width: FileRowView.statusColumnWidth, height: 1)
-            Color.clear
                 .frame(width: FileRowView.iconSize, height: 1)
             header("Name", field: .name, alignment: .leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -64,6 +62,14 @@ struct FileTableHeader: View {
                 .frame(width: FileRowView.dateColumnWidth, alignment: .leading)
             header("Size", field: .size, alignment: .trailing)
                 .frame(width: FileRowView.sizeColumnWidth, alignment: .trailing)
+            // Not sortable: a file's state is looked up per row, after the
+            // listing is already sorted.
+            Text("On this Mac")
+                .font(DesignSystem.Typography.caption)
+                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                .lineLimit(1)
+                .padding(.leading, DesignSystem.Spacing.l)
+                .frame(width: FileRowView.statusColumnWidth, alignment: .leading)
         }
         .padding(.horizontal, DesignSystem.Spacing.s + Self.insetStyleMargin)
         .frame(height: 30)

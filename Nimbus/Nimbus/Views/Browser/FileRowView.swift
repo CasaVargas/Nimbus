@@ -19,7 +19,7 @@ struct FileRowView: View {
 
     static let rowHeight: CGFloat = 30
     static let iconSize: CGFloat = 16
-    static let statusColumnWidth: CGFloat = 28
+    static let statusColumnWidth: CGFloat = 150
     static let dateColumnWidth: CGFloat = 120
     static let sizeColumnWidth: CGFloat = 80
 
@@ -27,10 +27,6 @@ struct FileRowView: View {
 
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.s) {
-            CloudStatusColumn(file: file, remote: remote)
-                .frame(width: Self.statusColumnWidth)
-                .accessibilityLabel("Cloud status")
-
             Image(nsImage: FileIcon.image(for: file))
                 .resizable()
                 .interpolation(.high)
@@ -68,6 +64,12 @@ struct FileRowView: View {
                                  ? Color.white.opacity(0.85)
                                  : DesignSystem.Color.semantic.textSecondary)
                 .frame(width: Self.sizeColumnWidth, alignment: .trailing)
+
+            // "On this Mac": the state as a glyph and words, last so the
+            // names line up at the leading edge.
+            CloudStatusColumn(file: file, remote: remote, showsLabel: true, isInverted: invertsText)
+                .padding(.leading, DesignSystem.Spacing.l)
+                .frame(width: Self.statusColumnWidth, alignment: .leading)
         }
         .padding(.horizontal, DesignSystem.Spacing.s)
         .frame(height: Self.rowHeight)
