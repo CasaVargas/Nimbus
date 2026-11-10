@@ -620,6 +620,45 @@ final class BackupSchedulerTests {
         scheduler.stop()
     }
 
+    // MARK: Catch-up pending
+
+    @Test func catchUpIsPendingFromReplanUntilThePassEnds() async throws {
+        let job = Self.job(lastRunStart: "2026-11-07T02:00:00-05:00")
+        await setUp([job, Self.tonight])
+        // The run stays in flight, so nothing re-plans mid-pass and the
+        // pass's own timer task sleeps again only once the pass has ended.
+        launcher.holdsRuns = true
+        #expect(!scheduler.isCatchUpPending)
+
+        var pendingDuringEnqueue: [Bool] = []
+        launcher.onEnqueue = { [unowned self] _ in pendingDuringEnqueue.append(scheduler.isCatchUpPending) }
+        scheduler.start()
+        #expect(scheduler.isCatchUpPending) // the settle is scheduled
+        await clock.waitForSleepCalls(1)
+        clock.advance(by: .seconds(59))
+        #expect(scheduler.isCatchUpPending)
+        clock.advance(by: .seconds(1))
+        await launcher.waitForCalls(1)
+        await clock.waitForSleepCalls(2) // the pass is over; asleep until tonight
+        #expect(pendingDuringEnqueue == [true]) // the pass was under way
+        #expect(nextTimerFire == Self.tonightSlot)
+        #expect(!scheduler.isCatchUpPending)
+
+        // A later catch-up re-plan (wake, reconnect) is pending again until its pass.
+        scheduler.replan(catchingUp: true)
+        #expect(scheduler.isCatchUpPending)
+        await clock.waitForSleepCalls(3)
+        clock.advance(by: .seconds(60))
+        await clock.waitForSleepCalls(4)
+        #expect(nextTimerFire == Self.tonightSlot)
+        #expect(!scheduler.isCatchUpPending)
+        // An ordinary re-plan with nothing due (the job is still running) isn't a catch-up.
+        scheduler.replan()
+        #expect(!scheduler.isCatchUpPending)
+        scheduler.stop()
+        #expect(!scheduler.isCatchUpPending)
+    }
+
     @Test func stopCancelsTimer() async {
         let job = Self.job(lastRunStart: "2026-11-07T02:00:00-05:00")
         await setUp([job])

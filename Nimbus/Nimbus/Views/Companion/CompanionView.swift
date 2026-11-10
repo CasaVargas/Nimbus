@@ -13,6 +13,8 @@ struct CompanionView: View {
     @Environment(LaunchAtLoginService.self) private var launchAtLogin
     @Environment(AppRouter.self) private var router
     @Environment(BackupStore.self) private var backupStore
+    @Environment(BackupRunner.self) private var backupRunner
+    @Environment(BackupScheduler.self) private var backupScheduler
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -20,7 +22,7 @@ struct CompanionView: View {
             summary: CloudSummaryBuilder.live(
                 remotes: monitor.remotes, status: statusService, transfers: transferStore,
                 providers: providers, settings: settings, daemon: daemon,
-                backups: backupStore.jobs),
+                backups: backupStore, runner: backupRunner, scheduler: backupScheduler),
             activity: ActivityLine.lines(from: transferStore.completedTransfers, limit: 3),
             openAtLogin: Binding(
                 get: { launchAtLogin.isEnabled },
@@ -71,13 +73,15 @@ struct CompanionMenuBarLabel: View {
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(AppRouter.self) private var router
     @Environment(BackupStore.self) private var backupStore
+    @Environment(BackupRunner.self) private var backupRunner
+    @Environment(BackupScheduler.self) private var backupScheduler
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         let overall = CloudSummaryBuilder.live(
             remotes: monitor.remotes, status: statusService, transfers: transferStore,
             providers: providers, settings: settings, daemon: daemon,
-            backups: backupStore.jobs
+            backups: backupStore, runner: backupRunner, scheduler: backupScheduler
         ).overall
         Image(systemName: CompanionGlyph.symbol(for: overall))
             .accessibilityLabel(Text(verbatim: CompanionGlyph.accessibilityLabel(for: overall)))

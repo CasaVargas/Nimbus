@@ -83,6 +83,7 @@ struct NimbusApp: App {
                     .environment(transferStore)
                     .environment(backupStore)
                     .environment(backupRunner)
+                    .environment(backupScheduler)
                     .environment(bookmarkStore)
                     .environment(launchAtLogin)
                     .environment(statusService)
@@ -135,6 +136,8 @@ struct NimbusApp: App {
                     .environment(launchAtLogin)
                     .environment(cloudMonitor)
                     .environment(backupStore)
+                    .environment(backupRunner)
+                    .environment(backupScheduler)
                     .environment(router)
             }
         } label: {
@@ -146,6 +149,8 @@ struct NimbusApp: App {
                 .environment(providerDirectory)
                 .environment(cloudMonitor)
                 .environment(backupStore)
+                .environment(backupRunner)
+                .environment(backupScheduler)
                 .environment(router)
         }
         .menuBarExtraStyle(.window)

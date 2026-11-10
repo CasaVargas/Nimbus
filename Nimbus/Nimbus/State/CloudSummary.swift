@@ -113,6 +113,8 @@ enum CloudSummaryBuilder {
         daemon: RcloneDaemon.Status,
         now: Date,
         backups: [BackupJob] = [],
+        busyBackups: Set<UUID> = [],
+        backupCatchUpPending: Bool = false,
         calendar: Calendar = .autoupdatingCurrent,
         resolveType: (Remote) -> String = { $0.type }
     ) -> CloudSummary {
@@ -151,7 +153,8 @@ enum CloudSummaryBuilder {
             overall: overall,
             attention: attention,
             suggestions: suggestions(
-                for: rows, backups: backups, dismissed: dismissedSuggestions, now: now, calendar: calendar),
+                for: rows, backups: backups, busyBackups: busyBackups, backupCatchUpPending: backupCatchUpPending,
+                dismissed: dismissedSuggestions, now: now, calendar: calendar),
             usedBytes: totals.usedBytes,
             freeBytes: totals.freeBytes,
             capacityBytes: totals.capacityBytes
@@ -273,12 +276,13 @@ enum CloudSummaryBuilder {
     }
 
     private static func suggestions(
-        for rows: [CloudSummary.Row], backups: [BackupJob], dismissed: Set<String>,
-        now: Date, calendar: Calendar
+        for rows: [CloudSummary.Row], backups: [BackupJob], busyBackups: Set<UUID>, backupCatchUpPending: Bool,
+        dismissed: Set<String>, now: Date, calendar: Calendar
     ) -> [CloudSummary.Suggestion] {
         // A backup that needs you outranks storage tips.
         var result: [CloudSummary.Suggestion] = BackupSuggestions
-            .notes(for: backups, now: now, calendar: calendar).map { .backup($0) }
+            .notes(for: backups, now: now, calendar: calendar, busy: busyBackups, catchUpPending: backupCatchUpPending)
+            .map { .backup($0) }
         for row in rows where (row.quota?.fraction ?? 0) >= nearlyFullThreshold {
             result.append(.nearlyFull(row))
         }
@@ -374,14 +378,21 @@ enum BackupSuggestions {
     static let missedSlotsMinimum = 3
 
     /// At most one note per job: stopped, then failed, then hasn't run.
-    /// Paused, unapproved and manual jobs never get one.
-    static func notes(for jobs: [BackupJob], now: Date, calendar: Calendar) -> [CloudSummary.BackupNote] {
+    /// Paused, unapproved and manual jobs never get one, and neither does a
+    /// job in `busy` (queued, starting or running): its run is the answer.
+    /// While `catchUpPending` (the scheduler is about to run every due job)
+    /// no job "hasn't run"; failed and stopped notes still show.
+    static func notes(for jobs: [BackupJob], now: Date, calendar: Calendar,
+                      busy: Set<UUID> = [], catchUpPending: Bool = false) -> [CloudSummary.BackupNote] {
         let planner = BackupSchedulePlanner(calendar: calendar)
-        return jobs.compactMap { note(for: $0, planner: planner, now: now, calendar: calendar) }
+        return jobs.compactMap { job in
+            guard !busy.contains(job.id) else { return nil }
+            return note(for: job, planner: planner, catchUpPending: catchUpPending, now: now, calendar: calendar)
+        }
     }
 
     private static func note(
-        for job: BackupJob, planner: BackupSchedulePlanner, now: Date, calendar: Calendar
+        for job: BackupJob, planner: BackupSchedulePlanner, catchUpPending: Bool, now: Date, calendar: Calendar
     ) -> CloudSummary.BackupNote? {
         guard job.isApproved, !job.isPaused, planner.nextRun(for: job) != nil else { return nil }
         if let run = job.lastRun {
@@ -396,7 +407,7 @@ enum BackupSuggestions {
                              dismissKey: key("failed", job, run.startedAt))
             }
         }
-        guard let first = planner.eligibleNextRun(for: job), first <= now,
+        guard !catchUpPending, let first = planner.eligibleNextRun(for: job), first <= now,
               missedSlots(from: first, schedule: job.schedule, now: now, calendar: calendar) >= missedSlotsMinimum
         else { return nil }
         let since = job.lastRun?.startedAt ?? job.approvedAt ?? job.createdAt
@@ -519,7 +530,7 @@ extension CloudSummaryBuilder {
     static func live(
         remotes: [Remote], status: RemoteStatusService, transfers: TransferStore,
         providers: ProviderDirectory, settings: AppSettings, daemon: RcloneDaemon,
-        backups: [BackupJob]
+        backups: BackupStore, runner: BackupRunner, scheduler: BackupScheduler
     ) -> CloudSummary {
         build(
             remotes: remotes,
@@ -532,7 +543,9 @@ extension CloudSummaryBuilder {
             dismissedSuggestions: settings.dismissedSuggestions,
             daemon: daemon.status,
             now: Date(),
-            backups: backups,
+            backups: backups.jobs,
+            busyBackups: runner.busyJobIDs,
+            backupCatchUpPending: scheduler.isCatchUpPending,
             resolveType: { CloudNaming.resolvedType(of: $0, in: remotes) }
         )
     }

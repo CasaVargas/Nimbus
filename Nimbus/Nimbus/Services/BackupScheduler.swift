@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Observation
 
 /// Decides which saved backups are due and when to wake next. Pure: the
 /// caller supplies the clock and the set of jobs already queued or running.
@@ -47,28 +48,29 @@ struct BackupSchedulePlanner {
 /// changes, and a timer that fires more than `catchUpThreshold` late, take the
 /// same path. Other re-plans (job edits, a finished run) re-arm the timer at
 /// once, and send a job that is already due through the settle pass.
+@Observable
 @MainActor
 final class BackupScheduler {
     /// A due job whose slot is further past than this runs as a catch-up.
     static let catchUpThreshold: TimeInterval = 5 * 60
 
-    private let store: BackupStore
-    private let launcher: any BackupLaunching
-    private let planner: BackupSchedulePlanner
-    private let clock: any Clock<Duration>
-    private let now: () -> Date
-    private let settleDelay: Duration
-    private let busy: @MainActor () -> Set<UUID>
-    private let workspaceCenter: NotificationCenter
-    private let systemCenter: NotificationCenter
+    @ObservationIgnored private let store: BackupStore
+    @ObservationIgnored private let launcher: any BackupLaunching
+    @ObservationIgnored private let planner: BackupSchedulePlanner
+    @ObservationIgnored private let clock: any Clock<Duration>
+    @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private let settleDelay: Duration
+    @ObservationIgnored private let busy: @MainActor () -> Set<UUID>
+    @ObservationIgnored private let workspaceCenter: NotificationCenter
+    @ObservationIgnored private let systemCenter: NotificationCenter
 
-    private var isStarted = false
-    private var timer: Task<Void, Never>?
+    @ObservationIgnored private var isStarted = false
+    @ObservationIgnored private var timer: Task<Void, Never>?
     /// When the pending catch-up pass runs; nothing runs before it.
     private var catchUpAt: Date?
     /// Passes still enqueueing (a cancelled timer's pass runs to the end).
     private var passesUnderWay = 0
-    private var observers: [(center: NotificationCenter, token: any NSObjectProtocol)] = []
+    @ObservationIgnored private var observers: [(center: NotificationCenter, token: any NSObjectProtocol)] = []
 
     init(
         store: BackupStore,
@@ -91,6 +93,10 @@ final class BackupScheduler {
         self.workspaceCenter = workspaceCenter
         self.systemCenter = systemCenter
     }
+
+    /// A catch-up is coming: a settle is scheduled or a pass is enqueueing
+    /// due jobs. Home holds back "hasn't run" while it is.
+    var isCatchUpPending: Bool { catchUpAt != nil || passesUnderWay > 0 }
 
     /// Call once, after the first daemon connect.
     func start() {

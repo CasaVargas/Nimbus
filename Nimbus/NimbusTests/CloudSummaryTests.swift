@@ -353,6 +353,64 @@ struct CloudSummaryTests {
         #expect(suggestions([j], now: at(7, 3, 30)) == ["Documents to B2 failed 3 days ago"])
     }
 
+    // MARK: Backups the runner or scheduler is about to deal with
+
+    func notes(_ jobs: [BackupJob], now: Date, busy: Set<UUID> = [], catchUpPending: Bool = false) -> [String] {
+        BackupSuggestions.notes(for: jobs, now: now, calendar: cal, busy: busy, catchUpPending: catchUpPending)
+            .map(\.sentence)
+    }
+
+    @Test func busyJobWithFailedRunGetsNoNote() {
+        let j = job(lastRun: (at(7, 3), .failed("no route")))
+        #expect(notes([j], now: at(7, 9)) == ["Documents to B2 failed last night"])
+        #expect(notes([j], now: at(7, 9), busy: [j.id]).isEmpty)
+    }
+
+    @Test func busyOverdueJobGetsNoNote() {
+        let j = job(.daily(hour: 2, minute: 0), lastRun: (at(4, 2), .completed))
+        #expect(notes([j], now: at(7, 3), busy: [j.id]).isEmpty)
+    }
+
+    @Test func busyStoppedJobGetsNoNote() {
+        let j = job(lastRun: (at(7, 3), .limitHit))
+        #expect(notes([j], now: at(7, 9), busy: [j.id]).isEmpty)
+    }
+
+    @Test func overdueJobWithCatchUpPendingGetsNoNote() {
+        let j = job(.daily(hour: 2, minute: 0), lastRun: (at(4, 2), .completed))
+        #expect(notes([j], now: at(7, 3), catchUpPending: true).isEmpty)
+    }
+
+    @Test func overdueJobNotBusyNothingPendingHasntRun() {
+        let j = job(.daily(hour: 2, minute: 0), lastRun: (at(4, 2), .completed))
+        let other = job(name: "Photos to B2")
+        #expect(notes([j], now: at(7, 3), busy: [other.id], catchUpPending: false)
+            == ["Documents to B2 hasn't run in 3 days"])
+    }
+
+    @Test func failedAndStoppedJobsStillShowWithCatchUpPending() {
+        let failed = job(lastRun: (at(7, 3), .failed("no route")))
+        let stopped = job(name: "Photos to B2", lastRun: (at(7, 3), .limitHit))
+        #expect(Set(notes([failed, stopped], now: at(7, 9), catchUpPending: true))
+            == ["Documents to B2 failed last night", "Photos to B2 stopped last night"])
+    }
+
+    @Test func buildPassesBusyAndPendingToBackupNotes() {
+        let failed = job(lastRun: (at(7, 3), .failed("x")))
+        let overdue = job(.daily(hour: 2, minute: 0), name: "Photos to B2", lastRun: (at(4, 2), .completed))
+        func backupNotes(busy: Set<UUID>, pending: Bool) -> [UUID] {
+            CloudSummaryBuilder.build(
+                remotes: [], statuses: [:], quotas: [:], activeTransfers: [], isInFinder: { _ in true },
+                providerName: { $0 }, lastConnected: [:], dismissedSuggestions: [], daemon: .connected,
+                now: at(7, 9), backups: [failed, overdue], busyBackups: busy, backupCatchUpPending: pending,
+                calendar: cal
+            ).suggestions.compactMap { if case .backup(let note) = $0 { note.jobID } else { nil } }
+        }
+        #expect(Set(backupNotes(busy: [], pending: false)) == [failed.id, overdue.id])
+        #expect(backupNotes(busy: [failed.id], pending: false) == [overdue.id])
+        #expect(backupNotes(busy: [], pending: true) == [failed.id])
+    }
+
     @Test func backupSuggestionsComeFirstAndOpenBackups() {
         let j = job(lastRun: (at(7, 3), .failed("x")))
         let s = CloudSummaryBuilder.build(

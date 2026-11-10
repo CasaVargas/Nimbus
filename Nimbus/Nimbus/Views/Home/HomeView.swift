@@ -20,6 +20,8 @@ struct HomeView: View {
     @Environment(MountConfigStore.self) private var mountConfigs
     @Environment(AppRouter.self) private var router
     @Environment(BackupStore.self) private var backupStore
+    @Environment(BackupRunner.self) private var backupRunner
+    @Environment(BackupScheduler.self) private var backupScheduler
 
     @State private var reconnecting: CloudSummary.Row?
     @State private var finderError: NimbusError?
@@ -27,7 +29,7 @@ struct HomeView: View {
     private var summary: CloudSummary {
         CloudSummaryBuilder.live(remotes: remotes, status: statusService, transfers: transferStore,
                                  providers: providers, settings: settings, daemon: daemon,
-                                 backups: backupStore.jobs)
+                                 backups: backupStore, runner: backupRunner, scheduler: backupScheduler)
     }
 
     var body: some View {
