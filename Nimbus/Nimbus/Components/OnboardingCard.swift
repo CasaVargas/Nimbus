@@ -17,6 +17,8 @@ struct OnboardingCard: View {
     let primaryAction: ActionConfig?
     let secondaryAction: ActionConfig?
 
+    @Environment(\.stratosphere) private var palette
+
     struct ActionConfig {
         let label: LocalizedStringKey
         let perform: @MainActor () -> Void
@@ -35,18 +37,19 @@ struct OnboardingCard: View {
 
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                 Text(title)
-                    .font(DesignSystem.Typography.headline)
-                    .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                    .font(DesignSystem.Stratosphere.Typography.sectionTitle)
+                    .foregroundStyle(palette.textPrimary.color)
                 Text(message)
                     .font(DesignSystem.Typography.body)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .foregroundStyle(palette.textSecondary.color)
                 if state == .complete, let secondaryAction {
                     Button {
                         secondaryAction.perform()
                     } label: {
                         Text(secondaryAction.label)
-                            .font(DesignSystem.Typography.callout)
-                            .foregroundStyle(DesignSystem.Color.semantic.accent)
+                            .font(DesignSystem.Stratosphere.Typography.segment)
+                            .foregroundStyle(palette.textPrimary.color)
+                            .underline()
                     }
                     .buttonStyle(.plain)
                     .padding(.top, 2)
@@ -61,17 +64,19 @@ struct OnboardingCard: View {
                 } label: {
                     Text(primaryAction.label)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
+                .buttonStyle(.primaryPill(.small))
             }
         }
         .padding(DesignSystem.Spacing.l)
+        // Glass without the blur: this card is snapshot-tested, and a blur
+        // material renders differently on every machine.
         .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                .fill(DesignSystem.Color.semantic.surfaceElevated)
+            RoundedRectangle(cornerRadius: DesignSystem.Stratosphere.Radius.card, style: .continuous)
+                .fill(LinearGradient(colors: [palette.glassTop.color, palette.glassBottom.color],
+                                     startPoint: .top, endPoint: .bottom))
                 .overlay {
-                    RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                        .stroke(DesignSystem.Color.semantic.separator.opacity(0.55))
+                    RoundedRectangle(cornerRadius: DesignSystem.Stratosphere.Radius.card, style: .continuous)
+                        .strokeBorder(palette.glassBorder.color, lineWidth: 1)
                 }
         )
         .accessibilityElement(children: .combine)
@@ -83,7 +88,7 @@ struct OnboardingCard: View {
         switch state {
         case .pending:
             Circle()
-                .strokeBorder(DesignSystem.Color.semantic.textTertiary, lineWidth: 1.5)
+                .strokeBorder(palette.textTertiary.color, lineWidth: 1.5)
         case .inProgress:
             ProgressView()
                 .controlSize(.small)
@@ -91,18 +96,18 @@ struct OnboardingCard: View {
             Image(systemName: "checkmark.circle.fill")
                 .resizable()
                 .scaledToFit()
-                .foregroundStyle(DesignSystem.Color.semantic.statusOK)
+                .foregroundStyle(palette.ok.color)
         case .actionRequired:
             Circle()
-                .fill(DesignSystem.Color.semantic.accent)
+                .fill(palette.actionTop.color)
         }
     }
 
     private var iconTint: Color {
         switch state {
-        case .actionRequired: return DesignSystem.Color.semantic.statusInfo
-        case .complete: return DesignSystem.Color.semantic.statusOK
-        default: return DesignSystem.Color.semantic.textSecondary
+        case .actionRequired: return palette.actionTop.color
+        case .complete: return palette.ok.color
+        default: return palette.textSecondary.color
         }
     }
 

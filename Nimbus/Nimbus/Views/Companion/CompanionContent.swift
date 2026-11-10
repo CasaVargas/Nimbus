@@ -22,6 +22,21 @@ struct CompanionContent: View {
 
     static let width: CGFloat = 340
 
+    @Environment(\.stratosphere) private var palette
+    @Environment(\.cloudColors) private var cloudColors
+
+    private typealias S = DesignSystem.Stratosphere
+
+    /// True when the header already offers the one thing to do next (sign
+    /// in, add a cloud, restart). Open Nimbus then steps back to a glass
+    /// capsule so the panel keeps a single filled button.
+    private var headerHasPrimaryAction: Bool {
+        switch summary.overall {
+        case .noClouds, .needsAttention, .engineDown: true
+        case .starting, .allReady, .busy: false
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
@@ -40,16 +55,18 @@ struct CompanionContent: View {
                     ForEach(activity.prefix(3)) { line in
                         Button { actions.openCloud(line.cloud) } label: {
                             HStack(alignment: .top, spacing: DesignSystem.Spacing.s) {
-                                Image(systemName: line.isFailure ? "exclamationmark.circle" : "checkmark.circle")
-                                    .foregroundStyle(line.isFailure ? DesignSystem.Color.semantic.statusError
-                                                                    : DesignSystem.Color.semantic.textSecondary)
-                                    .frame(width: 28)
+                                Image(systemName: line.isFailure ? "exclamationmark.triangle" : "checkmark")
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(line.isFailure ? palette.error.color : palette.ok.color)
+                                    .frame(width: 34)
                                     .accessibilityHidden(true)
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(verbatim: line.text).lineLimit(1)
+                                    Text(verbatim: line.text)
+                                        .foregroundStyle(palette.textPrimary.color)
+                                        .lineLimit(1)
                                     Text(line.date, format: .relative(presentation: .named))
-                                        .font(DesignSystem.Typography.caption2)
-                                        .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                                        .font(DesignSystem.Typography.caption)
+                                        .foregroundStyle(palette.textTertiary.color)
                                 }
                                 Spacer(minLength: 0)
                             }
@@ -67,6 +84,8 @@ struct CompanionContent: View {
             footer
         }
         .frame(width: Self.width)
+        .background(LinearGradient(colors: [palette.sheetTop.color, palette.sheetBottom.color],
+                                   startPoint: .top, endPoint: .bottom))
     }
 
     // MARK: - Header
@@ -76,7 +95,8 @@ struct CompanionContent: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
             HStack(alignment: .firstTextBaseline) {
                 Text(verbatim: CompanionHeadline.title(for: summary.overall))
-                    .font(DesignSystem.Typography.headline)
+                    .font(S.Typography.sectionTitle)
+                    .foregroundStyle(palette.textPrimary.color)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: DesignSystem.Spacing.s)
@@ -84,33 +104,33 @@ struct CompanionContent: View {
             }
             switch summary.overall {
             case .busy(let busy):
-                ProgressView(value: busy.progress)
-                    .progressViewStyle(.linear)
+                UsageBar(fraction: busy.progress, color: busyColor(busy), height: 10)
                 HStack {
                     Text(verbatim: progressLine(busy))
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                        .font(S.Typography.detail)
+                        .monospacedDigit()
+                        .foregroundStyle(palette.textSecondary.color)
                     Spacer()
                     Button("Show Transfers") { actions.showTransfers(busy.focusCloud) }
-                        .controlSize(.small)
+                        .buttonStyle(.glassCapsule)
                 }
             case .allReady:
                 Text(verbatim: readyLine)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .font(S.Typography.detail)
+                    .foregroundStyle(palette.textSecondary.color)
             case .noClouds:
                 Text("Add one to see it here and in Finder.")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .font(S.Typography.detail)
+                    .foregroundStyle(palette.textSecondary.color)
             case .engineDown(let message):
                 Text(verbatim: message)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .font(S.Typography.detail)
+                    .foregroundStyle(palette.textSecondary.color)
                     .lineLimit(3)
             case .needsAttention(let row):
                 Text(verbatim: attentionLine(row))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .font(S.Typography.detail)
+                    .foregroundStyle(palette.textSecondary.color)
                     .fixedSize(horizontal: false, vertical: true)
             case .starting:
                 EmptyView()
@@ -124,24 +144,32 @@ struct CompanionContent: View {
         switch summary.overall {
         case .allReady:
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(DesignSystem.Color.semantic.statusOK)
+                .foregroundStyle(palette.ok.color)
                 .accessibilityHidden(true)
         case .starting:
             ProgressView().controlSize(.small)
         case .engineDown:
-            Button("Restart", action: actions.restartEngine).controlSize(.small)
+            Button("Restart", action: actions.restartEngine).buttonStyle(.primaryPill(.small))
         case .noClouds:
             Button("Add Cloud", action: actions.addCloud)
-                .buttonStyle(.borderedProminent).controlSize(.small)
+                .buttonStyle(.primaryPill(.small))
         case .needsAttention(let row) where row.health == .needsSignIn:
             Button("Sign In") { actions.signIn(row) }
-                .buttonStyle(.borderedProminent).controlSize(.small)
+                .buttonStyle(.primaryPill(.small))
         case .needsAttention(let row):
             Button(row.health == .failing ? "Show Details" : "Try Again") { actions.fix(row) }
-                .controlSize(.small)
+                .buttonStyle(.primaryPill(.small))
         case .busy:
             EmptyView()
         }
+    }
+
+    /// The bar takes the colour of the cloud the transfer is headed to.
+    private func busyColor(_ busy: CloudSummary.Busy) -> S.CloudColor {
+        guard let name = busy.focusCloud, let row = summary.rows.first(where: { $0.name == name }) else {
+            return S.CloudColors.home
+        }
+        return row.color(in: cloudColors)
     }
 
     private var readyLine: String {
@@ -167,8 +195,8 @@ struct CompanionContent: View {
     private func section<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(verbatim: title)
-                .font(DesignSystem.Typography.captionEmphasized)
-                .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                .font(S.Typography.segment)
+                .foregroundStyle(palette.textTertiary.color)
                 .padding(.horizontal, DesignSystem.Spacing.s)
                 .padding(.bottom, 2)
                 .accessibilityAddTraits(.isHeader)
@@ -181,9 +209,17 @@ struct CompanionContent: View {
     private var footer: some View {
         HStack(spacing: DesignSystem.Spacing.s) {
             Button("Add Cloud…", action: actions.addCloud)
+                .buttonStyle(.glassCapsule)
             Spacer()
-            Button("Open Nimbus", action: actions.openNimbus)
-                .keyboardShortcut(.defaultAction)
+            if headerHasPrimaryAction {
+                Button("Open Nimbus", action: actions.openNimbus)
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.glassCapsule)
+            } else {
+                Button("Open Nimbus", action: actions.openNimbus)
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.primaryPill(.small))
+            }
             Menu {
                 SettingsLink { Text("Settings…") }
                 Toggle("Open at Login", isOn: $openAtLogin)
@@ -191,13 +227,13 @@ struct CompanionContent: View {
                 Button("Quit Nimbus", action: actions.quit)
             } label: {
                 Image(systemName: "gearshape")
+                    .foregroundStyle(palette.textPrimary.color)
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
             .accessibilityLabel("More")
         }
-        .controlSize(.small)
         .padding(.horizontal, DesignSystem.Spacing.l)
         .padding(.vertical, DesignSystem.Spacing.m)
     }
@@ -209,6 +245,8 @@ struct CompanionCloudRow: View {
     let row: CloudSummary.Row
     let onOpen: () -> Void
     let onSignIn: () -> Void
+
+    @Environment(\.stratosphere) private var palette
 
     private var detail: String {
         if row.health == .ready, let quota = row.quota, let used = quota.usedText {
@@ -222,16 +260,17 @@ struct CompanionCloudRow: View {
         HStack(spacing: DesignSystem.Spacing.s) {
             Button(action: onOpen) {
                 HStack(spacing: DesignSystem.Spacing.s) {
-                    ProviderBadge(provider: row.providerType, size: 28)
+                    LogoTile(provider: row.providerType, size: .compact)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(verbatim: row.name)
-                            .font(DesignSystem.Typography.body)
+                            .font(DesignSystem.Stratosphere.Typography.label)
+                            .foregroundStyle(palette.textPrimary.color)
                             .lineLimit(1)
                         Text(verbatim: detail)
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundStyle(row.health == .needsSignIn
-                                             ? DesignSystem.Color.semantic.statusWarning
-                                             : DesignSystem.Color.semantic.textSecondary)
+                            .font(DesignSystem.Stratosphere.Typography.detail)
+                            .monospacedDigit()
+                            .foregroundStyle(row.health == .needsSignIn ? palette.warning.color
+                                                                        : palette.textSecondary.color)
                             .lineLimit(1)
                     }
                     Spacer(minLength: 0)
@@ -242,8 +281,8 @@ struct CompanionCloudRow: View {
             trailing
         }
         .padding(.horizontal, DesignSystem.Spacing.s)
-        .padding(.vertical, 4)
-        .opacity(row.health == .unreachable ? 0.55 : 1)
+        .padding(.vertical, 5)
+        .opacity(row.health == .unreachable ? 0.6 : 1)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(verbatim: "\(row.name), \(row.health == .ready ? "Ready, " : "")\(detail)"))
     }
@@ -252,19 +291,19 @@ struct CompanionCloudRow: View {
     private var trailing: some View {
         switch row.health {
         case .needsSignIn:
+            // The header carries the filled Sign In; this one stays quiet.
             Button("Sign In", action: onSignIn)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+                .buttonStyle(.glassCapsule)
         case .busy:
             ProgressView().controlSize(.mini)
         case .ready:
             Image(systemName: "checkmark")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(DesignSystem.Color.semantic.statusOK)
+                .foregroundStyle(palette.ok.color)
                 .accessibilityHidden(true)
         case .failing:
             Image(systemName: "exclamationmark.circle.fill")
-                .foregroundStyle(DesignSystem.Color.semantic.statusError)
+                .foregroundStyle(palette.error.color)
                 .accessibilityHidden(true)
         case .checking, .unreachable:
             EmptyView()
@@ -282,7 +321,7 @@ private struct CompanionPreview: View {
 
     var body: some View {
         CompanionContent(summary: summary, activity: activity, openAtLogin: $openAtLogin)
-            .background(.regularMaterial)
+            .preferredColorScheme(.dark)
     }
 }
 

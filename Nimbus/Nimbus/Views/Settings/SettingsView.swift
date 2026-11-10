@@ -25,6 +25,7 @@ enum SettingsTab: String, CaseIterable, Hashable {
 struct SettingsView: View {
     private let generalModel: GeneralSettingsModel
     @State private var selectedTab: SettingsTab = .general
+    @Environment(\.stratosphere) private var palette
 
     init(generalModel: GeneralSettingsModel = GeneralSettingsModel()) {
         self.generalModel = generalModel
@@ -46,6 +47,10 @@ struct SettingsView: View {
         }
         .accessibilityIdentifier("settings-shell")
         .frame(width: 680, height: 520)
-        .background(DesignSystem.Color.semantic.surface)
+        // The same opaque surface as a sheet, so form groups match and
+        // nothing here depends on what is behind the window.
+        .environment(\.isOnStratosphereSheet, true)
+        .background(LinearGradient(colors: [palette.sheetTop.color, palette.sheetBottom.color],
+                                   startPoint: .top, endPoint: .bottom))
     }
 }
