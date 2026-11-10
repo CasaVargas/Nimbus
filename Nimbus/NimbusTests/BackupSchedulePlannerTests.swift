@@ -88,6 +88,22 @@ struct BackupSchedulePlannerTests {
         #expect(Self.planner.nextWake([], now: now) == nil)
     }
 
+    @Test func limitHitStopsScheduledRunsUntilReapproved() {
+        let stoppedAt = Self.date("2026-11-10T02:00:00-05:00")
+        var job = Self.job(lastRunStart: stoppedAt, outcome: .limitHit)
+        let tomorrow = Self.date("2026-11-11T09:00:00-05:00")
+        // Approved before the stopped run: neither due nor a wake time.
+        #expect(Self.planner.dueJobs([job], now: tomorrow, busy: []).isEmpty)
+        #expect(Self.planner.nextWake([job], now: Self.date("2026-11-10T09:00:00-05:00")) == nil)
+        #expect(Self.planner.eligibleNextRun(for: job) == nil)
+
+        // Previewed and approved again after it: due again.
+        job.approvedAt = Self.date("2026-11-10T08:00:00-05:00")
+        #expect(Self.planner.dueJobs([job], now: tomorrow, busy: []) == [job.id])
+        #expect(Self.planner.nextWake([job], now: Self.date("2026-11-10T09:00:00-05:00"))
+            == Self.date("2026-11-11T02:00:00-05:00"))
+    }
+
     @Test func neverRunAnchorsOnApproval() {
         var job = Self.job()
         job.approvedAt = Self.date("2026-11-10T10:00:00-05:00")

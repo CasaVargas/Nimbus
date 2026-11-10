@@ -539,6 +539,29 @@ final class BackupSchedulerTests {
         scheduler.stop()
     }
 
+    // MARK: Removal limit
+
+    @Test func limitHitRunStopsLaterSlots() async throws {
+        let job = BackupSchedulePlannerTests.job(
+            schedule: .hourly, lastRunStart: BackupJobTests.date("2026-11-10T08:00:00-05:00"), outcome: .limitHit)
+        await setUp([job, Self.tonight])
+        await startPastSettle()
+
+        // The 10:00 and 11:00 slots pass; nothing runs.
+        advance(to: BackupJobTests.date("2026-11-10T11:30:00-05:00"))
+        #expect(launcher.calls.isEmpty)
+        #expect(nextTimerFire == Self.tonightSlot)
+
+        // A preview approved after the stopped run resumes the schedule.
+        await store.approve(id: job.id, fingerprint: job.fingerprint, now: now)
+        await clock.waitForPendingSleepers(1)
+        try #require(nextTimerFire == now.addingTimeInterval(60))
+        clock.advance(by: .seconds(60))
+        await launcher.waitForCalls(1)
+        #expect(launcher.calls.first?.jobID == job.id)
+        scheduler.stop()
+    }
+
     // MARK: Pausing mid-pass
 
     @Test func pausingMidPassSkipsLaterJob() async throws {

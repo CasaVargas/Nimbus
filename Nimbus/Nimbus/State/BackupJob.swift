@@ -90,6 +90,15 @@ extension BackupJob {
     /// A job may run only after its current shape was previewed and approved.
     var isApproved: Bool { approvedFingerprint == fingerprint }
 
+    /// The last run stopped at the removal limit, after removing up to the
+    /// limit, and nobody has previewed and approved the job since. Scheduled
+    /// runs wait for that approval, so they never keep removing files the
+    /// user hasn't seen.
+    var isStoppedAtRemovalLimit: Bool {
+        guard let lastRun, lastRun.outcome == .limitHit else { return false }
+        return (approvedAt ?? .distantPast) < lastRun.startedAt
+    }
+
     /// Where replaced and removed files go, or nil when versions are off.
     var versionsEndpoint: TransferEndpoint? {
         guard versions.enabled else { return nil }

@@ -10,7 +10,8 @@ import Foundation
 struct BackupSchedulePlanner {
     let calendar: Calendar
 
-    /// Jobs whose next run is at or before `now`: scheduled, approved, not paused, not queued or running.
+    /// Jobs whose next run is at or before `now`: scheduled, eligible (see
+    /// `eligibleNextRun`), not queued or running.
     func dueJobs(_ jobs: [BackupJob], now: Date, busy: Set<UUID>) -> [UUID] {
         jobs.compactMap { job in
             guard !busy.contains(job.id), let next = eligibleNextRun(for: job), next <= now else { return nil }
@@ -29,8 +30,10 @@ struct BackupSchedulePlanner {
         return job.schedule.nextRun(after: anchor, calendar: calendar)
     }
 
+    /// `nextRun` for a job that may run on its schedule: approved, not
+    /// paused, and not stopped at its removal limit since its last approval.
     func eligibleNextRun(for job: BackupJob) -> Date? {
-        guard job.isApproved, !job.isPaused else { return nil }
+        guard job.isApproved, !job.isPaused, !job.isStoppedAtRemovalLimit else { return nil }
         return nextRun(for: job)
     }
 }
