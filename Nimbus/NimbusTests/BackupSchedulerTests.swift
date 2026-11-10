@@ -54,12 +54,19 @@ final class ManualClock: Clock, @unchecked Sendable {
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
                 lock.lock()
+                // Counted here, with the sleeper already waiting, so a test
+                // that waits for a sleep call sees its sleeper.
+                sleepCalls += 1
                 if cancelledIDs.remove(id) != nil {
+                    let ready = takeReadyWaiters()
                     lock.unlock()
                     continuation.resume(throwing: CancellationError())
+                    ready.forEach { $0.resume() }
                 } else if deadline <= current {
+                    let ready = takeReadyWaiters()
                     lock.unlock()
                     continuation.resume()
+                    ready.forEach { $0.resume() }
                 } else {
                     sleepers.append(Sleeper(id: id, deadline: deadline, continuation: continuation))
                     let ready = takeReadyWaiters()
@@ -118,14 +125,10 @@ final class ManualClock: Clock, @unchecked Sendable {
     }
 
     private func registerSleepCall() -> Int {
-        lock.lock()
-        nextID += 1
-        sleepCalls += 1
-        let id = nextID
-        let ready = takeReadyWaiters()
-        lock.unlock()
-        ready.forEach { $0.resume() }
-        return id
+        lock.withLock {
+            nextID += 1
+            return nextID
+        }
     }
 
     /// Call with the lock held; resume the result after unlocking.
