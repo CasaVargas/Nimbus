@@ -377,17 +377,22 @@ enum BackupSuggestions {
     /// "Hasn't run" needs at least this many missed slots.
     static let missedSlotsMinimum = 3
 
-    /// At most one note per job: stopped, then failed, then hasn't run.
-    /// Paused, unapproved and manual jobs never get one, and neither does a
+    /// At most one note per job: stopped, then failed, then hasn't run; the
+    /// list is in that order too, store order within a kind. Paused, unapproved and manual jobs never get one, and neither does a
     /// job in `busy` (queued, starting or running): its run is the answer.
     /// While `catchUpPending` (the scheduler is about to run every due job)
     /// no job "hasn't run"; failed and stopped notes still show.
     static func notes(for jobs: [BackupJob], now: Date, calendar: Calendar,
                       busy: Set<UUID> = [], catchUpPending: Bool = false) -> [CloudSummary.BackupNote] {
         let planner = BackupSchedulePlanner(calendar: calendar)
-        return jobs.compactMap { job in
+        let notes = jobs.compactMap { job -> CloudSummary.BackupNote? in
             guard !busy.contains(job.id) else { return nil }
             return note(for: job, planner: planner, catchUpPending: catchUpPending, now: now, calendar: calendar)
+        }
+        // By kind, store order within one: Home shows two, and a stopped job
+        // is the only kind that never runs again on its own.
+        return [CloudSummary.BackupNote.Kind.stopped, .failed, .hasntRun].flatMap { kind in
+            notes.filter { $0.kind == kind }
         }
     }
 

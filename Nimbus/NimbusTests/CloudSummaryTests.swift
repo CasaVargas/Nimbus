@@ -411,6 +411,27 @@ struct CloudSummaryTests {
         #expect(backupNotes(busy: [], pending: true) == [failed.id])
     }
 
+    @Test func notesAreOrderedStoppedFailedHasntRun() {
+        let overdue = job(.daily(hour: 2, minute: 0), name: "Music to B2", lastRun: (at(4, 2), .completed))
+        let failed = job(name: "Photos to B2", lastRun: (at(7, 3), .failed("x")))
+        let failedToo = job(name: "Mail to B2", lastRun: (at(7, 4), .failed("x")))
+        let stopped = job(name: "Docs to B2", lastRun: (at(7, 3), .limitHit))
+        #expect(suggestions([overdue, failed, failedToo, stopped], now: at(7, 9)) == [
+            "Docs to B2 stopped last night",
+            "Photos to B2 failed last night",
+            "Mail to B2 failed last night",
+            "Music to B2 hasn't run in 3 days",
+        ])
+        // Home shows two: the stopped job, which never runs again on its own, isn't hidden.
+        let s = CloudSummaryBuilder.build(
+            remotes: [], statuses: [:], quotas: [:], activeTransfers: [], isInFinder: { _ in true },
+            providerName: { $0 }, lastConnected: [:], dismissedSuggestions: [], daemon: .connected,
+            now: at(7, 9), backups: [overdue, failed, failedToo, stopped], calendar: cal)
+        #expect(s.suggestions.map(\.id).count == 2)
+        guard case .backup(let first) = s.suggestions.first else { Issue.record("no backup note"); return }
+        #expect(first.jobID == stopped.id)
+    }
+
     @Test func backupSuggestionsComeFirstAndOpenBackups() {
         let j = job(lastRun: (at(7, 3), .failed("x")))
         let s = CloudSummaryBuilder.build(
