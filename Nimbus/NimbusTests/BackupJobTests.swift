@@ -131,6 +131,16 @@ struct BackupJobTests {
             == Self.date("2026-11-09T09:30:00-05:00"))
     }
 
+    @Test func timeZoneChangeMovesSlotToNewWallClock() {
+        // The same daily 2:00 AM job, after the Mac moves from New York to Los Angeles.
+        let schedule = BackupSchedule.daily(hour: 2, minute: 0)
+        let after = Self.date("2026-11-08T01:00:00-05:00") // 10 PM the night before in LA
+        var losAngeles = Calendar(identifier: .gregorian)
+        losAngeles.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        #expect(schedule.nextRun(after: after, calendar: Self.newYork) == Self.date("2026-11-08T02:00:00-05:00"))
+        #expect(schedule.nextRun(after: after, calendar: losAngeles) == Self.date("2026-11-08T02:00:00-08:00"))
+    }
+
     @Test func manualHasNoNextRun() {
         #expect(BackupSchedule.manual.nextRun(after: Self.created, calendar: Self.newYork) == nil)
     }
