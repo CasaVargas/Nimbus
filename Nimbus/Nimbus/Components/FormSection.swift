@@ -30,7 +30,8 @@ struct FormSection<Content: View>: View {
                 }
             }
             .padding(DesignSystem.Spacing.m)
-            .glassSurface(radius: 16)
+            // Forms sit on sheets and the Settings window, both opaque.
+            .glassSurface(radius: 16, isTranslucent: false)
             if let footer {
                 Text(footer)
                     .font(DesignSystem.Typography.caption)
