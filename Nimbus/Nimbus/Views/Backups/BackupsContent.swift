@@ -42,7 +42,7 @@ struct BackupsContent: View {
                 EmptyState(
                     icon: "clock.arrow.circlepath",
                     title: "Back up a folder automatically",
-                    message: "Copy a folder on this Mac or in one cloud to another cloud on a schedule. You see what will change before anything runs.",
+                    message: "Copy a folder on this Mac or in one cloud to another cloud, as often as you like. You see what will change before anything runs.",
                     action: isWritable ? .init(label: "New Backup…", perform: actions.newBackup) : nil
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
