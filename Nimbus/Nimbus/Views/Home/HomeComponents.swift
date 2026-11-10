@@ -416,6 +416,7 @@ struct SuggestionView: View {
         switch suggestion {
         case .nearlyFull(let row): "\(row.name) is almost full"
         case .notInFinder(let row): "\(row.name) isn't in Finder yet"
+        case .backup(let note): note.sentence
         }
     }
 
@@ -429,6 +430,12 @@ struct SuggestionView: View {
             }
         case .notInFinder:
             "Show it under Locations so you can open its files from any app."
+        case .backup(let note):
+            switch note.kind {
+            case .stopped: "It would have removed more files than its limit allows. Review it, then approve it to continue."
+            case .failed: "See what went wrong and run it again."
+            case .hasntRun: "Check its schedule or back up now."
+            }
         }
     }
 
@@ -436,6 +443,7 @@ struct SuggestionView: View {
         switch suggestion {
         case .nearlyFull(let row): "Open \(row.name)"
         case .notInFinder: "Show in Finder"
+        case .backup: "Open Backups"
         }
     }
 }

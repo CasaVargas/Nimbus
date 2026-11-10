@@ -134,6 +134,7 @@ struct NimbusApp: App {
                     .environment(providerDirectory)
                     .environment(launchAtLogin)
                     .environment(cloudMonitor)
+                    .environment(backupStore)
                     .environment(router)
             }
         } label: {
@@ -144,6 +145,7 @@ struct NimbusApp: App {
                 .environment(transferStore)
                 .environment(providerDirectory)
                 .environment(cloudMonitor)
+                .environment(backupStore)
                 .environment(router)
         }
         .menuBarExtraStyle(.window)

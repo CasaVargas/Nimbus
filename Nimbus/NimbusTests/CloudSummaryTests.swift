@@ -211,4 +211,162 @@ struct CloudSummaryTests {
         #expect(s.rows[1].providerType == "drive")
         #expect(s.rows[1].providerName == "Google Drive")
     }
+
+    // MARK: Backups
+
+    var cal: Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "America/New_York")!
+        return c
+    }
+
+    func at(_ day: Int, _ hour: Int, _ minute: Int = 0) -> Date {
+        cal.date(from: DateComponents(year: 2026, month: 11, day: day, hour: hour, minute: minute))!
+    }
+
+    func job(
+        _ schedule: BackupSchedule = .daily(hour: 3, minute: 0), name: String = "Documents to B2",
+        lastRun: (start: Date, outcome: BackupRunSummary.Outcome)? = nil
+    ) -> BackupJob {
+        var j = BackupJob.new(source: .local(path: "/Users/me/Documents"),
+                              destination: .cloud(remote: "B2", path: "docs"), now: at(1, 9))
+        j.name = name
+        j.schedule = schedule
+        j.approvedFingerprint = j.fingerprint
+        j.approvedAt = at(1, 9)
+        if let lastRun {
+            j.lastRun = BackupRunSummary(startedAt: lastRun.start, finishedAt: lastRun.start.addingTimeInterval(60),
+                                         trigger: .scheduled, outcome: lastRun.outcome,
+                                         copied: 0, replaced: 0, removed: 0, errors: 0, bytes: 0)
+        }
+        return j
+    }
+
+    func suggestions(_ jobs: [BackupJob], now: Date) -> [String] {
+        BackupSuggestions.notes(for: jobs, now: now, calendar: cal).map(\.sentence)
+    }
+
+    func backupTransfer(_ title: String, status: TransferStatus, outcome: BackupRunSummary.Outcome? = nil) -> Transfer {
+        var t = Transfer(jobID: 1, operation: .sync, srcFs: "/Users/me/Documents", dstFs: "B2:docs",
+                         startedAt: now, completedAt: now, status: status, origin: .backup, nimbusUUID: UUID())
+        t.backup = .init(backupID: UUID(), title: title, trigger: .scheduled,
+                         isMirrorWithVersions: false, hadRemovalLimit: true)
+        if let outcome {
+            t.summary = BackupRunSummary(startedAt: now, finishedAt: now, trigger: .scheduled, outcome: outcome,
+                                         copied: 0, replaced: 0, removed: 0, errors: 0, bytes: 0)
+        }
+        return t
+    }
+
+    @Test func activityLineForBackup() {
+        let lines = ActivityLine.lines(from: [
+            backupTransfer("Documents to B2", status: .completed),
+        ])
+        #expect(lines.map(\.text) == ["Backed up Documents to B2"])
+        #expect(lines[0].isFailure == false)
+        #expect(lines[0].cloud == "B2")
+    }
+
+    @Test func activityLineForFailedStoppedAndCancelledBackups() {
+        let failed = ActivityLine.lines(from: [backupTransfer("Documents to B2", status: .failed("boom"))])
+        #expect(failed.map(\.text) == ["Backup Documents to B2 failed"])
+        #expect(failed[0].isFailure)
+        let stopped = ActivityLine.lines(from: [
+            backupTransfer("Documents to B2", status: .failed("max-delete"), outcome: .limitHit)])
+        #expect(stopped.map(\.text) == ["Backup Documents to B2 stopped"])
+        #expect(ActivityLine.lines(from: [backupTransfer("Documents to B2", status: .cancelled)]).isEmpty)
+    }
+
+    @Test func overdueSuggestion() {
+        // Last ran 02:30; slots 03:00 on the 4th..7th are four, 3 days 1 hour on.
+        let now = at(7, 3, 30)
+        let j = job(lastRun: (at(4, 2, 30), .completed))
+        #expect(suggestions([j], now: now) == ["Documents to B2 hasn't run in 3 days"])
+        let s = build([remote("B2")], statuses: [:], dismissed: [])
+        #expect(s.suggestions.allSatisfy { if case .backup = $0 { false } else { true } })
+    }
+
+    @Test func overdueNeedsMoreThanThreeSlots() {
+        let j = job(lastRun: (at(4, 2, 30), .completed))
+        #expect(suggestions([j], now: at(7, 2, 59)).isEmpty)   // three slots passed
+    }
+
+    @Test func overdueReadsInHoursUnderADayAndSingularForms() {
+        let hourly = job(.hourly, lastRun: (at(7, 8, 30), .completed))
+        #expect(suggestions([hourly], now: at(7, 12, 30)) == ["Documents to B2 hasn't run in 4 hours"])
+        #expect(BackupSuggestions.elapsed(since: at(7, 8), now: at(7, 9, 10), calendar: cal) == "1 hour")
+        #expect(BackupSuggestions.elapsed(since: at(6, 8), now: at(7, 9, 10), calendar: cal) == "1 day")
+    }
+
+    @Test func neverRunJobCountsFromItsAnchor() {
+        let j = job()   // approved at the 1st, 09:00
+        #expect(suggestions([j], now: at(5, 4)) == ["Documents to B2 hasn't run in 3 days"])
+    }
+
+    @Test func pausedJobNeverSuggested() {
+        var paused = job(lastRun: (at(4, 2, 30), .failed("x")))
+        paused.isPaused = true
+        #expect(suggestions([paused], now: at(7, 3, 30)).isEmpty)
+        var unapproved = job(lastRun: (at(4, 2, 30), .completed))
+        unapproved.approvedFingerprint = nil
+        #expect(suggestions([unapproved], now: at(7, 3, 30)).isEmpty)
+        #expect(suggestions([job(.manual, lastRun: (at(4, 2, 30), .failed("x")))], now: at(7, 3, 30)).isEmpty)
+    }
+
+    @Test func failedLastNightSuggestion() {
+        let j = job(lastRun: (at(7, 3), .failed("no route")))
+        #expect(suggestions([j], now: at(7, 9)) == ["Documents to B2 failed last night"])
+    }
+
+    @Test func lastNightRunsFromSixPMToSixAM() {
+        let now = at(7, 9)
+        #expect(BackupSuggestions.when(at(6, 18), now: now, calendar: cal) == "last night")
+        #expect(BackupSuggestions.when(at(6, 17, 59), now: now, calendar: cal) == "yesterday")
+        #expect(BackupSuggestions.when(at(7, 5, 59), now: now, calendar: cal) == "last night")
+        #expect(BackupSuggestions.when(at(7, 6), now: now, calendar: cal) == "today")
+        #expect(BackupSuggestions.when(at(4, 20), now: now, calendar: cal) == "3 days ago")
+    }
+
+    @Test func failedRunStopsBeingSuggestedAfterSevenDays() {
+        let j = job(.weekly(weekday: 2, hour: 3, minute: 0), lastRun: (at(1, 3), .failed("x")))
+        #expect(suggestions([j], now: at(8, 2)) == ["Documents to B2 failed 7 days ago"])
+        #expect(suggestions([j], now: at(8, 4)).isEmpty)
+    }
+
+    @Test func cancelledRunIsNotSuggested() {
+        #expect(suggestions([job(lastRun: (at(7, 3), .cancelled))], now: at(7, 9)).isEmpty)
+    }
+
+    @Test func stoppedSuggestionHasNoCutOffAndBeatsFailed() {
+        let j = job(lastRun: (at(7, 3), .limitHit))
+        #expect(suggestions([j], now: at(7, 9)) == ["Documents to B2 stopped last night"])
+        let old = job(lastRun: (at(1, 12), .limitHit))
+        #expect(suggestions([old], now: at(20, 9)) == ["Documents to B2 stopped 19 days ago"])
+        var approved = old
+        approved.approvedAt = at(2, 9)
+        #expect(suggestions([approved], now: at(2, 10)).isEmpty)
+    }
+
+    @Test func failedBeatsOverdueAndOneNotePerJob() {
+        let j = job(lastRun: (at(4, 2, 30), .failed("x")))
+        #expect(suggestions([j], now: at(7, 3, 30)) == ["Documents to B2 failed 3 days ago"])
+    }
+
+    @Test func backupSuggestionsComeFirstAndOpenBackups() {
+        let j = job(lastRun: (at(7, 3), .failed("x")))
+        let s = CloudSummaryBuilder.build(
+            remotes: [remote("Personal")], statuses: ["Personal": .connected],
+            quotas: [:], activeTransfers: [], isInFinder: { _ in false }, providerName: { $0 },
+            lastConnected: [:], dismissedSuggestions: [], daemon: .connected, now: at(7, 9),
+            backups: [j], calendar: cal)
+        guard case .backup(let note) = s.suggestions.first else { Issue.record("no backup note"); return }
+        #expect(note.jobID == j.id)
+        #expect(s.suggestions.count == 2)
+        let dismissed = CloudSummaryBuilder.build(
+            remotes: [remote("Personal")], statuses: ["Personal": .connected],
+            quotas: [:], activeTransfers: [], isInFinder: { _ in true }, providerName: { $0 },
+            lastConnected: [:], dismissedSuggestions: [note.dismissKey], daemon: .connected, now: at(7, 9),
+            backups: [j], calendar: cal)
+        #expect(dismissed.suggestions.isEmpty)
+    }
 }
