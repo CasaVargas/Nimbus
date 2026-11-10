@@ -27,7 +27,14 @@ enum VersionsPruner {
         case failed(String)
         /// The versions folder doesn't exist yet: no run has kept anything.
         case noVersionsYet
+        /// The job changed while pruning (deleted, versions off, another
+        /// folder, a longer Keep for): stopped after purging these.
+        case stopped([String])
     }
+
+    /// Asked on the main actor before each purge, with the stamp about to
+    /// go: false stops the prune. The runner checks the job as it is now.
+    typealias MayPurge = @MainActor @Sendable (String) -> Bool
 
     /// The Keep for that applies to `job`'s versions folder. Stamp folders
     /// don't say which job made them, so when other saved jobs (versions on)
@@ -44,14 +51,17 @@ enum VersionsPruner {
     /// in `timeZone`. Names that aren't stamps are ignored; `.forever`
     /// prunes nothing.
     static func foldersToPrune(names: [String], keep: BackupJob.Versions.Keep, now: Date, timeZone: TimeZone) -> [String] {
-        guard let days = keep.days else { return [] }
+        names.filter { isPastCutOff($0, keep: keep, now: now, timeZone: timeZone) }
+    }
+
+    /// Whether `name` is a run stamp strictly older than `keep`'s cut-off.
+    static func isPastCutOff(_ name: String, keep: BackupJob.Versions.Keep, now: Date, timeZone: TimeZone) -> Bool {
+        guard let days = keep.days else { return false }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
-        guard let cutOff = calendar.date(byAdding: .day, value: -days, to: now) else { return [] }
-        return names.filter { name in
-            guard let date = BackupRequest.date(fromStamp: name, timeZone: timeZone) else { return false }
-            return date < cutOff
-        }
+        guard let cutOff = calendar.date(byAdding: .day, value: -days, to: now),
+              let date = BackupRequest.date(fromStamp: name, timeZone: timeZone) else { return false }
+        return date < cutOff
     }
 
     /// The one path pruning may purge: `<job's versions folder>/<stamp>`.
@@ -81,9 +91,12 @@ enum VersionsPruner {
 
     /// Lists the job's versions folder and purges the stamp folders past
     /// `keep` (the job's own Keep for when nil; the runner passes
-    /// `effectiveKeep`). Stops at the first failure; never throws.
+    /// `effectiveKeep`). Before each purge it asks `mayPurge` and stops when
+    /// that says no, so a prune never outlives a change to the job. Stops at
+    /// the first failure; never throws.
     static func prune(job: BackupJob, keep: BackupJob.Versions.Keep? = nil, client: any BackupRcloneClient,
-                      now: Date, timeZone: TimeZone) async -> Outcome {
+                      now: Date, timeZone: TimeZone,
+                      mayPurge: @escaping MayPurge = { _ in true }) async -> Outcome {
         let keep = keep ?? job.versions.keep
         guard job.versions.enabled, keep != .forever,
               let folder = versionsFolder(of: job) else { return .skipped }
@@ -99,6 +112,9 @@ enum VersionsPruner {
         var pruned: [String] = []
         for name in foldersToPrune(names: names, keep: keep, now: now, timeZone: timeZone) {
             guard let target = purgeTarget(job: job, stamp: name) else { continue }
+            // Nothing suspends between this answer and the purge request
+            // but the hop back off the main actor.
+            guard await mayPurge(name) else { return .stopped(pruned) }
             do {
                 try await client.purge(fs: target.fs, remote: target.remote)
             } catch {

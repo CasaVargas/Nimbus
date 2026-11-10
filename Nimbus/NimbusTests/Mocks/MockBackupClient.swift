@@ -72,6 +72,7 @@ final class MockBackupClient: BackupRcloneClient, @unchecked Sendable {
     private var _listCalls: [Call] = []
     private var _purges: [Call] = []
     private var _onList: (@Sendable () async -> Void)?
+    private var _onPurge: (@Sendable (Call) async -> Void)?
 
     var listCalls: [Call] { lock.withLock { _listCalls } }
     var purges: [Call] { lock.withLock { _purges } }
@@ -96,11 +97,18 @@ final class MockBackupClient: BackupRcloneClient, @unchecked Sendable {
         }
     }
 
+    /// Runs inside each successful `purge`, after it is recorded and before
+    /// it returns; a test can change the job between two purges.
+    func onPurge(_ hook: (@Sendable (Call) async -> Void)?) { lock.withLock { _onPurge = hook } }
+
     func purge(fs: String, remote: String) async throws {
-        try lock.withLock {
+        let call = Call(fs: fs, remote: remote)
+        let hook = try lock.withLock { () -> (@Sendable (Call) async -> Void)? in
             if let error = _purgeError { throw error }
-            _purges.append(Call(fs: fs, remote: remote))
+            _purges.append(call)
+            return _onPurge
         }
+        if let hook { await hook(call) }
     }
 }
 

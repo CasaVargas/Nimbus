@@ -237,9 +237,15 @@ final class BackupRunner: BackupLaunching {
         let now = now()
         let timeZone = timeZone()
         let logger = logger
+        let folder = VersionsPruner.versionsFolder(of: job)
+        // Edit and Delete stay enabled during a prune, so every purge first
+        // checks the job as it is now.
+        let mayPurge: VersionsPruner.MayPurge = { [weak self] stamp in
+            self?.mayStillPrune(jobID, folder: folder, stamp: stamp, now: now, timeZone: timeZone) ?? false
+        }
         pruning[jobID] = Task { [weak self] in
             let outcome = await VersionsPruner.prune(job: job, keep: keep, client: client,
-                                                       now: now, timeZone: timeZone)
+                                                       now: now, timeZone: timeZone, mayPurge: mayPurge)
             switch outcome {
             case .skipped:
                 break
@@ -247,11 +253,24 @@ final class BackupRunner: BackupLaunching {
                 logger.debug("Backup \(jobID): no versions folder yet, nothing to prune")
             case .pruned(let names):
                 if !names.isEmpty { logger.info("Backup \(jobID): removed \(names.count) old versions folders") }
+            case .stopped(let names):
+                logger.info("Backup \(jobID): changed while removing old versions; stopped after \(names.count)")
             case .failed(let message):
                 logger.error("Backup \(jobID): couldn't remove old versions: \(message)")
             }
             self?.pruning[jobID] = nil
         }
+    }
+
+    /// Whether a prune started with `folder` may still purge `stamp`: the job
+    /// still exists with versions on in that same folder, and the stamp is
+    /// past the cut-off for the Keep for that applies to the folder now.
+    private func mayStillPrune(_ jobID: UUID, folder: VersionsPruner.Location?, stamp: String,
+                               now: Date, timeZone: TimeZone) -> Bool {
+        guard let job = store.job(id: jobID), job.versions.enabled, let folder,
+              VersionsPruner.versionsFolder(of: job) == folder else { return false }
+        let keep = VersionsPruner.effectiveKeep(for: job, among: store.jobs)
+        return VersionsPruner.isPastCutOff(stamp, keep: keep, now: now, timeZone: timeZone)
     }
 
     /// Waits for every versions prune started so far. Tests only.

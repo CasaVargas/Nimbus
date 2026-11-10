@@ -205,6 +205,33 @@ struct VersionsPrunerTests {
         }
     }
 
+    @MainActor final class Answers {
+        var asked: [String] = []
+        var allowed: Int
+        init(allowed: Int) { self.allowed = allowed }
+        func next(_ stamp: String) -> Bool {
+            asked.append(stamp)
+            return asked.count <= allowed
+        }
+    }
+
+    @Test @MainActor func stopsWhenNoLongerAllowedToPurge() async {
+        let client = MockBackupClient()
+        let names = [Self.stamp(daysAgo: 50), Self.stamp(daysAgo: 45), Self.stamp(daysAgo: 40), Self.stamp(daysAgo: 2)]
+        client.setListing(fs: "b2:", remote: "mac/Docs/.nimbus-versions", names.map { BackupFixtures.listed($0) })
+        let none = Answers(allowed: 0)
+        #expect(await VersionsPruner.prune(job: Self.job(), client: client, now: Self.now, timeZone: Self.newYork,
+                                           mayPurge: { none.next($0) }) == .stopped([]))
+        #expect(none.asked == [names[0]])
+        #expect(client.purges.isEmpty)
+
+        let one = Answers(allowed: 1)
+        #expect(await VersionsPruner.prune(job: Self.job(), client: client, now: Self.now, timeZone: Self.newYork,
+                                           mayPurge: { one.next($0) }) == .stopped([names[0]]))
+        #expect(one.asked == [names[0], names[1]])
+        #expect(client.purges == [.init(fs: "b2:", remote: "mac/Docs/.nimbus-versions/\(names[0])")])
+    }
+
     // MARK: - Keep for and approval
 
     @Test func changingKeepForKeepsApproval() {

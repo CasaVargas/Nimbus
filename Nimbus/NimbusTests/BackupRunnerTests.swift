@@ -537,4 +537,109 @@ struct BackupRunnerTests {
         await h.runner.waitForPruning()
         #expect(h.client.purges.isEmpty)
     }
+
+    // MARK: - A prune follows the job as it is now
+
+    private func stamp(daysAgo: Double) -> String {
+        BackupRequest.stamp(for: now.addingTimeInterval(-daysAgo * 86_400),
+                            timeZone: TimeZone(identifier: "America/New_York")!)
+    }
+
+    /// Three stamps past a 30-day Keep and one recent one.
+    private var severalOldStamps: [String] { [stamp(daysAgo: 50), stamp(daysAgo: 45), stamp(daysAgo: 40)] }
+
+    /// A completed run of a 30-day job whose prune is held at its listing
+    /// until the returned gate opens.
+    private func pruneHeldAtListing(_ h: Harness) async -> (BackupJob, Gate) {
+        h.client.setListing(fs: "b2:", remote: "Docs/.nimbus-versions",
+                            (severalOldStamps + [stamp(daysAgo: 2)]).map { BackupFixtures.listed($0) })
+        let job = await addJob(h) { $0.versions.keep = .days30 }
+        let gate = Gate()
+        h.client.onList { await gate.wait() }
+        await h.runner.enqueue(job.id, trigger: .manual)
+        await finish(h, rcloneJob: 100)
+        #expect(h.store.job(id: job.id)?.lastRun?.outcome == .completed)
+        return (h.store.job(id: job.id)!, gate)
+    }
+
+    @Test func keepChangedToForeverDuringPruneStopsIt() async {
+        let h = await harness()
+        var (job, gate) = await pruneHeldAtListing(h)
+        job.versions.keep = .forever
+        await h.store.upsert(job)
+        await gate.release()
+        await h.runner.waitForPruning()
+        #expect(h.client.listCalls.count == 1)
+        #expect(h.client.purges.isEmpty)
+    }
+
+    @Test func jobDeletedDuringPruneStopsIt() async {
+        let h = await harness()
+        let (job, gate) = await pruneHeldAtListing(h)
+        await h.store.delete(id: job.id)
+        await gate.release()
+        await h.runner.waitForPruning()
+        #expect(h.client.listCalls.count == 1)
+        #expect(h.client.purges.isEmpty)
+    }
+
+    @Test func versionsTurnedOffDuringPruneStopsIt() async {
+        let h = await harness()
+        var (job, gate) = await pruneHeldAtListing(h)
+        job.versions.enabled = false
+        await h.store.upsert(job)
+        await gate.release()
+        await h.runner.waitForPruning()
+        #expect(h.client.listCalls.count == 1)
+        #expect(h.client.purges.isEmpty)
+    }
+
+    @Test func versionsLocationChangedDuringPruneStopsIt() async {
+        let h = await harness()
+        var (job, gate) = await pruneHeldAtListing(h)
+        job.versions.location = .custom(.cloud(remote: "b2", path: "elsewhere"))
+        await h.store.upsert(job)
+        await gate.release()
+        await h.runner.waitForPruning()
+        #expect(h.client.listCalls.count == 1)
+        #expect(h.client.purges.isEmpty)
+    }
+
+    @Test func longerSharedKeepAddedDuringPruneStopsIt() async {
+        let h = await harness()
+        let (job, gate) = await pruneHeldAtListing(h)
+        // Another job starts keeping versions in the same folder, forever.
+        _ = await addJob(h, name: "Other") {
+            $0.versions.keep = .forever
+            $0.versions.location = .custom(.cloud(remote: "b2", path: "Docs/.nimbus-versions"))
+        }
+        #expect(VersionsPruner.effectiveKeep(for: job, among: h.store.jobs) == .forever)
+        await gate.release()
+        await h.runner.waitForPruning()
+        #expect(h.client.purges.isEmpty)
+    }
+
+    @Test func changeAfterFirstPurgeStopsTheRest() async {
+        let h = await harness()
+        var (job, gate) = await pruneHeldAtListing(h)
+        job.versions.keep = .forever
+        let changed = job
+        let store = h.store
+        let client = h.client
+        client.onPurge { _ in
+            client.onPurge(nil)
+            await store.upsert(changed)
+        }
+        await gate.release()
+        await h.runner.waitForPruning()
+        #expect(h.client.purges == [.init(fs: "b2:", remote: "Docs/.nimbus-versions/\(severalOldStamps[0])")])
+    }
+
+    @Test func unchangedJobPrunesEveryOldStamp() async {
+        let h = await harness()
+        let (_, gate) = await pruneHeldAtListing(h)
+        await gate.release()
+        await h.runner.waitForPruning()
+        #expect(h.client.purges == severalOldStamps.map { .init(fs: "b2:", remote: "Docs/.nimbus-versions/\($0)") })
+    }
 }
