@@ -169,7 +169,8 @@ struct MountsView: View {
                         onToggle: { Task { await toggle(config: config) } },
                         onRevealInFinder: { Task { await revealInFinder(config: config) } },
                         onEdit: { editingConfig = config },
-                        onDelete: { deletingConfig = config }
+                        onDelete: { deletingConfig = config },
+                        inCloudPane: remoteFilter != nil
                     )
                     .contentShape(Rectangle())
                     .onTapGesture {

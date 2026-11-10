@@ -52,4 +52,12 @@ struct HomeHeadlineTests {
         let s = summary([row("Dropbox", .busy, used: nil, total: nil)], overall: .busy(busy))
         #expect(HomeHeadline.sentence(for: s) == "Copying 3 items to Dropbox…")
     }
+
+    @Test func cardStatusKeepsNumbersWithTheirUnits() {
+        let nbsp = "\u{00A0}"
+        #expect(HomeCloudCard.keepingNumbersWithUnits("Uploading 3 items, 2 min left")
+            == "Uploading 3\(nbsp)items, 2\(nbsp)min left")
+        #expect(HomeCloudCard.keepingNumbersWithUnits("Ready") == "Ready")
+        #expect(HomeCloudCard.keepingNumbersWithUnits("Last connected 2 days ago.") == "Last connected 2\(nbsp)days ago.")
+    }
 }

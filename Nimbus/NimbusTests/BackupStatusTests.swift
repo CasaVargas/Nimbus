@@ -198,4 +198,10 @@ struct BackupStatusTests {
         #expect(BackupStatus.relative(now.addingTimeInterval(36), now: now) == BackupStatus.relative(now, now: now))
         #expect(!BackupStatus.relative(now.addingTimeInterval(36), now: now).hasPrefix("in "))
     }
+
+    @Test func fileCountsAgreeInNumber() {
+        #expect(BackupStatus.fileCount(1) == "1 file")
+        #expect(BackupStatus.fileCount(2) == "2 files")
+        #expect(BackupStatus.fileCount(0) == "0 files")
+    }
 }

@@ -38,17 +38,13 @@ struct BackupStatus: Equatable {
         case .limitHit:
             let limit = job.removalLimit ?? 0
             return BackupStatus(
-                sentence: String(localized: "Stopped \(when): would remove more than \(limit) files"),
+                sentence: String(localized: "Stopped \(when): would remove more than \(fileCount(limit))"),
                 tint: .warning, progress: nil
             )
         case .cancelled:
             return BackupStatus(sentence: String(localized: "Stopped \(when)"), tint: .secondary, progress: nil)
         case .completed:
-            let detail: String = switch lastRun.copied {
-            case 0: String(localized: "no changes")
-            case 1: String(localized: "1 file")
-            default: String(localized: "\(lastRun.copied) files")
-            }
+            let detail = lastRun.copied == 0 ? String(localized: "no changes") : fileCount(lastRun.copied)
             return BackupStatus(sentence: String(localized: "Backed up \(when), \(detail)"), tint: .ok, progress: nil)
         }
     }
@@ -83,6 +79,11 @@ struct BackupStatus: Equatable {
 
     static func accessibilityLabel(job: BackupJob, status: BackupStatus, scheduleLine: String) -> String {
         "\(job.name), \(status.sentence), \(scheduleLine)"
+    }
+
+    /// "1 file", "12 files".
+    static func fileCount(_ count: Int) -> String {
+        count == 1 ? String(localized: "1 file") : String(localized: "\(count) files")
     }
 
     /// "2 hours ago", "yesterday". Never the future: `now` comes from a
