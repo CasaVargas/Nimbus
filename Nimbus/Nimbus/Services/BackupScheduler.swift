@@ -145,8 +145,8 @@ final class BackupScheduler {
             }
             catchUpAt = nil
             // A re-plan during this pass (a run recorded, say) cancels this
-            // task; the pass still finishes, because the new timer only
-            // times future slots.
+            // task and arms a new timer; the pass still finishes, because
+            // the new timer only times future slots.
             await enqueueDueJobs()
         }
     }
@@ -157,7 +157,10 @@ final class BackupScheduler {
             guard let job = store.job(id: jobID), let slot = planner.nextRun(for: job) else { continue }
             let trigger: BackupRunSummary.Trigger =
                 current.timeIntervalSince(slot) > Self.catchUpThreshold ? .catchUp : .scheduled
-            await launcher.enqueue(jobID, trigger: trigger)
+            // A fresh task, so a re-plan that cancels the timer mid-pass
+            // doesn't also cancel the runner's start request.
+            let launcher = launcher
+            await Task { await launcher.enqueue(jobID, trigger: trigger) }.value
         }
     }
 
