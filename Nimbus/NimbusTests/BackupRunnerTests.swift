@@ -439,8 +439,14 @@ struct BackupRunnerTests {
         BackupRequest.stamp(for: now.addingTimeInterval(-40 * 86_400), timeZone: TimeZone(identifier: "America/New_York")!)
     }
 
+    /// The newest stamp is never pruned, so a listing needs one to prune anything.
+    private func recentStamp() -> String {
+        BackupRequest.stamp(for: now.addingTimeInterval(-2 * 86_400), timeZone: TimeZone(identifier: "America/New_York")!)
+    }
+
     private func addPrunableJob(_ h: Harness, name: String = "Docs") async -> BackupJob {
-        h.client.setListing(fs: "b2:", remote: "\(name)/.nimbus-versions", [BackupFixtures.listed(oldStamp())])
+        h.client.setListing(fs: "b2:", remote: "\(name)/.nimbus-versions",
+                            [BackupFixtures.listed(oldStamp()), BackupFixtures.listed(recentStamp())])
         return await addJob(h, name: name) { $0.versions.keep = .days30 }
     }
 
@@ -528,7 +534,8 @@ struct BackupRunnerTests {
 
     @Test func sharedVersionsFolderPrunesByTheLongestKeep() async {
         let h = await harness()
-        h.client.setListing(fs: "b2:", remote: "old/versions", [BackupFixtures.listed(oldStamp())])
+        h.client.setListing(fs: "b2:", remote: "old/versions",
+                            [BackupFixtures.listed(oldStamp()), BackupFixtures.listed(recentStamp())])
         let shared = TransferEndpoint.cloud(remote: "b2", path: "old/versions")
         let short = await addJob(h, name: "A") { $0.versions.keep = .days30; $0.versions.location = .custom(shared) }
         _ = await addJob(h, name: "B") { $0.versions.keep = .forever; $0.versions.location = .custom(shared) }

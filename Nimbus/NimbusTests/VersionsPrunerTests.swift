@@ -31,16 +31,17 @@ struct VersionsPrunerTests {
     }
 
     @Test func days30PrunesOlder() {
-        let old = Self.stamp(daysAgo: 31)
+        // The cut-off is 31 days back: 30 days plus a day of grace.
+        let old = Self.stamp(daysAgo: 32)
         let recent = Self.stamp(daysAgo: 29)
-        #expect(old == "2026-10-08 170000")
+        #expect(old == "2026-10-07 170000")
         let pruned = VersionsPruner.foldersToPrune(names: [old, recent], keep: .days30, now: Self.now, timeZone: Self.newYork)
         #expect(pruned == [old])
     }
 
     @Test(arguments: [
-        (BackupJob.Versions.Keep.days90, 91.0, 89.0),
-        (BackupJob.Versions.Keep.year1, 366.0, 364.0),
+        (BackupJob.Versions.Keep.days90, 92.0, 89.0),
+        (BackupJob.Versions.Keep.year1, 367.0, 364.0),
     ])
     func longerKeepsPruneOlder(keep: BackupJob.Versions.Keep, olderDays: Double, newerDays: Double) {
         let old = Self.stamp(daysAgo: olderDays)
@@ -49,11 +50,45 @@ struct VersionsPrunerTests {
         #expect(pruned == [old])
     }
 
-    @Test func cutOffIsThirtyCalendarDaysInTheTimeZone() {
-        // 30 days before 2026-11-08 16:00 EST is 2026-10-09 16:00 EDT.
-        let names = ["2026-10-09 160000", "2026-10-09 155959"]
+    @Test func cutOffIsThirtyOneCalendarDaysInTheTimeZone() {
+        // 30 days and a day of grace before 2026-11-08 16:00 EST is 2026-10-08 16:00 EDT.
+        let names = ["2026-10-08 160000", "2026-10-08 155959"]
         let pruned = VersionsPruner.foldersToPrune(names: names, keep: .days30, now: Self.now, timeZone: Self.newYork)
-        #expect(pruned == ["2026-10-09 155959"])
+        #expect(pruned == ["2026-10-08 155959"])
+    }
+
+    // MARK: - Clock hardening
+
+    @Test func aDayOfGraceOnTheCutOff() {
+        // UTC, so no DST change in the window moves the calendar cut-off by an hour.
+        let utc = TimeZone(identifier: "UTC")!
+        func stamp(hoursAgo: Double) -> String {
+            BackupRequest.stamp(for: Self.now.addingTimeInterval(-hoursAgo * 3600), timeZone: utc)
+        }
+        let recent = stamp(hoursAgo: 24)
+        let inGrace = stamp(hoursAgo: 30 * 24 + 12)  // 30 days 12 hours
+        let past = stamp(hoursAgo: 31 * 24 + 1)      // 31 days 1 hour
+        let pruned = VersionsPruner.foldersToPrune(names: [recent, inGrace, past], keep: .days30,
+                                                   now: Self.now, timeZone: utc)
+        #expect(pruned == [past])
+    }
+
+    @Test func theNewestStampIsNeverPruned() {
+        // Every stamp is past the cut-off (a clock set forward, say); the
+        // newest stays, wherever the listing puts it.
+        let names = [Self.stamp(daysAgo: 60), Self.stamp(daysAgo: 40), Self.stamp(daysAgo: 50)]
+        for order in [names, names.reversed(), [names[1], names[0], names[2]], [names[2], names[1], names[0]]] {
+            let pruned = VersionsPruner.foldersToPrune(names: order + ["notes"], keep: .days30,
+                                                       now: Self.now, timeZone: Self.newYork)
+            #expect(Set(pruned) == [names[0], names[2]], "\(order)")
+            #expect(pruned == order.filter { $0 != names[1] }, "listing order is kept")
+        }
+    }
+
+    @Test func aSingleStampPastTheCutOffIsKept() {
+        let pruned = VersionsPruner.foldersToPrune(names: [Self.stamp(daysAgo: 400)], keep: .days30,
+                                                   now: Self.now, timeZone: Self.newYork)
+        #expect(pruned.isEmpty)
     }
 
     @Test func unparseableNamesIgnored() {
@@ -65,10 +100,13 @@ struct VersionsPrunerTests {
     @Test func stampsAreReadInTheGivenTimeZone() {
         // 17:00 in New York is an hour after the New York cut-off: kept.
         // Read as UTC, it is four hours before the UTC cut-off (21:00): pruned.
-        let name = "2026-10-09 170000"
-        #expect(VersionsPruner.foldersToPrune(names: [name], keep: .days30, now: Self.now, timeZone: Self.newYork).isEmpty)
+        let name = "2026-10-08 170000"
+        let recent = "2026-11-07 120000"
+        #expect(VersionsPruner.foldersToPrune(names: [name, recent], keep: .days30, now: Self.now,
+                                              timeZone: Self.newYork).isEmpty)
         let utc = TimeZone(identifier: "UTC")!
-        #expect(VersionsPruner.foldersToPrune(names: [name], keep: .days30, now: Self.now, timeZone: utc) == [name])
+        #expect(VersionsPruner.foldersToPrune(names: [name, recent], keep: .days30, now: Self.now,
+                                              timeZone: utc) == [name])
     }
 
     // MARK: - The path handed to purge
@@ -150,7 +188,8 @@ struct VersionsPrunerTests {
     @Test func customLocationIsListedAndPurged() async {
         let client = MockBackupClient()
         let oldName = Self.stamp(daysAgo: 40)
-        client.setListing(fs: "b2:", remote: "old/Docs", [BackupFixtures.listed(oldName), BackupFixtures.listed("keep me")])
+        client.setListing(fs: "b2:", remote: "old/Docs", [BackupFixtures.listed(oldName), BackupFixtures.listed("keep me"),
+                                                          BackupFixtures.listed(Self.stamp(daysAgo: 2))])
         let job = Self.job { $0.versions.location = .custom(.cloud(remote: "b2", path: "old/Docs")) }
         _ = await VersionsPruner.prune(job: job, client: client, now: Self.now, timeZone: Self.newYork)
         #expect(client.purges == [.init(fs: "b2:", remote: "old/Docs/\(oldName)")])
@@ -159,7 +198,8 @@ struct VersionsPrunerTests {
     @Test func localVersionsGoThroughRclone() async {
         let client = MockBackupClient()
         let oldName = Self.stamp(daysAgo: 40)
-        client.setListing(fs: "/", remote: "Volumes/Backup/Docs/.nimbus-versions", [BackupFixtures.listed(oldName)])
+        client.setListing(fs: "/", remote: "Volumes/Backup/Docs/.nimbus-versions",
+                          [BackupFixtures.listed(oldName), BackupFixtures.listed(Self.stamp(daysAgo: 2))])
         let job = Self.job(destination: .local(path: "/Volumes/Backup/Docs"))
         _ = await VersionsPruner.prune(job: job, client: client, now: Self.now, timeZone: Self.newYork)
         #expect(client.purges == [.init(fs: "/", remote: "Volumes/Backup/Docs/.nimbus-versions/\(oldName)")])

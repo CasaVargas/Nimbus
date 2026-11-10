@@ -46,20 +46,31 @@ enum VersionsPruner {
         return ([job] + sharers).map(\.versions.keep).max { $0.retention < $1.retention } ?? job.versions.keep
     }
 
-    /// The names in `names` that are run stamps strictly older than the
-    /// Keep for cut-off: `keep`'s days before `now`, counted on the calendar
-    /// in `timeZone`. Names that aren't stamps are ignored; `.forever`
-    /// prunes nothing.
+    /// The names in `names` that are run stamps past the Keep for cut-off
+    /// (see `isPastCutOff`), in listing order, less the newest stamp. Names
+    /// that aren't stamps are ignored; `.forever` prunes nothing.
     static func foldersToPrune(names: [String], keep: BackupJob.Versions.Keep, now: Date, timeZone: TimeZone) -> [String] {
-        names.filter { isPastCutOff($0, keep: keep, now: now, timeZone: timeZone) }
+        // The newest stamp folder stays whatever its age, so a clock set
+        // forward by mistake can't empty the versions folder. Found by date,
+        // not by where the listing puts it.
+        let newest = names
+            .compactMap { name in BackupRequest.date(fromStamp: name, timeZone: timeZone).map { (name, $0) } }
+            .max { $0.1 < $1.1 }?.0
+        return names.filter { $0 != newest && isPastCutOff($0, keep: keep, now: now, timeZone: timeZone) }
     }
 
-    /// Whether `name` is a run stamp strictly older than `keep`'s cut-off.
+    /// Days added to every Keep for before anything goes: a time-zone change
+    /// can make a stamp look up to about a day older than it is, and a purge
+    /// can't be undone.
+    static let graceDays = 1
+
+    /// Whether `name` is a run stamp strictly older than `keep`'s cut-off:
+    /// its days plus `graceDays` before `now`, on the calendar in `timeZone`.
     static func isPastCutOff(_ name: String, keep: BackupJob.Versions.Keep, now: Date, timeZone: TimeZone) -> Bool {
         guard let days = keep.days else { return false }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
-        guard let cutOff = calendar.date(byAdding: .day, value: -days, to: now),
+        guard let cutOff = calendar.date(byAdding: .day, value: -(days + graceDays), to: now),
               let date = BackupRequest.date(fromStamp: name, timeZone: timeZone) else { return false }
         return date < cutOff
     }
