@@ -167,10 +167,12 @@ struct BackupsView: View {
             stop: { id in Task { await runner.stop(id) } },
             showVersions: { id in
                 guard let job = store.job(id: id) else { return }
-                switch VersionsReveal.target(for: job) {
+                switch VersionsReveal.target(for: job, versionsFolderExists: Self.localVersionsFolderExists(job)) {
                 case .browse(let cloud, let path):
                     router.pending = .browse(cloud: cloud, path: path)
-                case .finder(let url):
+                case .open(let url):
+                    NSWorkspace.shared.open(url)
+                case .reveal(let url):
                     NSWorkspace.shared.activateFileViewerSelecting([url])
                 case .unavailable:
                     break
@@ -205,6 +207,13 @@ struct BackupsView: View {
         }
         await runner.enqueue(id, trigger: .manual)
         if runner.lastRefusal == .daemonNotConnected { engineAlert = true }
+    }
+
+    /// Whether the job's versions folder exists on this Mac (false for a cloud).
+    private static func localVersionsFolderExists(_ job: BackupJob) -> Bool {
+        guard case .local(let path)? = job.versionsEndpoint else { return false }
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory.boolValue
     }
 
     /// A copy with a new identity, no approval and no history.

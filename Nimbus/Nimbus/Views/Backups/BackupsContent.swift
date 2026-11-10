@@ -204,7 +204,7 @@ struct BackupsContent: View {
         }
         Divider()
         Button("Show Versions") { actions.showVersions(id) }
-            .disabled(VersionsReveal.target(for: row.job) == .unavailable)
+            .disabled(VersionsReveal.target(for: row.job, versionsFolderExists: false) == .unavailable)
         Button("Show History") { actions.showHistory(id) }
         Button("Copy rclone Command") { actions.copyCommand(id) }
         Button("Duplicate") { actions.duplicate(id) }

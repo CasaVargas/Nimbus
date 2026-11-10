@@ -25,6 +25,18 @@ enum VersionsPruner {
         /// The stamp folders that were purged (possibly none).
         case pruned([String])
         case failed(String)
+        /// The versions folder doesn't exist yet: no run has kept anything.
+        case noVersionsYet
+    }
+
+    /// The Keep for that applies to `job`'s versions folder. Stamp folders
+    /// don't say which job made them, so when other saved jobs (versions on)
+    /// use the same folder, the longest Keep among them wins, and any
+    /// Forever means nothing is pruned.
+    static func effectiveKeep(for job: BackupJob, among jobs: [BackupJob]) -> BackupJob.Versions.Keep {
+        guard let folder = versionsFolder(of: job) else { return job.versions.keep }
+        let sharers = jobs.filter { $0.id != job.id && versionsFolder(of: $0) == folder }
+        return ([job] + sharers).map(\.versions.keep).max { $0.retention < $1.retention } ?? job.versions.keep
     }
 
     /// The names in `names` that are run stamps strictly older than the
@@ -67,20 +79,25 @@ enum VersionsPruner {
         }
     }
 
-    /// Lists the job's versions folder and purges the stamp folders past its
-    /// Keep for. Stops at the first failure; never throws.
-    static func prune(job: BackupJob, client: any BackupRcloneClient, now: Date, timeZone: TimeZone) async -> Outcome {
-        guard job.versions.enabled, job.versions.keep != .forever,
+    /// Lists the job's versions folder and purges the stamp folders past
+    /// `keep` (the job's own Keep for when nil; the runner passes
+    /// `effectiveKeep`). Stops at the first failure; never throws.
+    static func prune(job: BackupJob, keep: BackupJob.Versions.Keep? = nil, client: any BackupRcloneClient,
+                      now: Date, timeZone: TimeZone) async -> Outcome {
+        let keep = keep ?? job.versions.keep
+        guard job.versions.enabled, keep != .forever,
               let folder = versionsFolder(of: job) else { return .skipped }
         let listing: [FileItem]
         do {
             listing = try await client.listFiles(fs: folder.fs, remote: folder.remote)
         } catch {
-            return .failed(NimbusError.classify(error).message)
+            let message = NimbusError.classify(error).message
+            if message.lowercased().contains("directory not found") { return .noVersionsYet }
+            return .failed(message)
         }
         let names = listing.filter(\.isDir).map(\.name)
         var pruned: [String] = []
-        for name in foldersToPrune(names: names, keep: job.versions.keep, now: now, timeZone: timeZone) {
+        for name in foldersToPrune(names: names, keep: keep, now: now, timeZone: timeZone) {
             guard let target = purgeTarget(job: job, stamp: name) else { continue }
             do {
                 try await client.purge(fs: target.fs, remote: target.remote)
@@ -104,6 +121,9 @@ enum VersionsPruner {
 }
 
 extension BackupJob.Versions.Keep {
+    /// Orders Keep values from shortest to longest; forever is longest.
+    fileprivate var retention: Int { days ?? .max }
+
     /// Days versions are kept; nil for forever.
     var days: Int? {
         switch self {
@@ -116,13 +136,16 @@ extension BackupJob.Versions.Keep {
 }
 
 /// What Show Versions does for a job: open the versions folder in the
-/// cloud's browser, reveal it in Finder, or nothing (versions off).
+/// cloud's browser; on this Mac open it in Finder (it's hidden, so selecting
+/// it might show nothing), or reveal the destination before it exists; or
+/// nothing (versions off).
 enum VersionsReveal: Equatable {
     case browse(cloud: String, path: String)
-    case finder(URL)
+    case open(URL)
+    case reveal(URL)
     case unavailable
 
-    static func target(for job: BackupJob) -> VersionsReveal {
+    static func target(for job: BackupJob, versionsFolderExists: Bool) -> VersionsReveal {
         guard let endpoint = job.versionsEndpoint else { return .unavailable }
         switch endpoint {
         case .cloud(let remote, let path):
@@ -130,7 +153,9 @@ enum VersionsReveal: Equatable {
             return .browse(cloud: remote, path: path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
         case .local(let path):
             guard path.hasPrefix("/") else { return .unavailable }
-            return .finder(URL(fileURLWithPath: path, isDirectory: true))
+            if versionsFolderExists { return .open(URL(fileURLWithPath: path, isDirectory: true)) }
+            guard case .local(let destination) = job.destination else { return .unavailable }
+            return .reveal(URL(fileURLWithPath: destination, isDirectory: true))
         }
     }
 }

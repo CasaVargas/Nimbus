@@ -229,17 +229,22 @@ final class BackupRunner: BackupLaunching {
     /// background: a slow listing never holds up the next queued job, and a
     /// failure is only logged. One prune per job at a time.
     private func startPruning(_ jobID: UUID) {
-        guard pruning[jobID] == nil, let job = store.job(id: jobID),
-              job.versions.enabled, job.versions.keep != .forever else { return }
+        guard pruning[jobID] == nil, let job = store.job(id: jobID), job.versions.enabled else { return }
+        // Other jobs may keep versions in the same folder for longer.
+        let keep = VersionsPruner.effectiveKeep(for: job, among: store.jobs)
+        guard keep != .forever else { return }
         let client = client
         let now = now()
         let timeZone = timeZone()
         let logger = logger
         pruning[jobID] = Task { [weak self] in
-            let outcome = await VersionsPruner.prune(job: job, client: client, now: now, timeZone: timeZone)
+            let outcome = await VersionsPruner.prune(job: job, keep: keep, client: client,
+                                                       now: now, timeZone: timeZone)
             switch outcome {
             case .skipped:
                 break
+            case .noVersionsYet:
+                logger.debug("Backup \(jobID): no versions folder yet, nothing to prune")
             case .pruned(let names):
                 if !names.isEmpty { logger.info("Backup \(jobID): removed \(names.count) old versions folders") }
             case .failed(let message):

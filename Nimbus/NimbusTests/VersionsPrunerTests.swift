@@ -219,19 +219,107 @@ struct VersionsPrunerTests {
     // MARK: - Show Versions
 
     @Test func showVersionsInCloud() {
-        #expect(VersionsReveal.target(for: Self.job()) == .browse(cloud: "b2", path: "mac/Docs/.nimbus-versions"))
+        #expect(VersionsReveal.target(for: Self.job(), versionsFolderExists: false)
+            == .browse(cloud: "b2", path: "mac/Docs/.nimbus-versions"))
         let custom = Self.job { $0.versions.location = .custom(.cloud(remote: "b2", path: "/old/Docs/")) }
-        #expect(VersionsReveal.target(for: custom) == .browse(cloud: "b2", path: "old/Docs"))
+        #expect(VersionsReveal.target(for: custom, versionsFolderExists: true) == .browse(cloud: "b2", path: "old/Docs"))
     }
 
-    @Test func showVersionsOnThisMac() {
+    @Test func showVersionsOnThisMacOpensTheFolder() {
         let job = Self.job(destination: .local(path: "/Volumes/Backup/Docs"))
-        #expect(VersionsReveal.target(for: job)
-            == .finder(URL(fileURLWithPath: "/Volumes/Backup/Docs/.nimbus-versions", isDirectory: true)))
+        #expect(VersionsReveal.target(for: job, versionsFolderExists: true)
+            == .open(URL(fileURLWithPath: "/Volumes/Backup/Docs/.nimbus-versions", isDirectory: true)))
+    }
+
+    @Test func showVersionsOnThisMacBeforeAnyRevealsTheDestination() {
+        let job = Self.job(destination: .local(path: "/Volumes/Backup/Docs"))
+        #expect(VersionsReveal.target(for: job, versionsFolderExists: false)
+            == .reveal(URL(fileURLWithPath: "/Volumes/Backup/Docs", isDirectory: true)))
     }
 
     @Test func showVersionsUnavailableWhenOff() {
         let job = Self.job { $0.versions.enabled = false }
-        #expect(VersionsReveal.target(for: job) == .unavailable)
+        #expect(VersionsReveal.target(for: job, versionsFolderExists: true) == .unavailable)
+        #expect(VersionsReveal.target(for: job, versionsFolderExists: false) == .unavailable)
+    }
+
+    // MARK: - Jobs sharing a versions folder
+
+    static func sharing(_ keep: BackupJob.Versions.Keep, folder: String = "old/Docs",
+                        destination: String = "mac/A") -> BackupJob {
+        job(destination: .cloud(remote: "b2", path: destination)) {
+            $0.versions.location = .custom(.cloud(remote: "b2", path: folder))
+            $0.versions.keep = keep
+        }
+    }
+
+    @Test func sharedFolderKeepsTheLongest() {
+        let short = Self.sharing(.days30, destination: "mac/A")
+        let long = Self.sharing(.year1, destination: "mac/B")
+        #expect(VersionsPruner.effectiveKeep(for: short, among: [short, long]) == .year1)
+        #expect(VersionsPruner.effectiveKeep(for: long, among: [short, long]) == .year1)
+    }
+
+    @Test func sharedFolderWithForeverPrunesNothing() {
+        let short = Self.sharing(.days30, destination: "mac/A")
+        let forever = Self.sharing(.forever, destination: "mac/B")
+        #expect(VersionsPruner.effectiveKeep(for: short, among: [short, forever]) == .forever)
+    }
+
+    @Test func sharedFolderMatchesAfterTrimmingSlashes() {
+        let short = Self.sharing(.days30, folder: "old/Docs", destination: "mac/A")
+        let long = Self.sharing(.days90, folder: "/old/Docs/", destination: "mac/B")
+        #expect(VersionsPruner.effectiveKeep(for: short, among: [short, long]) == .days90)
+    }
+
+    @Test func unsharedFolderUsesItsOwnKeep() {
+        let mine = Self.sharing(.days30, folder: "old/A", destination: "mac/A")
+        let other = Self.sharing(.forever, folder: "old/B", destination: "mac/B")
+        let insideOther = Self.job(destination: .cloud(remote: "b2", path: "old/A")) { $0.versions.keep = .forever }
+        #expect(VersionsPruner.effectiveKeep(for: mine, among: [mine, other, insideOther]) == .days30)
+    }
+
+    @Test func versionsOffDoesNotCountAsSharing() {
+        let mine = Self.sharing(.days30, destination: "mac/A")
+        let off = Self.sharing(.forever, destination: "mac/B").with { $0.versions.enabled = false }
+        #expect(VersionsPruner.effectiveKeep(for: mine, among: [mine, off]) == .days30)
+    }
+
+    @Test func pruneUsesTheKeepItIsGiven() async {
+        let client = MockBackupClient()
+        let name = Self.stamp(daysAgo: 40)
+        client.setListing(fs: "b2:", remote: "mac/Docs/.nimbus-versions", [BackupFixtures.listed(name)])
+        let outcome = await VersionsPruner.prune(job: Self.job(), keep: .days90, client: client,
+                                                 now: Self.now, timeZone: Self.newYork)
+        #expect(outcome == .pruned([]))
+        #expect(await VersionsPruner.prune(job: Self.job(), keep: .forever, client: client,
+                                           now: Self.now, timeZone: Self.newYork) == .skipped)
+        #expect(client.purges.isEmpty)
+    }
+
+    // MARK: - First prune, before any versions exist
+
+    @Test func notFoundListingIsNothingToPrune() async {
+        let client = MockBackupClient()
+        client.failLists(with: RcloneError.requestFailed(status: 404, message: "directory not found"))
+        let outcome = await VersionsPruner.prune(job: Self.job(), client: client, now: Self.now, timeZone: Self.newYork)
+        #expect(outcome == .noVersionsYet)
+        #expect(client.purges.isEmpty)
+    }
+
+    @Test func otherListingFailureStillFails() async {
+        let client = MockBackupClient()
+        client.failLists(with: RcloneError.requestFailed(status: 500, message: "couldn't list: permission denied"))
+        let outcome = await VersionsPruner.prune(job: Self.job(), client: client, now: Self.now, timeZone: Self.newYork)
+        #expect(outcome == .failed("Request failed (500): couldn't list: permission denied"))
+        #expect(client.purges.isEmpty)
+    }
+}
+
+private extension BackupJob {
+    func with(_ mutate: (inout BackupJob) -> Void) -> BackupJob {
+        var copy = self
+        mutate(&copy)
+        return copy
     }
 }

@@ -525,4 +525,16 @@ struct BackupRunnerTests {
         #expect(h.client.purges.isEmpty)
         #expect(h.runner.isRunningAnything == false)
     }
+
+    @Test func sharedVersionsFolderPrunesByTheLongestKeep() async {
+        let h = await harness()
+        h.client.setListing(fs: "b2:", remote: "old/versions", [BackupFixtures.listed(oldStamp())])
+        let shared = TransferEndpoint.cloud(remote: "b2", path: "old/versions")
+        let short = await addJob(h, name: "A") { $0.versions.keep = .days30; $0.versions.location = .custom(shared) }
+        _ = await addJob(h, name: "B") { $0.versions.keep = .forever; $0.versions.location = .custom(shared) }
+        await h.runner.enqueue(short.id, trigger: .manual)
+        await finish(h, rcloneJob: 100)
+        await h.runner.waitForPruning()
+        #expect(h.client.purges.isEmpty)
+    }
 }
