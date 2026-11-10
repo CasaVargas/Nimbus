@@ -220,7 +220,7 @@ struct BackupRunSummary: Codable, Hashable, Sendable {
     let startedAt: Date
     let finishedAt: Date
     let trigger: Trigger
-    let outcome: Outcome
+    var outcome: Outcome
     let copied: Int
     let replaced: Int
     let removed: Int
@@ -229,6 +229,9 @@ struct BackupRunSummary: Codable, Hashable, Sendable {
     /// The job's removal limit when the run started; names the number in the
     /// "stopped" notification. Absent in summaries saved before it existed.
     var removalLimit: Int? = nil
+    /// Mirror with versions: replaced and removed files were moved into the
+    /// versions folder, not deleted. Absent (false) in older summaries.
+    var movesToVersions: Bool = false
 }
 
 extension BackupRunSummary.Outcome: Codable {

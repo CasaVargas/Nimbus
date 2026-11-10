@@ -22,6 +22,7 @@
 		12FADF129EBFB2A4EE1FDE91 /* ProviderLogos.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F2402BED8CC66F92772AC9E4 /* ProviderLogos.xcassets */; };
 		13847A4076B6665A7D7772B5 /* TransferStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DD44EF54342043F83BC0D1B /* TransferStore.swift */; };
 		147D7EED8CC0868621F6EE59 /* StratosphereMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4942A81625BEACCDCC03BAD /* StratosphereMetrics.swift */; };
+		1630774458F95F21F1AAC4FA /* NotificationClickBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B04C57961C55E22B9F935D7 /* NotificationClickBuffer.swift */; };
 		1660176FDE5D57B703D8AE7A /* BackupJobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 959A0BCB7F3CFE049627A976 /* BackupJobTests.swift */; };
 		1662AABDA624B37F9DA3A672 /* FileGridLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1858DE8FEC609D897A5BB819 /* FileGridLayoutTests.swift */; };
 		16B72C177B794536B3F2081C /* PinStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38F5C6223C04D9099E6D7027 /* PinStoreTests.swift */; };
@@ -412,6 +413,7 @@
 		56DDC44A90929A9518155E77 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		574E6F3F62AE7BD0B43201D5 /* NimbusTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NimbusTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5AB817DDF23D8ABF18B43C3F /* OAuthStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthStep.swift; sourceTree = "<group>"; };
+		5B04C57961C55E22B9F935D7 /* NotificationClickBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationClickBuffer.swift; sourceTree = "<group>"; };
 		5B0E08F04AB87582552B4653 /* ProviderIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderIcon.swift; sourceTree = "<group>"; };
 		5B4AA5DCF3B1E5DDEAD8A021 /* ConfigFieldLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigFieldLabel.swift; sourceTree = "<group>"; };
 		5B4EDE78A4EEDF0C9EE8A0E9 /* SyncSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSnapshotStore.swift; sourceTree = "<group>"; };
@@ -687,6 +689,7 @@
 				24205989EBEADCB4C7957BE9 /* LaunchContext.swift */,
 				C59D2ED20596903528EE7EB1 /* MountManager.swift */,
 				1C1C9540E39ED23E36F3CD3A /* NewRemoteIntegration.swift */,
+				5B04C57961C55E22B9F935D7 /* NotificationClickBuffer.swift */,
 				9A0D967020AFE38996C1740A /* ProviderDirectory.swift */,
 				41EA6730560A776CC86A184B /* QuitGuard.swift */,
 				0DC9150CFA4799141AFE8FCC /* RcloneClientAdapter.swift */,
@@ -1414,6 +1417,7 @@
 				278E2D760830C431C685CF0B /* NimbusApp.swift in Sources */,
 				B00080307FD8EA793F2CEAD7 /* NimbusError.swift in Sources */,
 				CAF8A4396F7EEB736BD84E8F /* NimbusFileRef.swift in Sources */,
+				1630774458F95F21F1AAC4FA /* NotificationClickBuffer.swift in Sources */,
 				75B3A0A5D3F81285E50A5EDC /* Notifications.swift in Sources */,
 				9FA8AB902AF9A34ED1BE2310 /* OAuthStep.swift in Sources */,
 				E1D66F43A6DB298B4244F4C1 /* OnboardingCard.swift in Sources */,

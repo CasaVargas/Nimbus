@@ -16,7 +16,7 @@ struct BackupScheduleDraftTests {
 
     @Test func kindLabelsUseTheSpecsWording() {
         #expect(BackupScheduleDraft.Kind.allCases.map(\.label) == [
-            "Manual only", "Every hour", "Every day at a time", "Every week on a weekday at a time",
+            "Manual only", "Every hour", "Every day", "Every week",
         ])
     }
 

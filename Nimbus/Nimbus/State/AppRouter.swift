@@ -23,6 +23,16 @@ final class AppRouter {
     /// Maintained by the main window's root view, so the companion knows
     /// whether to bring a window forward or ask SwiftUI for a new one.
     var isMainWindowOpen = false
+    /// Set only by a notification click while no window is open; the menu bar
+    /// label (always alive) consumes it to open one. Companion actions open
+    /// their own window through `open`, so they never set this.
+    var needsWindow = false
+
+    /// Returns true once per request, so exactly one window is opened.
+    func takeWindowRequest() -> Bool {
+        defer { needsWindow = false }
+        return needsWindow && !isMainWindowOpen
+    }
 
     /// Returns and clears `pending` when `accepts` says this consumer owns it.
     func take(where accepts: (Route) -> Bool) -> Route? {

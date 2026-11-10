@@ -78,6 +78,20 @@ struct AppRouterTests {
         #expect(router.pending == nil)
     }
 
+    @MainActor @Test func windowRequestIsConsumedOnceAndOnlyWhenNoWindowIsOpen() {
+        let router = AppRouter()
+        #expect(!router.takeWindowRequest())
+        router.pending = .backups(nil)  // a companion action: no request
+        #expect(!router.takeWindowRequest())
+        router.needsWindow = true
+        #expect(router.takeWindowRequest())
+        #expect(!router.takeWindowRequest())
+        router.needsWindow = true
+        router.isMainWindowOpen = true
+        #expect(!router.takeWindowRequest())
+        #expect(!router.needsWindow)
+    }
+
     @Test func backupsRouteCarriesAnOptionalJob() {
         let router = AppRouter()
         let id = UUID()

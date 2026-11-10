@@ -1,5 +1,4 @@
 import SwiftUI
-import UserNotifications
 
 @main
 struct NimbusApp: App {
@@ -197,9 +196,10 @@ struct NimbusApp: App {
             if router.isMainWindowOpen,
                let window = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) {
                 window.makeKeyAndOrderFront(nil)
+            } else {
+                router.needsWindow = true
             }
         }
-        UNUserNotificationCenter.current().delegate = appDelegate
         appDelegate.shutdownHandler = {
             transfers.stopPolling()
             await mounts.stopAll()

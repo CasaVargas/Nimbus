@@ -167,12 +167,7 @@ final class BackupRunner: BackupLaunching {
     private func runFinished(_ jobID: UUID, summary: BackupRunSummary) async {
         var summary = summary
         if case .failed(let raw) = summary.outcome {
-            summary = BackupRunSummary(
-                startedAt: summary.startedAt, finishedAt: summary.finishedAt, trigger: summary.trigger,
-                outcome: .failed(BackupErrorText.friendly(raw)),
-                copied: summary.copied, replaced: summary.replaced, removed: summary.removed,
-                errors: summary.errors, bytes: summary.bytes
-            )
+            summary.outcome = .failed(BackupErrorText.friendly(raw))
         }
         await store.recordRun(id: jobID, summary: summary)
         if runningJobID == jobID {

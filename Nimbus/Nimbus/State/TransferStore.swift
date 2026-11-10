@@ -391,6 +391,7 @@ final class TransferStore {
         )
         var withLimit = summary
         withLimit.removalLimit = backup.removalLimit
+        withLimit.movesToVersions = backup.isMirrorWithVersions
         transfers[index].summary = withLimit
         return (backup.backupID, withLimit)
     }

@@ -119,28 +119,38 @@ extension TransferNotificationService {
                 body = String(localized: "It would have removed more files than the limit allows. Open Nimbus to preview it.")
             }
         default:
-            if case .failed(let message) = record.outcome {
+            if case .failed(let jobError) = record.outcome {
                 title = String(localized: "Backup \(name) failed")
+                // The summary carries the real reason (e.g. the stats' last
+                // error for delete failures); the job error is rclone's raw one.
+                var message = jobError
+                if case .failed(let reason)? = record.summary?.outcome { message = reason }
+                message = BackupErrorText.friendly(message)
                 body = message.split(whereSeparator: \.isNewline).first.map(String.init) ?? message
             } else {
                 title = String(localized: "Backed up \(name)")
                 body = Self.backupBody(copied: record.summary?.copied ?? 0,
                                        replaced: record.summary?.replaced ?? 0,
-                                       removed: record.summary?.removed ?? 0)
+                                       removed: record.summary?.removed ?? 0,
+                                       versions: record.summary?.movesToVersions ?? false)
             }
         }
         return TransferNotificationRequest(identifier: record.id.uuidString, title: title, body: body, backupID: backupID)
     }
 
-    /// "12 files backed up, 1 moved to versions." Replaced files only exist
-    /// when versions are on, so moves are claimed only then: a removal alone
-    /// could be a real delete.
-    static func backupBody(copied: Int, replaced: Int, removed: Int) -> String {
-        let moved = replaced > 0 ? replaced + removed : 0
-        if copied == 0, moved == 0 { return String(localized: "No changes.") }
-        let backedUp = copied == 1 ? String(localized: "1 file backed up") : String(localized: "\(copied) files backed up")
-        guard moved > 0 else { return backedUp + "." }
-        return backedUp + ", " + String(localized: "\(moved) moved to versions") + "."
+    /// "13 files backed up, 2 moved to versions." Replaced files count as
+    /// backed up. Removals are moves into versions only for a mirror with
+    /// versions; otherwise they are real deletes.
+    static func backupBody(copied: Int, replaced: Int, removed: Int, versions: Bool) -> String {
+        let backedUpCount = copied + replaced
+        let gone = versions ? replaced + removed : removed
+        if backedUpCount == 0, gone == 0 { return String(localized: "No changes.") }
+        let backedUp = backedUpCount == 1
+            ? String(localized: "1 file backed up")
+            : String(localized: "\(backedUpCount) files backed up")
+        guard gone > 0 else { return backedUp + "." }
+        let tail = versions ? String(localized: "\(gone) moved to versions") : String(localized: "\(gone) removed")
+        return backedUp + ", " + tail + "."
     }
 }
 

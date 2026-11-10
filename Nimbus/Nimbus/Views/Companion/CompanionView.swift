@@ -79,8 +79,8 @@ struct CompanionMenuBarLabel: View {
             .accessibilityLabel(Text(verbatim: CompanionGlyph.accessibilityLabel(for: overall)))
             // A notification click posts a route even when the window was
             // closed; this label is always alive, so it can reopen the window.
-            .onChange(of: router.pending) {
-                if case .backups = router.pending, !router.isMainWindowOpen {
+            .onChange(of: router.needsWindow) {
+                if router.takeWindowRequest() {
                     router.open(nil, openWindow: openWindow)
                 }
             }

@@ -149,6 +149,16 @@ struct BackupRunnerTests {
             == .failed("The source folder isn't available. Is the drive connected?"))
     }
 
+    @Test func failedRunKeepsRemovalLimitAndVersionsFlag() async throws {
+        let h = await harness()
+        let job = await addJob(h)
+        await h.runner.enqueue(job.id, trigger: .manual)
+        await finish(h, rcloneJob: 100, success: false, error: "directory not found")
+        let lastRun = try #require(h.store.job(id: job.id)?.lastRun)
+        #expect(lastRun.removalLimit == job.removalLimit)
+        #expect(lastRun.movesToVersions == (job.mode == .mirror && job.versions.enabled))
+    }
+
     @Test func limitHitRecorded() async {
         let h = await harness()
         let job = await addJob(h)

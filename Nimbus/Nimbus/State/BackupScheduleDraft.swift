@@ -11,8 +11,8 @@ struct BackupScheduleDraft: Equatable {
             switch self {
             case .manual: String(localized: "Manual only")
             case .hourly: String(localized: "Every hour")
-            case .daily: String(localized: "Every day at a time")
-            case .weekly: String(localized: "Every week on a weekday at a time")
+            case .daily: String(localized: "Every day")
+            case .weekly: String(localized: "Every week")
             }
         }
 

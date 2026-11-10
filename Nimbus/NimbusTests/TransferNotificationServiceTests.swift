@@ -147,17 +147,49 @@ struct TransferNotificationServiceTests {
         let center = NotificationCenterSpy(authorizationStatus: .authorized)
         let service = TransferNotificationService(center: center)
 
-        await service.deliver(backupRecord(.completed, copied: 12, replaced: 1), mode: .allTransfers)
+        await service.deliver(backupRecord(.completed, copied: 12, replaced: 1, removed: 1, versions: true),
+                              mode: .allTransfers)
 
         let request = await center.requests.first
         #expect(request?.title == "Backed up Documents to B2")
-        #expect(request?.body == "12 files backed up, 2 moved to versions.")
+        #expect(request?.body == "13 files backed up, 2 moved to versions.")
         #expect(request?.backupID == Self.backupID)
     }
 
     @Test func backupSuccessBodyHandlesOneAndNone() async {
-        #expect(TransferNotificationService.backupBody(copied: 1, replaced: 0, removed: 0) == "1 file backed up.")
-        #expect(TransferNotificationService.backupBody(copied: 0, replaced: 0, removed: 0) == "No changes.")
+        #expect(TransferNotificationService.backupBody(copied: 1, replaced: 0, removed: 0, versions: false) == "1 file backed up.")
+        #expect(TransferNotificationService.backupBody(copied: 0, replaced: 0, removed: 0, versions: false) == "No changes.")
+        #expect(TransferNotificationService.backupBody(copied: 0, replaced: 0, removed: 0, versions: true) == "No changes.")
+    }
+
+    @Test func removalOnlyRunWithVersionsSaysMovedToVersions() {
+        #expect(TransferNotificationService.backupBody(copied: 0, replaced: 0, removed: 40, versions: true)
+            == "0 files backed up, 40 moved to versions.")
+    }
+
+    @Test func removalOnlyRunWithoutVersionsSaysRemoved() {
+        #expect(TransferNotificationService.backupBody(copied: 0, replaced: 0, removed: 40, versions: false)
+            == "0 files backed up, 40 removed.")
+    }
+
+    @Test func copiedAndRemovedWithoutVersions() {
+        #expect(TransferNotificationService.backupBody(copied: 5, replaced: 0, removed: 2, versions: false)
+            == "5 files backed up, 2 removed.")
+    }
+
+    @Test func backupFailureUsesTheFriendlySummaryReason() async {
+        let center = NotificationCenterSpy(authorizationStatus: .authorized)
+        let service = TransferNotificationService(center: center)
+
+        await service.deliver(
+            backupRecord(.failed("failed to delete 3 files"), summary: .failed("Access denied\nmore"), copied: 0),
+            mode: .failuresOnly)
+        await service.deliver(
+            backupRecord(.failed("directory not found"), summary: .failed("directory not found"), copied: 0),
+            mode: .failuresOnly)
+
+        let bodies = await center.requests.map(\.body)
+        #expect(bodies == ["Access denied", "The source folder isn't available. Is the drive connected?"])
     }
 
     @Test func backupFailureCopy() async {
@@ -209,6 +241,8 @@ struct TransferNotificationServiceTests {
         summary: BackupRunSummary.Outcome? = nil,
         copied: Int = 3,
         replaced: Int = 0,
+        removed: Int = 1,
+        versions: Bool = false,
         limit: Int? = nil
     ) -> TransferRecord {
         var record = record(outcome: outcome, origin: .backup)
@@ -217,8 +251,9 @@ struct TransferNotificationServiceTests {
         var run = BackupRunSummary(
             startedAt: record.startedAt, finishedAt: record.completedAt, trigger: .scheduled,
             outcome: summary ?? { if case .failed(let m) = outcome { .failed(m) } else { .completed } }(),
-            copied: copied, replaced: replaced, removed: 1, errors: 0, bytes: 10
+            copied: copied, replaced: replaced, removed: removed, errors: 0, bytes: 10
         )
+        run.movesToVersions = versions
         run.removalLimit = limit
         record.summary = run
         return record

@@ -18,7 +18,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// returns true, quitting asks first.
     var shouldConfirmQuit: (@MainActor () -> Bool)?
     /// Opens the Backups screen, on a job when the notification names one.
-    var onBackupNotificationClick: (@MainActor (UUID?) -> Void)?
+    var onBackupNotificationClick: (@MainActor (UUID?) -> Void)? {
+        didSet {
+            guard let handler = onBackupNotificationClick else { return }
+            clickBuffer.flush(to: handler)
+        }
+    }
+    private var clickBuffer = NotificationClickBuffer()
     /// Logout and restart post this before asking apps to quit.
     private var isPowerOff = false
 
@@ -51,6 +57,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        // Must be set before launch finishes, or the click that launched the
+        // app is dropped. Clicks wait in `clickBuffer` until NimbusApp sets
+        // the handler.
+        UNUserNotificationCenter.current().delegate = self
         NSWorkspace.shared.notificationCenter.addObserver(
             self, selector: #selector(systemWillPowerOff(_:)),
             name: NSWorkspace.willPowerOffNotification, object: nil
@@ -99,6 +109,6 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         let userInfo = response.notification.request.content.userInfo
         guard userInfo[TransferNotificationRequest.backupIDKey] != nil else { return }
         let id = TransferNotificationRequest.backupID(fromUserInfo: userInfo)
-        await MainActor.run { onBackupNotificationClick?(id) }
+        await MainActor.run { clickBuffer.receive(id, handler: onBackupNotificationClick) }
     }
 }
