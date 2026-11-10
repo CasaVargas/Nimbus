@@ -58,10 +58,14 @@ struct NimbusApp: App {
             store: backups,
             launcher: runner,
             planner: BackupSchedulePlanner(calendar: .autoupdatingCurrent),
-            busy: { Set(runner.queue).union(runner.runningJobID.map { [$0] } ?? []) }
+            busy: { runner.busyJobIDs }
         )
         _backupScheduler = State(initialValue: scheduler)
-        backups.onJobsChanged = { [weak scheduler] in scheduler?.replan() }
+        // The runner first, so the scheduler's busy set is current when it re-plans.
+        backups.onJobsChanged = { [weak runner, weak scheduler] in
+            runner?.jobsDidChange()
+            scheduler?.replan()
+        }
     }
 
     var body: some Scene {

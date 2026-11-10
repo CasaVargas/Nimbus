@@ -241,6 +241,75 @@ struct BackupRunnerTests {
         #expect(h.client.stopped.isEmpty)
     }
 
+    // MARK: Pausing
+
+    @Test func pausedJobsScheduledRunIsSkippedAtStart() async {
+        let h = await harness()
+        let first = await addJob(h, name: "A")
+        let second = await addJob(h, name: "B")
+        await h.runner.enqueue(first.id, trigger: .manual)
+        await h.runner.enqueue(second.id, trigger: .catchUp)
+        await h.store.setPaused(id: second.id, true)
+        await finish(h, rcloneJob: 100)
+        #expect(h.client.requests.count == 1)
+        #expect(h.runner.runningJobID == nil)
+        #expect(h.store.job(id: second.id)?.lastRun == nil)
+    }
+
+    @Test func pausedJobsManualRunStillStarts() async {
+        let h = await harness()
+        h.store.onJobsChanged = { [runner = h.runner] in runner.jobsDidChange() }
+        let first = await addJob(h, name: "A")
+        let second = await addJob(h, name: "B")
+        await h.runner.enqueue(first.id, trigger: .manual)
+        await h.runner.enqueue(second.id, trigger: .manual)
+        await h.store.setPaused(id: second.id, true)
+        #expect(h.runner.queue == [second.id])
+        await finish(h, rcloneJob: 100)
+        #expect(h.runner.runningJobID == second.id)
+    }
+
+    @Test func pausingDropsQueuedScheduledRun() async {
+        let h = await harness()
+        h.store.onJobsChanged = { [runner = h.runner] in runner.jobsDidChange() }
+        let first = await addJob(h, name: "A")
+        let second = await addJob(h, name: "B")
+        let third = await addJob(h, name: "C")
+        await h.runner.enqueue(first.id, trigger: .manual)
+        await h.runner.enqueue(second.id, trigger: .scheduled)
+        await h.runner.enqueue(third.id, trigger: .scheduled)
+        await h.store.setPaused(id: second.id, true)
+        #expect(h.runner.queue == [third.id])
+        #expect(!h.runner.isQueued(second.id))
+    }
+
+    // MARK: Starting
+
+    @MainActor final class StartProbe {
+        var refusal: BackupRunner.Refusal?
+        var busy: Set<UUID> = []
+        var isRunningAnything = false
+    }
+
+    @Test func enqueueWhileStartIsInFlightIsRefused() async {
+        let h = await harness()
+        let job = await addJob(h)
+        let probe = StartProbe()
+        h.client.onNextStart { [runner = h.runner] in
+            await runner.enqueue(job.id, trigger: .scheduled)
+            probe.refusal = runner.lastRefusal
+            probe.busy = runner.busyJobIDs
+            probe.isRunningAnything = runner.isRunningAnything
+        }
+        await h.runner.enqueue(job.id, trigger: .manual)
+        #expect(probe.refusal == .alreadyQueuedOrRunning)
+        #expect(probe.busy == [job.id])
+        #expect(probe.isRunningAnything)
+        #expect(h.client.requests.count == 1)
+        #expect(h.runner.queue.isEmpty)
+        #expect(h.runner.runningJobID == job.id)
+    }
+
     @Test func sleepIsHeldUntilQueueEmpties() async {
         let h = await harness()
         let first = await addJob(h, name: "A")

@@ -26,6 +26,8 @@ final class BackupRunner: BackupLaunching {
     /// Jobs waiting to start, in order.
     private(set) var queue: [UUID] = []
     private(set) var runningJobID: UUID?
+    /// Taken off the queue, its start request not yet answered.
+    private(set) var startingJobID: UUID?
     private(set) var lastRefusal: Refusal?
 
     @ObservationIgnored private var triggers: [UUID: BackupRunSummary.Trigger] = [:]
@@ -67,7 +69,24 @@ final class BackupRunner: BackupLaunching {
         }
     }
 
-    var isRunningAnything: Bool { runningJobID != nil || !queue.isEmpty }
+    var isRunningAnything: Bool { !busyJobIDs.isEmpty }
+
+    /// Jobs queued, starting or running: the scheduler's `busy` set.
+    var busyJobIDs: Set<UUID> {
+        Set(queue).union([startingJobID, runningJobID].compactMap { $0 })
+    }
+
+    /// Call after jobs change (the store's `onJobsChanged`). Drops queued
+    /// scheduled and catch-up runs of jobs that are now paused; a queued
+    /// Back Up Now stays.
+    func jobsDidChange() {
+        let dropped = queue.filter { id in
+            store.job(id: id)?.isPaused == true && triggers[id] != .manual
+        }
+        guard !dropped.isEmpty else { return }
+        queue.removeAll { dropped.contains($0) }
+        for id in dropped { triggers[id] = nil }
+    }
 
     func isQueued(_ jobID: UUID) -> Bool { queue.contains(jobID) }
 
@@ -107,7 +126,7 @@ final class BackupRunner: BackupLaunching {
         guard store.isWritable else { return .storeReadOnly }
         guard let job = store.job(id: jobID) else { return .unknownJob }
         guard job.isApproved else { return .notApproved }
-        guard runningJobID != jobID, !queue.contains(jobID) else { return .alreadyQueuedOrRunning }
+        guard !busyJobIDs.contains(jobID) else { return .alreadyQueuedOrRunning }
         guard isDaemonConnected() else { return .daemonNotConnected }
         return nil
     }
@@ -120,15 +139,19 @@ final class BackupRunner: BackupLaunching {
         while runningJobID == nil, !queue.isEmpty {
             let jobID = queue.removeFirst()
             let trigger = triggers.removeValue(forKey: jobID) ?? .manual
-            // Re-check: the job may have been edited or deleted while queued.
-            guard let job = store.job(id: jobID), job.isApproved else {
-                logger.info("Skipping backup \(jobID): changed or removed while queued")
+            // Re-check: the job may have been edited, deleted or paused while
+            // queued. Paused jobs don't run on their schedule; Back Up Now does.
+            guard let job = store.job(id: jobID), job.isApproved, !(job.isPaused && trigger != .manual) else {
+                logger.info("Skipping backup \(jobID): changed, removed or paused while queued")
                 continue
             }
             let startedAt = now()
             let request = BackupRequest.make(job: job, dryRun: false, stamp: BackupRequest.stamp(for: startedAt))
+            // Busy while the start request is in flight, so it isn't queued twice.
+            startingJobID = jobID
             do {
                 let rcloneJob = try await client.startSync(request)
+                startingJobID = nil
                 runningJobID = jobID
                 runningRcloneJob = rcloneJob
                 if sleepActivity == nil {
@@ -150,6 +173,7 @@ final class BackupRunner: BackupLaunching {
                     )
                 )
             } catch {
+                startingJobID = nil
                 let message = BackupErrorText.friendly(NimbusError.classify(error).message)
                 logger.error("Backup \(jobID) failed to start: \(message)")
                 await store.recordRun(id: jobID, summary: BackupRunSummary(

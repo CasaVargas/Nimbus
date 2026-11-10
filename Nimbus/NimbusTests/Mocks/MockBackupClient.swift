@@ -23,8 +23,21 @@ final class MockBackupClient: BackupRcloneClient, @unchecked Sendable {
     func setStats(group: String, _ stats: StatsResponse) { lock.withLock { _stats[group] = stats } }
     func failStarts(with error: Error?) { lock.withLock { _startError = error } }
 
+    /// Runs once, inside the next `startSync`, before it returns: the start
+    /// request is in flight while it runs.
+    func onNextStart(_ hook: @escaping @MainActor @Sendable () async -> Void) {
+        lock.withLock { _onNextStart = hook }
+    }
+    private var _onNextStart: (@MainActor @Sendable () async -> Void)?
+
     func startSync(_ request: SyncRequest) async throws -> Int {
-        try lock.withLock {
+        if let hook = lock.withLock({ () -> (@MainActor @Sendable () async -> Void)? in
+            defer { _onNextStart = nil }
+            return _onNextStart
+        }) {
+            await hook()
+        }
+        return try lock.withLock {
             if let error = _startError { throw error }
             _requests.append(request)
             defer { _nextID += 1 }
