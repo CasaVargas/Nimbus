@@ -114,7 +114,7 @@ extension TransferNotificationService {
         case .limitHit:
             title = String(localized: "Backup \(name) stopped")
             if let limit = record.summary?.removalLimit {
-                body = String(localized: "It would have removed more than \(limit) files. Open Nimbus to preview it.")
+                body = String(localized: "It would have removed more than \(BackupStatus.fileCount(limit)). Open Nimbus to preview it.")
             } else {
                 body = String(localized: "It would have removed more files than the limit allows. Open Nimbus to preview it.")
             }

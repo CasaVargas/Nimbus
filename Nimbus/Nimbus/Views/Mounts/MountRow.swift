@@ -10,6 +10,9 @@ struct MountRow: View {
     let onRevealInFinder: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
+    /// Inside one cloud's Finder tab the cloud is already named above, so
+    /// rows say what each switch does instead of repeating its name.
+    var inCloudPane = false
 
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.m) {
@@ -49,19 +52,8 @@ struct MountRow: View {
         .accessibilityAction(named: "Delete") { onDelete() }
     }
 
-    private var displayName: String {
-        // File Provider mounts have no local mount point (Finder hosts them
-        // under CloudStorage) — the remote name is the identity users know.
-        let leaf = (config.mountPoint as NSString).lastPathComponent
-        return leaf.isEmpty ? config.remoteNameOnly : leaf
-    }
-
-    private var subtitle: String {
-        switch config.backend {
-        case .fileProvider: return "\(config.remote)  ·  Available in Finder"
-        case .nfs: return "\(config.remote)  ·  Network volume"
-        }
-    }
+    private var displayName: String { MountRowText.title(for: config, inCloudPane: inCloudPane) }
+    private var subtitle: String { MountRowText.subtitle(for: config, inCloudPane: inCloudPane) }
 
     private func icon(for state: StatusToggleState) -> String {
         switch state {
@@ -88,6 +80,40 @@ struct MountRow: View {
         case .on: return DesignSystem.Color.semantic.statusInfo
         case .error: return DesignSystem.Color.semantic.statusError
         default: return DesignSystem.Color.semantic.textTertiary
+        }
+    }
+}
+
+/// The two lines of a `MountRow`.
+enum MountRowText {
+    static func title(for config: MountConfig, inCloudPane: Bool) -> String {
+        if inCloudPane {
+            switch config.backend {
+            case .fileProvider: return String(localized: "Show in Finder")
+            case .nfs: return String(localized: "Mount as a network volume")
+            }
+        }
+        // File Provider mounts have no local mount point (Finder hosts them
+        // under CloudStorage) — the remote name is the identity users know.
+        let leaf = (config.mountPoint as NSString).lastPathComponent
+        return leaf.isEmpty ? config.remoteNameOnly : leaf
+    }
+
+    static func subtitle(for config: MountConfig, inCloudPane: Bool) -> String {
+        guard inCloudPane else {
+            switch config.backend {
+            case .fileProvider: return "\(config.remote)  ·  Available in Finder"
+            case .nfs: return "\(config.remote)  ·  Network volume"
+            }
+        }
+        switch config.backend {
+        case .fileProvider:
+            return String(localized: "Under Locations in the Finder sidebar. Files download when you open them.")
+        case .nfs:
+            let path = (config.mountPoint as NSString).abbreviatingWithTildeInPath
+            return path.isEmpty
+                ? String(localized: "A disk any app can open")
+                : String(localized: "A disk any app can open, at \(path)")
         }
     }
 }

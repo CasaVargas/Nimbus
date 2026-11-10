@@ -138,8 +138,8 @@ struct VolumeHeader: View {
         )
         VolumeTabBar(selection: $tab)
         List {
-            MountRow(config: inFinder, state: .on, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {})
-            MountRow(config: asVolume, state: .off, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {})
+            MountRow(config: inFinder, state: .on, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {}, inCloudPane: true)
+            MountRow(config: asVolume, state: .off, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {}, inCloudPane: true)
         }
         .listStyle(.inset)
         .scrollContentBackground(.hidden)
@@ -307,8 +307,8 @@ struct DemoWindow<Content: View>: View {
                          isInFinder: true, onPrimary: {}, onSync: {}, onEdit: {})
             VolumeTabBar(selection: $tab)
             List {
-                MountRow(config: inFinder, state: .on, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {})
-                MountRow(config: asVolume, state: .off, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {})
+                MountRow(config: inFinder, state: .on, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {}, inCloudPane: true)
+                MountRow(config: asVolume, state: .off, onToggle: {}, onRevealInFinder: {}, onEdit: {}, onDelete: {}, inCloudPane: true)
             }
             .listStyle(.inset)
             .scrollContentBackground(.hidden)

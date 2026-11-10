@@ -304,9 +304,17 @@ struct HomeCloudCard: View {
 
     private var statusLine: String {
         if row.health == .unreachable, let last = row.lastConnected {
-            return "\(row.sentence). Last connected \(last.formatted(.relative(presentation: .named)))."
+            return Self.keepingNumbersWithUnits(
+                "\(row.sentence). Last connected \(last.formatted(.relative(presentation: .named))).")
         }
-        return row.sentence
+        return Self.keepingNumbersWithUnits(row.sentence)
+    }
+
+    /// Joins a number to the word after it with a no-break space, so a
+    /// narrow card wraps "Uploading 3 items, / 2 min left" and never
+    /// "… 2 / min left".
+    nonisolated static func keepingNumbersWithUnits(_ text: String) -> String {
+        text.replacing(/(\d) (\p{L})/) { match in "\(match.1)\u{00A0}\(match.2)" }
     }
 
     private var usageText: String? {
