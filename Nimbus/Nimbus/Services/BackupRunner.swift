@@ -169,11 +169,13 @@ final class BackupRunner: BackupLaunching {
         if case .failed(let raw) = summary.outcome {
             summary.outcome = .failed(BackupErrorText.friendly(raw))
         }
-        await store.recordRun(id: jobID, summary: summary)
+        // Not busy any more before the run is recorded: recording re-plans
+        // the scheduler, which must see an overdue next slot as runnable.
         if runningJobID == jobID {
             runningJobID = nil
             runningRcloneJob = nil
         }
+        await store.recordRun(id: jobID, summary: summary)
         await startNextIfIdle()
     }
 }

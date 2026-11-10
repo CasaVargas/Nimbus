@@ -40,6 +40,15 @@ final class ManualClock: Clock, @unchecked Sendable {
     /// Sleepers still waiting.
     var pendingSleepers: Int { lock.withLock { sleepers.count } }
 
+    /// Seconds from the clock's creation to the earliest waiting sleeper's
+    /// deadline, or nil when nothing sleeps.
+    var earliestDeadline: TimeInterval? {
+        lock.withLock { sleepers.map(\.deadline).min() }.map { deadline in
+            let parts = deadline.offset.components
+            return TimeInterval(parts.seconds) + TimeInterval(parts.attoseconds) / 1e18
+        }
+    }
+
     func sleep(until deadline: Instant, tolerance: Duration?) async throws {
         let id = registerSleepCall()
         try await withTaskCancellationHandler {
@@ -137,6 +146,15 @@ final class RecordingLauncher: BackupLaunching {
     private(set) var cancelledEnqueues = 0
     /// Jobs whose enqueue hasn't returned yet: the scheduler's `busy` set.
     private(set) var inFlight: Set<UUID> = []
+    /// Enqueues turned away, like the runner with the daemon disconnected.
+    private(set) var refusedCount = 0
+    /// Refuse every enqueue (still counted in `calls`).
+    var refusesEnqueues = false
+    /// Keep each started run in flight until `finishHeld` records it.
+    var holdsRuns = false
+    /// Runs at the start of each enqueue, before anything else.
+    var onEnqueue: (@MainActor (UUID) async -> Void)?
+    private var heldStarts: [UUID: Date] = [:]
     private var waiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
     private let store: BackupStore
     private let now: () -> Date
@@ -146,8 +164,30 @@ final class RecordingLauncher: BackupLaunching {
         self.now = now
     }
 
+    /// Finishes a held run the way the runner does: the job stops being busy,
+    /// then its run (started when it was enqueued) is recorded.
+    func finishHeld(_ jobID: UUID, outcome: BackupRunSummary.Outcome = .completed) async {
+        guard let started = heldStarts.removeValue(forKey: jobID) else { return }
+        inFlight.remove(jobID)
+        await store.recordRun(id: jobID, summary: BackupRunSummary(
+            startedAt: started, finishedAt: now(), trigger: .scheduled, outcome: outcome,
+            copied: 0, replaced: 0, removed: 0, errors: 0, bytes: 0
+        ))
+    }
+
     func enqueue(_ jobID: UUID, trigger: BackupRunSummary.Trigger) async {
         calls.append((jobID, trigger))
+        if let onEnqueue { await onEnqueue(jobID) }
+        if refusesEnqueues || holdsRuns {
+            if refusesEnqueues {
+                refusedCount += 1
+            } else {
+                inFlight.insert(jobID)
+                heldStarts[jobID] = now()
+            }
+            resumeWaiters()
+            return
+        }
         inFlight.insert(jobID)
         defer { inFlight.remove(jobID) }
         var wasCancelled = Task.isCancelled
@@ -159,6 +199,10 @@ final class RecordingLauncher: BackupLaunching {
         wasCancelled = wasCancelled || Task.isCancelled
         if wasCancelled { cancelledEnqueues += 1 }
         // Waiters resume once the call (and its re-plan) is done.
+        resumeWaiters()
+    }
+
+    private func resumeWaiters() {
         let ready = waiters.filter { $0.count <= calls.count }
         waiters.removeAll { $0.count <= calls.count }
         for waiter in ready { waiter.continuation.resume() }
@@ -391,6 +435,126 @@ final class BackupSchedulerTests {
         await launcher.waitForCalls(4)
         #expect(launcher.calls.suffix(2).allSatisfy { $0.trigger == .scheduled })
         #expect(launcher.cancelledEnqueues == 0)
+        scheduler.stop()
+    }
+
+    // MARK: Overdue jobs after an ordinary re-plan
+
+    /// When the timer's earliest sleeper fires, as a wall-clock date.
+    private var nextTimerFire: Date? {
+        clock.earliestDeadline.map { Self.start.addingTimeInterval($0 + asleepFor) }
+    }
+
+    /// A daily 23:00 job whose next run is tonight, so the timer always has
+    /// a future slot to sleep until.
+    private static var tonight: BackupJob { job(lastRunStart: "2026-11-10T02:00:00-05:00", hour: 23) }
+    private static let tonightSlot = BackupJobTests.date("2026-11-10T23:00:00-05:00")
+
+    /// Starts the scheduler and lets the start-up settle pass finish.
+    private func startPastSettle() async {
+        scheduler.start()
+        await clock.waitForSleepCalls(1)
+        clock.advance(by: .seconds(60))
+        await clock.waitForSleepCalls(2)
+    }
+
+    @Test func runOutlastingSlotRunsAfterFinish() async throws {
+        let job = BackupSchedulePlannerTests.job(schedule: .hourly, lastRunStart: Self.start)
+        await setUp([job, Self.tonight])
+        launcher.holdsRuns = true
+        await startPastSettle() // asleep until 10:00
+
+        advance(to: BackupJobTests.date("2026-11-10T10:00:00-05:00"))
+        await launcher.waitForCalls(1)
+        #expect(launcher.calls.first?.trigger == .scheduled)
+        // The 10:00 run is still going at 11:00, 12:00 and 13:00.
+        await clock.waitForPendingSleepers(1)
+        advance(to: BackupJobTests.date("2026-11-10T13:00:00-05:00"))
+        #expect(launcher.calls.count == 1)
+
+        // It finishes; its 11:00 slot is long past, so it runs after the settle delay.
+        await launcher.finishHeld(job.id)
+        await clock.waitForPendingSleepers(1)
+        try #require(nextTimerFire == now.addingTimeInterval(60))
+        clock.advance(by: .seconds(60))
+        await launcher.waitForCalls(2)
+        #expect(launcher.calls.last?.jobID == job.id)
+        #expect(launcher.calls.last?.trigger == .catchUp)
+        scheduler.stop()
+    }
+
+    @Test func resumingOverdueJobRuns() async throws {
+        var job = Self.job(lastRunStart: "2026-11-07T02:00:00-05:00")
+        job.isPaused = true
+        await setUp([job, Self.tonight])
+        await startPastSettle()
+        #expect(launcher.calls.isEmpty)
+
+        await store.setPaused(id: job.id, false)
+        await clock.waitForPendingSleepers(1)
+        try #require(nextTimerFire == now.addingTimeInterval(60))
+        clock.advance(by: .seconds(60))
+        await launcher.waitForCalls(1)
+        #expect(launcher.calls.first?.jobID == job.id)
+        #expect(launcher.calls.first?.trigger == .catchUp)
+        scheduler.stop()
+    }
+
+    @Test func manualToDailyOnOldJobRuns() async throws {
+        var job = BackupSchedulePlannerTests.job(
+            schedule: .manual, lastRunStart: BackupJobTests.date("2026-11-07T10:00:00-05:00"))
+        await setUp([job, Self.tonight])
+        await startPastSettle()
+        #expect(launcher.calls.isEmpty)
+
+        job.schedule = .daily(hour: 2, minute: 0)
+        await store.upsert(job)
+        await clock.waitForPendingSleepers(1)
+        try #require(nextTimerFire == now.addingTimeInterval(60))
+        clock.advance(by: .seconds(60))
+        await launcher.waitForCalls(1)
+        #expect(launcher.calls.first?.jobID == job.id)
+        #expect(launcher.calls.first?.trigger == .catchUp)
+        scheduler.stop()
+    }
+
+    @Test func refusedDueJobDoesNotSpin() async {
+        let job = Self.job(lastRunStart: "2026-11-07T02:00:00-05:00")
+        await setUp([job, Self.tonight])
+        launcher.refusesEnqueues = true
+        scheduler.start()
+        await clock.waitForSleepCalls(1)
+        clock.advance(by: .seconds(60))
+        await launcher.waitForCalls(1)
+        #expect(launcher.refusedCount == 1)
+
+        // The refused job stays due, but the timer sleeps until tonight's slot
+        // instead of retrying it: the next re-plan trigger picks it up.
+        await clock.waitForPendingSleepers(1)
+        #expect(nextTimerFire == Self.tonightSlot)
+        clock.advance(by: .seconds(3600))
+        #expect(clock.pendingSleepers == 1)
+        #expect(nextTimerFire == Self.tonightSlot)
+        #expect(launcher.calls.count == 1)
+        scheduler.stop()
+    }
+
+    // MARK: Pausing mid-pass
+
+    @Test func pausingMidPassSkipsLaterJob() async throws {
+        let first = Self.job(lastRunStart: "2026-11-07T02:00:00-05:00")
+        let second = Self.job(lastRunStart: "2026-11-07T02:00:00-05:00")
+        let third = Self.job(lastRunStart: "2026-11-07T02:00:00-05:00")
+        await setUp([first, second, third])
+        let store = store!
+        launcher.onEnqueue = { id in
+            if id == first.id { await store.setPaused(id: second.id, true) }
+        }
+        scheduler.start()
+        await clock.waitForSleepCalls(1)
+        clock.advance(by: .seconds(60))
+        await launcher.waitForCalls(2)
+        #expect(launcher.calls.map(\.jobID) == [first.id, third.id])
         scheduler.stop()
     }
 

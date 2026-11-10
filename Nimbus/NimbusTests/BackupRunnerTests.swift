@@ -140,6 +140,19 @@ struct BackupRunnerTests {
         #expect(h.runner.isRunningAnything == false)
     }
 
+    /// The scheduler re-plans when the run is recorded; by then the job must
+    /// no longer look busy, or an overdue next slot is never caught up.
+    @Test func finishedJobIsNotBusyWhenItsRunIsRecorded() async {
+        let h = await harness()
+        let job = await addJob(h)
+        await h.runner.enqueue(job.id, trigger: .scheduled)
+        var runningAtRecord: [UUID?] = []
+        h.store.onJobsChanged = { [runner = h.runner] in runningAtRecord.append(runner.runningJobID) }
+        await finish(h, rcloneJob: 100)
+        #expect(runningAtRecord == [nil])
+        #expect(h.store.job(id: job.id)?.lastRun?.outcome == .completed)
+    }
+
     @Test func missingSourceMessage() async {
         let h = await harness()
         let job = await addJob(h)

@@ -29,7 +29,7 @@ struct BackupSchedulePlanner {
         return job.schedule.nextRun(after: anchor, calendar: calendar)
     }
 
-    private func eligibleNextRun(for job: BackupJob) -> Date? {
+    func eligibleNextRun(for job: BackupJob) -> Date? {
         guard job.isApproved, !job.isPaused else { return nil }
         return nextRun(for: job)
     }
@@ -42,7 +42,8 @@ struct BackupSchedulePlanner {
 /// `settleDelay` so the network and login-item retries finish, then run every
 /// job whose slot passed while Nimbus was quit or asleep. Clock and time-zone
 /// changes, and a timer that fires more than `catchUpThreshold` late, take the
-/// same path. Other re-plans (job edits, a finished run) re-arm the timer at once.
+/// same path. Other re-plans (job edits, a finished run) re-arm the timer at
+/// once, and send a job that is already due through the settle pass.
 @MainActor
 final class BackupScheduler {
     /// A due job whose slot is further past than this runs as a catch-up.
@@ -62,6 +63,8 @@ final class BackupScheduler {
     private var timer: Task<Void, Never>?
     /// When the pending catch-up pass runs; nothing runs before it.
     private var catchUpAt: Date?
+    /// Passes still enqueueing (a cancelled timer's pass runs to the end).
+    private var passesUnderWay = 0
     private var observers: [(center: NotificationCenter, token: any NSObjectProtocol)] = []
 
     init(
@@ -99,12 +102,19 @@ final class BackupScheduler {
     }
 
     /// Re-arms the timer. `catchingUp` (wake, daemon reconnect, clock or
-    /// time-zone change) first waits
-    /// the settle delay and then runs every due job; otherwise only future
-    /// slots are timed. Ignored until `start()`.
+    /// time-zone change) first waits the settle delay and then runs every
+    /// due job. Otherwise the timer times future slots, and a job that is
+    /// already due (a run that outlasted its next slot, a resume, a new
+    /// schedule on an old job) goes through the same settle pass, unless one
+    /// is already pending or a pass is under way (it re-reads the jobs).
+    /// A refused enqueue doesn't re-plan, so a job the runner turns away
+    /// waits for the next trigger instead of looping. Ignored until `start()`.
     func replan(catchingUp: Bool = false) {
         guard isStarted else { return }
         if catchingUp {
+            catchUpAt = now().addingTimeInterval(Self.seconds(settleDelay))
+        } else if catchUpAt == nil, passesUnderWay == 0,
+                  !planner.dueJobs(store.jobs, now: now(), busy: busy()).isEmpty {
             catchUpAt = now().addingTimeInterval(Self.seconds(settleDelay))
         }
         timer?.cancel()
@@ -151,9 +161,18 @@ final class BackupScheduler {
         }
     }
 
+    /// Enqueues due jobs one at a time, re-reading the jobs before each, so
+    /// a job paused, edited or stopped earlier in the pass is skipped and one
+    /// that became due during it is included. Each job is tried once per pass.
     private func enqueueDueJobs() async {
-        let current = now()
-        for jobID in planner.dueJobs(store.jobs, now: current, busy: busy()) {
+        passesUnderWay += 1
+        defer { passesUnderWay -= 1 }
+        var tried: Set<UUID> = []
+        while isStarted {
+            let current = now()
+            let due = planner.dueJobs(store.jobs, now: current, busy: busy().union(tried))
+            guard let jobID = due.first else { return }
+            tried.insert(jobID)
             guard let job = store.job(id: jobID), let slot = planner.nextRun(for: job) else { continue }
             let trigger: BackupRunSummary.Trigger =
                 current.timeIntervalSince(slot) > Self.catchUpThreshold ? .catchUp : .scheduled

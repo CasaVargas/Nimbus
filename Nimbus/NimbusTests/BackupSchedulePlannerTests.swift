@@ -74,14 +74,17 @@ struct BackupSchedulePlannerTests {
 
     @Test func nextWakeIsEarliest() {
         let now = Self.date("2026-11-10T09:00:00-05:00")
-        let daily = Self.job(lastRunStart: Self.date("2026-11-10T02:00:00-05:00"))
-        let hourly = Self.job(schedule: .hourly, lastRunStart: Self.date("2026-11-10T08:30:00-05:00"))
-        // hourly's slot after 08:30 is 09:00, which is not strictly future; use a later start.
-        let hourlyLater = Self.job(schedule: .hourly, lastRunStart: Self.date("2026-11-10T09:10:00-05:00"))
-        #expect(Self.planner.nextWake([daily, hourlyLater], now: now) == Self.date("2026-11-10T10:00:00-05:00"))
-        #expect(Self.planner.nextWake([daily], now: now) == Self.date("2026-11-11T02:00:00-05:00"))
-        // A job that is already due is not a wake time.
-        #expect(Self.planner.nextWake([hourly], now: now) == nil)
+        // Next runs: tomorrow 02:00, today 10:00, and 09:00 (now: already due).
+        let tomorrow = Self.job(lastRunStart: Self.date("2026-11-10T02:00:00-05:00"))
+        let at10 = Self.job(schedule: .hourly, lastRunStart: Self.date("2026-11-10T09:00:00-05:00"))
+        let dueNow = Self.job(schedule: .hourly, lastRunStart: Self.date("2026-11-10T08:30:00-05:00"))
+        #expect(Self.planner.nextWake([tomorrow, at10], now: now) == Self.date("2026-11-10T10:00:00-05:00"))
+        #expect(Self.planner.nextWake([tomorrow], now: now) == Self.date("2026-11-11T02:00:00-05:00"))
+        // A due job is not a wake time: it is in `dueJobs`, and the scheduler
+        // runs it through its settle pass rather than timing it.
+        #expect(Self.planner.dueJobs([tomorrow, at10, dueNow], now: now, busy: []) == [dueNow.id])
+        #expect(Self.planner.nextWake([tomorrow, dueNow], now: now) == Self.date("2026-11-11T02:00:00-05:00"))
+        #expect(Self.planner.nextWake([dueNow], now: now) == nil)
         #expect(Self.planner.nextWake([], now: now) == nil)
     }
 
