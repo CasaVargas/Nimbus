@@ -30,7 +30,14 @@ final class BackupRunner: BackupLaunching {
     private(set) var startingJobID: UUID?
     private(set) var lastRefusal: Refusal?
 
+    /// Called when a scheduled run is lost and left unrecorded, so the
+    /// scheduler re-plans and catches it up.
+    @ObservationIgnored var onRunLost: (@MainActor () -> Void)?
     @ObservationIgnored private var triggers: [UUID: BackupRunSummary.Trigger] = [:]
+    /// Jobs whose last scheduled run was lost and left unrecorded so it runs
+    /// again. A second loss in a row is recorded, so a run that itself takes
+    /// the daemon down can't loop. Cleared when any run of the job is recorded.
+    @ObservationIgnored private var retriedAfterLoss: Set<UUID> = []
     @ObservationIgnored private var runningRcloneJob: Int?
     @ObservationIgnored private var isStarting = false
     @ObservationIgnored private let store: BackupStore
@@ -176,7 +183,7 @@ final class BackupRunner: BackupLaunching {
                 startingJobID = nil
                 let message = BackupErrorText.friendly(NimbusError.classify(error).message)
                 logger.error("Backup \(jobID) failed to start: \(message)")
-                await store.recordRun(id: jobID, summary: BackupRunSummary(
+                await record(jobID, BackupRunSummary(
                     startedAt: startedAt, finishedAt: now(), trigger: trigger,
                     outcome: .failed(message), copied: 0, replaced: 0, removed: 0, errors: 1, bytes: 0
                 ))
@@ -199,7 +206,21 @@ final class BackupRunner: BackupLaunching {
             runningJobID = nil
             runningRcloneJob = nil
         }
-        await store.recordRun(id: jobID, summary: summary)
+        if summary.outcome == .failed(TransferStore.lostRunMessage), summary.trigger != .manual,
+           retriedAfterLoss.insert(jobID).inserted {
+            // The daemon went away mid-run. Like a run cut off by quit, it
+            // counts as missed: no lastRun, so its slot stays due and the
+            // reconnect catch-up pass runs it again after the settle delay.
+            logger.info("Backup \(jobID) lost with the daemon; it runs again on catch-up")
+            onRunLost?()
+        } else {
+            await record(jobID, summary)
+        }
         await startNextIfIdle()
+    }
+
+    private func record(_ jobID: UUID, _ summary: BackupRunSummary) async {
+        retriedAfterLoss.remove(jobID)
+        await store.recordRun(id: jobID, summary: summary)
     }
 }

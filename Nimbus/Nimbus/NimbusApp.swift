@@ -62,6 +62,8 @@ struct NimbusApp: App {
         )
         _backupScheduler = State(initialValue: scheduler)
         // The runner first, so the scheduler's busy set is current when it re-plans.
+        // A lost scheduled run is left unrecorded; re-plan so it is caught up.
+        runner.onRunLost = { [weak scheduler] in scheduler?.replan() }
         backups.onJobsChanged = { [weak runner, weak scheduler] in
             runner?.jobsDidChange()
             scheduler?.replan()

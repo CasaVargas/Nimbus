@@ -241,6 +241,85 @@ struct BackupRunnerTests {
         #expect(h.client.stopped.isEmpty)
     }
 
+    // MARK: Runs lost to a daemon restart
+
+    static let planner = BackupSchedulePlanner(calendar: BackupJobTests.newYork)
+
+    /// A daily 02:00 job that last ran two days ago, so it is due now.
+    private func overdueJob(_ h: Harness) async -> BackupJob {
+        let job = await addJob(h) { $0.schedule = .daily(hour: 2, minute: 0) }
+        let twoDaysAgo = now.addingTimeInterval(-2 * 86_400)
+        await h.store.recordRun(id: job.id, summary: BackupRunSummary(
+            startedAt: twoDaysAgo, finishedAt: twoDaysAgo.addingTimeInterval(60), trigger: .scheduled,
+            outcome: .completed, copied: 0, replaced: 0, removed: 0, errors: 0, bytes: 0))
+        return h.store.job(id: job.id)!
+    }
+
+    private func lostRunWasRecordedFailed(_ h: Harness, rcloneJob: Int) -> Bool {
+        guard case .failed(let message)? = h.transfers.transfers.first(where: { $0.jobID == rcloneJob })?.status
+        else { return false }
+        return message == TransferStore.lostRunMessage
+    }
+
+    @Test func firstLossOfScheduledRunCountsAsMissed() async {
+        let h = await harness()
+        let job = await overdueJob(h)
+        var lostCalls = 0
+        h.runner.onRunLost = { lostCalls += 1 }
+        await h.runner.enqueue(job.id, trigger: .catchUp)
+        await h.transfers.abandonActiveTransfers(now: now)
+        #expect(h.store.job(id: job.id)?.lastRun == job.lastRun)
+        #expect(Self.planner.dueJobs(h.store.jobs, now: now, busy: h.runner.busyJobIDs) == [job.id])
+        #expect(lostCalls == 1)
+        // The Transfers list still shows what happened.
+        #expect(lostRunWasRecordedFailed(h, rcloneJob: 100))
+    }
+
+    @Test func firstLossViaJobNotFoundCountsAsMissed() async {
+        let h = await harness()
+        let job = await overdueJob(h)
+        await h.runner.enqueue(job.id, trigger: .scheduled)
+        await h.transfers.handlePollFailure(
+            jobID: 100, error: RcloneError.requestFailed(status: 500, message: "job not found"), now: now)
+        #expect(h.store.job(id: job.id)?.lastRun == job.lastRun)
+        #expect(h.runner.runningJobID == nil)
+        #expect(lostRunWasRecordedFailed(h, rcloneJob: 100))
+    }
+
+    @Test func secondConsecutiveLossRecordsFailed() async {
+        let h = await harness()
+        let job = await overdueJob(h)
+        await h.runner.enqueue(job.id, trigger: .catchUp)
+        await h.transfers.abandonActiveTransfers(now: now)
+        await h.runner.enqueue(job.id, trigger: .catchUp)
+        await h.transfers.abandonActiveTransfers(now: now)
+        #expect(h.store.job(id: job.id)?.lastRun?.outcome == .failed(TransferStore.lostRunMessage))
+        #expect(Self.planner.dueJobs(h.store.jobs, now: now, busy: h.runner.busyJobIDs).isEmpty)
+    }
+
+    @Test func finishedRunResetsTheLossCount() async {
+        let h = await harness()
+        let job = await overdueJob(h)
+        await h.runner.enqueue(job.id, trigger: .catchUp)
+        await h.transfers.abandonActiveTransfers(now: now)
+        await h.runner.enqueue(job.id, trigger: .catchUp)
+        await finish(h, rcloneJob: 101)
+        let completed = h.store.job(id: job.id)?.lastRun
+        #expect(completed?.outcome == .completed)
+
+        await h.runner.enqueue(job.id, trigger: .scheduled)
+        await h.transfers.abandonActiveTransfers(now: now)
+        #expect(h.store.job(id: job.id)?.lastRun == completed)
+    }
+
+    @Test func lostManualRunRecordsFailed() async {
+        let h = await harness()
+        let job = await overdueJob(h)
+        await h.runner.enqueue(job.id, trigger: .manual)
+        await h.transfers.abandonActiveTransfers(now: now)
+        #expect(h.store.job(id: job.id)?.lastRun?.outcome == .failed(TransferStore.lostRunMessage))
+    }
+
     // MARK: Pausing
 
     @Test func pausedJobsScheduledRunIsSkippedAtStart() async {

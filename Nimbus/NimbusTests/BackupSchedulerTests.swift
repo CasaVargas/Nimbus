@@ -175,6 +175,13 @@ final class RecordingLauncher: BackupLaunching {
         ))
     }
 
+    /// Loses a held run the way the runner does after a daemon restart: the
+    /// job stops being busy and nothing is recorded.
+    func loseHeld(_ jobID: UUID) {
+        heldStarts[jobID] = nil
+        inFlight.remove(jobID)
+    }
+
     func enqueue(_ jobID: UUID, trigger: BackupRunSummary.Trigger) async {
         calls.append((jobID, trigger))
         if let onEnqueue { await onEnqueue(jobID) }
@@ -536,6 +543,35 @@ final class BackupSchedulerTests {
         #expect(clock.pendingSleepers == 1)
         #expect(nextTimerFire == Self.tonightSlot)
         #expect(launcher.calls.count == 1)
+        scheduler.stop()
+    }
+
+    @Test func lostRunIsCaughtUpOnceAfterReconnect() async throws {
+        let job = Self.job(lastRunStart: "2026-11-07T02:00:00-05:00")
+        await setUp([job, Self.tonight])
+        launcher.holdsRuns = true
+        scheduler.start()
+        await clock.waitForSleepCalls(1)
+        clock.advance(by: .seconds(60))
+        await launcher.waitForCalls(1)
+        await clock.waitForPendingSleepers(1) // tonight; the job is running
+
+        // The daemon restarts: the runner leaves the run unrecorded and
+        // re-plans (onRunLost), then the reconnect re-plans with catch-up.
+        launcher.loseHeld(job.id)
+        scheduler.replan()
+        scheduler.replan(catchingUp: true)
+        await clock.waitForPendingSleepers(1)
+        try #require(nextTimerFire == now.addingTimeInterval(60))
+        clock.advance(by: .seconds(60))
+        await launcher.waitForCalls(2)
+        #expect(launcher.calls.last?.jobID == job.id)
+        #expect(launcher.calls.last?.trigger == .catchUp)
+
+        // One catch-up run: the timer goes back to tonight's slot.
+        await clock.waitForPendingSleepers(1)
+        #expect(nextTimerFire == Self.tonightSlot)
+        #expect(launcher.calls.count == 2)
         scheduler.stop()
     }
 
