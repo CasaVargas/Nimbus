@@ -113,7 +113,7 @@ struct EditRemoteSheet: View {
 
     private func formRow(for option: ProviderOption) -> some View {
         FormRow(
-            label: LocalizedStringKey(option.name),
+            label: LocalizedStringKey(ConfigFieldLabel.label(forOption: option.name)),
             help: option.help.isEmpty ? nil : LocalizedStringKey(option.help)
         ) {
             ConfigFieldView(option: option, value: binding(for: option.name))

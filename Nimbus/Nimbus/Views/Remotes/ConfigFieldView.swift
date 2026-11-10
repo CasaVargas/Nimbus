@@ -44,7 +44,8 @@ struct ConfigFieldView: View {
             Picker("", selection: $value) {
                 Text("Choose…").tag("")
                 ForEach(examples, id: \.value) { example in
-                    Text(verbatim: example.value).tag(example.value)
+                    Text(verbatim: ConfigFieldLabel.choiceLabel(value: example.value, help: example.help))
+                        .tag(example.value)
                 }
             }
             .labelsHidden()
