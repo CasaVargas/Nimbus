@@ -100,6 +100,7 @@ struct TransferNotificationServiceTests {
 
         await store.completeTransfer(jobId: 1)
         await store.completeTransfer(jobId: 1)
+        await store.waitForNotifications()
 
         #expect(await notifier.deliveredOutcomes == [.completed])
     }
@@ -117,6 +118,7 @@ struct TransferNotificationServiceTests {
         await store.completeTransfer(jobId: 1)
         await store.failTransfer(jobId: 2, error: "Timed out")
         await store.cancelTransfer(jobId: 3)
+        await store.waitForNotifications()
 
         #expect(await center.requests.count == 1)
     }
@@ -127,6 +129,7 @@ struct TransferNotificationServiceTests {
         store.addTransfer(jobId: 1, operation: .copy, srcFs: "source:", dstFs: "destination:")
 
         await store.cancelTransfer(jobId: 1)
+        await store.waitForNotifications()
 
         #expect(await notifier.deliveredOutcomes.isEmpty)
     }

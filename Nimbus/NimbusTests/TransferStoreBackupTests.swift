@@ -11,6 +11,15 @@ private actor SavedHistory: TransferHistoryPersisting {
     func quarantineCorruptFile() async {}
 }
 
+/// The notification permission prompt nobody answers: delivery never returns.
+private struct UnansweredPromptNotifier: TransferNotifying {
+    func authorizationStatus() async -> NotificationAuthorizationStatus { .notDetermined }
+    func requestAuthorization() async throws -> Bool { false }
+    func deliver(_ record: TransferRecord, mode: TransferNotificationMode) async {
+        try? await Task.sleep(for: .seconds(3600))
+    }
+}
+
 enum BackupFixtures {
     static func job(id: Int, success: Bool, error: String = "") -> Job {
         let json = """
@@ -110,6 +119,38 @@ struct TransferStoreBackupTests {
     }
 
     // MARK: - Finish flow
+
+    /// Found live on 2026-11-10: a failed catch-up run sat on "Backing up…
+    /// 0%" for good, because finishing waited on the permission prompt.
+    @Test(.timeLimit(.minutes(1)))
+    func unansweredNotificationPromptDoesNotHoldUpAFailedBackup() async throws {
+        let history = SavedHistory()
+        let store = TransferStore(history: history, notifications: UnansweredPromptNotifier())
+        var received: [(UUID, BackupRunSummary)] = []
+        store.onBackupFinished = { id, summary in received.append((id, summary)) }
+        store.addTransfer(jobId: 41, operation: .sync, srcFs: "/Users/j/Documents", dstFs: "b2:mac",
+                          origin: .backup, backup: context())
+
+        await store.handleFinished(jobID: 41, job: BackupFixtures.job(id: 41, success: false, error: "rename failed"),
+                                   stats: nil, now: end)
+
+        #expect(received.count == 1)
+        #expect(store.activeTransfers.isEmpty)
+        #expect(await history.saved.count == 1)
+    }
+
+    /// The same wait froze plain transfers and the poll loop behind them.
+    @Test(.timeLimit(.minutes(1)))
+    func unansweredNotificationPromptDoesNotHoldUpAFailedTransfer() async {
+        let history = SavedHistory()
+        let store = TransferStore(history: history, notifications: UnansweredPromptNotifier())
+        store.addTransfer(jobId: 7, operation: .copy, srcFs: "a:", dstFs: "b:")
+
+        await store.failTransfer(jobId: 7, error: "Timed out")
+
+        #expect(store.activeTransfers.isEmpty)
+        #expect(await history.saved.count == 1)
+    }
 
     @Test func finishingBackupStoresSummaryAndCallsHook() async throws {
         let store = TransferStore(history: SavedHistory())
