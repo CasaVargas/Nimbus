@@ -128,6 +128,10 @@ extension DesignSystem.Stratosphere {
         /// What glass becomes under Reduce Transparency.
         public let opaqueSurface: RGBA
         public let glassShadow: RGBA
+        /// Sheets and the menu bar panel: opaque, so they read as a layer
+        /// above the window rather than another card in it.
+        public let sheetTop: RGBA
+        public let sheetBottom: RGBA
 
         public let track: RGBA
         public let selection: RGBA
@@ -183,6 +187,8 @@ extension DesignSystem.Stratosphere.Palette {
         glassBorder: Tone(hex: 0xFFFFFF, alpha: 0.16),
         opaqueSurface: Tone(hex: 0x16204F),
         glassShadow: Tone(hex: 0x000000, alpha: 0.18),
+        sheetTop: Tone(hex: 0x2B3878),
+        sheetBottom: Tone(hex: 0x181E4C),
         track: Tone(hex: 0xFFFFFF, alpha: 0.15),
         selection: Tone(hex: 0xFFFFFF, alpha: 0.17),
         chipFill: Tone(hex: 0xFFFFFF, alpha: 0.14),
@@ -217,6 +223,8 @@ extension DesignSystem.Stratosphere.Palette {
         glassBorder: Tone(hex: 0x0C1846, alpha: 0.10),
         opaqueSurface: Tone(hex: 0xFFFFFF),
         glassShadow: Tone(hex: 0x182C6E, alpha: 0.09),
+        sheetTop: Tone(hex: 0xFFFFFF),
+        sheetBottom: Tone(hex: 0xF3F5FB),
         track: Tone(hex: 0x0C1846, alpha: 0.11),
         selection: Tone(hex: 0x2459E0, alpha: 0.13),
         chipFill: Tone(hex: 0x0C1846, alpha: 0.07),

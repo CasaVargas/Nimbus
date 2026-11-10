@@ -42,6 +42,7 @@ struct AddRemoteSheet: View {
     @State private var finderFailures: [RemoteIntegrationFailure] = []
     @State private var integrationStarted = false
     @State private var showImport = false
+    @Environment(\.stratosphere) private var palette
 
     var body: some View {
         SheetChrome(
@@ -134,6 +135,15 @@ struct AddRemoteSheet: View {
             case .loading, .creating:
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 160)
+            case .page(let page) where page.boundary == .afterSignIn:
+                if let question = page.questions.first {
+                    FollowUpQuestion(
+                        providerPrefix: flow.provider.prefix,
+                        question: question,
+                        value: flow.answers[question.option.name] ?? question.option.defaultValue,
+                        onChange: { value in Task { await flow.answerChanged(question, to: value) } }
+                    )
+                }
             case .page(let page):
                 ConfigPageForm(
                     page: page,
@@ -202,12 +212,12 @@ struct AddRemoteSheet: View {
         HStack(spacing: DesignSystem.Spacing.m) {
             ProviderBadge(provider: provider.prefix, size: 28)
             VStack(alignment: .leading, spacing: 1) {
-                Text(verbatim: provider.description)
-                    .font(DesignSystem.Typography.body)
-                    .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                Text(verbatim: PickerCatalog.title(forPrefix: provider.prefix) ?? provider.description)
+                    .font(DesignSystem.Stratosphere.Typography.label)
+                    .foregroundStyle(palette.textPrimary.color)
                 Text(verbatim: provider.name)
                     .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                    .foregroundStyle(palette.textTertiary.color)
             }
         }
     }
@@ -246,9 +256,11 @@ struct AddRemoteSheet: View {
                 Button("Back") {
                     Task { await flow.cancel(); self.flow = nil }
                 }
+                .buttonStyle(.glassCapsule)
                 Button("Cancel") {
                     Task { await flow.cancel(); dismiss() }
                 }
+                .buttonStyle(.glassCapsule)
                 .keyboardShortcut(.cancelAction)
 
                 if case .naming = flow.phase {
@@ -262,7 +274,7 @@ struct AddRemoteSheet: View {
                         Task { await flow.begin() }
                     }
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.primaryPill(.small))
                     .disabled(!isNameValid(flow))
                 } else if case .page(let page) = flow.phase {
                     // "Add Remote" is only true on a `.finished` boundary —
@@ -271,7 +283,7 @@ struct AddRemoteSheet: View {
                     // neither creates anything yet (C4).
                     Button(pageButtonLabel(page)) { Task { await flow.submitPage() } }
                         .keyboardShortcut(.defaultAction)
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.primaryPill(.small))
                 }
             case .signingIn:
                 // No Back here: RemoteSetupFlow has no page-back transition
@@ -283,6 +295,7 @@ struct AddRemoteSheet: View {
                 Button("Cancel") {
                     Task { await flow.cancel(); self.flow = nil }
                 }
+                .buttonStyle(.glassCapsule)
                 .keyboardShortcut(.cancelAction)
             case .creating:
                 // Not a brief flicker: submitPage() deletes the stub and
@@ -295,6 +308,7 @@ struct AddRemoteSheet: View {
                 Button("Cancel") {
                     Task { await flow.cancel(); self.flow = nil }
                 }
+                .buttonStyle(.glassCapsule)
                 .keyboardShortcut(.cancelAction)
             case .finished:
                 if finderFailures.isEmpty {
@@ -302,11 +316,13 @@ struct AddRemoteSheet: View {
                     EmptyView()
                 } else {
                     Button("Close") { dismiss() }
+                        .buttonStyle(.glassCapsule)
                         .keyboardShortcut(.cancelAction)
                 }
             }
         } else {
             Button("Cancel") { dismiss() }
+                .buttonStyle(.glassCapsule)
                 .keyboardShortcut(.cancelAction)
         }
     }

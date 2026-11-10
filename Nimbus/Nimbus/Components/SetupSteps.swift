@@ -1,30 +1,36 @@
 import SwiftUI
 
 /// A short, labelled progress strip for a guided flow ("Choose a service ›
-/// Name it › Sign in"). Steps up to and including `current` are filled.
+/// Name it › Sign in"): one capsule per step. The current step is filled;
+/// finished steps read as done; later ones are quiet.
 struct SetupSteps: View {
     let titles: [String]
     let current: Int
 
+    @Environment(\.stratosphere) private var palette
+
     var body: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.s) {
+        HStack(spacing: 6) {
             ForEach(Array(titles.enumerated()), id: \.offset) { index, title in
-                VStack(alignment: .leading, spacing: 5) {
-                    Capsule()
-                        .fill(index <= current ? DesignSystem.Color.semantic.accent
-                                               : DesignSystem.Color.semantic.separator.opacity(0.7))
-                        .frame(height: 3)
-                    Text(verbatim: "\(index + 1). \(title)")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(index == current ? DesignSystem.Color.semantic.textPrimary
-                                                          : DesignSystem.Color.semantic.textTertiary)
-                        .lineLimit(1)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Text(verbatim: "\(index + 1)  \(title)")
+                    .font(DesignSystem.Stratosphere.Typography.segment)
+                    .foregroundStyle(foreground(index))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .padding(.horizontal, DesignSystem.Spacing.s)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 26)
+                    .background(Capsule().fill(index == current ? palette.rowSelection.color : palette.glassBottom.color))
+                    .overlay(Capsule().strokeBorder(index == current ? Color.clear : palette.glassBorder.color, lineWidth: 1))
             }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: "Step \(current + 1) of \(titles.count), \(titles[min(current, titles.count - 1)])"))
+    }
+
+    private func foreground(_ index: Int) -> Color {
+        if index == current { return palette.onAction.color }
+        return index < current ? palette.textPrimary.color : palette.textTertiary.color
     }
 }
 

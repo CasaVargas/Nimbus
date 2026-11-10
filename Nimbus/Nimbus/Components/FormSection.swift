@@ -30,14 +30,7 @@ struct FormSection<Content: View>: View {
                 }
             }
             .padding(DesignSystem.Spacing.m)
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                    .fill(DesignSystem.Color.semantic.surfaceSubtle)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
-                    .strokeBorder(DesignSystem.Color.semantic.separator.opacity(0.6), lineWidth: 0.5)
-            )
+            .glassSurface(radius: 16)
             if let footer {
                 Text(footer)
                     .font(DesignSystem.Typography.caption)

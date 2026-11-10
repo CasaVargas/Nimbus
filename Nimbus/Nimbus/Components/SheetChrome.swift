@@ -7,13 +7,15 @@ import SwiftUI
 /// - Body: scrollable region with consistent padding (Spacing.xl)
 /// - Action bar: right-aligned button row, separator above
 ///
-/// Sheet corner radius from DesignSystem.Radius.sheet (14pt).
-/// Minimum width 460pt; height grows to body content.
+/// Stratosphere sheet surface: an opaque gradient, so a sheet reads as a
+/// layer above the window. Minimum width 460pt; height grows to content.
 struct SheetChrome<BodyContent: View, Actions: View>: View {
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey?
     @ViewBuilder let bodyContent: () -> BodyContent
     @ViewBuilder let actions: () -> Actions
+
+    @Environment(\.stratosphere) private var palette
 
     init(
         title: LocalizedStringKey,
@@ -42,20 +44,21 @@ struct SheetChrome<BodyContent: View, Actions: View>: View {
             }
         }
         .frame(minWidth: 460)
-        .background(DesignSystem.Color.semantic.surface)
-        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.sheet, style: .continuous))
+        .background(LinearGradient(colors: [palette.sheetTop.color, palette.sheetBottom.color],
+                                   startPoint: .top, endPoint: .bottom))
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Stratosphere.Radius.sheet, style: .continuous))
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
-                .font(DesignSystem.Typography.titleEmphasized)
-                .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                .font(DesignSystem.Stratosphere.Typography.sheetTitle)
+                .foregroundStyle(palette.textPrimary.color)
                 .accessibilityAddTraits(.isHeader)
             if let subtitle {
                 Text(subtitle)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .font(DesignSystem.Stratosphere.Typography.detail)
+                    .foregroundStyle(palette.textSecondary.color)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -64,7 +67,7 @@ struct SheetChrome<BodyContent: View, Actions: View>: View {
     }
 
     private var actionBar: some View {
-        HStack {
+        HStack(spacing: DesignSystem.Spacing.s) {
             Spacer()
             actions()
         }
