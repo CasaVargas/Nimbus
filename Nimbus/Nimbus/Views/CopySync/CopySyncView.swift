@@ -17,17 +17,23 @@ struct CopySyncView: View {
     @State private var isRunning = false
     @State private var isPreviewing = false
 
+    @Environment(\.stratosphere) private var palette
+    @Environment(\.cloudColors) private var cloudColors
+    /// Optional so previews without a live window still render.
+    @Environment(CloudMonitor.self) private var monitor: CloudMonitor?
+
+    private typealias S = DesignSystem.Stratosphere
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.l) {
                 pageHeader
-                operationSection
+                wells
                 if operation == .sync {
                     DestructiveCallout(
                         message: "Sync will make the destination identical to the source. Files in the destination not in the source will be deleted."
                     )
                 }
-                pathsSection
                 if let error = viewModel?.error {
                     EmptyState(
                         icon: "exclamationmark.triangle",
@@ -39,8 +45,10 @@ struct CopySyncView: View {
                 }
                 runRow
             }
-            .padding(DesignSystem.Spacing.xl)
-            .frame(maxWidth: 720)
+            .padding(.horizontal, DesignSystem.Spacing.xl)
+            .padding(.vertical, DesignSystem.Spacing.l)
+            .frame(maxWidth: 860)
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle("Copy Between Clouds")
         .sheet(isPresented: $isPreviewing) {
@@ -76,74 +84,139 @@ struct CopySyncView: View {
     }
 
     private var pageHeader: some View {
-        HStack(spacing: DesignSystem.Spacing.m) {
-            Image(systemName: operation == .copy ? "doc.on.doc.fill" : "arrow.triangle.2.circlepath")
-                .font(DesignSystem.Typography.title)
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(DesignSystem.Color.semantic.statusInfo)
-                .frame(width: 42, height: 42)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(operation == .copy ? "Copy between clouds" : "Keep two locations in sync")
-                    .font(DesignSystem.Typography.headline)
+        HStack(alignment: .bottom, spacing: DesignSystem.Spacing.l) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(operation == .copy ? "Copy between clouds" : "Keep two places in sync")
+                    .font(S.Typography.pageTitle)
+                    .foregroundStyle(palette.textPrimary.color)
+                    .accessibilityAddTraits(.isHeader)
                 Text(operation == .copy
                      ? "Existing destination files are preserved unless they share a name."
                      : "The destination becomes an exact mirror of the source.")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .font(S.Typography.lead)
+                    .foregroundStyle(palette.textSecondary.color)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            Spacer(minLength: 0)
+            GlassSegmented(
+                options: [.init(value: TransferOperation.copy, title: "Copy"),
+                          .init(value: TransferOperation.sync, title: "Sync")],
+                selection: $operation
+            )
+            .accessibilityLabel("Mode")
         }
-        .animation(DesignSystem.Motion.snappy, value: operation)
     }
 
-    private var operationSection: some View {
-        FormSection(title: "Operation", footer: nil) {
-            FormRow(label: "Mode", help: nil) {
-                Picker("", selection: $operation) {
-                    Text("Copy").tag(TransferOperation.copy)
-                    Text("Sync").tag(TransferOperation.sync)
+    /// From and To, side by side, each washed in its cloud's colour.
+    private var wells: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.m) {
+            well(title: "From", label: "Source", endpoint: $source)
+            Circle()
+                .fill(LinearGradient(colors: [palette.actionTop.color, palette.actionBottom.color],
+                                     startPoint: .top, endPoint: .bottom))
+                .frame(width: 48, height: 48)
+                .overlay {
+                    Image(systemName: "arrow.right")
+                        .font(DesignSystem.Typography.title)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(palette.onAction.color)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(maxWidth: 200)
-            }
+                .shadow(color: palette.actionGlow.color, radius: 12, y: 6)
+                .accessibilityHidden(true)
+            well(title: "To", label: "Destination", endpoint: $destination)
         }
     }
 
-    private var pathsSection: some View {
-        FormSection(title: "Paths", footer: nil) {
+    private func well(title: LocalizedStringKey, label: LocalizedStringKey,
+                      endpoint: Binding<TransferEndpoint?>) -> some View {
+        let place = Place(endpoint: endpoint.wrappedValue, remotes: monitor?.remotes ?? [])
+        return VStack(alignment: .leading, spacing: DesignSystem.Spacing.m) {
+            Text(title)
+                .font(S.Typography.segment)
+                .foregroundStyle(palette.textSecondary.color)
+            HStack(spacing: DesignSystem.Spacing.m) {
+                if let provider = place.provider {
+                    LogoTile(provider: provider)
+                } else {
+                    IconTile(systemImage: place.symbol, color: S.CloudColors.sequence[6], size: 42)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(verbatim: place.title)
+                        .font(S.Typography.sectionTitle)
+                        .foregroundStyle(palette.textPrimary.color)
+                        .lineLimit(1)
+                    Text(verbatim: place.detail)
+                        .font(S.Typography.detail)
+                        .foregroundStyle(palette.textSecondary.color)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
             LocationPicker(
-                label: "Source",
+                label: label,
                 remoteNames: viewModel?.remoteNames ?? [],
                 client: daemon.client,
-                endpoint: $source
+                endpoint: endpoint,
+                layout: .stacked
             )
-            LocationPicker(
-                label: "Destination",
-                remoteNames: viewModel?.remoteNames ?? [],
-                client: daemon.client,
-                endpoint: $destination
-            )
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassSurface(radius: S.Radius.header, tint: place.cloud.flatMap { cloudColors[$0] })
+    }
+
+    /// What a well says about its current choice.
+    private struct Place {
+        let title: String
+        let detail: String
+        let provider: String?
+        let symbol: String
+        let cloud: String?
+
+        init(endpoint: TransferEndpoint?, remotes: [Remote]) {
+            switch endpoint {
+            case .cloud(let remote, let path):
+                title = remote
+                let trimmed = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                detail = trimmed.isEmpty ? "The whole cloud" : trimmed
+                provider = remotes.first { $0.name == remote }.map { CloudNaming.resolvedType(of: $0, in: remotes) }
+                symbol = "cloud.fill"
+                cloud = remote
+            case .local(let path):
+                title = "This Mac"
+                detail = (path as NSString).abbreviatingWithTildeInPath
+                provider = nil
+                symbol = "desktopcomputer"
+                cloud = nil
+            case nil:
+                title = "Choose a place"
+                detail = "A cloud, or a folder on this Mac"
+                provider = nil
+                symbol = "questionmark"
+                cloud = nil
+            }
         }
     }
 
     private var runRow: some View {
-        HStack {
+        HStack(spacing: DesignSystem.Spacing.s) {
             Button("Save as Backup…") {
                 guard let source, let destination else { return }
                 var draft = BackupJob.new(source: source, destination: destination, now: Date())
                 draft.mode = operation == .sync ? .mirror : .addOnly
                 onSaveAsBackup(draft)
             }
+            .buttonStyle(.glassCapsule)
             .disabled(!isValid)
             Spacer()
             Button("Preview…") { isPreviewing = true }
+                .buttonStyle(.glassCapsule)
                 .disabled(!isValid || isRunning)
             Button(isRunning ? "Starting…" : operation == .copy ? "Start Copy" : "Start Sync") {
                 Task { await run() }
             }
             .keyboardShortcut(.defaultAction)
-            .buttonStyle(.borderedProminent)
-            .controlSize(.regular)
+            .buttonStyle(.primaryPill)
             .disabled(!isValid || isRunning)
         }
     }
@@ -171,5 +244,7 @@ struct CopySyncView: View {
     CopySyncView()
         .environment(RcloneDaemon())
         .environment(TransferStore())
-        .frame(width: 720, height: 540)
+        .frame(width: 820, height: 540)
+        .background { StratosphereBackdrop() }
+        .preferredColorScheme(.dark)
 }

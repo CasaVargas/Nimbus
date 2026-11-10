@@ -113,3 +113,37 @@ struct BackupStatus: Equatable {
         return String(localized: "\(date.formatted(style)) at \(time)")
     }
 }
+
+/// The Backups screen's headline: how many backups are current, and what
+/// isn't. "Up to date" means the last run finished without a problem.
+struct BackupsHeadline: Equatable {
+    enum Tone: Equatable { case ok, warning, neutral }
+
+    let title: String
+    let sentence: String?
+    let tone: Tone
+
+    init(statuses: [BackupStatus]) {
+        let total = statuses.count
+        let upToDate = statuses.filter { $0.tint == .ok }.count
+        let running = statuses.filter { $0.progress != nil }.count
+        let attention = statuses.filter { $0.tint == .warning || $0.tint == .error }.count
+
+        if upToDate == total {
+            title = total == 1 ? "Your backup is up to date" : "All \(total) backups are up to date"
+        } else {
+            title = "\(upToDate) of \(total) backups \(upToDate == 1 ? "is" : "are") up to date"
+        }
+
+        var parts: [String] = []
+        if running > 0 { parts.append("\(running) \(running == 1 ? "is" : "are") running now.") }
+        if attention > 0 { parts.append("\(attention) \(attention == 1 ? "needs" : "need") a look.") }
+        sentence = parts.isEmpty ? nil : parts.joined(separator: " ")
+
+        if attention > 0 {
+            tone = .warning
+        } else {
+            tone = upToDate == total ? .ok : .neutral
+        }
+    }
+}

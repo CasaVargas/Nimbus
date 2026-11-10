@@ -10,45 +10,32 @@ struct LocationPicker: View {
     let remoteNames: [String]
     let client: RcloneClient
     @Binding var endpoint: TransferEndpoint?
+    /// `.row` is a labelled form row (the backup editor). `.stacked` puts
+    /// the menu above the path, for a narrow column (Copy Between Clouds).
+    var layout: Layout = .row
+
+    enum Layout { case row, stacked }
 
     @State private var isBrowsing = false
 
     private static let thisMacTag = "\u{0}this-mac"
 
     var body: some View {
-        FormRow(label: label, help: nil) {
-            HStack(spacing: DesignSystem.Spacing.s) {
-                Picker("", selection: menuSelection) {
-                    Text("Choose…").tag("")
-                    Text("This Mac…").tag(Self.thisMacTag)
-                    if !remoteNames.isEmpty { Divider() }
-                    ForEach(remoteNames, id: \.self) { name in
-                        Text(verbatim: name).tag(name)
+        Group {
+            switch layout {
+            case .row:
+                FormRow(label: label, help: nil) {
+                    HStack(spacing: DesignSystem.Spacing.s) {
+                        menu.frame(width: 140)
+                        pathControls(fieldWidth: 200)
                     }
                 }
-                .labelsHidden()
-                .frame(width: 140)
-                .accessibilityLabel(label)
-
-                switch endpoint {
-                case .local(let path):
-                    localFolder(path)
-                case .cloud(let remote, _):
-                    TextField("/", text: cloudPath)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 200)
-                    Button {
-                        isBrowsing = true
-                    } label: {
-                        Image(systemName: "folder")
+            case .stacked:
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
+                    menu.frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: DesignSystem.Spacing.s) {
+                        pathControls(fieldWidth: .infinity)
                     }
-                    .help("Browse folders")
-                    .accessibilityLabel("Browse folders in \(remote)")
-                case nil:
-                    TextField("/", text: .constant(""))
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 200)
-                        .disabled(true)
                 }
             }
         }
@@ -58,6 +45,43 @@ struct LocationPicker: View {
                     endpoint = .cloud(remote: remote, path: chosen)
                 }
             }
+        }
+    }
+
+    private var menu: some View {
+        Picker("", selection: menuSelection) {
+            Text("Choose…").tag("")
+            Text("This Mac…").tag(Self.thisMacTag)
+            if !remoteNames.isEmpty { Divider() }
+            ForEach(remoteNames, id: \.self) { name in
+                Text(verbatim: name).tag(name)
+            }
+        }
+        .labelsHidden()
+        .accessibilityLabel(label)
+    }
+
+    @ViewBuilder
+    private func pathControls(fieldWidth: CGFloat) -> some View {
+        switch endpoint {
+        case .local(let path):
+            localFolder(path)
+        case .cloud(let remote, _):
+            TextField("/", text: cloudPath)
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: fieldWidth)
+            Button {
+                isBrowsing = true
+            } label: {
+                Image(systemName: "folder")
+            }
+            .help("Browse folders")
+            .accessibilityLabel("Browse folders in \(remote)")
+        case nil:
+            TextField("/", text: .constant(""))
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: fieldWidth)
+                .disabled(true)
         }
     }
 
