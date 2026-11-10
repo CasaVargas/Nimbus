@@ -1,7 +1,7 @@
 # Backups — Design
 
 **Date:** 2026-11-08
-**Status:** Approved 2026-11-08 with the defaults below (open questions resolved to the spec's proposals). Phase 1 in progress on `feat/backups-phase1`.
+**Status:** Approved 2026-11-08 with the defaults below (open questions resolved to the spec's proposals). Phase 1 shipped in #25 (2026-11-08); phases 2 and 3 not started.
 **Roadmap:** item 2 of the competitive research's recommended order (Tolaria
 `nimbus/nimbus-competitive-feature-gaps-research.md`), and the north star's phase 4 "scheduled syncs".
 **Builds on:** `Views/CopySync/` (the one-off copy/sync screen), `State/TransferStore.swift`,
