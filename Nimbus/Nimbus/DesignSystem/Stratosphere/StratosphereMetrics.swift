@@ -38,6 +38,11 @@ extension EnvironmentValues {
     /// the sidebar, Home and a cloud's own page agree.
     @Entry var cloudColors: [String: DesignSystem.Stratosphere.CloudColor] = [:]
 
+    /// True inside `SheetChrome`. Lets shared pieces such as `FormSection`
+    /// match the sheet while Settings, which also uses them, keeps its
+    /// current look until it is restyled.
+    @Entry var isOnStratosphereSheet = false
+
     /// The Stratosphere palette for the current appearance.
     var stratosphere: DesignSystem.Stratosphere.Palette {
         DesignSystem.Stratosphere.Palette.resolve(colorScheme)

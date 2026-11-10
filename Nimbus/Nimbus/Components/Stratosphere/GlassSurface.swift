@@ -9,10 +9,6 @@ import SwiftUI
 struct GlassSurface: ViewModifier {
     var radius: CGFloat
     var tint: DesignSystem.Stratosphere.CloudColor?
-    /// False for surfaces that sit on an opaque background (a sheet, the
-    /// Settings window): nothing shows through, so the blur and shadow only
-    /// cost rendering and make snapshots differ between machines.
-    var isTranslucent = true
 
     @Environment(\.stratosphere) private var palette
     @Environment(\.colorScheme) private var colorScheme
@@ -27,7 +23,7 @@ struct GlassSurface: ViewModifier {
                     if reduceTransparency {
                         shape.fill(palette.opaqueSurface.color)
                     } else {
-                        if colorScheme == .dark, isTranslucent {
+                        if colorScheme == .dark {
                             shape.fill(.ultraThinMaterial)
                         }
                         shape.fill(LinearGradient(
@@ -42,7 +38,7 @@ struct GlassSurface: ViewModifier {
                         ))
                     }
                 }
-                .shadow(color: palette.glassShadow.color.opacity(isTranslucent ? 1 : 0), radius: 16, y: 10)
+                .shadow(color: palette.glassShadow.color, radius: 16, y: 10)
             }
             .overlay {
                 shape.strokeBorder(
@@ -57,9 +53,8 @@ extension View {
     /// Puts the view on a Stratosphere glass surface.
     func glassSurface(
         radius: CGFloat = DesignSystem.Stratosphere.Radius.card,
-        tint: DesignSystem.Stratosphere.CloudColor? = nil,
-        isTranslucent: Bool = true
+        tint: DesignSystem.Stratosphere.CloudColor? = nil
     ) -> some View {
-        modifier(GlassSurface(radius: radius, tint: tint, isTranslucent: isTranslucent))
+        modifier(GlassSurface(radius: radius, tint: tint))
     }
 }

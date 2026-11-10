@@ -44,6 +44,7 @@ struct SheetChrome<BodyContent: View, Actions: View>: View {
             }
         }
         .frame(minWidth: 460)
+        .environment(\.isOnStratosphereSheet, true)
         .background(LinearGradient(colors: [palette.sheetTop.color, palette.sheetBottom.color],
                                    startPoint: .top, endPoint: .bottom))
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Stratosphere.Radius.sheet, style: .continuous))
