@@ -238,67 +238,96 @@ struct KeepOnThisMacRow: View {
     }
 }
 
-/// The inspector's **Share** row: copy a public link to the selected item.
-/// S3 and B2 links are pre-signed and always expire, so those get an
-/// expiry choice; other services decide expiry themselves.
+/// The inspector's **Share** row: copy a public link to the selected item,
+/// choose when it expires and take it back, each only where the service
+/// supports it (`ShareLinkSupport`).
 struct ShareLinkRow: View {
     let remote: String
     let file: FileItem
+    /// Previews set these; the app reads them from the cloud itself.
+    var canShareOverride: Bool?
+    var supportOverride: ShareLinkSupport?
 
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(CloudMonitor.self) private var monitor
-    @State private var expiry = "7d"
+    @State private var chosenExpiry: ShareLinkSupport.Expiry?
     @State private var state: ShareState = .idle
 
-    enum ShareState: Equatable { case idle, working, copied, failed(String) }
-
-    private var canShare: Bool { CloudCapabilities.shared?.canShare(cloud: remote) ?? false }
-    private var backendType: String {
-        let cloud = monitor.remotes.first { $0.name == remote }
-        return cloud.map { CloudNaming.resolvedType(of: $0, in: monitor.remotes) } ?? ""
+    enum ShareState: Equatable {
+        case idle, working, copied(ShareLinkSupport.Expiry?), stopped, failed(String)
     }
-    private var presigned: Bool { ["s3", "b2"].contains(backendType) }
+
+    private var canShare: Bool {
+        canShareOverride ?? CloudCapabilities.shared?.canShare(cloud: remote) ?? false
+    }
+    private var support: ShareLinkSupport {
+        if let supportOverride { return supportOverride }
+        let cloud = monitor.remotes.first { $0.name == remote }
+        return .forBackend(cloud.map { CloudNaming.resolvedType(of: $0, in: monitor.remotes) } ?? "")
+    }
+    /// Nil when the service takes no expiry.
+    private var expiry: ShareLinkSupport.Expiry? {
+        guard !support.expiryChoices.isEmpty else { return nil }
+        if let chosenExpiry, support.expiryChoices.contains(chosenExpiry) { return chosenExpiry }
+        return support.defaultExpiry
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            HStack {
-                Button {
-                    copy()
-                } label: {
-                    Label("Copy Share Link", systemImage: "link")
-                }
-                .disabled(!canShare || state == .working)
-                if presigned && canShare {
-                    Spacer(minLength: DesignSystem.Spacing.s)
-                    Picker("Expires", selection: $expiry) {
-                        Text("1 day").tag("1d")
-                        Text("7 days").tag("7d")
+            Button {
+                copy()
+            } label: {
+                Label("Copy Share Link", systemImage: "link")
+            }
+            .controlSize(.small)
+            .disabled(!canShare || state == .working)
+            if canShare, let expiry {
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Text("Expires")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    Picker("Expires", selection: Binding(get: { expiry }, set: { chosenExpiry = $0 })) {
+                        ForEach(support.expiryChoices) { choice in
+                            Text(choice.title).tag(choice)
+                        }
                     }
                     .pickerStyle(.menu)
                     .labelsHidden()
                     .fixedSize()
+                    .controlSize(.small)
                     .accessibilityLabel("Link expires after")
                 }
             }
-            .controlSize(.small)
             Text(verbatim: caption)
                 .font(DesignSystem.Typography.caption)
                 .foregroundStyle(captionColor)
                 .fixedSize(horizontal: false, vertical: true)
+            if canShare && support.canStopSharing {
+                Button("Stop Sharing") { stopSharing() }
+                    .controlSize(.small)
+                    .disabled(state == .working)
+                    .help("Turn off this item's share link")
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(DesignSystem.Spacing.s)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
                 .fill(DesignSystem.Color.semantic.surfaceSubtle)
         )
         .onChange(of: file.path) { state = .idle }
+        .onChange(of: remote) {
+            state = .idle
+            chosenExpiry = nil
+        }
     }
 
     private var caption: String {
         switch state {
-        case .copied: return presigned ? "Link copied. It stops working after \(expiry == "1d" ? "1 day" : "7 days")." : "Link copied."
+        case .copied(let expiry): return ShareLinkSupport.copiedCaption(expiry: expiry)
+        case .stopped: return "Sharing stopped. The old link no longer works."
         case .failed(let message): return message
-        case .working: return "Making a link…"
+        case .working: return "Working…"
         case .idle:
             return canShare ? "Anyone with the link can open it." : "This service doesn't make share links."
         }
@@ -306,29 +335,46 @@ struct ShareLinkRow: View {
 
     private var captionColor: Color {
         switch state {
-        case .copied: DesignSystem.Color.semantic.statusOK
+        case .copied, .stopped: DesignSystem.Color.semantic.statusOK
         case .failed: DesignSystem.Color.semantic.statusError
         default: DesignSystem.Color.semantic.textSecondary
         }
     }
 
     private func copy() {
+        let expiry = expiry
         state = .working
         Task {
             do {
                 guard let url = try await daemon.client.publicLink(
-                    fs: "\(remote):", remote: file.path, expire: presigned ? expiry : nil) else {
+                    fs: "\(remote):", remote: file.path, expire: expiry?.duration) else {
                     state = .failed("The service didn't return a link.")
                     return
                 }
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(url.absoluteString, forType: .string)
-                state = .copied
+                state = .copied(expiry)
             } catch {
-                let first = error.localizedDescription.split(whereSeparator: \.isNewline).first.map(String.init)
-                state = .failed("Couldn't make a link: \(first ?? error.localizedDescription)")
+                state = .failed("Couldn't make a link: \(Self.firstLine(of: error))")
             }
         }
+    }
+
+    private func stopSharing() {
+        state = .working
+        Task {
+            do {
+                try await daemon.client.publicLink(fs: "\(remote):", remote: file.path, unlink: true)
+                state = .stopped
+            } catch {
+                state = .failed("Couldn't stop sharing: \(Self.firstLine(of: error))")
+            }
+        }
+    }
+
+    private static func firstLine(of error: Error) -> String {
+        let text = error.localizedDescription
+        return text.split(whereSeparator: \.isNewline).first.map(String.init) ?? text
     }
 }
 
@@ -345,6 +391,21 @@ struct ShareLinkRow: View {
     .frame(width: FileInspector.width)
     .environment(FileProviderBridge())
     .environment(AppSettings(defaults: UserDefaults(suiteName: "KeepPreview")!))
+    .environment(RcloneDaemon())
+    .environment(CloudMonitor(loadRemotes: { [] }, status: RemoteStatusService(client: RcloneDaemon().client)))
+}
+#Preview("Share row states") {
+    let file = FileItem(path: "Photos/Half Dome.heic", name: "Half Dome.heic", size: 8_400_000,
+                        mimeType: "image/heic", modTime: Date(), isDir: false, fileID: nil,
+                        qualifiedRemotePath: "Personal:Photos/Half Dome.heic")
+    VStack(spacing: 12) {
+        ShareLinkRow(remote: "Personal", file: file, canShareOverride: false)
+        ShareLinkRow(remote: "Personal", file: file, canShareOverride: true, supportOverride: .forBackend("drive"))
+        ShareLinkRow(remote: "Personal", file: file, canShareOverride: true, supportOverride: .forBackend("s3"))
+        ShareLinkRow(remote: "Personal", file: file, canShareOverride: true, supportOverride: .forBackend("kdrive"))
+    }
+    .padding()
+    .frame(width: FileInspector.width)
     .environment(RcloneDaemon())
     .environment(CloudMonitor(loadRemotes: { [] }, status: RemoteStatusService(client: RcloneDaemon().client)))
 }

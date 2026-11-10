@@ -77,6 +77,7 @@
 		3DDBF452B8C155AB77FA909F /* ShareLinkNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5860F785C5911347E26342 /* ShareLinkNotifier.swift */; };
 		3FA68E784291944BDC50BD40 /* CloudStatusColumn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0366C19B7D2EB46178EC2B31 /* CloudStatusColumn.swift */; };
 		40D335CC67FE01CCE144008F /* TransferNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAF1892F1AE04AA335B2F8AC /* TransferNotificationService.swift */; };
+		417B7350ADD3A4726677AB67 /* ShareLinkSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B390FCDFD80A6D1AB88F696 /* ShareLinkSupport.swift */; };
 		42AC237AAAA6C46413CF2BBB /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8557E940D1B7790FDD7F35AD /* SettingsView.swift */; };
 		431349BB5B84ADCFCA0B6EA2 /* TransferHistoryFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A4748DA3D9244673B9D1FE /* TransferHistoryFile.swift */; };
 		45B72B6D6C2526CF65320FD3 /* MountInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49A87D485E391F3534A28A3F /* MountInspector.swift */; };
@@ -123,6 +124,7 @@
 		75B3A0A5D3F81285E50A5EDC /* Notifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6333630F2E2BF0455B8D1D /* Notifications.swift */; };
 		775AC50C7F80C02365EFEF33 /* RemoteSetupFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49337EE8003B1CBE6A0A96C /* RemoteSetupFlowTests.swift */; };
 		77F61AA5DF809733F8032BB8 /* BackupSchedulerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40594F213DB91EC6586B650 /* BackupSchedulerTests.swift */; };
+		78B618B83B3397028BFCA635 /* ShareLinkSupportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FD7B7E1F1818FACB36B6A77 /* ShareLinkSupportTests.swift */; };
 		79CD5B771150740985B6CFA1 /* Colors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CCCEBA204DCFCEBF2063D66 /* Colors.swift */; };
 		7A02124117B9F0D4A3988039 /* AdvancedSettingsViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925D421BD7102774371B0F56 /* AdvancedSettingsViewTests.swift */; };
 		7A9519473E31A44CCAC876B2 /* TransferPillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BE9DC38BF56203102E23236 /* TransferPillView.swift */; };
@@ -439,6 +441,7 @@
 		75F5A8E026E6C2BD49858289 /* FileTablePerfTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTablePerfTests.swift; sourceTree = "<group>"; };
 		773187DDF62D87927128DCAC /* EmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyState.swift; sourceTree = "<group>"; };
 		78F9E9CBF9844425F1ACEC87 /* VolumeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeView.swift; sourceTree = "<group>"; };
+		7B390FCDFD80A6D1AB88F696 /* ShareLinkSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkSupport.swift; sourceTree = "<group>"; };
 		7B3C3D5FACC74D63E63DF8B9 /* CompanionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionView.swift; sourceTree = "<group>"; };
 		7BBED5BF19EAACDD19F5A75D /* TransferRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferRowTests.swift; sourceTree = "<group>"; };
 		7D2921088EDC82F0A95AEEAB /* BookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkStore.swift; sourceTree = "<group>"; };
@@ -467,6 +470,7 @@
 		8DECF7995C720D6A071047D2 /* Motion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Motion.swift; sourceTree = "<group>"; };
 		8EE6D43FBEB2BEE79C1F6423 /* SystemContainerEnumerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemContainerEnumerator.swift; sourceTree = "<group>"; };
 		8FCE75373125F37CCBC0B6AB /* RcloneClientProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RcloneClientProtocol.swift; sourceTree = "<group>"; };
+		8FD7B7E1F1818FACB36B6A77 /* ShareLinkSupportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkSupportTests.swift; sourceTree = "<group>"; };
 		9016636A378668C1A24C0156 /* TransferSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferSettingsView.swift; sourceTree = "<group>"; };
 		916A92A1094C044C04A03BB1 /* Conditional.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conditional.swift; sourceTree = "<group>"; };
 		91C86CE92CC40814A0659DB4 /* RemoteStatusServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteStatusServiceTests.swift; sourceTree = "<group>"; };
@@ -700,6 +704,7 @@
 				F0B2F0DEB49277B20924FD2F /* RcloneDaemon.swift */,
 				3664099969BCEF740DAB5F4B /* RemoteStatusService.swift */,
 				DA5860F785C5911347E26342 /* ShareLinkNotifier.swift */,
+				7B390FCDFD80A6D1AB88F696 /* ShareLinkSupport.swift */,
 				BCAC9985B428E97E63330C61 /* TimedCache.swift */,
 				CAF1892F1AE04AA335B2F8AC /* TransferNotificationService.swift */,
 				1D31C157C829C12486C1B570 /* VersionsPruner.swift */,
@@ -1102,6 +1107,7 @@
 				EFDFD6B91C6E9C08C1FFDE89 /* SelectionIntentTests.swift */,
 				2A7B1EA1A669A9C652EB28CE /* SelectionTests.swift */,
 				C06199216B4621FDF613D936 /* SettingsViewTests.swift */,
+				8FD7B7E1F1818FACB36B6A77 /* ShareLinkSupportTests.swift */,
 				B66BA5D854765E4D13BAFE5D /* SheetChromeTests.swift */,
 				5CFC0CEBAED68EF1E4D1672F /* SidebarRemoteRowTests.swift */,
 				B8C0D0BC95A7D1919E7FB034 /* SidebarSelectionTests.swift */,
@@ -1457,6 +1463,7 @@
 				F8A103FF4874809F221B1824 /* SetupSteps.swift in Sources */,
 				3DDBF452B8C155AB77FA909F /* ShareLinkNotifier.swift in Sources */,
 				30EBC89B5F8C0EB17F92BD71 /* ShareLinkSignal.swift in Sources */,
+				417B7350ADD3A4726677AB67 /* ShareLinkSupport.swift in Sources */,
 				C4C1CE457BC2536A447DE1BB /* SheetChrome.swift in Sources */,
 				7556E68F8D67B85B04E1E136 /* ShimmerModifier.swift in Sources */,
 				25DA4AD53EF27768DC29591B /* Sidebar.swift in Sources */,
@@ -1581,6 +1588,7 @@
 				8C0B4B7304F04D2ED4C68DBC /* SelectionIntentTests.swift in Sources */,
 				F9FD77DF27F29CDE9EFFFB9D /* SelectionTests.swift in Sources */,
 				226A399F8CDE80148D9B8922 /* SettingsViewTests.swift in Sources */,
+				78B618B83B3397028BFCA635 /* ShareLinkSupportTests.swift in Sources */,
 				D9AF1E4394AE9635984EFF17 /* SheetChromeTests.swift in Sources */,
 				CE1D3A4DB69F4561B0FF16CE /* SidebarRemoteRowTests.swift in Sources */,
 				B33B762BA9D1403D850A9E62 /* SidebarSelectionTests.swift in Sources */,

@@ -229,12 +229,31 @@ Each phase is its own PR:
 
 All three phases merged the day the spec was written, before the spec itself reached `main` (#45).
 
-Left out of the build:
+Left out on 2026-11-08 and added on 2026-11-10 (inspector only; Finder's action is unchanged):
 
-- **Stop Sharing.** `publicLink(fs:remote:expire:unlink:)` takes `unlink`, and nothing in the app
-  calls it. The list of services where rclone supports unlink was never confirmed.
-- **Expiry choices.** The inspector offers 1 day and 7 days, and only for S3 and B2. The spec's
-  Never and 30 days options, and expiry on other services that accept it, are not there.
+- **Stop Sharing.** A button under the share row, for services whose rclone backend acts on
+  `unlink`.
+- **Expiry choices.** Never / 1 day / 7 days / 30 days where the backend acts on `expire`; 1 day
+  and 7 days on S3, whose links are pre-signed and capped at a week.
+
+Which services get which control was read from each backend's `PublicLink` in rclone 1.76.0
+(`ShareLinkSupport`). Section 2's guess (Dropbox, Google Drive, OneDrive, pCloud for unlink) was
+wrong:
+
+| Control | Services |
+|---|---|
+| Stop Sharing | Gofile, Jottacloud, kDrive, Pixeldrain, Yandex Disk |
+| Expiry, all four choices | Dosya, Files.com, Gofile, kDrive, OneDrive, PikPak, Storj |
+| Expiry, 1 or 7 days | S3 and compatibles |
+| Neither | Everything else, including Google Drive, Dropbox, pCloud, Box, Mega and B2 |
+
+- The lists are allow-lists. A backend that ignores `unlink` answers a Stop Sharing request by
+  making a new link, so an unknown backend gets no button.
+- B2 lost the expiry menu it had: its links are plain bucket URLs and rclone ignores `expire`.
+- Dropbox honours `expire` on paid plans only and rclone drops it without an error on others, so
+  it gets no menu rather than a caption that could be false.
+- A crypt, combine or other wrapper passes links through but is not resolved to its inner
+  service (only aliases are), so it gets neither control.
 
 Never checked in the running app:
 
@@ -243,3 +262,4 @@ Never checked in the running app:
 - The "Share link copied" banner (#20: the test install had no notification permission).
 - Share links on a real Google Drive, and the action's absence on SFTP. #20 was checked against a
   local S3 server and an alias cloud only.
+- Stop Sharing against a real service. No account on any of the five was available.
