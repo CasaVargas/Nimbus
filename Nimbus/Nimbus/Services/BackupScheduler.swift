@@ -40,8 +40,9 @@ struct BackupSchedulePlanner {
 ///
 /// `start()` and catch-up re-plans (wake, daemon reconnect) first wait
 /// `settleDelay` so the network and login-item retries finish, then run every
-/// job whose slot passed while Nimbus was quit or asleep. Other re-plans (job
-/// edits, a finished run, clock or time-zone changes) re-arm the timer at once.
+/// job whose slot passed while Nimbus was quit or asleep. Clock and time-zone
+/// changes, and a timer that fires more than `catchUpThreshold` late, take the
+/// same path. Other re-plans (job edits, a finished run) re-arm the timer at once.
 @MainActor
 final class BackupScheduler {
     /// A due job whose slot is further past than this runs as a catch-up.
@@ -90,12 +91,15 @@ final class BackupScheduler {
         guard !isStarted else { return }
         isStarted = true
         observe(NSWorkspace.didWakeNotification, on: workspaceCenter, catchingUp: true)
-        observe(.NSSystemClockDidChange, on: systemCenter, catchingUp: false)
-        observe(.NSSystemTimeZoneDidChange, on: systemCenter, catchingUp: false)
+        // A clock or time-zone change can move a slot into the past; catch
+        // it up rather than leave it until the next wake or launch.
+        observe(.NSSystemClockDidChange, on: systemCenter, catchingUp: true)
+        observe(.NSSystemTimeZoneDidChange, on: systemCenter, catchingUp: true)
         replan(catchingUp: true)
     }
 
-    /// Re-arms the timer. `catchingUp` (wake, daemon reconnect) first waits
+    /// Re-arms the timer. `catchingUp` (wake, daemon reconnect, clock or
+    /// time-zone change) first waits
     /// the settle delay and then runs every due job; otherwise only future
     /// slots are timed. Ignored until `start()`.
     func replan(catchingUp: Bool = false) {
@@ -120,6 +124,7 @@ final class BackupScheduler {
 
     private func runTimer() async {
         while !Task.isCancelled {
+            let isCatchUp = catchUpAt != nil
             guard let target = catchUpAt ?? planner.nextWake(store.jobs, now: now()) else { return }
             let delay = target.timeIntervalSince(now())
             if delay > 0 {
@@ -132,6 +137,12 @@ final class BackupScheduler {
             // A re-plan may land between the clock firing and this task
             // resuming; its timer owns `catchUpAt` now.
             guard !Task.isCancelled else { return }
+            if !isCatchUp, now().timeIntervalSince(target) > Self.catchUpThreshold {
+                // Fired well after its slot (the Mac just woke, say): give
+                // the network the settle delay before running anything.
+                catchUpAt = now().addingTimeInterval(Self.seconds(settleDelay))
+                continue
+            }
             catchUpAt = nil
             // A re-plan during this pass (a run recorded, say) cancels this
             // task; the pass still finishes, because the new timer only

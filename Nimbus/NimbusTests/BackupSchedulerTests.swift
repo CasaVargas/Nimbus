@@ -268,7 +268,58 @@ final class BackupSchedulerTests {
         scheduler.stop()
     }
 
-    @Test func clockChangeReplansWithoutSettle() async {
+    @Test(arguments: [Notification.Name.NSSystemClockDidChange, .NSSystemTimeZoneDidChange])
+    func clockChangeCatchesUpAfterSettle(_ name: Notification.Name) async throws {
+        let job = Self.job(lastRunStart: "2026-11-10T02:00:00-05:00")
+        await setUp([job])
+        scheduler.start()
+        await clock.waitForSleepCalls(1)
+        clock.advance(by: .seconds(60))
+        await clock.waitForSleepCalls(2) // asleep until tomorrow 02:00
+
+        // The wall clock jumps past tomorrow's slot; the timer's clock doesn't.
+        asleepFor = 2 * 24 * 3600
+        systemCenter.post(name: name, object: nil)
+        await clock.waitForSleepCalls(3)
+        #expect(clock.pendingSleepers == 1)
+        #expect(launcher.calls.isEmpty)
+
+        clock.advance(by: .seconds(59))
+        #expect(launcher.calls.isEmpty)
+        clock.advance(by: .seconds(1))
+        await launcher.waitForCalls(1)
+        let call = try #require(launcher.calls.first)
+        #expect(call.jobID == job.id)
+        #expect(call.trigger == .catchUp)
+        scheduler.stop()
+    }
+
+    @Test func lateTimerWaitsForSettle() async throws {
+        let job = Self.job(lastRunStart: "2026-11-10T02:00:00-05:00")
+        await setUp([job])
+        scheduler.start()
+        await clock.waitForSleepCalls(1)
+        clock.advance(by: .seconds(60))
+        await clock.waitForSleepCalls(2) // asleep until tomorrow 02:00
+
+        // The timer fires six minutes after its slot.
+        advance(to: BackupJobTests.date("2026-11-11T02:06:00-05:00"))
+        await clock.waitForSleepCalls(3) // re-armed for the settle delay
+        #expect(launcher.calls.isEmpty)
+
+        clock.advance(by: .seconds(59))
+        #expect(launcher.calls.isEmpty)
+        clock.advance(by: .seconds(1))
+        await launcher.waitForCalls(1)
+        await clock.waitForSleepCalls(4) // the recorded run re-plans for the next day
+        #expect(launcher.calls.count == 1)
+        let call = try #require(launcher.calls.first)
+        #expect(call.jobID == job.id)
+        #expect(call.trigger == .catchUp)
+        scheduler.stop()
+    }
+
+    @Test func timerWithinThresholdRunsAtOnce() async throws {
         let job = Self.job(lastRunStart: "2026-11-10T02:00:00-05:00")
         await setUp([job])
         scheduler.start()
@@ -276,13 +327,7 @@ final class BackupSchedulerTests {
         clock.advance(by: .seconds(60))
         await clock.waitForSleepCalls(2)
 
-        systemCenter.post(name: .NSSystemClockDidChange, object: nil)
-        await clock.waitForSleepCalls(3)
-        systemCenter.post(name: .NSSystemTimeZoneDidChange, object: nil)
-        await clock.waitForSleepCalls(4)
-        #expect(clock.pendingSleepers == 1)
-
-        advance(to: BackupJobTests.date("2026-11-11T02:00:00-05:00"))
+        advance(to: BackupJobTests.date("2026-11-11T02:04:00-05:00"))
         await launcher.waitForCalls(1)
         #expect(launcher.calls.first?.trigger == .scheduled)
         scheduler.stop()
