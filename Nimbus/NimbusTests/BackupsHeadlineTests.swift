@@ -45,4 +45,36 @@ struct BackupsHeadlineTests {
         #expect(h.sentence == nil)
         #expect(h.tone == .neutral)
     }
+
+    // MARK: Preview after the editor
+
+    private func job(_ name: String) -> BackupJob {
+        var job = BackupJob.new(source: .local(path: "/Users/j/\(name)"),
+                                destination: .cloud(remote: "b2", path: name),
+                                now: Date(timeIntervalSince1970: 1_794_085_200))
+        job.name = name
+        return job
+    }
+
+    @Test func previewAfterEditorHandsOverTheSavedJobOnce() {
+        var handoff = PreviewAfterEditor()
+        let docs = job("Docs")
+        handoff.editorSaved(docs, needsPreview: true)
+        #expect(handoff.take()?.id == docs.id)
+        #expect(handoff.take() == nil)
+    }
+
+    /// Found live on 2026-11-10: a job left behind by one save was previewed
+    /// after the next, so the sheet described a different backup.
+    @Test func aLaterSaveNeverPreviewsAnEarlierJob() {
+        var handoff = PreviewAfterEditor()
+        let first = job("First"), second = job("Second")
+        handoff.editorSaved(first, needsPreview: true)   // its editor closed without taking it
+        handoff.editorSaved(second, needsPreview: true)
+        #expect(handoff.take()?.id == second.id)
+
+        handoff.editorSaved(first, needsPreview: true)
+        handoff.editorSaved(second, needsPreview: false)
+        #expect(handoff.take() == nil)
+    }
 }

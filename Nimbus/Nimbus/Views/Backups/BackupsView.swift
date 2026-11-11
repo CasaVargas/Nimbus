@@ -30,7 +30,9 @@ struct BackupsView: View {
     @State private var previewing: BackupJob?
     @State private var deleting: BackupJob?
     /// Sheet hand-offs wait for the current sheet to finish dismissing.
-    @State private var previewAfterEditor: BackupJob?
+    @State private var previewAfterEditor = PreviewAfterEditor()
+    /// The save started by the editor; a preview's approval waits for it.
+    @State private var saving: Task<Void, Never>?
     @State private var editAfterPreview: BackupJob?
     @State private var engineAlert = false
     @State private var scrollTarget: UUID?
@@ -69,8 +71,7 @@ struct BackupsView: View {
             editing = EditorRequest(original: nil, draft: draft)
         }
         .sheet(item: $editing, onDismiss: {
-            if let job = previewAfterEditor {
-                previewAfterEditor = nil
+            if let job = previewAfterEditor.take() {
                 previewing = job
             }
         }) { request in
@@ -80,10 +81,11 @@ struct BackupsView: View {
                 remoteNames: monitor.remotes.map(\.name),
                 client: daemon.client
             ) { job, needsPreview in
-                Task {
-                    await store.upsert(job)
-                    if needsPreview { previewAfterEditor = store.job(id: job.id) }
-                }
+                // Decided now, not after the save: the editor closes before
+                // an asynchronous write returns, and a job handed over late
+                // was shown after the *next* save instead.
+                previewAfterEditor.editorSaved(job, needsPreview: needsPreview)
+                saving = Task { await store.upsert(job) }
             }
         }
         .sheet(item: $previewing, onDismiss: {
@@ -97,11 +99,12 @@ struct BackupsView: View {
                 client: daemon.client,
                 onApprove: { preview, runNow in
                     Task {
+                        await saving?.value
                         await store.approve(id: job.id, fingerprint: preview.fingerprint)
                         if runNow { await backUpNow(job.id) }
                     }
                 },
-                onEdit: { editAfterPreview = store.job(id: job.id) }
+                onEdit: { editAfterPreview = store.job(id: job.id) ?? job }
             )
         }
         .confirmationDialog(
@@ -226,5 +229,21 @@ struct BackupsView: View {
         copy.removalLimit = job.removalLimit
         copy.schedule = job.schedule
         return copy
+    }
+}
+
+/// The job to preview once the editor sheet has closed. Each save replaces
+/// whatever an earlier save left, so a preview never shows another backup.
+struct PreviewAfterEditor {
+    private(set) var job: BackupJob?
+
+    mutating func editorSaved(_ job: BackupJob, needsPreview: Bool) {
+        self.job = needsPreview ? job : nil
+    }
+
+    /// The job to preview, once.
+    mutating func take() -> BackupJob? {
+        defer { job = nil }
+        return job
     }
 }

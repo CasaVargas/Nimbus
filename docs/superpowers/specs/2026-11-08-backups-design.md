@@ -771,14 +771,17 @@ Problems found, most serious first:
    destination. The catch-up run copied everything else, then rclone failed moving that leftover
    into versions (`rename … .partial …: no such file or directory`). Home showed "Backup … failed",
    but the row stayed on "Backing up… 0%" with rclone idle, Stop did nothing, and no `lastRun` was
-   saved. Only quitting and reopening cleared it; the next catch-up then completed. Not yet
-   diagnosed. Two separate questions: why the runner never leaves the running state, and whether a
-   mirror should try to version rclone's own `.partial` leftovers at all.
-2. **"Save and Preview…" can show the wrong preview.** Saving a second job opened a preview that
-   said "Everything is already backed up" for an empty destination; rclone's dry run for the same
-   request lists four files, and opening Preview… again showed them. The first save of the session
-   opened no preview at all. Approving from that sheet would approve changes the user never saw.
-   Not yet diagnosed; a stale previewer state shown for the new job is the likely cause.
+   saved. Only quitting and reopening cleared it; the next catch-up then completed. **The stuck
+   part is fixed (#52):** finishing a transfer waited on the notification, and with permission
+   undecided that waits on a prompt nobody answered. Still open: whether a mirror should try to
+   version rclone's own `.partial` leftovers at all.
+2. **"Save and Preview…" showed another backup's preview.** Saving a second job opened a preview
+   that said "Everything is already backed up" for an empty destination, and the first save of the
+   session opened no preview at all. **Fixed.** The editor handed the job to the preview only
+   after an asynchronous save. When the editor closed first, no preview opened and the job was
+   left behind, then shown after the *next* save: the second job's sheet was the first job's
+   preview, which really was up to date. The job is now handed over as the editor closes
+   (`PreviewAfterEditor`), and approval waits for the save.
 3. **A manual run cut off by quit leaves no trace.** For a job with a schedule the alert promises
    it "runs again the next time Nimbus opens", but a manual run whose slot was already met is not
    due, so nothing reruns, the row still says "Backed up … ago" and the header says up to date,
