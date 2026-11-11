@@ -19,6 +19,8 @@ struct Sidebar: View {
                     .tag(SidebarSelection.backups)
                 SidebarToolLabel(title: "Copy Between Clouds", systemImage: "arrow.left.arrow.right", color: Colors.copy)
                     .tag(SidebarSelection.copySync)
+                SidebarToolLabel(title: "Compare Folders", systemImage: "rectangle.on.rectangle", color: Colors.compare)
+                    .tag(SidebarSelection.compare)
             } header: {
                 Text("Tools")
             }
