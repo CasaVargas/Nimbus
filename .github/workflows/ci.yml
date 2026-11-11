@@ -67,6 +67,20 @@ jobs:
             build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
+      # Release drops #if DEBUG code; a preview that still uses it compiled in
+      # Debug and crashed the Release compiler (CompareView, before 1.0).
+      - name: Build (Release, unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Nimbus/Nimbus.xcodeproj \
+            -scheme Nimbus \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath DerivedData-Release \
+            build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
       # The skip below is a known, pre-existing failure that does not
       # indicate a regression:
       #   - RcloneConfigMachineTests: pins the question order of an older
