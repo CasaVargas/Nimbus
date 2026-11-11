@@ -134,6 +134,7 @@
 		7C36E9378E37CE1AE196A408 /* ConfigFieldLabelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2C314376120423C1E134660 /* ConfigFieldLabelTests.swift */; };
 		7C6112672A6ECFC54F034C87 /* StratosphereBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0169429ED778FD2DFDFD3536 /* StratosphereBackdrop.swift */; };
 		7C86495D48BA9F1E898F7FCE /* ProviderIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0E08F04AB87582552B4653 /* ProviderIcon.swift */; };
+		7DAA6CE04C46DDBD00C3E739 /* TransferVerificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94F44A6F7708A8A306ABDA7E /* TransferVerificationTests.swift */; };
 		7E1811F8DF1E49EE390EB846 /* AddRemoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4BBDEBA281F41466C04A187 /* AddRemoteSheet.swift */; };
 		7E7BCF9E06A5751660037DAF /* BackupRcloneClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55A205DF8C867C4D59917A09 /* BackupRcloneClient.swift */; };
 		7F25EC30B3DC5FE06BA4F88B /* StratosphereButtonStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 207D3ACD889B6EB6A2123FC0 /* StratosphereButtonStyles.swift */; };
@@ -234,6 +235,7 @@
 		CBD2B9227A110F1D7B87B29E /* HomeHeadlineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4CA258F3F5FB0396025ADF /* HomeHeadlineTests.swift */; };
 		CDFF0243B6962840E984F1EC /* FileTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABB5DAED70D29021C9AF7060 /* FileTableView.swift */; };
 		CE1D3A4DB69F4561B0FF16CE /* SidebarRemoteRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CFC0CEBAED68EF1E4D1672F /* SidebarRemoteRowTests.swift */; };
+		CE5116AE83345587BF008037 /* TransferVerification.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4E4B22CDC2DFC712DA2ADC6 /* TransferVerification.swift */; };
 		CE70B7EFF43AE0653AB9E141 /* GlassSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88348B880E07B5FC72549637 /* GlassSurface.swift */; };
 		CF0293E3434494D751AD80F2 /* AdvancedSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 867FAB6A3A547529FA41D631 /* AdvancedSettingsView.swift */; };
 		D3D13861BD413F1A3928E805 /* TransferNotificationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56966682DCD80E13741AEA06 /* TransferNotificationServiceTests.swift */; };
@@ -489,6 +491,7 @@
 		935AFEF6AB23E3B484903E25 /* ReconnectFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReconnectFlow.swift; sourceTree = "<group>"; };
 		941B52BF2A1E8F0D27C9A987 /* MountRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountRow.swift; sourceTree = "<group>"; };
 		947DFA6CFCD3941E73EC2740 /* RemoteChangeDiffTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteChangeDiffTests.swift; sourceTree = "<group>"; };
+		94F44A6F7708A8A306ABDA7E /* TransferVerificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferVerificationTests.swift; sourceTree = "<group>"; };
 		9500A98F5338D92B273CB2A3 /* FileGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGrid.swift; sourceTree = "<group>"; };
 		959A0BCB7F3CFE049627A976 /* BackupJobTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupJobTests.swift; sourceTree = "<group>"; };
 		959DAE54C1BE1841389ECEE2 /* ProviderPickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderPickerTests.swift; sourceTree = "<group>"; };
@@ -584,6 +587,7 @@
 		F32C605A79BB39D3677407F6 /* ShimmerModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShimmerModifier.swift; sourceTree = "<group>"; };
 		F438CCC00F6D976833917133 /* BackupStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupStatus.swift; sourceTree = "<group>"; };
 		F49337EE8003B1CBE6A0A96C /* RemoteSetupFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSetupFlowTests.swift; sourceTree = "<group>"; };
+		F4E4B22CDC2DFC712DA2ADC6 /* TransferVerification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferVerification.swift; sourceTree = "<group>"; };
 		F64769A3CF8D71A9EEB4D801 /* TransferStoreBackupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferStoreBackupTests.swift; sourceTree = "<group>"; };
 		F79B11737630756DEDF2D35E /* DiagnosticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsService.swift; sourceTree = "<group>"; };
 		F7E4E12153E5352F56AF3756 /* RcloneKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RcloneKit; path = ../RcloneKit; sourceTree = SOURCE_ROOT; };
@@ -970,6 +974,7 @@
 				4A7C4535C61037DF771545DD /* TransferEndpoint.swift */,
 				05A4748DA3D9244673B9D1FE /* TransferHistoryFile.swift */,
 				0DD44EF54342043F83BC0D1B /* TransferStore.swift */,
+				F4E4B22CDC2DFC712DA2ADC6 /* TransferVerification.swift */,
 			);
 			path = State;
 			sourceTree = "<group>";
@@ -1155,6 +1160,7 @@
 				0583AC13082683C90F767904 /* TransferSettingsViewTests.swift */,
 				F64769A3CF8D71A9EEB4D801 /* TransferStoreBackupTests.swift */,
 				DBCD67F8F5D2E0A876CC4C72 /* TransferStorePersistenceTests.swift */,
+				94F44A6F7708A8A306ABDA7E /* TransferVerificationTests.swift */,
 				C22B03B9E3CC9B0306F8411C /* VersionsPrunerTests.swift */,
 				17C527F7D5BE6B44A85632C9 /* Mocks */,
 				53F12DC845AFAB4BB5EC5321 /* Support */,
@@ -1522,6 +1528,7 @@
 				2ED849493F32B6988F73CA7C /* TransferRow.swift in Sources */,
 				F4C82D3C3FAEB1FAEB1AFCD7 /* TransferSettingsView.swift in Sources */,
 				13847A4076B6665A7D7772B5 /* TransferStore.swift in Sources */,
+				CE5116AE83345587BF008037 /* TransferVerification.swift in Sources */,
 				A0711627A70DE50CB302CBA1 /* TransfersView.swift in Sources */,
 				E3AB99E3E6035A1D4D8EAC43 /* Typography.swift in Sources */,
 				106C3873960E16E52127B714 /* VersionsPruner.swift in Sources */,
@@ -1645,6 +1652,7 @@
 				8B58EFFCFEA9B6998B0E6CD4 /* TransferSettingsViewTests.swift in Sources */,
 				B44729F733EDD82BC89F4420 /* TransferStoreBackupTests.swift in Sources */,
 				F00D57B1B55149EF5149A025 /* TransferStorePersistenceTests.swift in Sources */,
+				7DAA6CE04C46DDBD00C3E739 /* TransferVerificationTests.swift in Sources */,
 				312DB9EE6C2A9D41F2813EBF /* VersionsPrunerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

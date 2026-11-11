@@ -22,6 +22,9 @@ struct TransferRecord: Codable, Identifiable, Equatable, Sendable {
     var backupID: UUID? = nil
     var title: String? = nil
     var summary: BackupRunSummary? = nil
+    /// Which check rclone ran (#75). Optional and additive, so it needs no
+    /// version bump: older builds ignore the key.
+    var verification: TransferVerification? = nil
 }
 
 protocol TransferHistoryPersisting: Sendable {

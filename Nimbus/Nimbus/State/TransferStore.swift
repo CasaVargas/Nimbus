@@ -76,6 +76,8 @@ struct Transfer: Identifiable {
     var backup: BackupContext?
     /// Set when a backup run finishes.
     var summary: BackupRunSummary?
+    /// Which check rclone ran on the finished transfer; nil when unknown.
+    var verification: TransferVerification?
 
     init(
         jobID: Int?,
@@ -91,7 +93,8 @@ struct Transfer: Identifiable {
         speed: Int64? = nil,
         eta: TimeInterval? = nil,
         backup: BackupContext? = nil,
-        summary: BackupRunSummary? = nil
+        summary: BackupRunSummary? = nil,
+        verification: TransferVerification? = nil
     ) {
         self.jobID = jobID
         self.operation = operation
@@ -107,6 +110,7 @@ struct Transfer: Identifiable {
         self.eta = eta
         self.backup = backup
         self.summary = summary
+        self.verification = verification
     }
 
     init(record: TransferRecord) {
@@ -130,7 +134,8 @@ struct Transfer: Identifiable {
                     hadRemovalLimit: false
                 )
             },
-            summary: record.summary
+            summary: record.summary,
+            verification: record.verification
         )
     }
 
@@ -159,7 +164,8 @@ struct Transfer: Identifiable {
             origin: origin,
             backupID: backup?.backupID,
             title: backup?.title,
-            summary: summary
+            summary: summary,
+            verification: verification
         )
     }
 }
@@ -184,6 +190,9 @@ final class TransferStore {
     private var retention: TransferHistoryRetention
     private let notifications: any TransferNotifying
     private var notificationMode: TransferNotificationMode
+    /// Hash types per remote root (`TransferVerification.remoteRoot`), read
+    /// once per session from `operations/fsinfo`.
+    @ObservationIgnored private var hashTypesByRoot: [String: [String]] = [:]
     /// Notification deliveries in flight.
     @ObservationIgnored private var deliveries: [UUID: Task<Void, Never>] = [:]
     private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "transfer-store")
@@ -302,9 +311,23 @@ final class TransferStore {
 
     /// Applies a finished rclone job to its transfer. For a backup run it
     /// also builds the run summary from `stats` and calls `onBackupFinished`.
-    func handleFinished(jobID: Int, job: Job, stats: StatsResponse?, now: Date = Date()) async {
+    /// `verification` is what the src/dst hash types allowed (successful
+    /// jobs only); a failure is checked for rclone's hash-mismatch error.
+    func handleFinished(
+        jobID: Int,
+        job: Job,
+        stats: StatsResponse?,
+        verification: TransferVerification? = nil,
+        now: Date = Date()
+    ) async {
         guard let index = transfers.firstIndex(where: { $0.status.isActive && $0.jobID == jobID }) else { return }
-        if job.success { transfers[index].progress = 1.0 }
+        if job.success {
+            transfers[index].progress = 1.0
+            // Only success may carry a positive state.
+            transfers[index].verification = verification == .mismatch ? nil : verification
+        } else if TransferVerification.isMismatch(job.error) || TransferVerification.isMismatch(stats?.lastError) {
+            transfers[index].verification = .mismatch
+        }
         let outcome: BackupRunSummary.Outcome = job.success
             ? .completed
             : Self.backupOutcome(jobError: job.error,
@@ -527,7 +550,10 @@ final class TransferStore {
                     // A backup's summary needs the job's final counts; read
                     // them once before rclone expires the stats group.
                     let stats = transfer.backup == nil ? nil : try? await client.getStats(group: job.group)
-                    await handleFinished(jobID: jobID, job: job, stats: stats)
+                    let verification = job.success
+                        ? await verification(srcFs: transfer.srcFs, dstFs: transfer.dstFs, client: client)
+                        : nil
+                    await handleFinished(jobID: jobID, job: job, stats: stats, verification: verification)
                 }
             } catch {
                 // "job not found" means rclone forgot the job (expired, or a
@@ -535,6 +561,27 @@ final class TransferStore {
                 logger.debug("Job \(jobID) status poll failed: \(error)")
                 await handlePollFailure(jobID: jobID, error: error)
             }
+        }
+    }
+
+    /// The check a successful job got, from both sides' hash types. nil when
+    /// either lookup fails: the row then shows plain "Done".
+    private func verification(srcFs: String, dstFs: String, client: RcloneClient) async -> TransferVerification? {
+        guard let source = await hashTypes(for: srcFs, client: client),
+              let destination = await hashTypes(for: dstFs, client: client) else { return nil }
+        return TransferVerification.infer(sourceHashes: source, destinationHashes: destination)
+    }
+
+    private func hashTypes(for fs: String, client: RcloneClient) async -> [String]? {
+        let root = TransferVerification.remoteRoot(of: fs)
+        if let cached = hashTypesByRoot[root] { return cached }
+        do {
+            let hashes = try await client.hashTypes(fs: root)
+            hashTypesByRoot[root] = hashes
+            return hashes
+        } catch {
+            logger.debug("fsinfo for \(root, privacy: .private) failed: \(error)")
+            return nil
         }
     }
 
