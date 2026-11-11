@@ -108,15 +108,12 @@ final class RcloneDaemon {
         port = availablePort
         client.updatePort(availablePort)
 
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: binaryPath)
-        proc.arguments = Self.launchArguments(
+        let proc = Self.makeProcess(
+            binaryPath: binaryPath,
             port: availablePort,
             bandwidthLimit: bandwidthLimit,
             concurrentTransfers: concurrentTransfers
         )
-        proc.standardOutput = FileHandle.nullDevice
-        proc.standardError = FileHandle.nullDevice
 
         do {
             try proc.run()
@@ -147,7 +144,10 @@ final class RcloneDaemon {
             }
             guard isCurrent(lifecycleID) else { return }
             if !proc.isRunning {
-                status = .error("Rclone process exited unexpectedly")
+                let locked = await Self.configLockedWithoutKey(binaryPath: binaryPath)
+                guard isCurrent(lifecycleID) else { return }
+                status = .error(locked ? ConfigEncryptionState.lockedWithoutKeyMessage
+                                       : "Rclone process exited unexpectedly")
                 return
             }
             await waitForHealthRetry()
@@ -201,6 +201,39 @@ final class RcloneDaemon {
             bandwidthLimit: bandwidthLimit,
             concurrentTransfers: concurrentTransfers
         )
+    }
+
+    /// The configured `rclone rcd` child. Its environment carries the
+    /// Keychain password command (never the password), and stdin is
+    /// /dev/null so a locked config fails fast instead of waiting for a typed
+    /// password.
+    static func makeProcess(
+        binaryPath: String,
+        port: Int,
+        bandwidthLimit: String,
+        concurrentTransfers: Int,
+        baseEnvironment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Process {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: binaryPath)
+        proc.arguments = launchArguments(
+            port: port,
+            bandwidthLimit: bandwidthLimit,
+            concurrentTransfers: concurrentTransfers
+        )
+        proc.environment = RcloneEnvironment.childEnvironment(base: baseEnvironment)
+        proc.standardInput = FileHandle.nullDevice
+        proc.standardOutput = FileHandle.nullDevice
+        proc.standardError = FileHandle.nullDevice
+        return proc
+    }
+
+    /// Explains an early rcd exit when the cause is a config Nimbus can't
+    /// unlock. Runs off the main actor: it shells out to rclone and security.
+    nonisolated private static func configLockedWithoutKey(binaryPath: String) async -> Bool {
+        await Task.detached(priority: .utility) {
+            ConfigEncryptionState.read(binaryPath: binaryPath) == .lockedWithoutKey
+        }.value
     }
 
     /// Builds the rclone command line used for every daemon launch. The empty
