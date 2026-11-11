@@ -228,4 +228,104 @@ private enum SiteData {
     }
     .preferredColorScheme(.dark)
 }
+
+// MARK: - 1.0 features
+
+private enum SiteFiles {
+    static func file(_ remote: String, _ path: String, size: Int64 = 1_400_000, daysAgo: Double = 12) -> FileItem {
+        FileItem(path: path, name: (path as NSString).lastPathComponent, size: size, mimeType: "application/pdf",
+                 modTime: Date().addingTimeInterval(-daysAgo * 86_400), isDir: false, fileID: nil,
+                 qualifiedRemotePath: "\(remote):\(path)")
+    }
+}
+
+#Preview("search", traits: .fixedLayout(width: 1640, height: 1000)) {
+    let clouds = [
+        CloudSearchResult(remote: "Personal", providerType: "drive", phase: .done,
+                          items: [SiteFiles.file("Personal", "Documents/Home/Lease.pdf"),
+                                  SiteFiles.file("Personal", "Documents/Home/Lease renewal 2026.pdf", size: 620_000, daysAgo: 3)],
+                          total: 2),
+        CloudSearchResult(remote: "Dropbox", providerType: "dropbox", phase: .done,
+                          items: [SiteFiles.file("Dropbox", "Scans/Lease, signed.pdf", size: 2_900_000, daysAgo: 40)], total: 1),
+        CloudSearchResult(remote: "Photo Archive", providerType: "b2", phase: .searching),
+        CloudSearchResult(remote: "Work", providerType: "onedrive", phase: .failed("Sign in again to search this cloud.")),
+    ]
+    SiteShot(width: 820, height: 500) {
+        List {
+            ForEach(clouds) { cloud in
+                Section {
+                    ForEach(cloud.items, id: \.qualifiedRemotePath) { SearchResultRow(file: $0) }
+                } header: {
+                    SearchSectionHeader(cloud: cloud)
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background { StratosphereBackdrop() }
+    }
+    .preferredColorScheme(.dark)
+}
+
+#Preview("compare", traits: .fixedLayout(width: 1720, height: 1120)) {
+    SiteShot(width: 860, height: 560) {
+        CompareResultsView(
+            result: CompareResult(combined: [
+                "= Photos/2024/beach.jpg", "= Photos/2024/hike.jpg", "= Notes.md", "= Recipes.pdf",
+                "* Taxes/2025 return.pdf", "* Budget 2026.xlsx",
+                "+ Projects/Kitchen/plan.pdf", "+ Projects/Kitchen/quote.pdf", "+ Inbox/receipt.png",
+                "- Old/archive.zip",
+            ]),
+            nameA: "Documents", nameB: "Personal: Backup/Documents"
+        )
+        .padding(DesignSystem.Spacing.xl)
+        .background { StratosphereBackdrop() }
+    }
+    .preferredColorScheme(.dark)
+}
+
+#Preview("versions", traits: .fixedLayout(width: 1120, height: 900)) {
+    let now = Date()
+    SiteShot(width: 560, height: 450) {
+        FileVersionsSheet(remote: "Photo Archive",
+                          file: SiteFiles.file("Photo Archive", "projects/Deck.key", size: 48_000_000, daysAgo: 0),
+                          versionsOverride: [
+            FileVersion(path: "a", name: "a", savedAt: now.addingTimeInterval(-3_600), size: 47_600_000),
+            FileVersion(path: "b", name: "b", savedAt: now.addingTimeInterval(-86_400 * 2), size: 44_100_000),
+            FileVersion(path: "c", name: "c", savedAt: now.addingTimeInterval(-86_400 * 30), size: 12_800_000),
+        ])
+        .environment(RcloneDaemon())
+        .environment(TransferStore())
+    }
+    .preferredColorScheme(.dark)
+}
+
+#Preview("backup-editor", traits: .fixedLayout(width: 1200, height: 1280)) {
+    SiteShot(width: 600, height: 640) {
+        BackupEditorSheet(
+            original: BackupsFixtures.job("Documents to Photo Archive", source: .local(path: "/Users/you/Documents"),
+                                          destination: .cloud(remote: "Photo Archive", path: "mac/Documents")) {
+                $0.schedule = .weekly(weekday: 6, hour: 21, minute: 30)
+            },
+            remoteNames: ["Photo Archive", "Personal"], client: RcloneClient(), onSave: { _, _ in })
+            .environment(LaunchAtLoginService(refreshOnInit: false))
+            .environment(BackgroundBackupsService(refreshOnInit: false))
+    }
+    .preferredColorScheme(.dark)
+}
+
+#Preview("backup-preview", traits: .fixedLayout(width: 1360, height: 1160)) {
+    SiteShot(width: 680, height: 580) {
+        BackupPreviewContent(
+            state: .finished(BackupPreview(
+                willCopy: (1...12).map { "Taxes/2026/receipt-\($0).pdf" },
+                willReplace: ["Notes/Kitchen.md", "Budget 2026.xlsx"], willRemove: ["Old/draft.txt"],
+                errors: [], approxBytes: 48_213_004, limitHit: false, removalLimit: 100,
+                fingerprint: "f", finishedAt: .now)),
+            context: .init(isBackup: true, isMirror: true, versionsDescription: ".nimbus-versions",
+                           destinationDescription: "Photo Archive › mac/Documents", destinationIsLocal: false,
+                           removalLimit: 100, startLabel: nil),
+            actions: .init())
+    }
+    .preferredColorScheme(.dark)
+}
 #endif

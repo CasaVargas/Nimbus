@@ -100,7 +100,7 @@ struct SearchResultsView: View {
     }
 }
 
-private struct SearchSectionHeader: View {
+struct SearchSectionHeader: View {
     let cloud: CloudSearchResult
 
     var body: some View {
