@@ -51,7 +51,7 @@ private final class MockCompareClient: CompareRcloneClient, @unchecked Sendable 
     func stopJob(id: Int) async throws { lock.withLock { _stopped.append(id) } }
 }
 
-private actor StateLog {
+private actor CompareStateLog {
     var states: [CompareViewModel.State] = []
     func append(_ state: CompareViewModel.State) { states.append(state) }
 }
@@ -110,7 +110,7 @@ struct CompareViewModelTests {
                            output: report(["= same.txt", "* diff.txt", "+ a.txt", "- b.txt"])),
         ])
         let model = CompareViewModel(client: client, pollInterval: .zero)
-        let log = StateLog()
+        let log = CompareStateLog()
         client.onStatus = { await log.append(await model.state) }
 
         await model.compare(a, b, method: .checksum)
