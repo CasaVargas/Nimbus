@@ -42,16 +42,51 @@ struct TransferRow: View {
                 eta: transfer.eta
             )
         case .completed:
-            statusPill(text: "Done", systemImage: "checkmark.circle.fill",
-                       tint: DesignSystem.Color.semantic.statusOK)
+            completedPill
         case .failed(let message):
-            statusPill(text: "Error", systemImage: "exclamationmark.triangle.fill",
-                       tint: DesignSystem.Color.semantic.statusError)
-                .help(message)
+            if transfer.verification == .mismatch {
+                statusPill(text: "Checksum mismatch", systemImage: "exclamationmark.triangle.fill",
+                           tint: DesignSystem.Color.semantic.statusError)
+                    .help(Self.mismatchHelp(message))
+            } else {
+                statusPill(text: "Error", systemImage: "exclamationmark.triangle.fill",
+                           tint: DesignSystem.Color.semantic.statusError)
+                    .help(message)
+            }
         case .cancelled:
             statusPill(text: "Cancelled", systemImage: "slash.circle",
                        tint: DesignSystem.Color.semantic.textTertiary)
         }
+    }
+
+    /// #75: the pill says which check rclone ran. Positive states appear
+    /// only on success, and an unknown check keeps plain "Done".
+    @ViewBuilder
+    private var completedPill: some View {
+        switch transfer.verification {
+        case .verified(let hash):
+            statusPill(text: "Verified", systemImage: "checkmark.seal.fill",
+                       tint: DesignSystem.Color.semantic.statusOK)
+                .help(Self.verifiedHelp(hash: hash))
+        case .sizeOnly:
+            statusPill(text: "Size checked", systemImage: "checkmark.circle",
+                       tint: DesignSystem.Color.semantic.textSecondary)
+                .help(Self.sizeOnlyHelp)
+        case .mismatch, nil:
+            statusPill(text: "Done", systemImage: "checkmark.circle.fill",
+                       tint: DesignSystem.Color.semantic.statusOK)
+        }
+    }
+
+    static func verifiedHelp(hash: String) -> String {
+        let name = TransferVerification.displayName(ofHash: hash)
+        return String(localized: "rclone compared \(name) checksums on both sides. A file the service stores without a checksum is checked by size only.")
+    }
+
+    static let sizeOnlyHelp = String(localized: "These two locations have no checksum type in common, so rclone confirmed file sizes only.")
+
+    static func mismatchHelp(_ message: String) -> String {
+        String(localized: "A copied file didn't match the original's checksum, so rclone removed the bad copy. Try the transfer again.") + "\n\n" + message
     }
 
     private func statusPill(text: String, systemImage: String, tint: Color) -> some View {
