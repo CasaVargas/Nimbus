@@ -130,17 +130,12 @@ final class MountManager {
             withIntermediateDirectories: true
         )
 
-        let nfsProcess = Process()
-        nfsProcess.executableURL = URL(fileURLWithPath: rcloneBinaryPath)
-        var args = ["serve", "nfs", remote, "--addr", "\(Self.nfsHost):\(nfsPort)"]
-        if readOnly {
-            args.append("--read-only")
-        } else {
-            args.append(contentsOf: ["--vfs-cache-mode", "writes"])
-        }
-        nfsProcess.arguments = args
-        nfsProcess.standardOutput = FileHandle.nullDevice
-        nfsProcess.standardError = FileHandle.nullDevice
+        let nfsProcess = Self.makeNFSProcess(
+            binaryPath: rcloneBinaryPath,
+            remote: remote,
+            port: nfsPort,
+            readOnly: readOnly
+        )
 
         try nfsProcess.run()
         logger.info("Spawned NFS server for \(remote) on port \(nfsPort)")
@@ -182,6 +177,31 @@ final class MountManager {
         activeMounts.append(mount)
         nfsProcesses[mountPoint] = nfsProcess
         logger.info("Mounted \(remote) at \(mountPoint)")
+    }
+
+    /// The `rclone serve nfs` child for one mount. Like the daemon, it gets
+    /// the Keychain password command in its environment and /dev/null stdin.
+    static func makeNFSProcess(
+        binaryPath: String,
+        remote: String,
+        port: Int,
+        readOnly: Bool,
+        baseEnvironment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Process {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: binaryPath)
+        var args = ["serve", "nfs", remote, "--addr", "\(nfsHost):\(port)"]
+        if readOnly {
+            args.append("--read-only")
+        } else {
+            args.append(contentsOf: ["--vfs-cache-mode", "writes"])
+        }
+        process.arguments = args
+        process.environment = RcloneEnvironment.childEnvironment(base: baseEnvironment)
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        return process
     }
 
     func unmount(mountPoint: String) async throws {

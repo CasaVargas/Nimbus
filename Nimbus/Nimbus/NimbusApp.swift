@@ -159,6 +159,9 @@ struct NimbusApp: App {
             SceneAppearanceRoot(settings: settings) {
                 SettingsView(generalModel: generalSettingsModel)
                     .environment(daemon)
+                    .environment(mountManager)
+                    .environment(transferStore)
+                    .environment(backupRunner)
                     .environment(launchAtLogin)
                     .environment(\.diagnosticsService, diagnosticsService)
                     .environment(\.transferNotifier, transferNotifier)
