@@ -26,7 +26,7 @@
 
 **It is a real Mac app.** Nimbus is SwiftUI and AppKit, Swift 6, macOS 15 and up. There is no Electron, no web view, no cross-platform toolkit. Selection, drag and drop, Quick Look, keyboard shortcuts and column sorting behave the way they do in Finder, because the design target is "indistinguishable from Finder at a glance".
 
-**It does not reimplement cloud providers.** Nimbus spawns [rclone](https://rclone.org) as a local daemon and talks to its RC API over loopback. Every backend rclone supports (S3 and compatibles, Google Drive, OneDrive, Dropbox, Backblaze B2, SFTP, WebDAV, crypt, and dozens more) works in Nimbus, with rclone's own config format, so you can keep using the `rclone` command line alongside the app.
+**It does not reimplement cloud providers.** Nimbus spawns [rclone](https://rclone.org) as a local daemon and talks to its RC API over loopback. Every backend rclone supports (S3 and compatibles, Google Drive, OneDrive, Dropbox, Backblaze B2, SFTP, WebDAV, crypt, and dozens more) works in Nimbus, with rclone's own config format, so you can keep using the `rclone` command line alongside the app. If you lock your sign-ins with the Keychain, the command line needs one environment variable ([see below](#sign-ins-and-the-keychain)).
 
 **It integrates with the system instead of replacing it.** Remotes show up in Finder's sidebar through a File Provider extension, or as NFS volumes if you prefer a classic mount. There is no account, no sign-in, no telemetry and no update pinging; the only process that touches the network is rclone.
 
@@ -38,6 +38,18 @@ Download the latest signed and notarized DMG from the [Releases](https://github.
 
 - macOS 15 (Sequoia) or later, Apple Silicon or Intel
 - rclone on your `PATH`: `brew install rclone` (the path is configurable in Settings > Advanced)
+
+### Sign-ins and the Keychain
+
+rclone keeps sign-in tokens and access keys in `rclone.conf`, in plain text. Settings > Advanced > **Lock with Keychain** encrypts that file with rclone's own config encryption. The password is random, lives in your login Keychain (item `app.casavargas.nimbus`, account `rclone-config`) and is handed to rclone as a command, so it never appears on a command line or in an environment.
+
+It is off by default. Once it is on, the `rclone` command line needs this, for example in `~/.zshrc`:
+
+```sh
+export RCLONE_PASSWORD_COMMAND='/usr/bin/security find-generic-password -s app.casavargas.nimbus -a rclone-config -w'
+```
+
+Turning it off decrypts the file again. Keep the Keychain item while the file is locked: without it, the file can't be opened.
 
 ### Build from source
 
@@ -108,11 +120,12 @@ Works today:
 - Copy and sync between any two remotes or local folders, with a transfer queue, history, bandwidth limit and notifications
 - Menu bar panel, launch at login, Settings window modeled on System Settings
 - Diagnostics: copy a sanitized system report, open the app's logs in Console
+- Sign-ins locked with the Keychain (opt-in, Settings > Advanced)
 
 Not done yet (tracked in [issues](https://github.com/CasaVargas/Nimbus/issues); how Nimbus compares feature by feature is in the [parity report](docs/superpowers/reports/2026-11-11-feature-parity.md)):
 
 - Search, in the app and in Spotlight
-- An encrypted-folder setup flow, and sign-ins kept in the Keychain (today they are in `rclone.conf`, as rclone writes them)
+- An encrypted-folder setup flow
 - Shortcuts, Services menu, Share Sheet
 - Backups that run while Nimbus is closed
 - Media gallery and other advanced browser modes
