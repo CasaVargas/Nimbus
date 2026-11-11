@@ -6,7 +6,7 @@ struct NimbusApp: App {
     @State private var daemon: RcloneDaemon
     @State private var statusService: RemoteStatusService
     @State private var mountManager = MountManager()
-    @State private var fileProviderBridge = FileProviderBridge()
+    @State private var fileProviderBridge: FileProviderBridge
     @State private var settings: AppSettings
     @State private var mountConfigs = MountConfigStore()
     @State private var transferStore: TransferStore
@@ -35,7 +35,10 @@ struct NimbusApp: App {
         _daemon = State(initialValue: d)
         let status = RemoteStatusService(client: d.client)
         _statusService = State(initialValue: status)
-        _cloudMonitor = State(initialValue: CloudMonitor.live(client: d.client, status: status))
+        let monitor = CloudMonitor.live(client: d.client, status: status)
+        _cloudMonitor = State(initialValue: monitor)
+        let bridge = FileProviderBridge()
+        _fileProviderBridge = State(initialValue: bridge)
         _settings = State(initialValue: settings)
         _diagnosticsService = State(initialValue: DiagnosticsService())
         _transferNotifier = State(initialValue: transferNotifier)
@@ -68,6 +71,10 @@ struct NimbusApp: App {
             runner?.jobsDidChange()
             scheduler?.replan()
         }
+        // Shortcuts actions run in this process and use the same services.
+        IntentServices.current = IntentServices(
+            daemon: d, backupStore: backups, backupRunner: runner,
+            fileProviderBridge: bridge, cloudMonitor: monitor)
     }
 
     var body: some Scene {
