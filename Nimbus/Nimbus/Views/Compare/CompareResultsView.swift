@@ -155,7 +155,7 @@ struct CompareResultsView: View {
         switch group {
         case .differ:
             Style(title: "Different", detail: String(localized: "Changed on one side"),
-                  symbol: "not.equal", color: S.CloudColors.nearlyFull)
+                  symbol: "notequal", color: S.CloudColors.nearlyFull)
         case .onlyInA:
             Style(title: "Only in A", detail: nameA, symbol: "a.circle", color: S.CloudColors.home)
         case .onlyInB:
