@@ -32,7 +32,7 @@
 
 ## Install
 
-Download the latest signed and notarized DMG from the [Releases](https://github.com/CasaVargas/Nimbus/releases/latest) page (`Nimbus-<version>.dmg`, with a `.sha256` beside it), open it, and drag Nimbus to Applications. Nimbus is pre-1.0; expect rough edges. You can also build from source (below).
+Download the latest signed and notarized DMG from the [Releases](https://github.com/CasaVargas/Nimbus/releases/latest) page (`Nimbus-<version>.dmg`, with a `.sha256` beside it), open it, and drag Nimbus to Applications. You can also build from source (below).
 
 ### Requirements
 
