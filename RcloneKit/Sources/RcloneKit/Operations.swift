@@ -130,6 +130,14 @@ extension RcloneClient {
         let info: FsInfoResponse = try await call("operations/fsinfo", params: ["fs": fs])
         return RemoteFeatures(publicLink: info.features["PublicLink"] ?? false)
     }
+
+    /// Hash types this remote's backend supports (`Hashes` from
+    /// `operations/fsinfo`), in rclone's own order, e.g. `["md5", "sha1"]`.
+    /// rclone verifies a copy with the first type both sides share.
+    public func hashTypes(fs: String) async throws -> [String] {
+        let info: FsInfoResponse = try await call("operations/fsinfo", params: ["fs": fs])
+        return info.hashes
+    }
 }
 
 /// The subset of a backend's `Features` Nimbus acts on.
@@ -147,8 +155,12 @@ private struct PublicLinkResponse: Decodable, Sendable {
 
 private struct FsInfoResponse: Decodable, Sendable {
     let features: [String: Bool]
+    let hashes: [String]
 
-    enum CodingKeys: String, CodingKey { case features = "Features" }
+    enum CodingKeys: String, CodingKey {
+        case features = "Features"
+        case hashes = "Hashes"
+    }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -156,6 +168,8 @@ private struct FsInfoResponse: Decodable, Sendable {
         // some rclone versions; keep the booleans, ignore the rest.
         let raw = try c.decodeIfPresent([String: LenientBool].self, forKey: .features) ?? [:]
         features = raw.compactMapValues(\.value)
+        // `Hashes` is null for a backend with none (crypt reports `[]`).
+        hashes = (try? c.decodeIfPresent([String].self, forKey: .hashes)) ?? []
     }
 }
 
