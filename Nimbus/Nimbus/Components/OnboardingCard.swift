@@ -42,7 +42,7 @@ struct OnboardingCard: View {
                 Text(message)
                     .font(DesignSystem.Typography.body)
                     .foregroundStyle(palette.textSecondary.color)
-                if state == .complete, let secondaryAction {
+                if state == .complete || state == .actionRequired, let secondaryAction {
                     Button {
                         secondaryAction.perform()
                     } label: {
