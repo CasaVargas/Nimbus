@@ -59,7 +59,7 @@ struct AppCommands: Commands {
             Button("Copy Between Clouds") { sidebarSelection?.wrappedValue = .copySync }
                 .keyboardShortcut("4", modifiers: [.command, .shift])
             Button("Compare Folders") { sidebarSelection?.wrappedValue = .compare }
-                .keyboardShortcut("5", modifiers: [.command, .shift])
+                .keyboardShortcut("d", modifiers: [.command, .shift])
             Button("Backups") { sidebarSelection?.wrappedValue = .backups }
                 .keyboardShortcut("b", modifiers: [.command, .shift])
         }

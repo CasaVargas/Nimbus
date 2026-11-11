@@ -78,7 +78,7 @@ screen (the view's task is cancelled) stops the job too.
 | `CheckRequest`, `CheckReport`, `CheckJobStatus`, `RcloneClient.startCheck`, `checkStatus` | `RcloneKit/Sources/RcloneKit/Check.swift` |
 | `CompareResult` (groups parsed from `combined`), `CompareViewModel` (`idle → running → finished / failed`), `CompareRcloneClient` protocol | `Nimbus/Nimbus/ViewModels/CompareViewModel.swift` |
 | `CompareView`, `CompareResultsView`; `EndpointWell` + `WellConnector` extracted from Copy Between Clouds and shared | `Nimbus/Nimbus/Views/Compare/`, `Views/CopySync/EndpointWell.swift` |
-| `.compare` sidebar case, menu command (⇧⌘5), screen routing | `SidebarSelection.swift`, `Sidebar.swift`, `ContentView.swift`, `AppCommands.swift` |
+| `.compare` sidebar case, menu command (⇧⌘D; ⇧⌘5 is the system screenshot shortcut), screen routing | `SidebarSelection.swift`, `Sidebar.swift`, `ContentView.swift`, `AppCommands.swift` |
 
 `Job` keeps decoding `output` as a `SyncReport`; a check job is read through its own
 `CheckJobStatus` so the two shapes don't mix.
