@@ -22,13 +22,18 @@ extension RcloneClient {
     public func createRemote(
         name: String,
         type: String,
-        parameters: [String: String] = [:]
+        parameters: [String: String] = [:],
+        options: [String: Bool] = [:]
     ) async throws {
         var params: [String: any Sendable] = [
             "name": name,
             "type": type,
         ]
         params["parameters"] = parameters
+        // `opt` steers config/create: `obscure` says passwords are plain text
+        // for rclone to obscure (otherwise it guesses), `nonInteractive`
+        // fails instead of asking a question.
+        if !options.isEmpty { params["opt"] = options }
         try await call("config/create", params: params)
     }
 

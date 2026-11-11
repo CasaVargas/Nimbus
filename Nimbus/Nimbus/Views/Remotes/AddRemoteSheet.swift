@@ -42,6 +42,10 @@ struct AddRemoteSheet: View {
     @State private var finderFailures: [RemoteIntegrationFailure] = []
     @State private var integrationStarted = false
     @State private var showImport = false
+    @State private var showEncryptedFolder = false
+    /// Set when the nested encrypted-folder sheet created one; this sheet
+    /// then closes behind it.
+    @State private var createdEncryptedFolder = false
     @Environment(\.stratosphere) private var palette
 
     var body: some View {
@@ -60,6 +64,14 @@ struct AddRemoteSheet: View {
             // put: cancelling Import lands back on the picker, and a finished
             // import refreshes the cloud list behind it.
             ImportConfigSheet(onDismiss: onDismiss)
+        }
+        .sheet(isPresented: $showEncryptedFolder, onDismiss: {
+            if createdEncryptedFolder { dismiss() }
+        }) {
+            EncryptedFolderSheet(client: client, remoteNames: existingNames.sorted()) {
+                createdEncryptedFolder = true
+                onDismiss()
+            }
         }
         .alert(
             alert?.title ?? "Couldn't add cloud",
@@ -111,7 +123,7 @@ struct AddRemoteSheet: View {
                 finderFailures = []
                 integrationStarted = false
                 self.flow = RemoteSetupFlow(provider: provider, client: client)
-            }, onImport: { showImport = true })
+            }, onImport: { showImport = true }, onEncryptedFolder: { showEncryptedFolder = true })
         }
     }
 
