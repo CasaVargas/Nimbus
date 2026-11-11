@@ -213,7 +213,8 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 .tile--glass p { color: rgba(255,255,255,.86); }
 
 .tile .tile__figure { font-family: var(--display); font-weight: 700; font-size: 34px; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: auto; padding-bottom: 28px; color: var(--ink); }
-.tile .tile__figure span { color: #e8892b; }
+.tile .tile__figure span { color: #9fc0ff; }
+.bento--after { margin-top: 72px; }
 .tile .tile__figure--on-dark { color: #fff; font-size: clamp(34px, 4.6vw, 56px); line-height: 1.02; }
 .tile .tile__figure--on-dark span { color: #9fc0ff; }
 
