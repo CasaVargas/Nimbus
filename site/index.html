@@ -137,53 +137,39 @@
     </article>
 
     <h3 class="wall__title">And everywhere else macOS offers an app a place to live.</h3>
-    <div class="wall">
-      <article class="wall__tile">
-        <h3>Quick Look</h3>
-        <p>Select a file and press Space. The system’s own preview, for a file in any cloud.</p>
+
+    <div class="sys">
+      <article class="sys__tile sys__tile--menubar">
+        <div class="sys__copy">
+          <h3>Menu Bar</h3>
+          <p>One glyph that changes with what is happening, and a panel with every cloud a click away.</p>
+        </div>
+        <img src="assets/companion-busy.webp" width="680" height="1100" alt="The Nimbus menu bar panel while copying three items to Dropbox: a progress bar, five clouds with their usage, and recent activity. Demo data." loading="lazy">
       </article>
-      <article class="wall__tile wall__tile--span2">
-        <h3>Shortcuts</h3>
-        <ul class="chips"><li>Run Backup</li><li>Copy Share Link</li><li>Keep Downloaded</li></ul>
-        <p>Three actions for your own automations.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Menu Bar</h3>
-        <p>One glyph that changes with what is happening, and a panel with every cloud a click away.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Keychain</h3>
-        <p>Flip one switch and your sign‑ins are encrypted with a password that lives in your login Keychain.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Notifications</h3>
-        <p>A finished transfer, a failed one, a cloud that signed you out. Not a feed.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Login Items</h3>
-        <p>Open at login and Nimbus starts in the menu bar. Turn on background backups and they run on schedule with the app closed.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Network Volumes</h3>
-        <p>Prefer a classic mount? Any cloud can be a network volume, restored when Nimbus launches.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Liquid Glass</h3>
-        <p>The system’s own glass on macOS 26, drawn to match on macOS 15, solid with Reduce Transparency on.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Settings</h3>
-        <p>A Settings window modeled on System Settings, so you already know where things are.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Console</h3>
-        <p>When something goes wrong: the app’s logs open in Console, and a sanitized system report is one click to copy.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Gatekeeper</h3>
-        <p>Signed with a Developer ID certificate and notarized by Apple. It opens without a warning.</p>
+      <article class="sys__tile">
+        <div class="sys__copy">
+          <h3>Shortcuts</h3>
+          <p>Three actions for your own automations.</p>
+        </div>
+        <ul class="acts">
+          <li><i class="acts__glyph acts__glyph--a" aria-hidden="true"></i>Run Backup</li>
+          <li><i class="acts__glyph acts__glyph--b" aria-hidden="true"></i>Copy Share Link</li>
+          <li><i class="acts__glyph acts__glyph--c" aria-hidden="true"></i>Keep Downloaded</li>
+        </ul>
       </article>
     </div>
+
+    <dl class="sys-list">
+      <div><dt>Quick Look</dt><dd>Select a file and press Space. The system’s own preview, for a file in any cloud.</dd></div>
+      <div><dt>Keychain</dt><dd>Flip one switch and your sign‑ins are encrypted with a password that lives in your login Keychain.</dd></div>
+      <div><dt>Notifications</dt><dd>A finished transfer, a failed one, a cloud that signed you out. Not a feed.</dd></div>
+      <div><dt>Login Items</dt><dd>Open at login and Nimbus starts in the menu bar. Background backups run on schedule with the app closed.</dd></div>
+      <div><dt>Network Volumes</dt><dd>Prefer a classic mount? Any cloud can be a network volume, restored when Nimbus launches.</dd></div>
+      <div><dt>Liquid Glass</dt><dd>The system’s own glass on macOS 26, drawn to match on macOS 15, solid with Reduce Transparency on.</dd></div>
+      <div><dt>Settings</dt><dd>A Settings window modeled on System Settings, so you already know where things are.</dd></div>
+      <div><dt>Console</dt><dd>The app’s logs open in Console, and a sanitized system report is one click to copy.</dd></div>
+      <div><dt>Gatekeeper</dt><dd>Signed with a Developer ID certificate and notarized by Apple. It opens without a warning.</dd></div>
+    </dl>
   </div>
 </section>
 
