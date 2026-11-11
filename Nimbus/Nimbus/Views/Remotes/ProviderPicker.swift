@@ -11,6 +11,8 @@ struct ProviderPicker: View {
     let onPick: (Provider) -> Void
     /// Shown as the last "storage you run or rent" chip when set.
     var onImport: (() -> Void)? = nil
+    /// "New Encrypted Folder…" chip in the same row, when set (#68).
+    var onEncryptedFolder: (() -> Void)? = nil
     @State private var search = ""
     @Environment(\.stratosphere) private var palette
 
@@ -39,7 +41,7 @@ struct ProviderPicker: View {
                         }
                     }
                 }
-                if !servers.isEmpty || onImport != nil {
+                if !servers.isEmpty || onImport != nil || onEncryptedFolder != nil {
                     sectionTitle("Storage you run or rent")
                     FlowRows(spacing: DesignSystem.Spacing.s) {
                         ForEach(servers, id: \.provider.name) { entry in
@@ -48,6 +50,9 @@ struct ProviderPicker: View {
                         }
                         if let onImport {
                             ProviderChip(title: "Import from rclone.conf…", prefix: nil, onPick: onImport)
+                        }
+                        if let onEncryptedFolder {
+                            ProviderChip(title: "New Encrypted Folder…", prefix: "crypt", onPick: onEncryptedFolder)
                         }
                     }
                 }

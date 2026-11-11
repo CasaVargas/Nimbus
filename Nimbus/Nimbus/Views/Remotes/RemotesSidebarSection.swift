@@ -12,6 +12,7 @@ struct RemotesSidebarSection: View {
 
     @State private var showAddRemote = false
     @State private var showImportConfig = false
+    @State private var showEncryptedFolder = false
     @State private var editingRemote: Remote?
     @State private var deletingRemote: Remote?
 
@@ -38,6 +39,7 @@ struct RemotesSidebarSection: View {
                 .disabled(daemon.status != .connected)
                 .contextMenu {
                     Button("Add Cloud…", systemImage: "plus") { showAddRemote = true }
+                    Button("New Encrypted Folder…", systemImage: "lock.rectangle.stack") { showEncryptedFolder = true }
                     Button("Import from rclone.conf…", systemImage: "square.and.arrow.down") { showImportConfig = true }
                 }
         } header: {
@@ -53,6 +55,10 @@ struct RemotesSidebarSection: View {
         }
         .sheet(isPresented: $showImportConfig) {
             ImportConfigSheet(onDismiss: { Task { await monitor.refresh() } })
+        }
+        .sheet(isPresented: $showEncryptedFolder) {
+            EncryptedFolderSheet(client: daemon.client, remoteNames: monitor.remotes.map(\.name),
+                                 onDismiss: { Task { await monitor.refresh() } })
         }
         .sheet(isPresented: Binding(
             get: { editingRemote != nil },
