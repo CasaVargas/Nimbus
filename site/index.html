@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Nimbus: Every cloud you use. One window.</title>
-  <meta name="description" content="Nimbus is a native Mac app for cloud storage. Google Drive, OneDrive, Dropbox, S3, SFTP and fifty more services in one window and in Finder. Copy between them, back up your folders. Open source, no account, nothing phoning home.">
+  <meta name="description" content="Nimbus is a native Mac app for cloud storage. Google Drive, OneDrive, Dropbox, S3, SFTP and fifty more services in one window, and in Finder through Apple’s File Provider. Copy between them, back up your folders. Open source, no account, nothing phoning home.">
   <meta property="og:title" content="Nimbus: Every cloud you use. One window.">
   <meta property="og:description" content="A native macOS app that puts 50+ cloud providers in one window and in Finder. Copy between clouds, back up folders, watch it all from the menu bar. GPL-3.0, no account.">
   <meta property="og:type" content="website">
@@ -100,7 +100,7 @@
   <div class="manifesto__pin">
     <p class="manifesto__text">
       <span>Nimbus is not a web page in a window.</span>
-      <span>It lives in <b>Finder</b>, right beside iCloud Drive.</span>
+      <span>It puts every cloud in <b>Finder</b> with Apple’s own <b>File Provider</b>.</span>
       <span>It answers the space bar with <b>Quick Look</b>.</span>
       <span>It keeps watch from the <b>menu bar</b>.</span>
       <span>It takes orders from <b>Shortcuts</b>.</span>
@@ -114,21 +114,35 @@
 <section id="mac" class="section section--black mac">
   <div class="wrap">
     <header class="head">
-      <h2>Built into your Mac. <span>Not parked on top of it.</span></h2>
-      <p class="lede">No Electron, no web view, no cross‑platform toolkit. Nimbus is SwiftUI and AppKit, and everywhere macOS offers an app a place to live, Nimbus moved in.</p>
+      <h2>Built on Apple’s File Provider. <span>The way macOS means cloud storage to work.</span></h2>
+      <p class="lede">File Provider is the framework Apple gives cloud storage on the Mac. It is how the big services’ own apps appear in Finder. Nimbus brings it to every service rclone speaks, so your S3 bucket, your NAS and your Proton Drive get the same treatment.</p>
     </header>
 
+    <article class="fp">
+      <div class="fp__copy">
+        <h3>File Provider</h3>
+        <p class="fp__lede">One Apple framework, and everything Finder knows how to do with a cloud comes with it.</p>
+        <ul class="fp__list">
+          <li><strong>Under Locations.</strong> Each cloud sits in Finder’s sidebar and in every app’s Open and Save panel.</li>
+          <li><strong>Files on demand.</strong> A file downloads when you open it. macOS manages the local copies and frees the space when it needs to.</li>
+          <li><strong>Keep Downloaded.</strong> Pin a file or folder with Finder’s own command and it stays on this Mac.</li>
+          <li><strong>Thumbnails first.</strong> Photos and PDFs show real previews before a byte of the file is downloaded.</li>
+          <li><strong>Badges.</strong> Finder marks what you keep on this Mac, and any upload that failed.</li>
+          <li><strong>Right‑click actions.</strong> Copy Share Link and Keep Downloaded, in Finder’s own menu.</li>
+          <li><strong>Both directions.</strong> Edits go back up. Changes made elsewhere appear on their own.</li>
+        </ul>
+        <p class="fp__fine">No kernel extension. No FUSE. Nothing to approve in Recovery.</p>
+      </div>
+      <figure class="fp__shot"><img src="assets/finder-thumbnails.png" width="920" height="492" alt="A Finder window showing cloud photos and PDFs with real thumbnails before any file is downloaded." loading="lazy"></figure>
+    </article>
+
+    <h3 class="wall__title">And everywhere else macOS offers an app a place to live.</h3>
     <div class="wall">
-      <article class="wall__tile wall__tile--finder">
-        <figure><img src="assets/finder-thumbnails.png" width="920" height="492" alt="A Finder window showing cloud photos and PDFs with real thumbnails before any file is downloaded." loading="lazy"></figure>
-        <h3>Finder</h3>
-        <p>Every cloud under Locations, beside iCloud Drive. Files download when you open them, edits go back up, and macOS manages the local copies.</p>
-      </article>
       <article class="wall__tile">
         <h3>Quick Look</h3>
         <p>Select a file and press Space. The system’s own preview, for a file in any cloud.</p>
       </article>
-      <article class="wall__tile">
+      <article class="wall__tile wall__tile--span2">
         <h3>Shortcuts</h3>
         <ul class="chips"><li>Run Backup</li><li>Copy Share Link</li><li>Keep Downloaded</li></ul>
         <p>Three actions for your own automations.</p>
@@ -148,10 +162,6 @@
       <article class="wall__tile">
         <h3>Login Items</h3>
         <p>Open at login and Nimbus starts in the menu bar. Turn on background backups and they run on schedule with the app closed.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Finder Badges</h3>
-        <p>A badge on files you keep on this Mac, and on any upload that failed.</p>
       </article>
       <article class="wall__tile">
         <h3>Network Volumes</h3>
@@ -182,7 +192,7 @@
   <div class="wrap">
     <header class="head">
       <h2>It lives in Finder. <span>Right beside iCloud Drive.</span></h2>
-      <p class="lede">A File Provider extension lists each cloud under Locations, with Nimbus’s own two‑cloud symbol beside it. Files download when you open them, edits go back up, and macOS manages the local copies. Or mount a cloud the classic way as a network volume. Your choice, per cloud.</p>
+      <p class="lede">Nimbus’s File Provider extension lists each cloud under Locations, with Nimbus’s own two‑cloud symbol beside it. Files download when you open them, edits go back up, and macOS manages the local copies. Or mount a cloud the classic way as a network volume. Your choice, per cloud.</p>
     </header>
 
     <div class="bento">
@@ -353,6 +363,16 @@
         <img src="assets/window-backups.webp" width="1500" height="937" alt="The Backups page: 2 of 4 backups are up to date. One is running at 45 percent, two finished earlier with a Back Up Now button each, and one is waiting for a preview. Demo data." loading="lazy">
       </div>
     </figure>
+    <div class="sheets sheets--backups">
+      <figure>
+        <img src="assets/backup-preview.webp" width="1272" height="1118" alt="The backup preview sheet: 12 files will be copied, 2 replaced and 1 removed, with tabs listing each, and the buttons Cancel, Approve, and Approve and Back Up Now. Demo data." loading="lazy">
+        <figcaption>Every change, listed before it happens.</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/backup-editor.webp" width="1200" height="1280" alt="The Edit Backup sheet: a name, a folder on this Mac and a destination in a cloud, Mirror or Add only, and a Versions section set to keep replaced and removed files inside the destination. Demo data." loading="lazy">
+        <figcaption>Mirror or add only. Replaced files kept.</figcaption>
+      </figure>
+    </div>
     <div class="trio">
       <div>
         <h3>One line of status</h3>
@@ -390,24 +410,26 @@
       <p class="lede">The things you only miss once you have several clouds at the same time.</p>
     </header>
     <div class="bento">
-      <article class="tile tile--sky tile--span2">
-        <p class="tile__figure tile__figure--on-dark">Every cloud. <span>One search.</span></p>
+      <article class="tile tile--dark tile--span2 tile--top">
+        <figure class="tile__img"><img src="assets/search.webp" width="1500" height="914" alt="Search results for the word lease, grouped by cloud: two files in Personal, one in Dropbox, Photo Archive still searching, and Work asking to sign in again. Demo data." loading="lazy"></figure>
         <h3>Search across clouds</h3>
-        <p>Type a file name once and Nimbus looks in every cloud at the same time.</p>
+        <p>Type a file name once and Nimbus looks in every cloud at the same time. Results arrive cloud by cloud.</p>
       </article>
       <article class="tile tile--white">
         <h3>New Encrypted Folder</h3>
         <p>A guided setup for a folder whose contents are encrypted before they leave this Mac, inside any cloud you already use.</p>
       </article>
-      <article class="tile tile--white">
+      <article class="tile tile--dark tile--span2 tile--top">
+        <figure class="tile__img"><img src="assets/compare.webp" width="1500" height="976" alt="Compare Folders results: 2 files different, 3 only in Documents, 1 only in the cloud copy, 4 the same, with the two different files listed. Demo data." loading="lazy"></figure>
         <h3>Compare Folders</h3>
         <p>Pick two folders, on any clouds or this Mac, and see what is only on one side, what differs and what matches. Nothing is changed.</p>
       </article>
-      <article class="tile tile--white">
+      <article class="tile tile--dark tile--top">
+        <figure class="tile__img"><img src="assets/versions.webp" width="820" height="800" alt="Version History for a file named Deck.key: three earlier versions with their dates and sizes, each with Restore and Download buttons. Demo data." loading="lazy"></figure>
         <h3>Version history</h3>
-        <p>For Amazon S3 and Backblaze B2, the inspector lists the versions the service kept of a file. Restore one or download it.</p>
+        <p>For Amazon S3 and Backblaze B2, the versions the service kept of a file. Restore one or download it.</p>
       </article>
-      <article class="tile tile--white">
+      <article class="tile tile--white tile--span3">
         <h3>Verified transfers</h3>
         <p>Every finished transfer says whether it was checked by checksum or only by size, and a mismatch is flagged.</p>
       </article>

@@ -186,6 +186,11 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 .tile p { color: var(--ink-2); font-size: 16px; line-height: 1.45; }
 .tile--white { background: #fff; }
 .tile--span2 { grid-column: span 2; }
+.tile--span3 { grid-column: span 3; min-height: 0; }
+.tile--dark { background: #0c1030; color: var(--on-dark); }
+.tile--dark p { color: #b9bedd; }
+.tile--top { justify-content: flex-start; }
+.tile--dark .tile__img img { box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 24px 50px -20px rgba(0,0,0,.7); }
 .tile--sky { color: var(--on-dark);
   background:
     radial-gradient(70% 80% at 100% 0%, rgba(64,120,255,.55), transparent 70%),
@@ -219,7 +224,7 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 .tile__img--small { max-width: 240px; margin: 0 0 auto; padding-bottom: 26px; }
 @media (max-width: 900px) {
   .bento, .bento--2 { grid-template-columns: 1fr; }
-  .tile--span2 { grid-column: auto; }
+  .tile--span2, .tile--span3 { grid-column: auto; }
   .tile--row { flex-direction: column; align-items: flex-start; }
   .tile--row .ring { align-self: center; }
 }
@@ -237,6 +242,10 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 .sheets { display: grid; grid-template-columns: 1184fr 1200fr; gap: 44px; align-items: start; max-width: 940px; margin: 0 auto; }
 .sheets img { filter: drop-shadow(0 30px 50px rgba(0,0,0,.45)); }
 @media (max-width: 760px) { .sheets { grid-template-columns: 1fr; max-width: 440px; } }
+.sheets--backups { grid-template-columns: 1272fr 1200fr; margin-top: 56px; align-items: center; }
+.sheets--backups img { border-radius: 20px; filter: none; box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 0 120px -30px rgba(72,120,255,.6); }
+.section--black .sheets figcaption { color: #8f93b0; }
+@media (max-width: 760px) { .sheets--backups { grid-template-columns: 1fr; } }
 
 /* ---------- Menu bar panels ---------- */
 .panels { display: grid; grid-template-columns: 300px 300px 1fr; gap: 44px; align-items: start; }
@@ -315,15 +324,30 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
   -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); }
 .wall__tile h3 { font-family: var(--display); font-weight: 700; font-size: clamp(26px, 2.6vw, 34px); line-height: 1.05; letter-spacing: -0.02em; margin-bottom: 10px; }
 .wall__tile p { font-size: 15px; line-height: 1.45; color: #b9bedd; }
-.wall__tile--finder { grid-column: span 2; grid-row: span 2; justify-content: flex-start; }
-.wall__tile--finder figure { margin: -8px -8px auto; padding-bottom: 28px; }
-.wall__tile--finder img { width: 100%; border-radius: 14px; box-shadow: 0 0 0 1px rgba(255,255,255,.14), 0 30px 60px -20px rgba(0,0,0,.7); }
-.wall__tile--finder h3 { font-size: clamp(40px, 5vw, 64px); }
-.wall__tile--finder p { font-size: 17px; max-width: 30em; }
+.wall__tile--span2 { grid-column: span 2; }
+.wall__title { font-family: var(--display); font-weight: 700; font-size: clamp(24px, 3vw, 36px); line-height: 1.1; letter-spacing: -0.02em; text-align: center; max-width: 720px; margin: 96px auto 36px; color: var(--on-dark); text-wrap: balance; }
+
+/* File Provider: the one panel the chapter is about. */
+.fp { display: grid; grid-template-columns: 5fr 7fr; gap: 48px; align-items: center; border-radius: 36px; padding: clamp(28px, 4.4vw, 60px);
+  background:
+    radial-gradient(70% 90% at 100% 0%, rgba(64,120,255,.42), transparent 70%),
+    radial-gradient(60% 80% at 0% 100%, rgba(128,72,255,.34), transparent 70%),
+    linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), inset 0 0 0 1px rgba(255,255,255,.1), 0 0 160px -30px rgba(72,120,255,.55); }
+.fp h3 { font-family: var(--display); font-weight: 700; font-size: clamp(44px, 6.4vw, 84px); line-height: .98; letter-spacing: -0.035em;
+  color: transparent; background: linear-gradient(100deg, #fff 10%, #9fc0ff 60%, #b99cff); -webkit-background-clip: text; background-clip: text; padding-bottom: .08em; }
+.fp__lede { font-size: clamp(18px, 2vw, 22px); line-height: 1.35; color: #dfe3fa; margin-top: 14px; letter-spacing: -0.015em; }
+.fp__list { margin-top: 26px; display: grid; gap: 12px; }
+.fp__list li { font-size: 16px; line-height: 1.42; color: #b9bedd; padding-left: 18px; position: relative; }
+.fp__list li::before { content: ""; position: absolute; left: 0; top: .62em; width: 6px; height: 6px; border-radius: 50%; background: #6aa9ff; }
+.fp__list strong { color: #fff; font-weight: 600; }
+.fp__fine { margin-top: 26px; font-size: 14px; font-weight: 600; color: #9fc0ff; }
+.fp__shot img { width: 100%; border-radius: 14px; box-shadow: 0 0 0 1px rgba(255,255,255,.16), 0 40px 80px -24px rgba(0,0,0,.75); }
+@media (max-width: 900px) { .fp { grid-template-columns: 1fr; gap: 32px; } .fp__shot { order: -1; } }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .chips li { font-size: 13px; font-weight: 600; padding: 6px 11px; border-radius: 980px; color: #fff; background: rgba(120,150,255,.22); box-shadow: inset 0 0 0 1px rgba(160,185,255,.35); }
 @media (max-width: 1000px) { .wall { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 600px) { .wall { grid-template-columns: 1fr; } .wall__tile { min-height: 0; } .wall__tile--finder { grid-column: auto; grid-row: auto; } }
+@media (max-width: 600px) { .wall { grid-template-columns: 1fr; } .wall__tile { min-height: 0; } .wall__tile--span2 { grid-column: auto; } }
 
 /* ---------- Privacy: three zeros ---------- */
 .zeros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; text-align: center; margin: 0 0 72px; }
@@ -350,11 +374,11 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
     @keyframes win-in { from { transform: scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
 
     /* Headlines and tiles rise into place. */
-    .head, .tile, .wall__tile, .trio > div, .quad > div, .sheets figure, .panels figure, .panels__copy > div, .fund__card, .zeros > div, .services__row li {
+    .head, .tile, .wall__tile, .fp, .wall__title, .trio > div, .quad > div, .sheets figure, .panels figure, .panels__copy > div, .fund__card, .zeros > div, .services__row li {
       animation: rise-in linear both; animation-timeline: view(); animation-range: entry 0% entry 90%; }
     @keyframes rise-in { from { opacity: 0; transform: translateY(44px); } to { opacity: 1; transform: none; } }
     /* Tall blocks would never finish their entry on a short screen. */
-    .wall__tile--finder, .fund__card, .sheets figure, .tile--span2 { animation-range: entry 0% cover 22%; }
+    .fp, .fund__card, .sheets figure, .tile--span2, .tile--top { animation-range: entry 0% cover 22%; }
 
     /* The manifesto pins for a few screens while its sentences light in turn. */
     .manifesto { height: 420vh; padding: 0; view-timeline: --manifesto block; }
