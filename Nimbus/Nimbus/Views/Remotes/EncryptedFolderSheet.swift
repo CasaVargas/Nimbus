@@ -37,7 +37,7 @@ struct EncryptedFolderSheet: View {
         } actions: {
             actions
         }
-        .frame(width: 560, height: 620)
+        .frame(width: 560, height: 740)
         .task(id: settings.rcloneBinaryPath) {
             await encryption.refresh(binaryPath: settings.rcloneBinaryPath)
         }
@@ -70,7 +70,8 @@ struct EncryptedFolderSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             FormSection(title: "Folder", footer: nil) {
-                LocationPicker(label: "Encrypt", remoteNames: remoteNames, client: client, endpoint: $setup.folder)
+                LocationPicker(label: "Folder", remoteNames: remoteNames, client: client,
+                               endpoint: $setup.folder, layout: .stacked)
                 Text("Choose an empty or new folder, or one you encrypted before with Nimbus or rclone.")
                     .font(DesignSystem.Typography.caption)
                     .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
@@ -138,11 +139,18 @@ struct EncryptedFolderSheet: View {
             Button("Cancel") { dismiss() }
                 .keyboardShortcut(.cancelAction)
                 .disabled(setup.phase == .creating)
-            Button("Create") { Task { await create() } }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.primaryPill(.small))
-                .disabled(!setup.canCreate)
+            if !isFailed {
+                Button("Create") { Task { await create() } }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.primaryPill(.small))
+                    .disabled(!setup.canCreate)
+            }
         }
+    }
+
+    private var isFailed: Bool {
+        if case .failed = setup.phase { return true }
+        return false
     }
 
     private func create() async {

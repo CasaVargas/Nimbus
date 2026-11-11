@@ -46,9 +46,9 @@ its own place in the sidebar and in Finder.
 
 ## Sheet
 
-`SheetChrome` "New Encrypted Folder", 520 wide:
+`SheetChrome` "New Encrypted Folder", 560 × 740:
 
-- **Folder:** `LocationPicker` (`.row`). Lead line: "Files are encrypted on this Mac before they're
+- **Folder:** `LocationPicker` (`.stacked`). Lead line: "Files are encrypted on this Mac before they're
   uploaded. The cloud only sees scrambled names and contents."
 - **Name:** text field, prefilled from the folder until the user edits it; collision/invalid footer.
 - **Password / Confirm:** two `SecureField`s; footer for too short / don't match.

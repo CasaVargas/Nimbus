@@ -229,7 +229,7 @@ struct EncryptedFolderSheetSnapshotTests {
             )
             .environment(settings())
             .environment(FileProviderBridge()),
-            size: CGSize(width: 560, height: 620),
+            size: CGSize(width: 560, height: 740),
             named: name
         )
     }
