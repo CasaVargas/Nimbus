@@ -31,42 +31,67 @@ enum RemoteChangeScanner {
             isKnown: { raw in
                 SyncSnapshotStore.hasSnapshot(remoteName: remoteName, containerIdentifier: NSFileProviderItemIdentifier(raw))
             },
-            visit: { raw -> RemoteChangeVisit<UncheckedItems>? in
-                let container = NSFileProviderItemIdentifier(raw)
-                let path = SyncSnapshotStore.remotePath(of: container, remoteName: remoteName)
-                let files: [FileItem]
-                do {
-                    files = try await list(path)
-                } catch {
-                    logger.info("remote scan: skipped a folder whose listing failed: \(String(describing: error), privacy: .public)")
-                    return nil
-                }
-                let records = SyncSnapshotStore.buildRecords(from: files, parentIdentifier: container, remoteName: remoteName)
-                let (diff, _) = SyncSnapshotStore.diffAndPersist(
-                    remoteName: remoteName, containerIdentifier: container, current: records
-                )
-                for folder in diff.deletedFolders {
-                    SyncSnapshotStore.removeSnapshot(remoteName: remoteName, containerIdentifier: folder)
-                }
-                return RemoteChangeVisit(
-                    container: raw,
-                    listing: records.map(\.record),
-                    diff: RemoteChangeDiff.Result(
-                        changed: diff.updated.map(\.itemIdentifier.rawValue),
-                        deleted: diff.deletedIdentifiers.map(\.rawValue),
-                        deletedFolders: diff.deletedFolders.map(\.rawValue)
-                    ),
-                    payload: UncheckedItems(items: diff.updated)
-                )
-            }
+            visit: { raw in await visit(raw, remoteName: remoteName, list: list) }
         )
+        return outcome(of: visits)
+    }
 
+    /// Lists, diffs and re-snapshots only `containers` (the hot folders,
+    /// #76), four at a time. Folders without a snapshot are skipped.
+    static func scan(
+        containers: [String],
+        remoteName: String,
+        list: @escaping @Sendable (String) async throws -> [FileItem]
+    ) async -> Outcome {
+        let known = containers.filter {
+            SyncSnapshotStore.hasSnapshot(remoteName: remoteName, containerIdentifier: NSFileProviderItemIdentifier($0))
+        }
+        let visits = await RemoteChangeWalk.visitAll(known) { raw in
+            await visit(raw, remoteName: remoteName, list: list)
+        }
+        return outcome(of: visits)
+    }
+
+    private static func outcome(of visits: [RemoteChangeVisit<UncheckedItems>]) -> Outcome {
         var outcome = Outcome(listedContainers: visits.count)
         for visit in visits {
             outcome.updated.append(contentsOf: visit.payload.items)
             outcome.deleted.append(contentsOf: visit.diff.deleted.map { NSFileProviderItemIdentifier($0) })
         }
         return outcome
+    }
+
+    private static func visit(
+        _ raw: String,
+        remoteName: String,
+        list: @Sendable (String) async throws -> [FileItem]
+    ) async -> RemoteChangeVisit<UncheckedItems>? {
+        let container = NSFileProviderItemIdentifier(raw)
+        let path = SyncSnapshotStore.remotePath(of: container, remoteName: remoteName)
+        let files: [FileItem]
+        do {
+            files = try await list(path)
+        } catch {
+            logger.info("remote scan: skipped a folder whose listing failed: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+        let records = SyncSnapshotStore.buildRecords(from: files, parentIdentifier: container, remoteName: remoteName)
+        let (diff, _) = SyncSnapshotStore.diffAndPersist(
+            remoteName: remoteName, containerIdentifier: container, current: records
+        )
+        for folder in diff.deletedFolders {
+            SyncSnapshotStore.removeSnapshot(remoteName: remoteName, containerIdentifier: folder)
+        }
+        return RemoteChangeVisit(
+            container: raw,
+            listing: records.map(\.record),
+            diff: RemoteChangeDiff.Result(
+                changed: diff.updated.map(\.itemIdentifier.rawValue),
+                deleted: diff.deletedIdentifiers.map(\.rawValue),
+                deletedFolders: diff.deletedFolders.map(\.rawValue)
+            ),
+            payload: UncheckedItems(items: diff.updated)
+        )
     }
 }
 

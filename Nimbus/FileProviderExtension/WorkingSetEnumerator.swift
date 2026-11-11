@@ -139,8 +139,18 @@ final class WorkingSetEnumerator: NSObject, NSFileProviderEnumerator {
         }
 
         let listFiles = self.listFiles
+        let scope = Self.scope(remoteName: remoteName, now: Date())
         Task {
-            let outcome = await RemoteChangeScanner.scan(remoteName: remoteName, list: listFiles)
+            let outcome: RemoteChangeScanner.Outcome
+            switch scope {
+            case .full:
+                outcome = await RemoteChangeScanner.scan(remoteName: remoteName, list: listFiles)
+            case .hot(let containers):
+                outcome = await RemoteChangeScanner.scan(containers: containers, remoteName: remoteName, list: listFiles)
+            case .none:
+                outcome = RemoteChangeScanner.Outcome()
+            }
+            HotFolderStore.recordScan(remoteName: remoteName, scope: scope, foundChanges: outcome.hasChanges)
             // Folders listed for the first time since the last pass: report
             // their entries so Spotlight indexes them.
             var reported = Set(outcome.updated.map(\.itemIdentifier))
@@ -158,10 +168,38 @@ final class WorkingSetEnumerator: NSObject, NSFileProviderEnumerator {
                 if !firstListed.isEmpty { box.observer.didUpdate(firstListed) }
                 if !outcome.deleted.isEmpty { box.observer.didDeleteItems(withIdentifiers: outcome.deleted) }
             }
-            logger.info("working set \(remoteName, privacy: .public): scanned \(outcome.listedContainers) folders, \(outcome.updated.count) updated, \(outcome.deleted.count) deleted, \(firstListed.count) from first listings")
+            logger.info("working set \(remoteName, privacy: .public): \(Self.describe(scope), privacy: .public) scan, \(outcome.listedContainers) folders,\(outcome.updated.count) updated, \(outcome.deleted.count) deleted, \(firstListed.count) from first listings")
             box.observer.finishEnumeratingChanges(
                 upTo: Self.anchor(pins: changes.latest, generation: generation), moreComing: false
             )
+        }
+    }
+
+    /// Which folders this pass re-lists (#76): all of them when a full scan
+    /// is due or the app asked for one, the hot folders when their wait is
+    /// up, otherwise none.
+    static func scope(remoteName: String, now: Date) -> RemoteChangeCadence.Scope {
+        let state = HotFolderStore.state(remoteName: remoteName)
+        let root = NSFileProviderItemIdentifier.rootContainer.rawValue
+        let pinned = RemoteChangeCadence.pinnedContainers(
+            PinStore.shared?.pins(domain: remoteName) ?? [], rootKey: root
+        )
+        let hot = state.hotFolders(at: now, pinned: pinned) { raw in
+            SyncSnapshotStore.hasSnapshot(remoteName: remoteName, containerIdentifier: NSFileProviderItemIdentifier(raw))
+        }
+        return RemoteChangeCadence.decide(
+            state: state,
+            hotFolders: hot,
+            fullRequestedAt: FullScanRequest.requestedAt(remote: remoteName, base: FileProviderRetry.appGroupContainerURL()),
+            now: now
+        )
+    }
+
+    private static func describe(_ scope: RemoteChangeCadence.Scope) -> String {
+        switch scope {
+        case .full: "full"
+        case .hot(let folders): "hot (\(folders.count))"
+        case .none: "no"
         }
     }
 

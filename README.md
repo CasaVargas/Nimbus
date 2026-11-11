@@ -112,7 +112,7 @@ Works today:
 
 - Browser with list and icon views, Finder-style multi-select, column sorting, type-to-select, Quick Look, drag and drop within and across remotes
 - Guided Add Remote driven by rclone's own config state machine, so new backends need no app changes
-- Finder integration through the File Provider extension (requires a signed build): files download on demand, Keep Downloaded pins them, photos and PDFs get thumbnails before they are downloaded, and changes made elsewhere show up within about ten minutes
+- Finder integration through the File Provider extension (requires a signed build): files download on demand, Keep Downloaded pins them, photos and PDFs get thumbnails before they are downloaded, and changes made elsewhere show up within about a minute in folders you are working in (about ten minutes elsewhere)
 - Copy Share Link in Finder and the inspector, with expiry and Stop Sharing where the service supports them (rclone 1.76 or later)
 - Backups on a schedule, from a folder or a cloud to another cloud or folder, with a preview before the first run, exclude lists, a versions folder for replaced and removed files, and a removal limit
 - Home: free space across all your clouds and each cloud's status in plain words

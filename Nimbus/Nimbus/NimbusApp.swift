@@ -18,6 +18,8 @@ struct NimbusApp: App {
     @State private var generalSettingsModel = GeneralSettingsModel()
     @State private var providerDirectory = ProviderDirectory()
     @State private var cloudMonitor: CloudMonitor
+    /// Checks hot Finder folders for remote changes between full refreshes (#76).
+    @State private var remoteChangeTicker = RemoteChangeTicker()
     @State private var router = AppRouter()
     @State private var backupStore: BackupStore
     @State private var backupRunner: BackupRunner
@@ -343,6 +345,7 @@ struct NimbusApp: App {
             transferStore.startPolling(client: daemon.client)
             mountManager.startHealthMonitor()
             cloudMonitor.startPeriodicRefresh()
+            remoteChangeTicker.start()
             backupScheduler.start()
         } else {
             // Runs missed while the daemon was down catch up after the settle delay.
