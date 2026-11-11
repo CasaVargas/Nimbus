@@ -51,7 +51,7 @@ struct AddMountSheet: View {
                     save()
                 }
                 .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.primaryPill(.small))
                 .disabled(!isValid)
             }
         )

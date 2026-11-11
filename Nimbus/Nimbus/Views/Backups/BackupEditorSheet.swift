@@ -97,7 +97,7 @@ struct BackupEditorSheet: View {
                 .keyboardShortcut(.cancelAction)
             Button(needsPreview ? "Save and Preview…" : "Save") { save() }
                 .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.primaryPill(.small))
                 .disabled(draftJob == nil)
         }
         .frame(width: 600, height: 640)

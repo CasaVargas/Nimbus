@@ -119,12 +119,13 @@ struct FolderBrowserSheet: View {
             Spacer()
             Button("Cancel") { dismiss() }
                 .keyboardShortcut(.cancelAction)
+                .buttonStyle(.glassCapsule)
             Button("Select This Folder") {
                 onSelect(currentPath)
                 dismiss()
             }
             .keyboardShortcut(.defaultAction)
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.primaryPill(.small))
         }
         .padding(DesignSystem.Spacing.m)
     }

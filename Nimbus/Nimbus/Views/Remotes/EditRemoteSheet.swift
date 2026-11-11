@@ -53,7 +53,7 @@ struct EditRemoteSheet: View {
                     Task { await save() }
                 }
                 .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.primaryPill(.small))
                 .disabled(saving || provider == nil)
             }
         )

@@ -55,6 +55,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: app.casavargas.nimbus
         GENERATE_INFOPLIST_FILE: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Stratosphere's action blue, so system controls (switches, segmented
+        # pickers, selection, default buttons) match the theme's own buttons.
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
         INFOPLIST_KEY_CFBundleDisplayName: Nimbus
         CODE_SIGN_ENTITLEMENTS: Nimbus/Nimbus.entitlements
