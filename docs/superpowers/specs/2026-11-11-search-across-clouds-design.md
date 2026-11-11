@@ -1,7 +1,7 @@
 # Search Across Clouds — Design
 
 **Date:** 2026-11-11
-**Status:** Building (issue #65)
+**Status:** Built 2026-11-11 (issue #65). See "As built" at the end.
 **Research:** `docs/superpowers/reports/2026-11-11-feature-parity.md`
 **Area:** RcloneKit (`RemoteSearch.swift`), `SearchViewModel`, `Views/Search/`, `ContentView`
 
@@ -40,7 +40,6 @@ stand out.
 ## UI
 
 - **Field:** a standard `.searchable` field in the window toolbar, labelled "Search all clouds".
-  ⌘F focuses it (Edit ▸ Find).
 - **Results:** while the trimmed query has at least 2 characters, the detail pane shows
   `SearchResultsView` in place of the current screen. Clearing the field brings the previous
   screen back. The sidebar selection is not changed.
@@ -49,8 +48,8 @@ stand out.
 - **Row:** file icon, name, parent folder (`Work/2026`, or "Top level"), size for files, date
   modified.
 - **Actions:**
-  - Double-click, or **Show in Nimbus**, opens that cloud's Files tab at the parent folder and
-    clears the search.
+  - Double-click, or **Show in Nimbus**, opens that cloud's Files tab and clears the search.
+    A file opens the folder it is in; a folder opens itself.
   - **Show in Finder**, only for clouds shown in Finder: gets the item's URL from the File
     Provider (`FileProviderBridge.urlForItem`) and selects it in Finder.
   - **Copy Path** copies `remote:path`.
@@ -75,3 +74,11 @@ stand out.
   failing cloud records its error and the others still finish; a new query cancels the old one,
   so stale results never appear; aliases of configured clouds are skipped; the cap and the
   "of N" total are applied.
+
+## As built
+
+- RcloneKit: `RemoteSearch` (include rule, name match, params) and `RcloneClient.search(fs:query:maxDepth:pollInterval:)`.
+- App: `SearchViewModel` (fans out to every cloud, applies the per-cloud time limit and the cap) and `Views/Search/SearchResultsView.swift`, hosted by `ContentView`.
+- Checked: unit tests in RcloneKit and NimbusTests, the request shape against a live rclone 1.76 daemon with curl, and the rows and section states in a SwiftUI preview.
+- **Not checked live in the app:** the toolbar field, Show in Nimbus, Show in Finder, and a search against real clouds.
+- ⌘F to focus the field is left out. Whether `.searchable` binds it on its own, or whether it would clash with Edit ▸ Find, still needs checking in the running app.
