@@ -88,6 +88,15 @@ Live, with the build installed:
   for a `search` line in the extension log
   (`log show --predicate 'subsystem == "app.casavargas.nimbus.FileProvider" AND category == "search"'`).
 
+**Spotlight panel, manual check (Jon):** the file wasn't found, and
+Spotlight said it was still indexing. The extension logged no search call.
+`mds_stores` was at about 95% CPU, so a system-wide reindex was running
+through this whole session. That confounds every Spotlight result above:
+the missing local items, the new folders that stayed unindexed, and maybe
+the provider search not running. **Re-run all the checks once
+`mds_stores` is idle** before deciding between the working set and
+`NSFileProviderSearching`.
+
 `fileproviderctl dump` also shows fileproviderd running its own Spotlight
 indexer for each Nimbus domain (MCS: `total-indexable-count: 119`,
 `pending: 0`). So local items are donated without any working-set listing.
