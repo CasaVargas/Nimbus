@@ -133,57 +133,43 @@
         </ul>
         <p class="fp__fine">No kernel extension. No FUSE. Nothing to approve in Recovery.</p>
       </div>
-      <figure class="fp__shot"><img src="assets/finder-thumbnails.png" width="920" height="492" alt="A Finder window showing cloud photos and PDFs with real thumbnails before any file is downloaded." loading="lazy"></figure>
+      <figure class="fp__shot"><img src="assets/finder-demo.png" width="920" height="406" alt="A Finder window open on a cloud named Nimbus - Personal, listed under Locations beside iCloud Drive. Photos and PDFs show real thumbnails, each with a cloud badge, before any file is downloaded. Demo files." loading="lazy"></figure>
     </article>
 
     <h3 class="wall__title">And everywhere else macOS offers an app a place to live.</h3>
-    <div class="wall">
-      <article class="wall__tile">
-        <h3>Quick Look</h3>
-        <p>Select a file and press Space. The system’s own preview, for a file in any cloud.</p>
+
+    <div class="sys">
+      <article class="sys__tile sys__tile--menubar">
+        <div class="sys__copy">
+          <h3>Menu Bar</h3>
+          <p>One glyph that changes with what is happening, and a panel with every cloud a click away.</p>
+        </div>
+        <img src="assets/companion-busy.webp" width="680" height="1100" alt="The Nimbus menu bar panel while copying three items to Dropbox: a progress bar, five clouds with their usage, and recent activity. Demo data." loading="lazy">
       </article>
-      <article class="wall__tile wall__tile--span2">
-        <h3>Shortcuts</h3>
-        <ul class="chips"><li>Run Backup</li><li>Copy Share Link</li><li>Keep Downloaded</li></ul>
-        <p>Three actions for your own automations.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Menu Bar</h3>
-        <p>One glyph that changes with what is happening, and a panel with every cloud a click away.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Keychain</h3>
-        <p>Flip one switch and your sign‑ins are encrypted with a password that lives in your login Keychain.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Notifications</h3>
-        <p>A finished transfer, a failed one, a cloud that signed you out. Not a feed.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Login Items</h3>
-        <p>Open at login and Nimbus starts in the menu bar. Turn on background backups and they run on schedule with the app closed.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Network Volumes</h3>
-        <p>Prefer a classic mount? Any cloud can be a network volume, restored when Nimbus launches.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Liquid Glass</h3>
-        <p>The system’s own glass on macOS 26, drawn to match on macOS 15, solid with Reduce Transparency on.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Settings</h3>
-        <p>A Settings window modeled on System Settings, so you already know where things are.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Console</h3>
-        <p>When something goes wrong: the app’s logs open in Console, and a sanitized system report is one click to copy.</p>
-      </article>
-      <article class="wall__tile">
-        <h3>Gatekeeper</h3>
-        <p>Signed with a Developer ID certificate and notarized by Apple. It opens without a warning.</p>
+      <article class="sys__tile">
+        <div class="sys__copy">
+          <h3>Shortcuts</h3>
+          <p>Three actions for your own automations.</p>
+        </div>
+        <ul class="acts">
+          <li><i class="acts__glyph acts__glyph--a" aria-hidden="true"></i>Run Backup</li>
+          <li><i class="acts__glyph acts__glyph--b" aria-hidden="true"></i>Copy Share Link</li>
+          <li><i class="acts__glyph acts__glyph--c" aria-hidden="true"></i>Keep Downloaded</li>
+        </ul>
       </article>
     </div>
+
+    <dl class="sys-list">
+      <div><dt>Quick Look</dt><dd>Select a file and press Space. The system’s own preview, for a file in any cloud.</dd></div>
+      <div><dt>Keychain</dt><dd>Flip one switch and your sign‑ins are encrypted with a password that lives in your login Keychain.</dd></div>
+      <div><dt>Notifications</dt><dd>A finished transfer, a failed one, a cloud that signed you out. Not a feed.</dd></div>
+      <div><dt>Login Items</dt><dd>Open at login and Nimbus starts in the menu bar. Background backups run on schedule with the app closed.</dd></div>
+      <div><dt>Network Volumes</dt><dd>Prefer a classic mount? Any cloud can be a network volume, restored when Nimbus launches.</dd></div>
+      <div><dt>Liquid Glass</dt><dd>The system’s own glass on macOS 26, drawn to match on macOS 15, solid with Reduce Transparency on.</dd></div>
+      <div><dt>Settings</dt><dd>A Settings window modeled on System Settings, so you already know where things are.</dd></div>
+      <div><dt>Console</dt><dd>The app’s logs open in Console, and a sanitized system report is one click to copy.</dd></div>
+      <div><dt>Gatekeeper</dt><dd>Signed with a Developer ID certificate and notarized by Apple. It opens without a warning.</dd></div>
+    </dl>
   </div>
 </section>
 
@@ -198,14 +184,14 @@
     <div class="bento">
       <article class="tile tile--white tile--span2">
         <figure class="tile__img">
-          <img src="assets/finder-thumbnails.png" width="920" height="492" alt="A Finder window showing cloud photos and PDFs with real thumbnails before any file is downloaded." loading="lazy">
+          <img src="assets/finder-demo.png" width="920" height="406" alt="A Finder window open on a cloud named Nimbus - Personal, listed under Locations beside iCloud Drive. Photos and PDFs show real thumbnails, each with a cloud badge, before any file is downloaded. Demo files." loading="lazy">
         </figure>
         <h3>Thumbnails before download</h3>
         <p>Photos and PDFs in the cloud show real previews in Finder, made on demand and cached, so you can find the right file without pulling it down first.</p>
       </article>
       <article class="tile tile--white">
         <figure class="tile__img tile__img--small">
-          <img src="assets/keep-on-this-mac.png" width="240" height="143" alt="The Keep on this Mac switch." loading="lazy">
+          <img src="assets/keep-on-this-mac.png" width="240" height="118" alt="The Keep on this Mac switch." loading="lazy">
         </figure>
         <h3>Keep on this Mac</h3>
         <p>Pin a file or folder and it stays downloaded. Finder’s own “Keep Downloaded” and “Remove Download” commands work too.</p>
@@ -235,9 +221,9 @@
     </header>
     <figure class="shot">
       <div class="win">
-        <img src="assets/home-light.webp" width="1500" height="930" alt="Nimbus Home in light mode: 1.31 TB free across three clouds, the storage ring, and a card per cloud, each marked Ready." loading="lazy">
+        <img src="assets/home-ready.webp" width="1500" height="930" alt="Nimbus Home with every cloud ready: 1.31 TB free across three clouds, the storage ring at 65 percent, and a card per cloud, each marked Ready. Demo data." loading="lazy">
       </div>
-      <figcaption>Light or dark. Nimbus follows your Mac.</figcaption>
+      <figcaption>Everything ready. In light or dark, Nimbus follows your Mac.</figcaption>
     </figure>
     <div class="trio">
       <div>
@@ -253,18 +239,7 @@
         <p>Quiet suggestions, like showing a cloud in Finder, with one click to do it and an × to dismiss it for good.</p>
       </div>
     </div>
-  </div>
-</section>
-
-<!-- ============ DESIGN ============ -->
-<section id="design" class="section section--mist">
-  <div class="wrap">
-    <header class="head">
-      <h2>A new look. <span>Still every bit a Mac app.</span></h2>
-      <p class="lede">Nimbus has been redrawn from the window in. Deep sky behind glass, large rounded numerals, one bright button per screen, and text that holds a 4.5:1 contrast ratio at every point of the sky behind it. Under it all, the same sidebar, sheets and shortcuts your Mac has always had.</p>
-    </header>
-
-    <div class="bento">
+    <div class="bento bento--after">
       <article class="tile tile--sky tile--span2 tile--row">
         <div class="tile__copy">
           <h3>A colour for every cloud</h3>
@@ -286,19 +261,6 @@
         <p class="tile__figure">720 GB, <span>billed by use</span></p>
         <h3>Totals that tell the truth</h3>
         <p>Pay‑as‑you‑go storage has no ceiling, and a pooled work plan’s limit isn’t yours. Nimbus counts what those clouds hold and leaves them out of “free”, so the big number is one you can plan around.</p>
-      </article>
-
-      <article class="tile tile--glass">
-        <h3>Liquid Glass on macOS 26</h3>
-        <p>On macOS 26 and later, cards, sheets and buttons are the system’s own Liquid Glass. On macOS 15 they are drawn to match, and with Reduce Transparency on they turn solid.</p>
-      </article>
-
-      <article class="tile tile--shot tile--span2">
-        <div class="tile__crop"><img src="assets/onboarding.webp" width="1500" height="1280" alt="The first-launch screen: the Nimbus icon surrounded by cloud service logos, above the words Every cloud, one window." loading="lazy"></div>
-        <div class="tile__over">
-          <h3>A first launch that says what it does</h3>
-          <p>One screen, three promises, then straight to adding your first cloud.</p>
-        </div>
       </article>
     </div>
   </div>
@@ -415,7 +377,8 @@
         <h3>Search across clouds</h3>
         <p>Type a file name once and Nimbus looks in every cloud at the same time. Results arrive cloud by cloud.</p>
       </article>
-      <article class="tile tile--white">
+      <article class="tile tile--dark tile--top">
+        <figure class="tile__img tile__img--sheet"><img src="assets/encrypted-folder.webp" width="1120" height="1200" alt="The New Encrypted Folder sheet: a folder named Private inside the Personal cloud, a name, a password typed twice, and a warning that nobody can recover the files if the password is forgotten. Demo data." loading="lazy"></figure>
         <h3>New Encrypted Folder</h3>
         <p>A guided setup for a folder whose contents are encrypted before they leave this Mac, inside any cloud you already use.</p>
       </article>
