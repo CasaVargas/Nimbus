@@ -31,11 +31,13 @@ one call. Competitors (RcloneView) ship a compare view.
   a two-way arrow (`arrow.left.arrow.right`), not a one-way arrow: compare has no direction.
 - **Run row:** **Compare** primary pill (⏎). While running: a spinner, "Comparing… N files
   checked", and **Stop**. Compare is disabled until both sides are chosen and differ.
-- **Results:** four summary tiles with counts (Same, Different, Only in A, Only in B), plus an
-  Errors tile only when rclone reported errors. Below, one section per group listing relative
-  paths, each section collapsible. Same starts collapsed (it is usually the long one); the others
-  start expanded. A group with nothing in it shows "None". If every file matches, a single
-  "These folders match" state replaces the list.
+- **Results:** a row of glass tiles with counts (Different, Only in A, Only in B, Same, plus
+  Couldn't Read only when rclone reported errors). The tiles pick which group the list below
+  shows, one group at a time, so a 50,000-file Same list never pushes the differences off
+  screen. The first non-empty group, in that order, is selected after a run. An empty group shows
+  "None". When nothing differs, a "These folders match" banner sits above the tiles. Paths are
+  selectable text.
+- **Stale results:** changing either place or the method clears the result.
 - **No common hash:** when rclone reports `hashType` `none` (or empty) for a Checksum compare,
   a callout says sizes were compared but content wasn't, because the two places share no
   checksum type.
@@ -75,7 +77,7 @@ screen (the view's task is cancelled) stops the job too.
 |-------|-------|
 | `CheckRequest`, `CheckReport`, `CheckJobStatus`, `RcloneClient.startCheck`, `checkStatus` | `RcloneKit/Sources/RcloneKit/Check.swift` |
 | `CompareResult` (groups parsed from `combined`), `CompareViewModel` (`idle → running → finished / failed`), `CompareRcloneClient` protocol | `Nimbus/Nimbus/ViewModels/CompareViewModel.swift` |
-| `CompareView`, `CompareResultsView` | `Nimbus/Nimbus/Views/Compare/` |
+| `CompareView`, `CompareResultsView`; `EndpointWell` + `WellConnector` extracted from Copy Between Clouds and shared | `Nimbus/Nimbus/Views/Compare/`, `Views/CopySync/EndpointWell.swift` |
 | `.compare` sidebar case, menu command (⇧⌘5), screen routing | `SidebarSelection.swift`, `Sidebar.swift`, `ContentView.swift`, `AppCommands.swift` |
 
 `Job` keeps decoding `output` as a `SyncReport`; a check job is read through its own
