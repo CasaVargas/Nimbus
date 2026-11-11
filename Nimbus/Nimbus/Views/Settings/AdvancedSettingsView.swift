@@ -12,6 +12,7 @@ struct AdvancedSettingsView: View {
     @State private var storageModel: GeneralSettingsModel
     @State private var showingFilePicker = false
     @State private var diagnosticsMessage: String?
+    @State private var installer = RcloneInstaller()
 
     init(storageModel: GeneralSettingsModel = GeneralSettingsModel()) {
         _storageModel = State(initialValue: storageModel)
@@ -32,7 +33,11 @@ struct AdvancedSettingsView: View {
                     binaryPath: settings.rcloneBinaryPath,
                     version: diagnosticsService.sanitizedRcloneVersion(daemon.rcloneVersion),
                     showFilePicker: { showingFilePicker = true },
-                    revealBinary: revealBinary
+                    revealBinary: revealBinary,
+                    update: isManagedRclone ? RcloneUpdateRow.Model(
+                        phase: installer.phase,
+                        check: { Task { await updateRclone() } }
+                    ) : nil
                 )
                 NetworkDriveDefaultsSection()
                 DiagnosticsSettingsSection(
@@ -75,6 +80,22 @@ struct AdvancedSettingsView: View {
         }
     }
 
+    /// Only the copy Nimbus downloaded gets an update button; Homebrew
+    /// updates its own.
+    private var isManagedRclone: Bool {
+        settings.rcloneBinaryPath == RcloneInstaller.managedBinaryPath
+    }
+
+    private func updateRclone() async {
+        let installed = daemon.rcloneVersion.flatMap(RcloneRelease.parseVersion)
+        guard await installer.update(installedVersion: installed) != nil else { return }
+        await daemon.restart(
+            binaryPath: settings.rcloneBinaryPath,
+            bandwidthLimit: settings.bandwidthLimit,
+            concurrentTransfers: settings.concurrentTransfers
+        )
+    }
+
     private func revealBinary() {
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: settings.rcloneBinaryPath)])
     }
@@ -115,9 +136,13 @@ private struct RcloneSettingsSection: View {
     let version: String
     let showFilePicker: () -> Void
     let revealBinary: () -> Void
+    var update: RcloneUpdateRow.Model?
 
     var body: some View {
-        FormSection(title: "rclone", footer: nil) {
+        FormSection(
+            title: "rclone",
+            footer: update == nil ? nil : "Nimbus downloaded this rclone from rclone.org. It only checks for a newer one when you ask."
+        ) {
             FormRow(label: "Location", help: nil) {
                 HStack(spacing: DesignSystem.Spacing.s) {
                     Text(verbatim: binaryPath)
@@ -139,6 +164,53 @@ private struct RcloneSettingsSection: View {
                     .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
                     .accessibilityLabel("rclone version \(version)")
             }
+            if let update {
+                RcloneUpdateRow(model: update)
+            }
+        }
+    }
+}
+
+/// "Check for Update" for the rclone Nimbus downloaded, with the outcome.
+struct RcloneUpdateRow: View {
+    struct Model {
+        let phase: RcloneInstaller.Phase
+        let check: () -> Void
+    }
+
+    let model: Model
+
+    var body: some View {
+        FormRow(label: "Updates", help: nil) {
+            HStack(spacing: DesignSystem.Spacing.s) {
+                if model.phase.isBusy {
+                    ProgressView().controlSize(.small)
+                }
+                if let status {
+                    Text(verbatim: status)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.trailing)
+                }
+                Button("Check for Update", action: model.check)
+                    .controlSize(.small)
+                    .disabled(model.phase.isBusy)
+            }
+            .frame(maxWidth: 380, alignment: .trailing)
+        }
+    }
+
+    private var status: String? {
+        switch model.phase {
+        case .idle: nil
+        case .checking: "Checking rclone.org…"
+        case .downloading(let version): "Downloading \(version)…"
+        case .verifying: "Verifying…"
+        case .installing: "Installing…"
+        case .installed(let version): "Updated to \(version)."
+        case .upToDate(let version): "\(version) is the latest."
+        case .failed(let failure): failure.message
         }
     }
 }
