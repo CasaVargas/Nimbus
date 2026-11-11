@@ -57,15 +57,20 @@ final class AppSettings {
         didSet { defaults.set(inspectorVisible, forKey: "inspectorVisible") }
     }
 
-    private static let defaultRclonePath: String = {
+    private static let defaultRclonePath: String = locateRclone() ?? "/usr/local/bin/rclone"
+
+    /// The first executable rclone in the usual places: Homebrew, the
+    /// system, then a copy Nimbus downloaded. Nil when there is none.
+    static func locateRclone(isExecutable: (String) -> Bool = FileManager.default.isExecutableFile(atPath:)) -> String? {
         let candidates = [
             "/opt/homebrew/bin/rclone",
             "/usr/local/bin/rclone",
             "/usr/bin/rclone",
+            // Last: a copy Nimbus downloaded for someone without Homebrew.
+            RcloneInstaller.managedBinaryPath,
         ]
-        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
-            ?? "/usr/local/bin/rclone"
-    }()
+        return candidates.first(where: isExecutable)
+    }
 
     var bandwidthLimit: String {
         didSet { defaults.set(bandwidthLimit, forKey: "bandwidthLimit") }

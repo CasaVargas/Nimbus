@@ -69,4 +69,45 @@ struct TransferRowTests {
             named: "TransferRow-backup"
         )
     }
+
+    // MARK: - #75 verification pills
+
+    private func completed(_ verification: TransferVerification?, status: TransferStatus = .completed) -> Transfer {
+        var t = makeActive()
+        t.status = status
+        t.completedAt = Date(timeIntervalSince1970: 1_700_000_120)
+        t.verification = verification
+        return t
+    }
+
+    @Test func rendersVerifiedRow() throws {
+        try SnapshotHelpers.assertSnapshot(
+            TransferRow(transfer: completed(.verified(hash: "md5"))),
+            size: CGSize(width: 560, height: 56),
+            named: "TransferRow-verified"
+        )
+    }
+
+    @Test func rendersSizeCheckedRow() throws {
+        try SnapshotHelpers.assertSnapshot(
+            TransferRow(transfer: completed(.sizeOnly)),
+            size: CGSize(width: 560, height: 56),
+            named: "TransferRow-size-checked"
+        )
+    }
+
+    @Test func rendersChecksumMismatchRow() throws {
+        try SnapshotHelpers.assertSnapshot(
+            TransferRow(transfer: completed(.mismatch, status: .failed("corrupted on transfer: md5 hashes differ"))),
+            size: CGSize(width: 560, height: 56),
+            named: "TransferRow-checksum-mismatch"
+        )
+    }
+
+    @Test func tooltipsNameTheCheck() {
+        #expect(TransferRow.verifiedHelp(hash: "md5").contains("MD5 checksums"))
+        #expect(TransferRow.verifiedHelp(hash: "md5").contains("by size only"))
+        #expect(TransferRow.sizeOnlyHelp.contains("sizes only"))
+        #expect(TransferRow.mismatchHelp("raw rclone error").hasSuffix("raw rclone error"))
+    }
 }

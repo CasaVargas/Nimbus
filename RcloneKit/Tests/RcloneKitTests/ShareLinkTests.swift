@@ -39,4 +39,20 @@ struct ShareLinkTests {
         MockURLProtocol.enqueue(endpoint: "operations/fsinfo", json: #"{"Name": "loc", "Features": {"PublicLink": false}}"#)
         #expect(try await makeTestClient().features(fs: "loc:").publicLink == false)
     }
+
+    @Test func hashTypesDecodeInOrder() async throws {
+        MockURLProtocol.reset(endpoint: "operations/fsinfo")
+        MockURLProtocol.enqueue(endpoint: "operations/fsinfo", json: #"""
+        {"Name": "s3x", "Features": {"PublicLink": true}, "Hashes": ["md5", "sha1"]}
+        """#)
+        #expect(try await makeTestClient().hashTypes(fs: "s3x:") == ["md5", "sha1"])
+    }
+
+    @Test func hashTypesEmptyForCryptOrMissing() async throws {
+        MockURLProtocol.reset(endpoint: "operations/fsinfo")
+        MockURLProtocol.enqueue(endpoint: "operations/fsinfo", json: #"{"Name": "c", "Features": {}, "Hashes": []}"#)
+        MockURLProtocol.enqueue(endpoint: "operations/fsinfo", json: #"{"Name": "n", "Features": {}, "Hashes": null}"#)
+        #expect(try await makeTestClient().hashTypes(fs: "c:") == [])
+        #expect(try await makeTestClient().hashTypes(fs: "n:") == [])
+    }
 }

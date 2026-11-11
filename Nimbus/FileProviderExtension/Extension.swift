@@ -185,6 +185,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let filename = itemTemplate.filename
         let isFolder = itemTemplate.contentType?.conforms(to: .directory) ?? false
         let localURL = url
+        let domainBox = SendableBox(value: domain)
 
         let progress = Progress(totalUnitCount: Self.fileSizeOnDisk(localURL, orDefault: 1))
         let task = Task { @Sendable in
@@ -204,9 +205,16 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     // destination filename is passed explicitly since the
                     // system-staged `localURL` isn't guaranteed to be named
                     // `filename`.
-                    try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "createItem.upload") {
-                        try await rclone.uploadFile(from: localURL, fs: "\(remoteName):", remote: parentPath, filename: filename)
+                    let identifier = "\(remoteName):\(newPath)"
+                    do {
+                        try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "createItem.upload") {
+                            try await rclone.uploadFile(from: localURL, fs: "\(remoteName):", remote: parentPath, filename: filename)
+                        }
+                    } catch {
+                        await UploadFailureReporting.failed(error, identifier: identifier, domain: domainBox.value, logger: logger)
+                        throw error
                     }
+                    UploadFailureReporting.succeeded([identifier], remoteName: remoteName, logger: logger)
                 }
 
                 let item = try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "createItem.stat") {
@@ -250,6 +258,8 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let isRenameOrMove = changedFields.contains(.filename) || changedFields.contains(.parentItemIdentifier)
         let hasContentsChange = changedFields.contains(.contents)
         let contentsURL = newContents
+        let systemIdentifier = item.itemIdentifier.rawValue
+        let domainBox = SendableBox(value: domain)
 
         let progress = Progress(totalUnitCount: hasContentsChange ? Self.fileSizeOnDisk(contentsURL, orDefault: 1) : 1)
         let task = Task { @Sendable in
@@ -284,15 +294,28 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                         try? PinStore.shared?.moved(
                             from: "\(remoteName):\(currentPath)", to: "\(remoteName):\(destinationPath)",
                             domain: remoteName)
+                        try? UploadFailureStore.shared?.moved(
+                            from: "\(remoteName):\(currentPath)", to: "\(remoteName):\(destinationPath)",
+                            domain: remoteName)
                     }
                 }
 
                 if hasContentsChange, let contentsURL {
                     let uploadDir = (workingPath as NSString).deletingLastPathComponent
                     let uploadFilename = (workingPath as NSString).lastPathComponent
-                    try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "modifyItem.upload") {
-                        try await rclone.uploadFile(from: contentsURL, fs: "\(remoteName):", remote: uploadDir, filename: uploadFilename)
+                    do {
+                        try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "modifyItem.upload") {
+                            try await rclone.uploadFile(from: contentsURL, fs: "\(remoteName):", remote: uploadDir, filename: uploadFilename)
+                        }
+                    } catch {
+                        // Under the identifier the system knows: after a
+                        // rename in this same call, the new one isn't its yet.
+                        await UploadFailureReporting.failed(error, identifier: systemIdentifier,
+                                                            domain: domainBox.value, logger: logger)
+                        throw error
                     }
+                    UploadFailureReporting.succeeded([systemIdentifier, "\(remoteName):\(workingPath)"],
+                                                     remoteName: remoteName, logger: logger)
                 }
 
                 let newIdentifier = NSFileProviderItemIdentifier("\(remoteName):\(workingPath)")
@@ -347,6 +370,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     }
                 }
                 try? PinStore.shared?.removed(identifier.rawValue, domain: remoteName)
+                try? UploadFailureStore.shared?.removed(identifier.rawValue, domain: remoteName)
                 progress.completedUnitCount = 1
                 handler.value(nil)
             } catch {

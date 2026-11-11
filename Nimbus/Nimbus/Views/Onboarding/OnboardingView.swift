@@ -12,7 +12,12 @@ struct OnboardingView: View {
     @State private var showAddRemote = false
     @State private var showAddMount = false
     @State private var mountsViewModel: MountsViewModel?
+    @State private var installer: RcloneInstaller
     @Environment(\.stratosphere) private var palette
+
+    init(installer: RcloneInstaller = RcloneInstaller()) {
+        _installer = State(initialValue: installer)
+    }
 
     private var hasRemotes: Bool { !remotes.isEmpty }
     // Phase 2b: hasMounts reflects config presence, not actual mount state.
@@ -32,6 +37,7 @@ struct OnboardingView: View {
             .padding(.horizontal, DesignSystem.Spacing.xl)
             .padding(.vertical, DesignSystem.Spacing.xxl)
             .animation(DesignSystem.Motion.smooth, value: daemon.status)
+            .animation(DesignSystem.Motion.smooth, value: installer.phase)
             .animation(DesignSystem.Motion.smooth, value: hasRemotes)
             .animation(DesignSystem.Motion.smooth, value: hasMounts)
         }
@@ -160,15 +166,60 @@ struct OnboardingView: View {
 
     // MARK: - Cards
 
+    @ViewBuilder
     private var daemonCard: some View {
+        if offersDownload {
+            rcloneDownloadCard
+        } else {
+            OnboardingCard(
+                state: daemonCardState,
+                icon: "bolt",
+                title: "Connection Engine",
+                message: daemonCardMessage,
+                primaryAction: daemonRetryAction,
+                secondaryAction: nil
+            )
+        }
+    }
+
+    /// No rclone at the configured path, or a download is under way or just
+    /// failed. Once installed the path is executable and the normal card
+    /// returns to show the daemon starting.
+    private var offersDownload: Bool {
+        switch installer.phase {
+        case .checking, .downloading, .verifying, .installing, .failed: return true
+        case .idle, .installed, .upToDate:
+            return !FileManager.default.isExecutableFile(atPath: settings.rcloneBinaryPath)
+        }
+    }
+
+    private var rcloneDownloadCard: some View {
         OnboardingCard(
-            state: daemonCardState,
+            state: installer.phase.isBusy ? .inProgress : .actionRequired,
             icon: "bolt",
             title: "Connection Engine",
-            message: daemonCardMessage,
-            primaryAction: daemonRetryAction,
-            secondaryAction: nil
+            message: downloadMessage,
+            primaryAction: installer.phase.isBusy ? nil : .init(
+                label: installer.phase == .idle ? "Download rclone" : "Try Again",
+                perform: { Task { await downloadRclone() } }
+            ),
+            secondaryAction: installer.phase.isBusy ? nil : .init(
+                label: "Installed it with Homebrew? Check again",
+                perform: { Task { await recheckRclone() } }
+            )
         )
+    }
+
+    private var downloadMessage: LocalizedStringKey {
+        switch installer.phase {
+        case .idle, .installed, .upToDate:
+            return "Nimbus uses rclone to reach your clouds, and this Mac doesn't have it yet. Nimbus can download the official build from rclone.org (about 30 MB) and check it against rclone's published checksums. Or run `brew install rclone`."
+        case .checking: return "Checking rclone.org for the latest version…"
+        case .downloading(let version): return "Downloading rclone \(version)…"
+        case .verifying: return "Checking the download against rclone's published checksums…"
+        case .installing: return "Installing rclone…"
+        case .failed(let failure): return LocalizedStringKey(failure.message)
+        }
     }
 
     private var daemonCardState: OnboardingCardState {
@@ -191,13 +242,7 @@ struct OnboardingView: View {
     private var daemonRetryAction: OnboardingCard.ActionConfig? {
         guard case .error = daemon.status else { return nil }
         return .init(label: "Retry", perform: {
-            Task {
-                await daemon.retry(
-                    binaryPath: settings.rcloneBinaryPath,
-                    bandwidthLimit: settings.bandwidthLimit,
-                    concurrentTransfers: settings.concurrentTransfers
-                )
-            }
+            Task { await startDaemon() }
         })
     }
 
@@ -246,6 +291,30 @@ struct OnboardingView: View {
         mountStore.configs.first?.mountPoint ?? ""
     }
 
+    private func startDaemon() async {
+        mountManager.rcloneBinaryPath = settings.rcloneBinaryPath
+        await daemon.retry(
+            binaryPath: settings.rcloneBinaryPath,
+            bandwidthLimit: settings.bandwidthLimit,
+            concurrentTransfers: settings.concurrentTransfers
+        )
+    }
+
+    private func downloadRclone() async {
+        guard let path = await installer.install() else { return }
+        settings.rcloneBinaryPath = path
+        await startDaemon()
+    }
+
+    /// Looks again in the usual places, e.g. after `brew install rclone`.
+    private func recheckRclone() async {
+        if let found = AppSettings.locateRclone() {
+            settings.rcloneBinaryPath = found
+            installer.reset()
+        }
+        await startDaemon()
+    }
+
     private func finish() {
         settings.onboardingComplete = true
     }
@@ -286,6 +355,18 @@ struct OnboardingView: View {
             }
         }
     }
+}
+
+#Preview("No rclone yet") {
+    let defaults = UserDefaults(suiteName: "preview.onboarding.no-rclone")!
+    defaults.set("/nonexistent/rclone", forKey: "rcloneBinaryPath")
+    return OnboardingView()
+        .environment(AppSettings(defaults: defaults))
+        .environment(RcloneDaemon())
+        .environment(MountConfigStore())
+        .environment(MountManager())
+        .environment(FileProviderBridge())
+        .frame(width: 700, height: 800)
 }
 
 #Preview {
