@@ -55,9 +55,7 @@ struct HomeContent: View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
                 HomeHero(
                     summary: summary,
-                    addCloudIsPrimary: summary.attention == nil,
-                    isWide: width >= 820,
-                    onAddCloud: actions.addCloud
+                    isWide: width >= 820
                 )
                 if let row = summary.attention {
                     AttentionBanner(row: row, onFix: { actions.fix(row) })

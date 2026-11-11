@@ -30,31 +30,18 @@ struct RemotesSidebarSection: View {
                     )
                     .tag(SidebarSelection.remote(remote.name))
                 }
-            } else if daemon.status == .connected {
-                Button {
-                    showAddRemote = true
-                } label: {
-                    Label("Add Cloud…", systemImage: "plus")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
             }
-        } header: {
-            HStack {
-                Text("Clouds")
-                Spacer()
-                Menu {
+            // The one place to add a cloud: a row where the new cloud will
+            // appear, on every screen. It replaced a small plus in the
+            // header and two more Add Cloud buttons on Home.
+            SidebarAddCloudRow { showAddRemote = true }
+                .disabled(daemon.status != .connected)
+                .contextMenu {
                     Button("Add Cloud…", systemImage: "plus") { showAddRemote = true }
                     Button("Import from rclone.conf…", systemImage: "square.and.arrow.down") { showImportConfig = true }
-                } label: {
-                    Image(systemName: "plus")
                 }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .disabled(daemon.status != .connected)
-                .help("Add a cloud or import one from rclone.conf")
-            }
+        } header: {
+            Text("Clouds")
         }
         .onChange(of: router.pending, initial: true) {
             guard daemon.status == .connected,
@@ -96,5 +83,44 @@ struct RemotesSidebarSection: View {
         } message: {
             Text("Nimbus forgets how to reach this cloud. Files stored in the cloud aren't affected.")
         }
+    }
+}
+
+/// The last row of the Clouds section: an empty, dashed tile where the next
+/// cloud's logo will go, and "Add Cloud…". Same height and rhythm as
+/// `SidebarRemoteRow`.
+struct SidebarAddCloudRow: View {
+    let action: () -> Void
+
+    @Environment(\.stratosphere) private var palette
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: DesignSystem.Spacing.s) {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .strokeBorder(palette.textTertiary.color, style: StrokeStyle(lineWidth: 1, dash: [3, 2.5]))
+                    .frame(width: 24, height: 24)
+                    .overlay {
+                        Image(systemName: "plus")
+                            .resizable()
+                            .scaledToFit()
+                            .fontWeight(.semibold)
+                            .frame(width: 10, height: 10)
+                            .foregroundStyle(palette.textSecondary.color)
+                    }
+                    .accessibilityHidden(true)
+                Text("Add Cloud…")
+                    .font(DesignSystem.Stratosphere.Typography.control)
+                    .foregroundStyle(palette.textSecondary.color)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .opacity(isEnabled ? 1 : 0.5)
+        .help("Add a cloud. Right-click to import from rclone.conf.")
     }
 }

@@ -202,12 +202,9 @@ struct DemoWindow<Content: View>: View {
                                          onEdit: {}, onDelete: {}, onReconnect: {})
                             .tag(SidebarSelection.remote(remote.name))
                     }
+                    SidebarAddCloudRow {}
                 } header: {
-                    HStack {
-                        Text("Clouds")
-                        Spacer()
-                        Image(systemName: "plus").foregroundStyle(.secondary)
-                    }
+                    Text("Clouds")
                 }
                 Section("Tools") {
                     SidebarToolLabel(title: "Backups", systemImage: "clock.arrow.circlepath",
@@ -240,10 +237,7 @@ struct DemoWindow<Content: View>: View {
                     Text(title)
                         .font(DesignSystem.Typography.headline)
                     Spacer()
-                    Button("Copy Between Clouds…") {}
-                    Button {} label: { Label("Add Cloud", systemImage: "plus") }
                 }
-                .buttonStyle(.glassCapsule)
                 .padding(.horizontal, DesignSystem.Spacing.l)
                 .frame(height: 52)
                 content()

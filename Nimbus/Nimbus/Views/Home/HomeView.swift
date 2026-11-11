@@ -54,21 +54,6 @@ struct HomeView: View {
             )
         )
         .navigationTitle("Home")
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button("Copy Between Clouds…", action: onCopyBetweenClouds)
-                    .disabled(remotes.count < 1)
-                Button {
-                    router.pending = .addCloud
-                } label: {
-                    Label("Add Cloud", systemImage: "plus")
-                        .labelStyle(.titleAndIcon)
-                }
-                // Not prominent: Home's one filled button is in its hero
-                // or, when something is wrong, on the banner.
-                .disabled(daemon.status != .connected)
-            }
-        }
         .onChange(of: pendingSignIn, initial: true) { _, name in
             guard let name else { return }
             pendingSignIn = nil

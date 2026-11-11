@@ -54,12 +54,7 @@ extension CloudSummary.Row {
 /// stand, and every cloud's share of storage as a ring.
 struct HomeHero: View {
     let summary: CloudSummary
-    /// True when nothing else on the screen is asking for a click, so Add
-    /// Cloud may be the filled button. With an attention banner showing,
-    /// the banner's fix is the primary action and this one goes quiet.
-    let addCloudIsPrimary: Bool
     let isWide: Bool
-    let onAddCloud: () -> Void
 
     @Environment(\.stratosphere) private var palette
     @Environment(\.cloudColors) private var cloudColors
@@ -111,14 +106,6 @@ struct HomeHero: View {
                     .frame(maxWidth: 400, alignment: .leading)
             }
             .accessibilityElement(children: .combine)
-
-            if addCloudIsPrimary {
-                Button(action: onAddCloud) { Label("Add Cloud", systemImage: "plus") }
-                    .buttonStyle(.primaryPill)
-            } else {
-                Button(action: onAddCloud) { Label("Add Cloud", systemImage: "plus") }
-                    .buttonStyle(.glassCapsule)
-            }
         }
     }
 
