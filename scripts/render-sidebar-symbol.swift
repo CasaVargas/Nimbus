@@ -160,4 +160,11 @@ try """
 
 """.write(to: catalog.appendingPathComponent("Contents.json"), atomically: true, encoding: .utf8)
 
+// The menu bar item draws the same glyph, so the app's catalog carries a
+// copy (an app cannot read symbols from its extension's catalog).
+let appSymbolset = repoRoot.appendingPathComponent("Nimbus/Nimbus/Resources/Assets.xcassets/nimbus.symbolset")
+try? fm.removeItem(at: appSymbolset)
+try fm.copyItem(at: symbolset, to: appSymbolset)
+
 print("Wrote \(symbolset.path)")
+print("Wrote \(appSymbolset.path)")

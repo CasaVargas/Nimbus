@@ -127,7 +127,7 @@ struct CompanionGlyphTests {
         #expect(b?.direction == .up)
         #expect(b?.focusCloud == "B")
         #expect(b?.eta == 90)
-        #expect(CompanionGlyph.symbol(for: .busy(b!)) == "icloud.and.arrow.up")
+        #expect(CompanionGlyph.badge(for: .busy(b!)) == .uploading)
     }
 
     @Test func downloadToMacPointsDownAndFocusesSource() {
@@ -135,17 +135,17 @@ struct CompanionGlyphTests {
         #expect(b?.direction == .down)
         #expect(b?.focusCloud == "A")
         #expect(b?.sentence == "Downloading 1 item to this Mac")
-        #expect(CompanionGlyph.symbol(for: .busy(b!)) == "icloud.and.arrow.down")
+        #expect(CompanionGlyph.badge(for: .busy(b!)) == .downloading)
     }
 
     @Test func calmAndProblemStatesUseDistinctGlyphs() {
-        #expect(CompanionGlyph.symbol(for: .allReady) == "icloud")
-        #expect(CompanionGlyph.symbol(for: .noClouds) == "icloud")
-        #expect(CompanionGlyph.symbol(for: .engineDown("x")) == "exclamationmark.icloud")
+        #expect(CompanionGlyph.badge(for: .allReady) == .none)
+        #expect(CompanionGlyph.badge(for: .noClouds) == .none)
+        #expect(CompanionGlyph.badge(for: .engineDown("x")) == .attention)
         let row = CloudSummary.Row(id: "Work", providerType: "onedrive", providerName: "OneDrive",
                                    health: .needsSignIn, sentence: "Needs sign-in", quota: nil,
                                    isInFinder: true, tint: 0, lastConnected: nil, errorDetail: nil)
-        #expect(CompanionGlyph.symbol(for: .needsAttention(row)) == "exclamationmark.icloud")
+        #expect(CompanionGlyph.badge(for: .needsAttention(row)) == .attention)
         #expect(CompanionGlyph.accessibilityLabel(for: .needsAttention(row)) == "Nimbus: Work needs you to sign in")
         #expect(CompanionHeadline.title(for: .allReady) == "Everything is ready")
     }
