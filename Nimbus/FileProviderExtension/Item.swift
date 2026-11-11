@@ -14,7 +14,7 @@ import UniformTypeIdentifiers
 /// child and breaks enumeration below the first level). A comment in
 /// `BrowserViewModel` claims container-relative Paths; its code works only
 /// because it feeds `item.path` back to rclone unmodified.
-final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable {
+final class FileProviderItem: NSObject, NSFileProviderItem, NSFileProviderItemDecorating, @unchecked Sendable {
     let itemIdentifier: NSFileProviderItemIdentifier
     let parentItemIdentifier: NSFileProviderItemIdentifier
     let filename: String
@@ -34,6 +34,8 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
     let isKeptByFolder: Bool
     /// The cloud's service makes share links (rclone `PublicLink`).
     let canShare: Bool
+    /// The last upload of this item failed (`UploadFailureStore`).
+    let uploadFailed: Bool
     private let isRoot: Bool
 
     /// Root downloads lazily; a pinned item downloads now and stays; every
@@ -52,6 +54,14 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
 
     static func keepState(pinned: Bool, keptByFolder: Bool) -> Int {
         pinned ? 1 : (keptByFolder ? 2 : 0)
+    }
+
+    /// Nimbus's Finder badges, declared under `NSFileProviderDecorations`
+    /// in the extension's Info.plist.
+    var decorations: [NSFileProviderItemDecorationIdentifier]? {
+        guard !isRoot else { return nil }
+        return ItemBadges.identifiers(pinned: isPinned, uploadFailed: uploadFailed)
+            .map { NSFileProviderItemDecorationIdentifier(rawValue: $0) }
     }
 
     /// Read by the Finder actions' activation rules (extension Info.plist).
@@ -103,6 +113,8 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
         self.isPinned = pinned
         self.isKeptByFolder = keptByFolder
         self.canShare = CloudCapabilities.shared?.canShare(cloud: remoteName) ?? false
+        let uploadFailed = UploadFailureStore.shared?.hasFailed(identifier.rawValue, domain: remoteName) ?? false
+        self.uploadFailed = uploadFailed
         self.isRoot = false
         self.filename = file.name
         self.contentModificationDate = file.modTime
@@ -124,11 +136,13 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
         } else {
             versionData = Data([0])
         }
-        // The pin state is metadata: folding it into the metadata version
-        // tells the system the item changed (re-read its content policy)
-        // while the unchanged content version means nothing re-downloads.
+        // The pin and badge state are metadata: folding them into the
+        // metadata version tells the system the item changed (re-read its
+        // content policy and decorations) while the unchanged content
+        // version means nothing re-downloads.
         var metadataVersion = versionData
-        metadataVersion.append(UInt8(Self.keepState(pinned: pinned, keptByFolder: keptByFolder)))
+        metadataVersion.append(contentsOf: ItemBadges.metadataSuffix(
+            keepState: Self.keepState(pinned: pinned, keptByFolder: keptByFolder), uploadFailed: uploadFailed))
         self.itemVersion = NSFileProviderItemVersion(contentVersion: versionData, metadataVersion: metadataVersion)
     }
 
@@ -138,6 +152,7 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
         self.isPinned = PinStore.shared?.isPinned(identifier.rawValue, domain: remoteName) ?? false
         self.isKeptByFolder = false
         self.canShare = false
+        self.uploadFailed = false
         self.isRoot = true
         self.parentItemIdentifier = parent
         self.filename = name

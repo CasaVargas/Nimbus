@@ -111,6 +111,18 @@ targets:
             - NSExtensionFileProviderActionIdentifier: app.casavargas.nimbus.copyShareLink
               NSExtensionFileProviderActionName: Copy Share Link
               NSExtensionFileProviderActionActivationRule: "fileproviderItems.@count == 1 AND SUBQUERY(fileproviderItems, $item, $item.userInfo.canShare == YES).@count == 1"
+          # Nimbus's own Finder badges (#71). Finder shows only the first
+          # Badge an item returns; ItemBadges orders them. System badge
+          # images, so no assets ship.
+          NSFileProviderDecorations:
+            - Identifier: app.casavargas.nimbus.FileProvider.uploadFailed
+              BadgeImageType: com.apple.icon-decoration.badge.warning
+              Category: Badge
+              Label: Not Uploaded
+            - Identifier: app.casavargas.nimbus.FileProvider.pinned
+              BadgeImageType: com.apple.icon-decoration.badge.pinned
+              Category: Badge
+              Label: Kept Downloaded
 
   NimbusTests:
     type: bundle.unit-test
