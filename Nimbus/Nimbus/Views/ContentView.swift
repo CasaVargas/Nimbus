@@ -212,6 +212,8 @@ struct ContentView: View {
                     selection = .backups
                 }
             )
+        case .compare:
+            CompareView()
         case .backups:
             BackupsView(
                 pendingDraft: $pendingBackupDraft,

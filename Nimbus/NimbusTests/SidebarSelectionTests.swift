@@ -34,4 +34,9 @@ struct SidebarSelectionTests {
         #expect(nextSelection(current: .backups, remotes: ["a"]) == .backups)
         #expect(nextSelection(current: .backups, remotes: []) == .backups)
     }
+
+    @Test func compareIsKept() {
+        #expect(nextSelection(current: .compare, remotes: ["a"]) == .compare)
+        #expect(nextSelection(current: .compare, remotes: []) == .compare)
+    }
 }
