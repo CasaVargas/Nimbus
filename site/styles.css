@@ -3,17 +3,20 @@
    where the browser has them and the reader has not asked for less motion. */
 
 :root {
-  --ink: #1d1d1f;
-  --ink-2: #6e6e73;
-  --ink-3: #86868b;
-  --paper: #ffffff;
-  --mist: #f5f5f7;
+  /* One appearance, dark, top to bottom: the app's screens are dark, and so is
+     everything they sit on. */
+  color-scheme: dark;
+  --ink: #f5f5f7;
+  --ink-2: #b9bedd;
+  --ink-3: #8f93b0;
+  --paper: #000000;
+  --mist: #070a1f;
   --black: #000000;
   --on-dark: #f5f5f7;
   --on-dark-2: #a1a1a6;
-  --link: #0066cc;
+  --link: #6aa9ff;
   --link-dark: #6aa9ff;
-  --rule: rgba(0,0,0,.1);
+  --rule: rgba(255,255,255,.14);
   --rule-dark: rgba(255,255,255,.14);
 
   /* The app's own sky (DesignSystem.Stratosphere, dark palette). */
@@ -86,6 +89,7 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 
 .section { padding: 168px 0; }
 .section--mist { background: var(--mist); }
+.section--mist .win, .section .win { box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 0 160px -20px rgba(72,120,255,.5); }
 .section--black { background: var(--black); color: var(--on-dark); }
 .section--black .win { box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 0 160px -20px rgba(72,120,255,.5); }
 @media (max-width: 700px) { .section { padding: 84px 0; } }
@@ -184,7 +188,7 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 .bento--2 .tile { min-height: 0; justify-content: flex-start; }
 .tile h3 { font-family: var(--display); font-weight: 700; font-size: 25px; line-height: 1.15; letter-spacing: -0.012em; margin-bottom: 10px; }
 .tile p { color: var(--ink-2); font-size: 16px; line-height: 1.45; }
-.tile--white { background: #fff; }
+.tile--white { background: linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.03)); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 0 0 1px rgba(255,255,255,.08); }
 .tile--span2 { grid-column: span 2; }
 .tile--span3 { grid-column: span 3; min-height: 0; }
 .tile--dark { background: #0c1030; color: var(--on-dark); }
@@ -220,7 +224,7 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 .tile__over p { color: #c5c9e6; }
 
 .tile__img { margin: -10px -10px 26px; }
-.tile__img img { width: 100%; border-radius: 14px; box-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 18px 40px -16px rgba(0,0,0,.25); }
+.tile__img img { width: 100%; border-radius: 14px; box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 24px 50px -20px rgba(0,0,0,.7); }
 .tile__img--small { max-width: 240px; margin: 0 0 auto; padding-bottom: 26px; }
 @media (max-width: 900px) {
   .bento, .bento--2 { grid-template-columns: 1fr; }
@@ -260,7 +264,7 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 .table th, .table td { text-align: left; padding: 16px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
 .table thead th { font-size: 13px; color: var(--ink-3); font-weight: 600; padding-top: 0; }
 .table tbody tr:last-child td, .table tbody tr:last-child th { border-bottom: 0; }
-.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; background: #fff; border-radius: var(--r-tile); padding: 26px 22px 12px; }
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; background: linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.03)); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 0 0 1px rgba(255,255,255,.08); border-radius: var(--r-tile); padding: 26px 22px 12px; }
 .compare tbody th { font-weight: 600; white-space: nowrap; }
 .compare tbody td:first-of-type { font-weight: 600; color: var(--link); }
 .compare th, .compare td { font-size: 15px; min-width: 132px; }
@@ -268,16 +272,16 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 
 /* ---------- From the same studio ---------- */
 .fund { display: grid; grid-template-columns: 7fr 5fr; gap: 20px; }
-.fund__card { background: var(--mist); border-radius: var(--r-tile); overflow: hidden; display: flex; flex-direction: column; }
+.fund__card { background: linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.03)); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 0 0 1px rgba(255,255,255,.08); border-radius: var(--r-tile); overflow: hidden; display: flex; flex-direction: column; }
 .fund__art { position: relative; padding: 28px 28px 0; }
 .fund__art--tv { padding-right: 84px; }
 .fund__tv { border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.2), 0 30px 60px -24px rgba(0,0,0,.6); }
 .fund__phone { position: absolute; right: 20px; bottom: -24px; width: 136px; }
 .fund__art--phone { display: flex; justify-content: center; }
 .fund__hero-phone { width: 230px; margin-bottom: -44px; }
-.fund__body { padding: 40px 28px 28px; display: flex; flex-direction: column; flex: 1; position: relative; background: var(--mist); }
+.fund__body { padding: 40px 28px 28px; display: flex; flex-direction: column; flex: 1; position: relative; background: #0b0e26; }
 .fund__name { display: flex; align-items: center; gap: 12px; }
-.fund__name img { border-radius: 10px; box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
+.fund__name img { border-radius: 10px; box-shadow: 0 0 0 1px rgba(255,255,255,.14); }
 .fund__name h3 { font-family: var(--display); font-weight: 700; font-size: 28px; }
 .fund__what { margin-top: 14px; font-size: 21px; letter-spacing: -0.015em; }
 .fund__copy { margin-top: 8px; color: var(--ink-2); font-size: 16px; line-height: 1.5; }
