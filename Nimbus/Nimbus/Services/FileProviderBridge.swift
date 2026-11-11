@@ -58,11 +58,21 @@ final class FileProviderBridge {
 
     func addDomain(identifier: String, displayName: String) async throws {
         let existing = try await NSFileProviderManager.domains()
-        if existing.contains(where: { $0.identifier.rawValue == identifier }) {
+        if let current = existing.first(where: { $0.identifier.rawValue == identifier }) {
             // Already registered — leave it alone. Removing and re-adding
             // (the old behavior) tears down the domain's local replica:
             // every materialized file is evicted and pending local edits
             // are discarded, on every app launch.
+            //
+            // One exception: a domain registered before system search was
+            // supported is updated in place. `add` with the same identifier
+            // changes the domain's properties; it doesn't remove anything.
+            if #available(macOS 26.0, *), !current.supportsStringSearchRequest {
+                let updated = NSFileProviderDomain(identifier: current.identifier, displayName: current.displayName)
+                updated.supportsStringSearchRequest = true
+                try await NSFileProviderManager.add(updated)
+                logger.info("Turned on system search for File Provider domain: \(identifier)")
+            }
             return
         }
 
@@ -70,6 +80,11 @@ final class FileProviderBridge {
             identifier: NSFileProviderDomainIdentifier(rawValue: identifier),
             displayName: displayName
         )
+        if #available(macOS 26.0, *) {
+            // System search (Spotlight, Finder) asks the extension; see
+            // the extension's `CloudSearchEnumerator`.
+            domain.supportsStringSearchRequest = true
+        }
         try await NSFileProviderManager.add(domain)
         logger.info("Added File Provider domain: \(identifier)")
     }

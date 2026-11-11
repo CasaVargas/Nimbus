@@ -68,10 +68,21 @@ struct RemoteChangeDiffTests {
 
     @Test func anchorRoundTrips() {
         let data = WorkingSetAnchor.encode(pinSequence: 42, remoteGeneration: 7)
-        #expect(data.count == 16)
+        #expect(data.count == 24)
         let decoded = WorkingSetAnchor.decode(data)
         #expect(decoded.pinSequence == 42)
         #expect(decoded.remoteGeneration == 7)
+        #expect(decoded.format == WorkingSetAnchor.currentFormat)
+    }
+
+    @Test func anchorFromTheEmptyListingBuildDecodesAsFormatZero() {
+        var old = withUnsafeBytes(of: Int64(42).littleEndian) { Data($0) }
+        old.append(withUnsafeBytes(of: Int64(7).littleEndian) { Data($0) })
+        let decoded = WorkingSetAnchor.decode(old)
+        #expect(decoded.pinSequence == 42)
+        #expect(decoded.remoteGeneration == 7)
+        #expect(decoded.format == 0)
+        #expect(decoded.format < WorkingSetAnchor.currentFormat)
     }
 
     @Test func legacyPinOnlyAnchorDecodesWithGenerationZero() {
@@ -79,6 +90,7 @@ struct RemoteChangeDiffTests {
         let decoded = WorkingSetAnchor.decode(legacy)
         #expect(decoded.pinSequence == 9)
         #expect(decoded.remoteGeneration == 0)
+        #expect(decoded.format == 0)
     }
 
     @Test func malformedAnchorDecodesAsZero() {
@@ -174,5 +186,75 @@ struct RemoteChangeWalkTests {
         let fake = Fake(server: server, known: Set(names + [Self.root]))
         let visits = await walk(fake, width: 3)
         #expect(visits.map(\.container) == [Self.root] + names)
+    }
+}
+
+@Suite("WorkingSetListing")
+struct WorkingSetListingTests {
+    private static let root = "ROOT"
+
+    private static func folder(_ id: String) -> SyncedItemRecord {
+        SyncedItemRecord(identifier: id, name: id, isDir: true, size: 0, modTime: nil, keepState: 0)
+    }
+
+    private static func file(_ id: String) -> SyncedItemRecord {
+        SyncedItemRecord(identifier: id, name: id, isDir: false, size: 1, modTime: 1, keepState: 0)
+    }
+
+    private func collect(_ snapshots: [String: [SyncedItemRecord]]) -> [WorkingSetListing.Entry] {
+        WorkingSetListing.collect(root: Self.root) { snapshots[$0] }
+    }
+
+    @Test func nothingListedMeansNothingInTheWorkingSet() {
+        #expect(collect([:]).isEmpty)
+    }
+
+    @Test func listsEveryEntryOfEveryListedFolderWithItsParent() {
+        let entries = collect([
+            Self.root: [Self.folder("a"), Self.file("f")],
+            "a": [Self.file("a/doc"), Self.folder("a/b")],
+            "a/b": [Self.file("a/b/deep")],
+        ])
+        #expect(entries.map(\.record.identifier) == ["a", "f", "a/doc", "a/b", "a/b/deep"])
+        #expect(entries.map(\.parent) == [Self.root, Self.root, "a", "a", "a/b"])
+    }
+
+    @Test func folderNeverListedIsIncludedButNotEntered() {
+        let entries = collect([
+            Self.root: [Self.folder("opened"), Self.folder("never")],
+            "opened": [Self.file("opened/x")],
+            // A stale snapshot under an unlisted path is unreachable.
+            "never/stale": [Self.file("never/stale/y")],
+        ])
+        #expect(entries.map(\.record.identifier) == ["opened", "never", "opened/x"])
+    }
+
+    @Test func snapshotNoLongerReachableFromTheRootIsLeftOut() {
+        let entries = collect([Self.root: [Self.file("f")], "gone": [Self.file("gone/x")]])
+        #expect(entries.map(\.record.identifier) == ["f"])
+    }
+
+    @Test func duplicatesAndCyclesAppearOnce() {
+        let entries = collect([
+            Self.root: [Self.folder("a"), Self.folder("a")],
+            "a": [Self.folder("a"), Self.folder(Self.root), Self.file("a/x")],
+        ])
+        #expect(entries.map(\.record.identifier) == ["a", "a/x"])
+    }
+}
+
+@Suite("NewlyListedLog")
+struct NewlyListedLogTests {
+    @Test func linesRoundTripInOrderWithoutRepeats() {
+        var data = Data()
+        for id in ["gd:Fonts", "gd:a/b", "gd:Fonts", "NSFileProviderRootContainerItemIdentifier"] {
+            data.append(NewlyListedLog.line(for: id))
+        }
+        #expect(NewlyListedLog.parse(data) == ["gd:Fonts", "gd:a/b", "NSFileProviderRootContainerItemIdentifier"])
+    }
+
+    @Test func emptyOrBlankLogIsEmpty() {
+        #expect(NewlyListedLog.parse(Data()).isEmpty)
+        #expect(NewlyListedLog.parse(Data("\n\n".utf8)).isEmpty)
     }
 }

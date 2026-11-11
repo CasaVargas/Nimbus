@@ -83,6 +83,7 @@
 		431349BB5B84ADCFCA0B6EA2 /* TransferHistoryFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A4748DA3D9244673B9D1FE /* TransferHistoryFile.swift */; };
 		45B72B6D6C2526CF65320FD3 /* MountInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49A87D485E391F3534A28A3F /* MountInspector.swift */; };
 		46EF56720882A7BBF30276EB /* TransferRemoteFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ACE0708879752113B80E24D /* TransferRemoteFilterTests.swift */; };
+		48860520FB08FBC0A1F3AE4B /* SearchSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD49CE6296F76DABC4D5EF42 /* SearchSupport.swift */; };
 		4B8F27C6E2737CE62B78A053 /* RcloneDaemon.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0B2F0DEB49277B20924FD2F /* RcloneDaemon.swift */; };
 		4BA031818CA503293542BC26 /* Conditional.swift in Sources */ = {isa = PBXBuildFile; fileRef = 916A92A1094C044C04A03BB1 /* Conditional.swift */; };
 		4D31D60D2C17CA471EA49807 /* BackupStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82BDE5116D17F104D93791BA /* BackupStatusTests.swift */; };
@@ -531,6 +532,7 @@
 		BCAC9985B428E97E63330C61 /* TimedCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimedCache.swift; sourceTree = "<group>"; };
 		BCF0019E90B7A307ABD46CE0 /* ReconnectFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReconnectFlowTests.swift; sourceTree = "<group>"; };
 		BD21B96800F2631A8D3C2F30 /* OnboardingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingCard.swift; sourceTree = "<group>"; };
+		BD49CE6296F76DABC4D5EF42 /* SearchSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSupport.swift; sourceTree = "<group>"; };
 		BD7376A5101C0586DF6E6E2F /* FormSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormSection.swift; sourceTree = "<group>"; };
 		C06199216B4621FDF613D936 /* SettingsViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewTests.swift; sourceTree = "<group>"; };
 		C22B03B9E3CC9B0306F8411C /* VersionsPrunerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionsPrunerTests.swift; sourceTree = "<group>"; };
@@ -1060,6 +1062,7 @@
 				0AADFE40A0094C9D1B203763 /* KeepDownloadedAction.swift */,
 				92DB2DA947E8E6A02DDDD519 /* RemoteChangeScanner.swift */,
 				2A73ED3F778D3C45DA48F49A /* RetrySupport.swift */,
+				BD49CE6296F76DABC4D5EF42 /* SearchSupport.swift */,
 				85E8E3292C9337A99B07E02A /* ShareLinkAction.swift */,
 				5B4EDE78A4EEDF0C9EE8A0E9 /* SyncSnapshotStore.swift */,
 				8EE6D43FBEB2BEE79C1F6423 /* SystemContainerEnumerator.swift */,
@@ -1544,6 +1547,7 @@
 				C832B7F1A2C419718F2395DF /* RemoteChangeDiff.swift in Sources */,
 				EE5019E8D9B1D58231DA2324 /* RemoteChangeScanner.swift in Sources */,
 				F3B2DB5C301BC6F1D5517B0F /* RetrySupport.swift in Sources */,
+				48860520FB08FBC0A1F3AE4B /* SearchSupport.swift in Sources */,
 				8BA85C8EE184432A403DF7C3 /* ShareLinkAction.swift in Sources */,
 				81CAA86CB34B69D76112D50A /* ShareLinkSignal.swift in Sources */,
 				DE9800A75CD27B8E6F8437F9 /* SyncSnapshotStore.swift in Sources */,
