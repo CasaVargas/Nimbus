@@ -328,4 +328,12 @@ private enum SiteFiles {
     }
     .preferredColorScheme(.dark)
 }
+
+#Preview("home-ready", traits: .fixedLayout(width: 2000, height: 1240)) {
+    SiteShot(width: 1000, height: 620) {
+        HomeContent(summary: SiteData.readySummary, activity: HomePreviewData.activity, providerCount: 72)
+            .background { StratosphereBackdrop() }
+    }
+    .preferredColorScheme(.dark)
+}
 #endif

@@ -380,18 +380,19 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
     /* Tall blocks would never finish their entry on a short screen. */
     .fp, .fund__card, .sheets figure, .tile--span2, .tile--top { animation-range: entry 0% cover 22%; }
 
-    /* The manifesto pins for a few screens while its sentences light in turn. */
-    .manifesto { height: 420vh; padding: 0; view-timeline: --manifesto block; }
+    /* The manifesto pins for a little over one screen of scrolling while its
+       sentences light in turn. Longer than that and it reads as a stuck page. */
+    .manifesto { height: 230vh; padding: 0; view-timeline: --manifesto block; }
     .manifesto__pin { position: sticky; top: 0; height: 100vh; display: grid; align-content: center; }
     .manifesto__text span { opacity: .14; animation: light linear both; animation-timeline: --manifesto; }
     @keyframes light { to { opacity: 1; } }
-    .manifesto__text span:nth-child(1) { animation-range: contain 0% contain 10%; }
-    .manifesto__text span:nth-child(2) { animation-range: contain 12% contain 24%; }
-    .manifesto__text span:nth-child(3) { animation-range: contain 26% contain 38%; }
-    .manifesto__text span:nth-child(4) { animation-range: contain 40% contain 52%; }
-    .manifesto__text span:nth-child(5) { animation-range: contain 54% contain 66%; }
-    .manifesto__text span:nth-child(6) { animation-range: contain 68% contain 80%; }
-    .manifesto__text span:nth-child(7) { animation-range: contain 84% contain 96%; }
+    .manifesto__text span:nth-child(1) { animation-range: contain 0% contain 8%; }
+    .manifesto__text span:nth-child(2) { animation-range: contain 8% contain 22%; }
+    .manifesto__text span:nth-child(3) { animation-range: contain 22% contain 36%; }
+    .manifesto__text span:nth-child(4) { animation-range: contain 36% contain 50%; }
+    .manifesto__text span:nth-child(5) { animation-range: contain 50% contain 64%; }
+    .manifesto__text span:nth-child(6) { animation-range: contain 64% contain 78%; }
+    .manifesto__text span:nth-child(7) { animation-range: contain 78% contain 92%; }
 
     /* The zeros swell slightly as they pass the middle of the screen. */
     .zeros dt { animation: swell linear both; animation-timeline: view(); animation-range: entry 0% cover 50%; }
