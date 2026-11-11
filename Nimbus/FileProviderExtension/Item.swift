@@ -69,7 +69,27 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
     ///   - parentIdentifier: Identifier of the container that was listed —
     ///     `.rootContainer` for the remote root.
     ///   - remoteName: The rclone remote name (domain identifier).
-    init(from file: FileItem, parentIdentifier: NSFileProviderItemIdentifier, remoteName: String) {
+    convenience init(from file: FileItem, parentIdentifier: NSFileProviderItemIdentifier, remoteName: String) {
+        self.init(from: file, parentIdentifier: parentIdentifier, remoteName: remoteName,
+                  versionSeconds: file.modTime?.timeIntervalSince1970)
+    }
+
+    /// An entry from a persisted snapshot (the working set's item listing).
+    /// The version comes from the stored seconds, byte for byte the version
+    /// the folder's own listing reported, so the system sees no change.
+    convenience init(record: SyncedItemRecord, parentIdentifier: NSFileProviderItemIdentifier, remoteName: String) {
+        let prefix = "\(remoteName):"
+        let path = record.identifier.hasPrefix(prefix) ? String(record.identifier.dropFirst(prefix.count)) : record.identifier
+        let file = FileItem(
+            path: path, name: record.name, size: record.size, mimeType: "",
+            modTime: record.modTime.map { Date(timeIntervalSince1970: $0) }, isDir: record.isDir,
+            fileID: nil, qualifiedRemotePath: record.identifier
+        )
+        self.init(from: file, parentIdentifier: parentIdentifier, remoteName: remoteName, versionSeconds: record.modTime)
+    }
+
+    private init(from file: FileItem, parentIdentifier: NSFileProviderItemIdentifier, remoteName: String,
+                 versionSeconds: TimeInterval?) {
         let fullPath = file.path
         self.fullPath = fullPath
         let identifier = NSFileProviderItemIdentifier("\(remoteName):\(fullPath)")
@@ -97,8 +117,8 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
         }
 
         let versionData: Data
-        if let modTime = file.modTime {
-            versionData = withUnsafeBytes(of: modTime.timeIntervalSince1970) { Data($0) }
+        if let versionSeconds {
+            versionData = withUnsafeBytes(of: versionSeconds) { Data($0) }
         } else {
             versionData = Data([0])
         }

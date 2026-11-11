@@ -106,6 +106,12 @@ enum SyncSnapshotStore {
         anchor(forVersion: load(remoteName: remoteName, containerIdentifier: containerIdentifier)?.version ?? 0)
     }
 
+    /// The persisted listing of a container, or nil if the system never
+    /// listed it.
+    static func records(remoteName: String, containerIdentifier: NSFileProviderItemIdentifier) -> [SyncedItemRecord]? {
+        load(remoteName: remoteName, containerIdentifier: containerIdentifier)?.items
+    }
+
     /// Whether the system has listed this container at least once (a
     /// remote scan only walks containers it knows about).
     static func hasSnapshot(remoteName: String, containerIdentifier: NSFileProviderItemIdentifier) -> Bool {

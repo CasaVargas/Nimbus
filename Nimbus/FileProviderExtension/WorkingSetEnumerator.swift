@@ -16,8 +16,12 @@ import os
 /// The sync anchor is `WorkingSetAnchor`: (pin log sequence, remote
 /// generation). Pin changes are reported on their own with
 /// `moreComing: true`, so Keep Downloaded doesn't wait on a scan; the
-/// system then asks again and the scan runs. Listing the working set stays
-/// empty, as before: Nimbus doesn't track a working set of its own.
+/// system then asks again and the scan runs.
+///
+/// Listing the working set returns every item in every folder the system
+/// has listed (read from the snapshots, no network). The system indexes
+/// those items in Spotlight, downloaded or not. An anchor from a build that
+/// listed nothing is expired once, so existing domains re-list.
 final class WorkingSetEnumerator: NSObject, NSFileProviderEnumerator {
     private let logger = Logger(subsystem: "app.casavargas.nimbus.FileProvider", category: "working-set")
     private let domain: NSFileProviderDomain
@@ -32,11 +36,54 @@ final class WorkingSetEnumerator: NSObject, NSFileProviderEnumerator {
         self.listFiles = listFiles
     }
 
-    func invalidate() {}
+    /// Items per page of the working-set listing.
+    static let pageSize = 500
+
+    /// The listing, built on the first page and kept for the rest so a
+    /// large cloud isn't re-walked per page.
+    private var listing: [WorkingSetListing.Entry]?
+
+    func invalidate() { listing = nil }
 
     func enumerateItems(for observer: any NSFileProviderEnumerationObserver, startingAt page: NSFileProviderPage) {
-        observer.didEnumerate([])
-        observer.finishEnumerating(upTo: nil)
+        let remoteName = domain.identifier.rawValue
+        let offset = Self.offset(of: page)
+        if offset == 0 || listing == nil {
+            listing = WorkingSetListing.collect(root: NSFileProviderItemIdentifier.rootContainer.rawValue) { raw in
+                SyncSnapshotStore.records(remoteName: remoteName, containerIdentifier: NSFileProviderItemIdentifier(raw))
+            }
+        }
+        let entries = listing ?? []
+        let start = min(offset, entries.count)
+        let end = min(start + Self.pageSize, entries.count)
+        let items = entries[start..<end].map {
+            FileProviderItem(record: $0.record, parentIdentifier: NSFileProviderItemIdentifier($0.parent), remoteName: remoteName)
+        }
+        observer.didEnumerate(items)
+        if end < entries.count {
+            observer.finishEnumerating(upTo: Self.page(offset: end))
+        } else {
+            logger.info("working set \(remoteName, privacy: .public): listed \(entries.count) items")
+            listing = nil
+            observer.finishEnumerating(upTo: nil)
+        }
+    }
+
+    /// Pages are `"nwsl"` + a little-endian Int64 offset. The system's own
+    /// initial pages (and anything else) start from the top.
+    private static let pageTag = Data("nwsl".utf8)
+
+    static func page(offset: Int) -> NSFileProviderPage {
+        var data = pageTag
+        data.append(withUnsafeBytes(of: Int64(offset).littleEndian) { Data($0) })
+        return NSFileProviderPage(data)
+    }
+
+    static func offset(of page: NSFileProviderPage) -> Int {
+        let data = page.rawValue
+        guard data.count == pageTag.count + 8, data.prefix(pageTag.count) == pageTag else { return 0 }
+        let value = data.suffix(8).withUnsafeBytes { $0.loadUnaligned(as: Int64.self) }.littleEndian
+        return max(Int(value), 0)
     }
 
     func currentSyncAnchor(completionHandler: @escaping (NSFileProviderSyncAnchor?) -> Void) {
@@ -47,7 +94,15 @@ final class WorkingSetEnumerator: NSObject, NSFileProviderEnumerator {
 
     func enumerateChanges(for observer: any NSFileProviderChangeObserver, from syncAnchor: NSFileProviderSyncAnchor) {
         let remoteName = domain.identifier.rawValue
-        let since = WorkingSetAnchor.decode(syncAnchor.rawValue).pinSequence
+        let decoded = WorkingSetAnchor.decode(syncAnchor.rawValue)
+        guard decoded.format >= WorkingSetAnchor.currentFormat else {
+            // Anchored by a build whose listing was empty: re-list so every
+            // known item reaches Spotlight.
+            logger.info("working set \(remoteName, privacy: .public): anchor predates the full listing, expiring it")
+            observer.finishEnumeratingWithError(NSFileProviderError(.syncAnchorExpired))
+            return
+        }
+        let since = decoded.pinSequence
         guard let store = PinStore.shared, let changes = store.changes(domain: remoteName, after: since) else {
             observer.finishEnumeratingWithError(NSFileProviderError(.syncAnchorExpired))
             return

@@ -76,27 +76,68 @@ enum RemoteChangeDiff {
     }
 }
 
-/// The working set's sync anchor: the Keep Downloaded change-log sequence
-/// plus a per-cloud generation that goes up whenever a remote scan finds
-/// changes. Two little-endian Int64s. An 8-byte anchor (earlier builds,
-/// pin sequence only) decodes with generation 0.
+/// The working set's sync anchor: the Keep Downloaded change-log sequence,
+/// a per-cloud generation that goes up whenever a remote scan finds
+/// changes, and a format number. Little-endian Int64s.
+///
+/// Format 1 (24 bytes) means the working set's item listing was full
+/// (every known item, for Spotlight). Earlier builds listed nothing: their
+/// anchors (16 bytes, or 8 with the pin sequence only) decode as format 0,
+/// and the enumerator expires them once so the system re-lists.
 enum WorkingSetAnchor {
-    static func encode(pinSequence: Int, remoteGeneration: Int) -> Data {
-        var data = withUnsafeBytes(of: Int64(pinSequence).littleEndian) { Data($0) }
-        data.append(withUnsafeBytes(of: Int64(remoteGeneration).littleEndian) { Data($0) })
+    static let currentFormat = 1
+
+    static func encode(pinSequence: Int, remoteGeneration: Int, format: Int = currentFormat) -> Data {
+        var data = Data()
+        for value in [pinSequence, remoteGeneration, format] {
+            data.append(withUnsafeBytes(of: Int64(value).littleEndian) { Data($0) })
+        }
         return data
     }
 
-    static func decode(_ data: Data) -> (pinSequence: Int, remoteGeneration: Int) {
+    static func decode(_ data: Data) -> (pinSequence: Int, remoteGeneration: Int, format: Int) {
         func int(at offset: Int) -> Int {
             let slice = data.subdata(in: offset..<(offset + 8))
             return Int(slice.withUnsafeBytes { $0.loadUnaligned(as: Int64.self) }.littleEndian)
         }
         switch data.count {
-        case 16: return (int(at: 0), int(at: 8))
-        case 8: return (int(at: 0), 0)
-        default: return (0, 0)
+        case 24: return (int(at: 0), int(at: 8), int(at: 16))
+        case 16: return (int(at: 0), int(at: 8), 0)
+        case 8: return (int(at: 0), 0, 0)
+        default: return (0, 0, 0)
         }
+    }
+}
+
+/// Every item the system knows about, for the working set's item listing
+/// (the system indexes those items in Spotlight).
+///
+/// Walks the persisted snapshots from the root, no network: a folder with a
+/// snapshot was listed by the system, so its entries exist on disk. A
+/// folder without one is listed (it's an entry of a known folder) but not
+/// entered. Each identifier appears once, so a malformed snapshot can't loop.
+enum WorkingSetListing {
+    struct Entry: Equatable, Sendable {
+        /// Identifier of the folder the entry was listed in.
+        let parent: String
+        let record: SyncedItemRecord
+    }
+
+    static func collect(root: String, snapshot: (String) -> [SyncedItemRecord]?) -> [Entry] {
+        var entries: [Entry] = []
+        var seen: Set<String> = [root]
+        var queue = [root]
+        var index = 0
+        while index < queue.count {
+            let container = queue[index]
+            index += 1
+            guard let records = snapshot(container) else { continue }
+            for record in records where seen.insert(record.identifier).inserted {
+                entries.append(Entry(parent: container, record: record))
+                if record.isDir { queue.append(record.identifier) }
+            }
+        }
+        return entries
     }
 }
 
