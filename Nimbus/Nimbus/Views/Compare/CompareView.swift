@@ -187,6 +187,7 @@ struct CompareView: View {
         .preferredColorScheme(.dark)
 }
 
+#if DEBUG
 #Preview("Results") {
     let model = CompareViewModel(client: RcloneClient())
     model.setPreviewState(.finished(CompareResult(combined: [
@@ -203,3 +204,4 @@ struct CompareView: View {
         .background { StratosphereBackdrop() }
         .preferredColorScheme(.dark)
 }
+#endif

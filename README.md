@@ -106,7 +106,7 @@ No third-party Swift packages. A pre-build lint fails the build if one is added.
 
 ## Status
 
-Pre-1.0. The app is used daily by its author; expect rough edges and breaking changes before 1.0.
+1.0. The app is used daily by its author. Bugs and requests go in [issues](https://github.com/CasaVargas/Nimbus/issues).
 
 Works today:
 
@@ -121,13 +121,20 @@ Works today:
 - Menu bar panel, launch at login, Settings window modeled on System Settings
 - Diagnostics: copy a sanitized system report, open the app's logs in Console
 - Sign-ins locked with the Keychain (opt-in, Settings > Advanced)
+- Search file names across every cloud at once
+- New Encrypted Folder: a guided setup for an encrypted folder inside any cloud
+- Compare two folders and see what is only on one side or different
+- Version history in the inspector for S3 and Backblaze B2, with restore and download
+- Transfers say whether rclone verified them by checksum or only by size
+- Backups that keep running while Nimbus is closed (opt-in)
+- Shortcuts actions: Run Backup, Copy Share Link, Keep Downloaded
+- Finder badges for pinned files and failed uploads
+- Downloads the official rclone build for you when none is installed
 
 Not done yet (tracked in [issues](https://github.com/CasaVargas/Nimbus/issues); how Nimbus compares feature by feature is in the [parity report](docs/superpowers/reports/2026-11-11-feature-parity.md)):
 
-- Search, in the app and in Spotlight
-- An encrypted-folder setup flow
-- Shortcuts, Services menu, Share Sheet
-- Backups that run while Nimbus is closed
+- Cloud files in Spotlight search
+- Services menu and Share Sheet
 - Media gallery and other advanced browser modes
 
 Design specs and per-phase exit gates live in [`docs/superpowers/specs/`](docs/superpowers/specs/).
