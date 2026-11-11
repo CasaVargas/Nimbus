@@ -25,6 +25,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Release notes carry the Beltr / OneScribe footer
+        run: bash scripts/lint-release-notes.sh
+
       - name: Select newest Xcode 27
         run: |
           xcode="$(find /Applications -maxdepth 1 -name 'Xcode_27*.app' | sort -V | tail -n 1)"
