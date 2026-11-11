@@ -22,8 +22,7 @@ final class PinStore: @unchecked Sendable {
 
     /// The store in the shared app-group container, or nil when the group
     /// container isn't available (unsigned test builds).
-    static let shared: PinStore? = FileManager.default
-        .containerURL(forSecurityApplicationGroupIdentifier: "group.app.casavargas.nimbus")
+    static let shared: PinStore? = AppGroup.containerURL
         .map { PinStore(directory: $0.appendingPathComponent("Pins", isDirectory: true)) }
 
     // MARK: - Reading

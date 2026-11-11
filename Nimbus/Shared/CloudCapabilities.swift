@@ -19,8 +19,7 @@ final class CloudCapabilities: @unchecked Sendable {
         self.url = url
     }
 
-    static let shared: CloudCapabilities? = FileManager.default
-        .containerURL(forSecurityApplicationGroupIdentifier: "group.app.casavargas.nimbus")
+    static let shared: CloudCapabilities? = AppGroup.containerURL
         .map { CloudCapabilities(url: $0.appendingPathComponent("capabilities.json")) }
 
     func entries() -> [String: Entry] {

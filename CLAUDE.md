@@ -50,7 +50,7 @@ File Provider extension (Nimbus/FileProviderExtension/) ────────
 - The File Provider extension also uses `RcloneKit` to talk to the same daemon, exposing remotes in Finder.
 - NFS mounting is handled in-process by `MountManager` (spawns `rclone serve nfs`, calls `mount_nfs`).
 
-**State sync between app and extension:** App group UserDefaults (`group.app.casavargas.nimbus`) — rclone port and remote configs are broadcast to the extension via the shared container.
+**State sync between app and extension:** App group UserDefaults (`53MUTM55LC.app.casavargas.nimbus`) — rclone port and remote configs are broadcast to the extension via the shared container.
 
 ### Key Layers
 
@@ -93,7 +93,7 @@ All apps and extensions use the `app.casavargas.nimbus` bundle ID family:
 |-----------|-----------|
 | SwiftUI app | `app.casavargas.nimbus` |
 | File Provider extension | `app.casavargas.nimbus.FileProvider` |
-| App group | `group.app.casavargas.nimbus` |
+| App group | `53MUTM55LC.app.casavargas.nimbus` |
 | Logger subsystem (main) | `app.casavargas.nimbus` |
 | Logger subsystem (extension) | `app.casavargas.nimbus.FileProvider` |
 

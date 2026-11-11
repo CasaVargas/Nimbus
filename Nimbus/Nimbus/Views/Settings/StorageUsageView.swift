@@ -37,9 +37,7 @@ struct FileProviderSyncCacheStore: LocalCacheManaging {
     }
 
     private static var defaultSnapshotDirectory: URL? {
-        FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.app.casavargas.nimbus"
-        )?.appendingPathComponent("FileProviderSync", isDirectory: true)
+        AppGroup.containerURL?.appendingPathComponent("FileProviderSync", isDirectory: true)
     }
 
     private static func cacheSize(at cacheURL: URL) throws -> Int64 {

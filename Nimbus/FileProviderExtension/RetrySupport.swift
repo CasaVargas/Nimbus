@@ -14,7 +14,7 @@ import os
 /// ad hoc backoff loops (this was previously only implemented inside
 /// `FileProviderEnumerator.enumerateItems`).
 enum FileProviderRetry {
-    private static let appGroupID = "group.app.casavargas.nimbus"
+    private static let appGroupID = AppGroup.identifier
 
     /// Re-reads the rclone port from the app group and pushes it into
     /// `rclone` if it changed since the client was created/last refreshed.
