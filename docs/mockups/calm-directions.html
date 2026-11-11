@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nimbus Calm Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a plain comparison sheet. Each direction is one full-width
+   mock of the Home window with a short rationale beside its name. The page
+   stays neutral so the five mocks are the only things with a look. */
+:root {
+  color-scheme: light;
+  --page: #f3f4f5;
+  --ink: #1b1d20;
+  --ink-2: #5a6068;
+  --rule: #d9dcdf;
+  --panel: #ffffff;
+  --mark: #0a6cc4;
+  --sys: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  --plex: "IBM Plex Sans", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--page); color: var(--ink); font: 15px/1.5 var(--sys); }
+.sheet { max-width: 1120px; margin: 0 auto; padding: 40px 20px 80px; display: flex; flex-direction: column; gap: 56px; }
+header h1 { font-size: 30px; line-height: 1.15; margin: 0 0 10px; letter-spacing: -0.01em; text-wrap: balance; }
+header p { margin: 0; max-width: 64ch; color: var(--ink-2); }
+nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+nav a { color: var(--ink); text-decoration: none; background: var(--panel); border: 1px solid var(--rule); border-radius: 7px; padding: 6px 12px; font-weight: 500; }
+nav a:hover { border-color: var(--ink-2); }
+nav a:focus-visible, .mock :focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+.direction { display: flex; flex-direction: column; gap: 16px; }
+.direction h2 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+.brief { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 4fr); gap: 20px 28px; }
+.brief p { margin: 0; max-width: 62ch; }
+.brief h3 { font-size: 13px; font-weight: 600; margin: 0 0 4px; color: var(--ink-2); }
+.brief ul { margin: 0; padding-left: 18px; }
+.stage { overflow-x: auto; border-radius: 12px; }
+@media (max-width: 760px) { .brief { grid-template-columns: 1fr; } }
+
+/* ---------- the mock window: structure shared by all five ---------- */
+.mock {
+  min-width: 900px; display: grid; grid-template-columns: 216px minmax(0, 1fr);
+  background: var(--m-bg); color: var(--m-ink); font: 13px/1.4 var(--m-font, var(--sys));
+  border: 1px solid var(--m-edge); border-radius: 12px; overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+.mock .side { background: var(--m-side); border-right: 1px solid var(--m-side-rule); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; color: var(--m-side-ink); }
+.lights { display: flex; gap: 7px; padding: 2px 6px 16px; }
+.lights i { width: 11px; height: 11px; border-radius: 50%; background: var(--m-light, #c9ccd0); }
+.side .group { font-size: 11px; font-weight: 600; color: var(--m-side-dim); padding: 12px 8px 4px; }
+.item { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 8px; padding: 5px 8px; border-radius: var(--m-r-s); }
+.item.on { background: var(--m-sel); color: var(--m-sel-ink); }
+.item .bar { grid-column: 2 / 4; }
+.tile { width: 22px; height: 22px; border-radius: var(--m-tile-r, 6px); display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #fff; background: var(--c); }
+.tile.big { width: 34px; height: 34px; font-size: 15px; border-radius: var(--m-tile-rb, 9px); }
+.tile.glyph { background: var(--m-glyph-bg); color: var(--m-glyph-ink); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--s); }
+.bar { display: block; width: 100%; height: var(--m-bar-h, 4px); border-radius: 99px; background: var(--m-track); overflow: hidden; }
+.bar b { display: block; height: 100%; background: var(--c); border-radius: inherit; }
+.side .total { margin-top: auto; padding: 10px 8px 4px; border-top: 1px solid var(--m-side-rule); display: flex; flex-direction: column; gap: 6px; }
+.side .total strong { font-size: 14px; }
+.side .total span { color: var(--m-side-dim); font-size: 11px; }
+
+.mock .main { padding: 18px 24px 24px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.toolbar { display: flex; align-items: center; gap: 8px; }
+.toolbar h4 { margin: 0; font-size: 13px; font-weight: 600; flex: 1; }
+.btn { font: inherit; font-weight: 500; padding: 5px 12px; border-radius: var(--m-r-btn); border: 1px solid var(--m-btn-edge); background: var(--m-btn); color: var(--m-btn-ink); }
+.btn.go { background: var(--m-accent); border-color: var(--m-accent); color: var(--m-accent-ink); }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: center; }
+.hero .label { color: var(--m-dim); font-weight: 500; }
+.hero .big { font-weight: var(--m-big-w, 700); font-size: var(--m-big, 40px); line-height: 1.05; letter-spacing: var(--m-big-ls, -0.02em); margin: 2px 0 6px; }
+.hero .sub { color: var(--m-dim); }
+.legend { display: grid; grid-template-columns: auto auto; gap: 4px 22px; align-content: center; }
+.legend span { display: flex; align-items: center; gap: 7px; }
+.legend i { width: 9px; height: 9px; border-radius: 2px; background: var(--c); }
+.legend em { font-style: normal; color: var(--m-dim); text-align: right; }
+.ringwrap { display: flex; gap: 22px; align-items: center; }
+.ring { width: 132px; height: 132px; }
+.ring text { fill: var(--m-ink); font: 700 20px var(--m-display, var(--sys)); }
+.ring .cap { fill: var(--m-dim); font: 500 8px var(--sys); }
+.stack { display: flex; height: var(--m-stack-h, 14px); border-radius: var(--m-stack-r, 4px); overflow: hidden; background: var(--m-track); gap: 2px; }
+.stack b { background: var(--c); }
+.stackwrap { display: flex; flex-direction: column; gap: 10px; min-width: 330px; }
+.stackwrap .legend { grid-template-columns: repeat(4, auto); gap: 4px 14px; }
+.notice { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--m-r); background: var(--m-warn-bg); border: 1px solid var(--m-warn-edge); }
+.notice .dot { width: 10px; height: 10px; }
+.notice p { margin: 0; flex: 1; }
+.notice small { display: block; color: var(--m-dim); font-size: 12px; }
+.sect { font-weight: 600; margin: 0 0 -8px; font-size: var(--m-sect, 13px); }
+.cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.card { background: var(--m-card); border: 1px solid var(--m-card-edge); border-radius: var(--m-r); padding: 12px; display: flex; flex-direction: column; gap: 6px; min-height: 132px; box-shadow: var(--m-shadow, none); }
+.card .top { display: flex; justify-content: space-between; align-items: flex-start; }
+.chip { font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 99px; background: var(--m-chip); color: var(--m-chip-ink); }
+.card strong { font-size: 13.5px; }
+.state { display: flex; gap: 6px; align-items: baseline; color: var(--m-dim); font-size: 12px; }
+.state .dot { flex: none; transform: translateY(-1px); }
+.card .foot { margin-top: auto; display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--m-dim); }
+.rows { border: 1px solid var(--m-card-edge); border-radius: var(--m-r); overflow: hidden; background: var(--m-card); }
+.row { display: grid; grid-template-columns: 26px 1.3fr 1.5fr 1.2fr 0.9fr auto; gap: 12px; align-items: center; padding: var(--m-row-pad, 8px 12px); border-top: 1px solid var(--m-rule); }
+.row:first-child { border-top: 0; }
+.row.head { color: var(--m-dim); font-size: 11px; font-weight: 600; padding-top: 6px; padding-bottom: 6px; background: var(--m-head, transparent); }
+.row .num { text-align: right; }
+.log { border: 1px solid var(--m-card-edge); border-radius: var(--m-r); background: var(--m-card); }
+.log div { display: flex; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--m-rule); }
+.log div:first-child { border-top: 0; }
+.log span { flex: 1; }
+.log em { font-style: normal; color: var(--m-dim); }
+.ok { color: var(--m-ok); } .bad { color: var(--m-bad); }
+
+/* ---------- 1. Finder ---------- */
+.d-finder { --m-bg:#fff; --m-ink:#1d1d1f; --m-dim:#6e6e73; --m-edge:#c8c8cc; --m-side:#ececee; --m-side-rule:#d8d8dc; --m-side-ink:#1d1d1f; --m-side-dim:#8a8a8f;
+  --m-sel:#d0d0d5; --m-sel-ink:#1d1d1f; --m-r:8px; --m-r-s:6px; --m-r-btn:6px; --m-track:#e3e3e6; --m-btn:#fff; --m-btn-edge:#c9c9ce; --m-btn-ink:#1d1d1f;
+  --m-accent:#0a6cc4; --m-accent-ink:#fff; --m-card:#fff; --m-card-edge:#dcdce0; --m-rule:#ececef; --m-head:#f6f6f7; --m-chip:#ececee; --m-chip-ink:#515154;
+  --m-warn-bg:#fff8e6; --m-warn-edge:#ecd9a0; --m-ok:#2a8a3e; --m-bad:#c5362c; --m-glyph-bg:#dcdce0; --m-glyph-ink:#515154; --m-big:30px; --m-big-w:600; --m-light:#c4c4c8; }
+/* ---------- 2. Graphite ---------- */
+.d-graphite { --m-bg:#1e1f21; --m-ink:#ececed; --m-dim:#9a9c9f; --m-edge:#0f0f10; --m-side:#18191a; --m-side-rule:#2c2d30; --m-side-ink:#dcdcde; --m-side-dim:#77797d;
+  --m-sel:#2f3134; --m-sel-ink:#fff; --m-r:9px; --m-r-s:6px; --m-r-btn:7px; --m-track:#333538; --m-btn:#2a2b2e; --m-btn-edge:#3a3c40; --m-btn-ink:#ececed;
+  --m-accent:#ececed; --m-accent-ink:#161718; --m-card:#252628; --m-card-edge:#333538; --m-rule:#303236; --m-chip:#333538; --m-chip-ink:#c4c5c8;
+  --m-warn-bg:#2b2720; --m-warn-edge:#5b4a23; --m-ok:#63c17a; --m-bad:#ef7b6f; --m-glyph-bg:#333538; --m-glyph-ink:#c4c5c8; --m-light:#4a4c50; --m-big:38px; }
+/* ---------- 3. Daylight ---------- */
+.d-daylight { --m-bg:#f4f6f8; --m-ink:#17202b; --m-dim:#627082; --m-edge:#cfd6dd; --m-side:#fbfcfd; --m-side-rule:#e2e7ec; --m-side-ink:#17202b; --m-side-dim:#8593a3;
+  --m-sel:#e3ebf3; --m-sel-ink:#12314f; --m-r:12px; --m-r-s:8px; --m-r-btn:8px; --m-track:#e4e9ee; --m-btn:#fff; --m-btn-edge:#d5dce3; --m-btn-ink:#17202b;
+  --m-accent:#12314f; --m-accent-ink:#fff; --m-card:#fff; --m-card-edge:#e2e7ec; --m-rule:#eef1f4; --m-chip:#eef2f6; --m-chip-ink:#4a5a6c;
+  --m-warn-bg:#fff; --m-warn-edge:#e8c979; --m-ok:#1f8f5a; --m-bad:#c8443a; --m-glyph-bg:#e3ebf3; --m-glyph-ink:#12314f; --m-shadow:0 1px 2px rgba(23,32,43,.06);
+  --m-big:42px; --m-bar-h:5px; --m-light:#cfd6dd; }
+/* ---------- 4. Ledger ---------- */
+.d-ledger { --m-font:var(--plex); --m-display:var(--plex); --m-bg:#fdfdfc; --m-ink:#111312; --m-dim:#6b716e; --m-edge:#111312; --m-side:#fdfdfc; --m-side-rule:#111312; --m-side-ink:#111312; --m-side-dim:#6b716e;
+  --m-sel:#111312; --m-sel-ink:#fdfdfc; --m-r:0px; --m-r-s:0px; --m-r-btn:0px; --m-track:#e4e6e3; --m-btn:#fdfdfc; --m-btn-edge:#111312; --m-btn-ink:#111312;
+  --m-accent:#111312; --m-accent-ink:#fdfdfc; --m-card:#fdfdfc; --m-card-edge:#111312; --m-rule:#d5d8d4; --m-chip:transparent; --m-chip-ink:#111312;
+  --m-warn-bg:#fdfdfc; --m-warn-edge:#111312; --m-ok:#0b7a4b; --m-bad:#b3261e; --m-glyph-bg:#111312; --m-glyph-ink:#fdfdfc; --m-tile-r:0px; --m-tile-rb:0px;
+  --m-big:56px; --m-big-w:500; --m-big-ls:-0.03em; --m-stack-h:22px; --m-stack-r:0px; --m-bar-h:3px; --m-row-pad:10px 12px; --m-light:#111312; }
+.d-ledger .num, .d-ledger .legend em, .d-ledger .log em, .d-ledger .side .total span { font-family: var(--mono); font-size: 12px; }
+.d-ledger .chip { border: 1px solid #111312; border-radius: 0; }
+.d-ledger .bar, .d-ledger .bar b { border-radius: 0; }
+/* ---------- 5. Two-Tone ---------- */
+.d-twotone { --m-bg:#ffffff; --m-ink:#1c2227; --m-dim:#66727c; --m-edge:#1b2126; --m-side:#232a30; --m-side-rule:#333c44; --m-side-ink:#e6eaed; --m-side-dim:#8794a0;
+  --m-sel:#3b9bdc; --m-sel-ink:#fff; --m-r:10px; --m-r-s:7px; --m-r-btn:7px; --m-track:#e6eaed; --m-btn:#fff; --m-btn-edge:#d3d9de; --m-btn-ink:#1c2227;
+  --m-accent:#3b9bdc; --m-accent-ink:#fff; --m-card:#f6f8f9; --m-card-edge:#e6eaed; --m-rule:#e6eaed; --m-chip:#e2f0fa; --m-chip-ink:#1b6aa3;
+  --m-warn-bg:#fff7e0; --m-warn-edge:#f0dca0; --m-ok:#23945c; --m-bad:#cf4a3f; --m-glyph-bg:#3a444d; --m-glyph-ink:#e6eaed; --m-big:38px; --m-light:#4c5761; }
+.d-twotone .side .bar { background: #3a444d; }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <header>
+    <h1>Five calmer directions for Nimbus</h1>
+    <p>The same Home screen five ways, with the purple, gradients and glow taken out. Each keeps a different subset of what's there today: the storage ring, the cloud cards, the usage bars, the status dots, the "In Finder" chip and the sign-in notice. Cloud logos are stood in for by lettered tiles.</p>
+    <nav aria-label="Directions">
+      <a href="#finder">1 Finder</a><a href="#graphite">2 Graphite</a><a href="#daylight">3 Daylight</a><a href="#ledger">4 Ledger</a><a href="#two-tone">5 Two-Tone</a>
+    </nav>
+  </header>
+  <main id="directions" style="display:flex;flex-direction:column;gap:56px"></main>
+</div>
+
+<script>
+const clouds = [
+  { name: "Personal", kind: "Google Drive", letter: "G", c: "#2f7de1", used: "1.28 TB", total: "2 TB", frac: 0.64, share: 22.4, state: "Ready", s: "ok", finder: true },
+  { name: "Work", kind: "OneDrive", letter: "O", c: "#1a9bb5", used: "412 GB", total: "1 TB", frac: 0.41, share: 7.2, state: "Needs sign-in", s: "warn", finder: true },
+  { name: "Dropbox", kind: "Dropbox", letter: "D", c: "#5d6bd8", used: "61 GB", total: "2 TB", frac: 0.03, share: 1.1, state: "Uploading 3 items", s: "busy", finder: false },
+  { name: "Photo Archive", kind: "Backblaze B2", letter: "B", c: "#d9862b", used: "720 GB", total: null, frac: null, share: 12.6, state: "Ready", s: "ok", finder: false },
+  { name: "Home NAS", kind: "SFTP", letter: "N", c: "#8a9099", used: null, total: null, frac: null, share: 0, state: "Not reachable", s: "off", finder: false },
+];
+
+const directions = [
+  { id: "finder", cls: "d-finder", name: "1. Finder", list: "rows", storage: "stack",
+    idea: "Looks like it shipped with the Mac. System greys, a standard sidebar, clouds in a table, and blue only where something is selected or is the one main action.",
+    keeps: ["Usage bars, in the table and the sidebar", "Status dots", "Sign-in notice, as a plain yellow bar"],
+    drops: ["Storage ring (a single stacked bar instead)", "Cloud cards", "Glass, glow and every gradient"] },
+  { id: "graphite", cls: "d-graphite", name: "2. Graphite", list: "cards", storage: "ring",
+    idea: "Dark, but neutral: true greys with no blue or purple cast. The only colour on screen belongs to a cloud or to a status, so colour always means something.",
+    keeps: ["Storage ring", "Cloud cards", "\"In Finder\" chip", "Usage bars and status dots"],
+    drops: ["Backdrop and glass (flat panels with one-pixel edges)", "Coloured glow behind logos", "A coloured primary button (it is plain white)"] },
+  { id: "daylight", cls: "d-daylight", name: "3. Daylight", list: "cards", storage: "ring",
+    idea: "Light and quiet. White cards on a cool pale grey, generous spacing, one dark navy for the main action. Closest to today's layout, with the volume turned down.",
+    keeps: ["Storage ring", "Cloud cards", "\"In Finder\" chip", "Large free-space headline"],
+    drops: ["Dark sky backdrop", "Glass and blur", "Per-cloud glows (colour stays in the ring and bars only)"] },
+  { id: "ledger", cls: "d-ledger", name: "4. Ledger", list: "rows", storage: "stack",
+    idea: "A statement of account for your storage. Black on white, square corners, hairlines, and figures set in a monospaced face so columns line up. The numbers are the design.",
+    keeps: ["Usage bars", "Status, as a word plus a dot", "Free-space headline, much larger"],
+    drops: ["Storage ring", "Cards and rounded corners", "Almost all colour (cloud colours appear only in the stacked bar)"] },
+  { id: "two-tone", cls: "d-twotone", name: "5. Two-Tone", list: "cards", storage: "ring",
+    idea: "A charcoal sidebar beside a white workspace, with the app icon's sky blue as the single accent. Clear zones, strong contrast, and the brand colour without any purple.",
+    keeps: ["Storage ring", "Cloud cards", "\"In Finder\" chip", "Sidebar usage bars"],
+    drops: ["Backdrop, glass and glow", "Violet and indigo everywhere", "Tinted card backgrounds"] },
+];
+
+const statusColor = { ok: "var(--m-ok)", warn: "#d99a1c", busy: "#3b9bdc", off: "#9aa0a6" };
+const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+const tile = (c, big) => `<span class="tile${big ? " big" : ""}" style="--c:${c.c}" aria-hidden="true">${c.letter}</span>`;
+const dot = (s) => `<span class="dot" style="--s:${statusColor[s]}"></span>`;
+const bar = (c) => c.frac == null ? "" : `<span class="bar"><b style="--c:${c.c};width:${Math.max(3, c.frac * 100)}%"></b></span>`;
+const usage = (c) => c.used == null ? "" : c.total ? `${c.used} of ${c.total}` : `${c.used}, billed by use`;
+
+function ring() {
+  const r = 52, len = 2 * Math.PI * r;
+  let offset = 0;
+  const arcs = clouds.filter((c) => c.share > 0).map((c) => {
+    const seg = (c.share / 100) * len;
+    const arc = `<circle cx="66" cy="66" r="${r}" fill="none" stroke="${c.c}" stroke-width="13" stroke-dasharray="${Math.max(seg - 2, 1)} ${len}" stroke-dashoffset="${-offset}" transform="rotate(-90 66 66)"/>`;
+    offset += seg;
+    return arc;
+  }).join("");
+  return `<svg class="ring" viewBox="0 0 132 132" role="img" aria-label="43 percent of 5.72 terabytes used">
+    <circle cx="66" cy="66" r="${r}" fill="none" stroke="var(--m-track)" stroke-width="13"/>${arcs}
+    <text x="66" y="68" text-anchor="middle">43%</text><text class="cap" x="66" y="82" text-anchor="middle">of 5.72 TB</text></svg>`;
+}
+const legend = () => `<div class="legend">${clouds.map((c) => `<span><i style="--c:${c.c}"></i>${esc(c.name)}</span><em>${c.used || "not reachable"}</em>`).join("")}</div>`;
+const stack = () => `<div class="stackwrap"><div class="stack" role="img" aria-label="43 percent of 5.72 terabytes used">${clouds.filter((c) => c.share > 0).map((c) => `<b style="--c:${c.c};width:${c.share}%"></b>`).join("")}</div>
+  <div class="legend">${clouds.filter((c) => c.share > 0).map((c) => `<span><i style="--c:${c.c}"></i>${esc(c.name)}</span>`).join("")}</div></div>`;
+
+const cards = () => `<div class="cards">${clouds.map((c) => `<div class="card">
+  <div class="top">${tile(c, true)}${c.finder ? `<span class="chip">In Finder</span>` : ""}</div>
+  <strong>${esc(c.name)}</strong><div class="state">${dot(c.s)}<span>${esc(c.state)}</span></div>
+  <div class="foot">${bar(c)}<span>${usage(c)}</span></div></div>`).join("")}</div>`;
+const rows = () => `<div class="rows"><div class="row head"><span></span><span>Cloud</span><span>Status</span><span>Used</span><span class="num">Size</span><span>Finder</span></div>
+  ${clouds.map((c) => `<div class="row">${tile(c)}<span><strong>${esc(c.name)}</strong></span><span class="state">${dot(c.s)}<span>${esc(c.state)}</span></span>
+  <span>${bar(c) || `<span style="color:var(--m-dim)">${c.used ? "billed by use" : ""}</span>`}</span><span class="num">${c.used ? c.used + (c.total ? " / " + c.total : "") : ""}</span>
+  <span>${c.finder ? `<span class="chip">In Finder</span>` : `<span style="color:var(--m-dim)">Off</span>`}</span></div>`).join("")}</div>`;
+
+function mock(d) {
+  return `<div class="mock ${d.cls}" aria-label="${esc(d.name)} mock of the Home window">
+  <div class="side">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <div class="item on"><span class="tile glyph" aria-hidden="true">⌂</span><span>Home</span></div>
+    <div class="group">Clouds</div>
+    ${clouds.map((c) => `<div class="item">${tile(c)}<span>${esc(c.name)}</span>${dot(c.s)}${bar(c)}</div>`).join("")}
+    <div class="group">Tools</div>
+    <div class="item"><span class="tile glyph" aria-hidden="true">↻</span><span>Backups</span></div>
+    <div class="item"><span class="tile glyph" aria-hidden="true">⇄</span><span>Copy Between Clouds</span></div>
+    <div class="total"><strong>3.25 TB free</strong><span class="bar"><b style="--c:var(--m-side-dim);width:43%"></b></span><span>43% used</span></div>
+  </div>
+  <div class="main">
+    <div class="toolbar"><h4>Home</h4><span class="btn">Copy Between Clouds…</span><span class="btn go">Add Cloud</span></div>
+    <div class="hero">
+      <div><div class="label">All your clouds</div><div class="big">3.25 TB free</div><div class="sub">2.47 TB used across 5 clouds. Work needs you to sign in.</div></div>
+      ${d.storage === "ring" ? `<div class="ringwrap">${ring()}${legend()}</div>` : stack()}
+    </div>
+    <div class="notice">${dot("warn")}<p><strong>Work needs you to sign in again</strong><small>Files already on this Mac are safe; new changes wait until you sign in.</small></p><span class="btn go">Sign In to OneDrive</span></div>
+    <p class="sect">Your clouds</p>
+    ${d.list === "cards" ? cards() : rows()}
+    <p class="sect">Recent activity</p>
+    <div class="log"><div><b class="ok">✓</b><span>Copied Yosemite 2026 to Photo Archive</span><em>2 hours ago</em></div>
+      <div><b class="bad">!</b><span>Couldn't copy Client Work to Dropbox</span><em>yesterday</em></div></div>
+  </div></div>`;
+}
+
+document.getElementById("directions").innerHTML = directions.map((d) => `<section class="direction" id="${d.id}">
+  <h2>${esc(d.name)}</h2>
+  <div class="brief"><p>${esc(d.idea)}</p>
+    <div><h3>Keeps</h3><ul>${d.keeps.map((k) => `<li>${esc(k)}</li>`).join("")}</ul></div>
+    <div><h3>Drops</h3><ul>${d.drops.map((k) => `<li>${esc(k)}</li>`).join("")}</ul></div></div>
+  <div class="stage">${mock(d)}</div></section>`).join("");
+</script>
+</body>
+</html>
