@@ -163,6 +163,7 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 .hero__sub { font-size: clamp(18px, 2.3vw, 24px); line-height: 1.36; color: #c5c9e6; max-width: 740px; margin: 26px auto 0; letter-spacing: -0.015em; }
 .hero__fine { font-size: 13px; color: #9da2c4; margin-top: 22px; }
 .hero__fine + .hero__fine { margin-top: 6px; }
+.hero__stats { color: #c5c9e6; font-variant-numeric: tabular-nums; }
 .hero__fine a { color: #c5c9e6; text-decoration: underline; text-underline-offset: 2px; }
 .hero__fine a:hover { color: #fff; }
 .hero__shot { max-width: 1160px; margin: 68px auto 0; padding: 0 22px; animation: rise 1.1s .15s var(--ease) both; }
