@@ -1,37 +1,70 @@
 # Cloud files findable from Spotlight (#66)
 
 Date: 2026-11-11
-Status: implemented
+Status: spike done; working-set approach not confirmed live, mechanism open
 
 ## Question
 
 Can Spotlight find files in a Nimbus cloud that aren't downloaded, on a
 third-party replicated File Provider (macOS 15 and later)?
 
-## Spike result (2026-11-11, macOS 27.2, release build 0.10.1)
+## Spike result (2026-11-11, macOS 27.2)
 
-**Yes.** Spotlight already indexes dataless (not downloaded) items under
-`~/Library/CloudStorage/Nimbus-<cloud>/`, but only some of them.
+**Feasible: Spotlight does index dataless (not downloaded) Nimbus items.**
+`mdfind -name cmtrace` returns `~/Library/CloudStorage/Nimbus-MCS/cmtrace.exe`,
+a `compressed,dataless` file.
 
-| Domain | Files listed at the root | Indexed (`mdfind -onlyin <domain> -name .`) |
+**What drives the indexing is still unproven.** The first pass counted
+indexed items with `mdfind -onlyin <domain> -name .` and got 10 of 91. That
+query undercounts: it misses files that the exact query
+`kMDItemFSName == "<name>"` finds in the same scope. So the "before" numbers
+are wrong, and the working-set hypothesis below rested on them.
+
+Measured with the PR build installed, checking each top-level entry by exact
+name (plain bash: the zsh `ls` alias here is `eza --icons`, which corrupts
+filenames in loops):
+
+| Domain | Found | Missing |
 |---|---|---|
-| Nimbus-MCS | 91 (89 `compressed,dataless`) | 10, all `compressed,dataless` |
-| Nimbus-GoogleDrive | 88 entries | 11 |
-| Nimbus-OneDrive | 5 entries | 0 |
+| Nimbus-MCS | 119 | 0 |
+| Nimbus-GoogleDrive | 67 | 20: 4 hidden dotfiles, plus 16 visible items |
+| Nimbus-OneDrive | 3 | 1 (`.DS_Store`) |
 
-`mdls` on an unindexed dataless file reads its name fine; the file just
-isn't in the index. Every indexed item had a `kMDItemLastUsedDate` (it had
-been opened or previewed); the unindexed ones had none.
+The 16 visible Google Drive items were in the working-set listing the
+system received, and they were still unindexed after 11 minutes.
 
-Apple's File Provider docs give the rule: "The system indexes the items the
-working set enumerator provides so they are searchable", and it updates the
-index "whenever you notify it of changes to the working set".
+**Folders opened for the first time:**
 
-Nimbus's working-set enumerator has reported changes since the 2026-11-08 work
-(`2026-11-08-finder-remote-changes-design.md`), but its `enumerateItems`
-returned an empty list. So an item reached the index only if something
-reported it as a working-set *change* (a pin, a server-side edit) or the
-user touched it. A file that was listed once and never changed stayed out.
+- `Fonts`, listed under the PR build (no working-set report): 0 of 4
+  entries indexed after 7 minutes.
+- `Software Licenses` and `iPhone Apps`, listed under a build that reports
+  first-listed folders' entries through working-set changes (the log
+  confirmed 3 reported): 0 of 3 indexed after 7 minutes.
+
+Neither listing through the working set nor reporting entries as changes
+indexed anything within minutes. Apple's docs say the system indexes
+working-set items, but I couldn't confirm that here.
+
+### Hypothesis that was tested
+
+Apple's File Provider docs say: "The system indexes the items the working
+set enumerator provides so they are searchable." Nimbus's working-set
+`enumerateItems` returned an empty list. The PR made it list every
+snapshotted item and expired old anchors so domains re-list. The re-list
+ran (logs: MCS 119 items, Google Drive 95, OneDrive 3), but the live
+results above don't show it changing what Spotlight finds.
+
+### Candidate: `NSFileProviderSearching`
+
+`NSFileProviderSearching` plus `NSFileProviderDomain.supportsStringSearchRequest`
+has the system's search UI ask the extension to search the cloud
+(`searchEnumerator(for:)` returns results for a query string). Apple's docs
+say you don't need it "if you only want to expose the contents of the
+working set to system search". That makes it the route for files beyond the
+working set, and it covers files in folders never opened. The cancellable
+per-remote name search from #65 (RcloneKit) is the backend it needs. Before
+building on it, check its OS availability and whether `mdfind` or only the
+Spotlight UI uses it.
 
 ## Mechanism
 
