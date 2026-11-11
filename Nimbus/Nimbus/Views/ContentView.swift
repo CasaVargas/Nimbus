@@ -16,6 +16,9 @@ struct ContentView: View {
     @State private var pendingBackupDraft: BackupJob?
     /// A backup a notification asked to open on.
     @State private var backupFocus: UUID?
+    /// Toolbar search text. Any non-blank text puts search results in the
+    /// detail pane; clearing it brings back the previous screen.
+    @State private var searchText = ""
     @Environment(AppSettings.self) private var settings
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(TransferStore.self) private var transferStore
@@ -52,6 +55,7 @@ struct ContentView: View {
                 detailView
             }
             .navigationSplitViewStyle(.balanced)
+            .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search all clouds"))
             .frame(minWidth: 800, minHeight: 600)
             // One backdrop for the whole window, behind the sidebar and the
             // toolbar as well as the detail.
@@ -154,6 +158,20 @@ struct ContentView: View {
 
     @ViewBuilder
     private var detailView: some View {
+        if !SearchViewModel.normalized(searchText).isEmpty {
+            SearchResultsView(query: searchText, remotes: remotes) { remote, folder in
+                requestedVolumeTab = .files
+                selection = .remote(remote)
+                browseTarget = BrowseTarget(remote: remote, path: folder)
+                searchText = ""
+            }
+        } else {
+            screenView
+        }
+    }
+
+    @ViewBuilder
+    private var screenView: some View {
         switch selection {
         case .home, nil:
             HomeView(
