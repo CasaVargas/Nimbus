@@ -5,7 +5,7 @@
 	<key>SUFeedURL</key>
 	<string>https://github.com/CasaVargas/Nimbus/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>REPLACE_WITH_SPARKLE_PUBLIC_KEY</string>
+	<string>DitcH2M2UzfEyYPccSIxS0NkuE8ghIgusyKegWIiy7E=</string>
 	<key>SUVerifyUpdateBeforeExtraction</key>
 	<true/>
 </dict>
