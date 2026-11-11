@@ -48,8 +48,8 @@ each only after you ask for it:
   until you turn on "Check for updates automatically" or choose Check for
   Updates. A check is one HTTPS request for the appcast attached to the
   latest GitHub release; no system profile is sent. An update is installed
-  only if its EdDSA signature matches the key built into the app and it
-  carries the same Developer ID.
+  only if its EdDSA signature matches the key built into the app; the
+  signature is checked before the download is opened.
 
 There is no crash reporting and no analytics. If you find that claim to be
 false, that is a bug worth reporting here.

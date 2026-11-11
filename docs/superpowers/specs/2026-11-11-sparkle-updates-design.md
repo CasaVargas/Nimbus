@@ -87,8 +87,9 @@ rclone) both run.
   secret, with Jon's Keychain holding the original (`generate_keys`).
 - `SUVerifyUpdateBeforeExtraction` is on: the DMG's signature is checked before
   it is mounted.
-- Sparkle also requires the new app to carry the same Developer ID as the
-  running one.
+- Sparkle also checks the new app's code signature. A changed Developer ID
+  is accepted when the EdDSA signature verifies (that is Sparkle's key
+  rotation rule), so the EdDSA key is the one that must not leak.
 - Losing the private key means no update can be signed for installed copies;
   users would have to install by hand once, as today. Keep a backup of the key.
 
