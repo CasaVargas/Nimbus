@@ -50,6 +50,17 @@ ditto "$BUILT_APP" "$STAGE/Nimbus.app"
 APP="$STAGE/Nimbus.app"
 APPEX="$APP/Contents/PlugIns/FileProviderExtension.appex"
 
+# Every release runs on Apple silicon and Intel: refuse a build missing either.
+for binary in "$APP/Contents/MacOS/Nimbus" "$APPEX/Contents/MacOS/FileProviderExtension"; do
+  archs="$(lipo -archs "$binary")"
+  for arch in arm64 x86_64; do
+    case " $archs " in
+      *" $arch "*) ;;
+      *) echo "error: $(basename "$binary") is missing $arch (has: $archs)" >&2; exit 1 ;;
+    esac
+  done
+done
+
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")"
 DMG="$DIST_DIR/Nimbus-$VERSION.dmg"
