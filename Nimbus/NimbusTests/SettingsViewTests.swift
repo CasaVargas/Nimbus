@@ -43,6 +43,7 @@ struct SettingsViewTests {
                 SettingsView(generalModel: model)
                     .environment(daemon)
                     .environment(LaunchAtLoginService(refreshOnInit: false))
+                    .environment(BackgroundBackupsService(refreshOnInit: false))
                     .environment(\.transferNotifier, NotificationAuthorizationFixture(status: .authorized))
                     .environment(\.diagnosticsService, diagnosticsService)
             },

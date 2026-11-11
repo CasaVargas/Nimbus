@@ -42,8 +42,9 @@ deleted files, and a removal limit that stops a run that is about to remove too 
 
 ## Non-goals
 
-- **Running while Nimbus is quit.** See decision 1. Nimbus runs as a menu bar app and already has
-  Open at Login; that is the contract for v1.
+- **Running while Nimbus is quit, by default.** See decision 1. Nimbus runs as a menu bar app and
+  already has Open at Login; that is the contract for v1. Since #72 an opt-in agent relaunches
+  Nimbus hidden to run due backups (decision 1, "Revisited").
 - **Two-way sync (bisync).** The research put it on hold. A backup goes one way.
 - **Restoring from inside Nimbus.** v1 shows where the versions are (**Show Versions** opens the
   folder in the browser or Finder); you restore by dragging files back. A restore wizard is later
@@ -95,6 +96,42 @@ What the user sees:
 
 Revisit D if people ask for backups with Nimbus quit. The scheduler is written against a small
 protocol (`BackupLaunching`) so a future helper can own it.
+
+### Revisited 2026-11-11 (#72): opt-in C, "Run backups when Nimbus is closed"
+
+A is still the default. On top of it, an **opt-in** variant of C closes the gap with tools that
+hand schedules to the OS scheduler. D stays out of scope (XL, a project of its own).
+
+- **The agent.** `Contents/Library/LaunchAgents/app.casavargas.nimbus.backups.plist`, registered
+  with `SMAppService.agent(plistName:)` only while the toggle is on. Every 15 minutes
+  (`StartInterval` 900) it runs
+  `lsappinfo find bundleid=app.casavargas.nimbus | grep -q ASN || open -g -j -b app.casavargas.nimbus --args --background-backups`.
+  So it never touches a running Nimbus (an `open` on a running app would reopen its window), and
+  the launched app is not a child of the launchd job, so turning the toggle off never kills it.
+  The cost of a static plist is lateness: a slot runs up to 15 minutes after its time.
+- **A background launch** (`--background-backups`) starts hidden like a login-item launch (no
+  window, no Dock icon; the menu bar item shows while it runs). It loads `backups.json` first. If no
+  job is due it posts any needs-review notices (below) and quits without starting rclone. Otherwise
+  it starts the daemon, skips restoring network drives (the user quit Nimbus, so none were
+  expected), and lets `BackupScheduler`'s catch-up pass run the due jobs. One rclone process and one
+  `rclone.conf` writer, as before.
+- **Quit when idle.** A background-launched Nimbus quits once the scheduler has started, no
+  catch-up is pending and no backup is queued or running, held for two checks five seconds apart.
+  If the daemon hasn't connected within ten minutes it quits anyway. Once the user takes over
+  (the app becomes active: the menu bar item, a notification click, a reopen from Finder) it is an
+  ordinary session and never quits on its own; network drives are restored then.
+- **Preview gate with no window.** Unchanged: the planner only runs jobs whose
+  `approvedFingerprint` matches. A due job that was approved before but changed since gets one
+  notification per fingerprint, "\(name) needs a preview before it runs again.", instead of a
+  sheet. Clicking it opens the Backups screen on that job.
+- **Removal limit with no window.** Unchanged: a run that hits the limit stops and posts the
+  existing limit notification; the job stays stopped (`isStoppedAtRemovalLimit`) until it is
+  previewed and approved again. Nothing presents a sheet from a background launch.
+- **What the user sees.** A **Run Backups When Nimbus Is Closed** switch under Open at Login in
+  Settings > General, and beside Open at Login in the Backups note. The note ("Scheduled backups
+  run while Nimbus is open…") shows only while a job has a schedule and both switches are off.
+  When macOS needs approval (System Settings > General > Login Items) the switch shows a caption
+  and an **Open Login Items** button. macOS shows its "background item added" notice once.
 
 ### Schedule semantics
 

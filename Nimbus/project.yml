@@ -33,6 +33,13 @@ targets:
         excludes:
           - "**/.DS_Store"
       - path: Shared
+      # The backups agent (#72), registered by SMAppService.agent(plistName:),
+      # which reads it from Contents/Library/LaunchAgents.
+      - path: LaunchAgents
+        buildPhase:
+          copyFiles:
+            destination: wrapper
+            subpath: Contents/Library/LaunchAgents
     dependencies:
       - package: RcloneKit
       - target: FileProviderExtension

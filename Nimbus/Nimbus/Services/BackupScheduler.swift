@@ -98,6 +98,9 @@ final class BackupScheduler {
     /// due jobs. Home holds back "hasn't run" while it is.
     var isCatchUpPending: Bool { catchUpAt != nil || passesUnderWay > 0 }
 
+    /// `start()` has run; a background launch waits for it before quitting.
+    var hasStarted: Bool { isStarted }
+
     /// Call once, after the first daemon connect.
     func start() {
         guard !isStarted else { return }

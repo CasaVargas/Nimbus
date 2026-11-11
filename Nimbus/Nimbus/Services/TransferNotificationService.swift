@@ -73,6 +73,23 @@ struct TransferNotificationService: TransferNotifying, Sendable {
         }
     }
 
+    /// Posts a notice that isn't a transfer (a backup that needs a preview,
+    /// say). Silent only when notifications are off.
+    func deliverNotice(_ request: TransferNotificationRequest, mode: TransferNotificationMode) async {
+        guard mode != .off else { return }
+        do {
+            switch await center.authorizationStatus() {
+            case .authorized: break
+            case .denied: return
+            case .notDetermined:
+                guard try await center.requestAuthorization() else { return }
+            }
+            try await center.add(request)
+        } catch {
+            logger.error("Unable to deliver notice: \(error.localizedDescription)")
+        }
+    }
+
     private func shouldDeliver(_ outcome: TransferOutcome, mode: TransferNotificationMode) -> Bool {
         switch (mode, outcome) {
         case (.off, _), (_, .cancelled), (.failuresOnly, .completed):

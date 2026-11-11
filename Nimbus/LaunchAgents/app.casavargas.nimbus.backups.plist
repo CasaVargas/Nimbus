@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Run Backups When Nimbus Is Closed (#72). Registered with
+  SMAppService.agent(plistName:) only while the switch is on. Every 15
+  minutes, if Nimbus isn't running, it launches Nimbus hidden with
+  --background-backups; Nimbus runs the due backups and quits when idle.
+  It never touches a running Nimbus: `open` on a running app reopens its
+  window. Spec: docs/superpowers/specs/2026-11-08-backups-design.md,
+  decision 1 "Revisited".
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>app.casavargas.nimbus.backups</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/sh</string>
+		<string>-c</string>
+		<string>/usr/bin/lsappinfo find bundleid=app.casavargas.nimbus | /usr/bin/grep -q ASN || exec /usr/bin/open -g -j -b app.casavargas.nimbus --args --background-backups</string>
+	</array>
+	<key>StartInterval</key>
+	<integer>900</integer>
+	<key>RunAtLoad</key>
+	<false/>
+	<key>LimitLoadToSessionType</key>
+	<string>Aqua</string>
+	<key>AssociatedBundleIdentifiers</key>
+	<array>
+		<string>app.casavargas.nimbus</string>
+	</array>
+</dict>
+</plist>

@@ -12,6 +12,7 @@ struct BackupEditorSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(LaunchAtLoginService.self) private var launchAtLogin
+    @Environment(BackgroundBackupsService.self) private var backgroundBackups
 
     @State private var name: String
     /// The last name Nimbus suggested; a name the user typed is never replaced.
@@ -216,8 +217,9 @@ struct BackupEditorSheet: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            if OpenAtLoginNote.isShown(schedules: [schedule.schedule], openAtLoginIsOn: launchAtLogin.isEnabled) {
-                OpenAtLoginNoteView(isOn: launchAtLogin.enabledBinding)
+            if OpenAtLoginNote.isShown(schedules: [schedule.schedule], openAtLoginIsOn: launchAtLogin.isEnabled,
+                                       runsWhenClosed: backgroundBackups.isEnabled) {
+                OpenAtLoginNoteView(isOn: launchAtLogin.enabledBinding, runsWhenClosed: backgroundBackups.enabledBinding)
             }
         }
     }
@@ -303,6 +305,7 @@ struct BackupEditorSheet: View {
         onSave: { _, _ in }
     )
     .environment(LaunchAtLoginService(refreshOnInit: false))
+    .environment(BackgroundBackupsService(refreshOnInit: false))
 }
 
 #Preview("Weekly schedule with Open at Login note") {
@@ -317,6 +320,7 @@ struct BackupEditorSheet: View {
         onSave: { _, _ in }
     )
     .environment(LaunchAtLoginService(refreshOnInit: false))
+    .environment(BackgroundBackupsService(refreshOnInit: false))
 }
 
 #Preview("Add only, dark") {
@@ -331,5 +335,6 @@ struct BackupEditorSheet: View {
         onSave: { _, _ in }
     )
     .environment(LaunchAtLoginService(refreshOnInit: false))
+    .environment(BackgroundBackupsService(refreshOnInit: false))
     .preferredColorScheme(.dark)
 }
