@@ -100,32 +100,38 @@ Works today:
 
 - Browser with list and icon views, Finder-style multi-select, column sorting, type-to-select, Quick Look, drag and drop within and across remotes
 - Guided Add Remote driven by rclone's own config state machine, so new backends need no app changes
-- Finder integration through the File Provider extension (requires a signed build)
+- Finder integration through the File Provider extension (requires a signed build): files download on demand, Keep Downloaded pins them, photos and PDFs get thumbnails before they are downloaded, and changes made elsewhere show up within about ten minutes
+- Copy Share Link in Finder and the inspector, with expiry and Stop Sharing where the service supports them (rclone 1.76 or later)
+- Backups on a schedule, from a folder or a cloud to another cloud or folder, with a preview before the first run, exclude lists, a versions folder for replaced and removed files, and a removal limit
+- Home: free space across all your clouds and each cloud's status in plain words
 - NFS mounts with auto-mount and restore on launch
 - Copy and sync between any two remotes or local folders, with a transfer queue, history, bandwidth limit and notifications
-- Menu bar item, launch at login, Settings window modeled on System Settings
+- Menu bar panel, launch at login, Settings window modeled on System Settings
 - Diagnostics: copy a sanitized system report, open the app's logs in Console
 
-Not done yet (see the [roadmap](docs/superpowers/specs/2026-05-14-nimbus-north-star-design.md)):
+Not done yet (tracked in [issues](https://github.com/CasaVargas/Nimbus/issues); how Nimbus compares feature by feature is in the [parity report](docs/superpowers/reports/2026-11-11-feature-parity.md)):
 
-- System integration depth (Spotlight, Shortcuts, Services menu, Share Sheet)
-- Encryption setup wizard, scheduled syncs, public link management
+- Search, in the app and in Spotlight
+- An encrypted-folder setup flow, and sign-ins kept in the Keychain (today they are in `rclone.conf`, as rclone writes them)
+- Shortcuts, Services menu, Share Sheet
+- Backups that run while Nimbus is closed
 - Media gallery and other advanced browser modes
 
 Design specs and per-phase exit gates live in [`docs/superpowers/specs/`](docs/superpowers/specs/).
 
 ## How it compares
 
-Facts only; "unverified" means we did not confirm it against a current release. Corrections welcome.
+Facts only, checked against vendor pages on 2026-11-11; "unverified" means we did not confirm it. Corrections welcome. The full comparison, against 15 apps, is in the [parity report](docs/superpowers/reports/2026-11-11-feature-parity.md).
 
-| | Nimbus | Mountain Duck | ExpanDrive | Cyberduck | rclone CLI |
+| | Nimbus | Mountain Duck | ExpanDrive | Cyberduck | rclone |
 |---|---|---|---|---|---|
-| Price model | Free, source and signed builds alike | One-time license per major version | One-time license per major version (unverified) | Free (donations; paid on the Mac App Store) | Free |
+| Price model | Free, source and signed builds alike | One-time license per major version; subscription on the Mac App Store | Free for personal use; subscription for business | Free (donations; paid on the Mac App Store) | Free |
 | Open source | Yes, GPL-3.0-or-later | No | No | Yes, GPL-3.0 | Yes, MIT |
-| UI | Native SwiftUI/AppKit | Native Cocoa over a Java core | Electron for the UI (unverified) | Native Cocoa over a Java core | None (an experimental web GUI exists) |
-| Finder / mount | File Provider and NFS | File Provider and FUSE-style mounts | Mounts (unverified which mechanism) | No mounting; transfer client | FUSE (macFUSE) or NFS via `rclone mount` / `serve nfs` |
-| Providers | Everything rclone supports (50+) | Its own backends (roughly 20, unverified) | Its own backends (unverified count) | Its own backends (roughly 20, unverified) | 50+ |
+| UI | Native SwiftUI/AppKit | Native Cocoa over a Java core (unverified) | Unverified | Native Cocoa over a Java core (unverified) | Command line, plus `rclone gui` in a browser tab |
+| Finder / mount | File Provider and NFS | File Provider and NFS | File Provider | No mounting; transfer client | FUSE (macFUSE) or NFS via `rclone mount` / `serve nfs` |
+| Providers | Everything rclone supports (50+) | 19 protocols | 15 | About 15 protocols | 50+ |
 | Reuses your rclone config | Yes | No | No | No | n/a |
+| Scheduled backups with a preview | Yes | No | No | No (sync preview, no schedule) | With your own cron and `--dry-run` |
 
 ## Support development
 

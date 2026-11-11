@@ -194,15 +194,28 @@ chat-bot control. Reasons are unchanged from the 2026-11-08 report.
 4. **Trust polish** — Finder badges, "Verified" after uploads, compare two folders.
 5. **Setup** — decide whether Nimbus fetches rclone itself.
 
-## Things this found that are now wrong elsewhere
+## Issues
 
-- **README "Not done yet"** still lists scheduled syncs and public link management. Both shipped
-  in 0.10.0.
-- **README "How it compares":**
-  - ExpanDrive is no longer a one-time licence: free for personal use, subscription for business
-    since April 2025. It mounts through File Provider.
-  - Mountain Duck documents 19 protocols; the Mac App Store edition is a subscription.
-  - `rclone gui` is out of beta, so "an experimental web GUI exists" is out of date.
+| Gap | Issue |
+|---|---|
+| Search across clouds | #65 |
+| Spotlight | #66 |
+| Keychain | #67 |
+| Encrypted folder | #68 |
+| Shortcuts | #69 |
+| rclone prerequisite | #70 |
+| Finder badges | #71 |
+| Backups with Nimbus closed | #72 |
+| Compare two folders | #73 |
+| Version history | #74 |
+| "Verified" after uploads | #75 |
+| Faster remote changes | #76 |
+
+## README corrections made with this report
+
+- "Not done yet" listed scheduled syncs and public link management; both shipped in 0.10.0.
+- "How it compares": ExpanDrive's pricing and mount mechanism, Mountain Duck's protocol count and
+  App Store subscription, and `rclone gui` leaving beta.
 
 ## Limits of this research
 
