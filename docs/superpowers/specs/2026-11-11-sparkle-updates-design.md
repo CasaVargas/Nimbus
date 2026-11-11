@@ -133,10 +133,10 @@ installed by hand; later ones update themselves.
 
 ## Release steps this adds (once)
 
-1. `generate_keys` on Jon's Mac (private key into the login Keychain), put the
-   printed public key in `Nimbus/Config/Nimbus-Info.plist`.
-2. `generate_keys -x <file>`, store the file's content as the
-   `SPARKLE_PRIVATE_KEY` secret, delete the file.
+`bash scripts/setup-sparkle-key.sh` on Jon's Mac, after a build: creates or
+reuses the key in the login Keychain, writes the public key to
+`Nimbus/Config/Nimbus-Info.plist`, sets the `SPARKLE_PRIVATE_KEY` secret and
+checks that the two are a pair. Then commit the plist and back up the key.
 
 ## Wording changes
 
