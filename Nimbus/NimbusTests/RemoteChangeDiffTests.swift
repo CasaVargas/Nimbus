@@ -242,3 +242,19 @@ struct WorkingSetListingTests {
         #expect(entries.map(\.record.identifier) == ["a", "a/x"])
     }
 }
+
+@Suite("NewlyListedLog")
+struct NewlyListedLogTests {
+    @Test func linesRoundTripInOrderWithoutRepeats() {
+        var data = Data()
+        for id in ["gd:Fonts", "gd:a/b", "gd:Fonts", "NSFileProviderRootContainerItemIdentifier"] {
+            data.append(NewlyListedLog.line(for: id))
+        }
+        #expect(NewlyListedLog.parse(data) == ["gd:Fonts", "gd:a/b", "NSFileProviderRootContainerItemIdentifier"])
+    }
+
+    @Test func emptyOrBlankLogIsEmpty() {
+        #expect(NewlyListedLog.parse(Data()).isEmpty)
+        #expect(NewlyListedLog.parse(Data("\n\n".utf8)).isEmpty)
+    }
+}

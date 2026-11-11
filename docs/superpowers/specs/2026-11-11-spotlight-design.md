@@ -66,6 +66,34 @@ per-remote name search from #65 (RcloneKit) is the backend it needs. Before
 building on it, check its OS availability and whether `mdfind` or only the
 Spotlight UI uses it.
 
+### Spike: `NSFileProviderSearching` (2026-11-11)
+
+Built on this branch: `FileProviderExtension/SearchSupport.swift`. The
+extension adopts `NSFileProviderSearching` (macOS 26+), and
+`CloudSearchEnumerator` runs #65's `RcloneClient.search` and returns
+`FileProviderItem`s as results. The app sets `supportsStringSearchRequest`
+on new domains. It updates existing domains in place with
+`NSFileProviderManager.add` and the same identifier.
+
+Live, with the build installed:
+
+- The in-place update worked. All three domains logged "Turned on system
+  search", and `fileproviderctl dump` shows `features: repl,syncTrash,search`.
+  Downloaded files stayed downloaded (MCS: 2 materialized before and after).
+- `mdfind` never calls the extension; it only reads the local index.
+- A Finder search scoped to "Nimbus - Google Drive" for a file in a folder
+  nobody has opened returned 0 items. The extension logged no search call.
+- The Spotlight panel (⌘Space) couldn't be driven by automation here: it
+  runs in the Siri process. That check is manual: type the query and look
+  for a `search` line in the extension log
+  (`log show --predicate 'subsystem == "app.casavargas.nimbus.FileProvider" AND category == "search"'`).
+
+`fileproviderctl dump` also shows fileproviderd running its own Spotlight
+indexer for each Nimbus domain (MCS: `total-indexable-count: 119`,
+`pending: 0`). So local items are donated without any working-set listing.
+The indexer's scheduler sat asleep through the test, which may explain
+why newly listed items took longer than 7 minutes to appear.
+
 ## Mechanism
 
 **Chosen: the File Provider working set.** `WorkingSetEnumerator.enumerateItems`

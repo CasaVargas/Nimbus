@@ -23,6 +23,8 @@ final class FileProviderItem: NSObject, NSFileProviderItem, @unchecked Sendable 
     let contentModificationDate: Date?
     let creationDate: Date?
     let itemVersion: NSFileProviderItemVersion
+    /// Not tracked; required by `NSFileProviderSearchResult`.
+    var lastUsedDate: Date? { nil }
 
     let capabilities: NSFileProviderItemCapabilities
 

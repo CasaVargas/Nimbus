@@ -43,6 +43,7 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
         let rclone = self.rclone
         let logger = self.logger
         let offset = Self.offset(from: page)
+        let boxedDomain = UncheckedBox(value: self.domain)
 
         let boxedObserver = UncheckedBox(value: observer)
         Task { @Sendable in
@@ -63,7 +64,9 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
                 // Seed the change-tracking baseline from this full listing so
                 // the next `enumerateChanges` call has something real to diff
                 // against instead of treating every item as newly added.
-                SyncSnapshotStore.seed(remoteName: remoteName, containerIdentifier: parentId, current: records)
+                let firstListing = SyncSnapshotStore.seed(
+                    remoteName: remoteName, containerIdentifier: parentId, current: records
+                )
 
                 let start = min(max(offset, 0), records.count)
                 let end = min(start + Self.pageSize, records.count)
@@ -74,6 +77,18 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
                     boxedObserver.value.finishEnumerating(upTo: Self.page(for: end))
                 } else {
                     boxedObserver.value.finishEnumerating(upTo: nil)
+                }
+                // Spotlight indexes only what the working set reports: hand
+                // a first listing to it (see `NewlyListedLog`).
+                if firstListing, !records.isEmpty {
+                    SyncSnapshotStore.markNewlyListed(remoteName: remoteName, containerIdentifier: parentId)
+                    if let manager = NSFileProviderManager(for: boxedDomain.value) {
+                        do {
+                            try await manager.signalEnumerator(for: .workingSet)
+                        } catch {
+                            logger.info("signalEnumerator(workingSet) after a first listing failed: \(String(describing: error), privacy: .public)")
+                        }
+                    }
                 }
             } catch {
                 logger.error("enumerateItems exhausted retries for \(remoteName):\(remotePath): \(String(describing: error))")

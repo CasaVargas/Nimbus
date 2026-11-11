@@ -92,14 +92,19 @@ enum SyncSnapshotStore {
     /// diffing (there's nothing to diff against on a fresh full pass — this
     /// just seeds the baseline the next `enumerateChanges` call will diff
     /// against).
+    ///
+    /// Returns true when the container had no snapshot: the system just
+    /// listed it for the first time.
+    @discardableResult
     static func seed(
         remoteName: String,
         containerIdentifier: NSFileProviderItemIdentifier,
         current: [(item: FileProviderItem, record: SyncedItemRecord)]
-    ) {
+    ) -> Bool {
         let old = load(remoteName: remoteName, containerIdentifier: containerIdentifier)
         let snapshot = ContainerSnapshot(version: old?.version ?? 0, items: current.map(\.record))
         save(snapshot, remoteName: remoteName, containerIdentifier: containerIdentifier)
+        return old == nil
     }
 
     static func currentAnchor(remoteName: String, containerIdentifier: NSFileProviderItemIdentifier) -> NSFileProviderSyncAnchor {
@@ -162,6 +167,46 @@ enum SyncSnapshotStore {
             .appendingPathComponent("FileProviderSync", isDirectory: true)
             .appendingPathComponent(remoteName, isDirectory: true)
             .appendingPathComponent("remote-generation", isDirectory: false)
+    }
+
+    // MARK: - Newly listed folders (Spotlight)
+
+    /// Records a folder the system just listed for the first time, for the
+    /// working set to report (see `NewlyListedLog`). Appends, so concurrent
+    /// listings in one cloud don't overwrite each other.
+    static func markNewlyListed(remoteName: String, containerIdentifier: NSFileProviderItemIdentifier) {
+        guard let url = newlyListedURL(remoteName: remoteName) else { return }
+        do {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if !FileManager.default.fileExists(atPath: url.path) {
+                FileManager.default.createFile(atPath: url.path, contents: nil)
+            }
+            let handle = try FileHandle(forWritingTo: url)
+            defer { try? handle.close() }
+            try handle.seekToEnd()
+            try handle.write(contentsOf: NewlyListedLog.line(for: containerIdentifier.rawValue))
+        } catch {
+            logger.warning("Failed to record a newly listed folder: \(String(describing: error))")
+        }
+    }
+
+    /// Takes the recorded folders and clears the log. The log is moved
+    /// aside first, so a folder recorded meanwhile lands in a fresh log.
+    static func takeNewlyListed(remoteName: String) -> [NSFileProviderItemIdentifier] {
+        guard let url = newlyListedURL(remoteName: remoteName),
+              FileManager.default.fileExists(atPath: url.path) else { return [] }
+        let taken = url.appendingPathExtension("taken")
+        try? FileManager.default.removeItem(at: taken)
+        guard (try? FileManager.default.moveItem(at: url, to: taken)) != nil,
+              let data = try? Data(contentsOf: taken) else { return [] }
+        try? FileManager.default.removeItem(at: taken)
+        return NewlyListedLog.parse(data).map { NSFileProviderItemIdentifier($0) }
+    }
+
+    private static func newlyListedURL(remoteName: String) -> URL? {
+        generationURL(remoteName: remoteName)?
+            .deletingLastPathComponent()
+            .appendingPathComponent("newly-listed", isDirectory: false)
     }
 
     // MARK: - Anchor encoding

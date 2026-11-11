@@ -141,6 +141,23 @@ enum WorkingSetListing {
     }
 }
 
+/// Folders the system listed for the first time since the working set
+/// last reported. Their entries reach the system through the folder's own
+/// listing, which Spotlight doesn't index, so the working set reports them
+/// once more as changes. Stored as one identifier per line.
+enum NewlyListedLog {
+    static func line(for container: String) -> Data { Data((container + "\n").utf8) }
+
+    /// Identifiers in first-seen order, blank lines and repeats dropped.
+    static func parse(_ data: Data) -> [String] {
+        var seen = Set<String>()
+        return String(decoding: data, as: UTF8.self)
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map(String.init)
+            .filter { seen.insert($0).inserted }
+    }
+}
+
 /// One container listed and diffed during a remote scan. `payload` carries
 /// whatever the caller needs for reporting (the extension keeps the
 /// `FileProviderItem`s for the changed entries there).

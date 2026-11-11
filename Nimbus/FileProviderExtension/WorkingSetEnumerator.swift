@@ -141,13 +141,24 @@ final class WorkingSetEnumerator: NSObject, NSFileProviderEnumerator {
         let listFiles = self.listFiles
         Task {
             let outcome = await RemoteChangeScanner.scan(remoteName: remoteName, list: listFiles)
+            // Folders listed for the first time since the last pass: report
+            // their entries so Spotlight indexes them.
+            var reported = Set(outcome.updated.map(\.itemIdentifier))
+            var firstListed: [NSFileProviderItem] = []
+            for container in SyncSnapshotStore.takeNewlyListed(remoteName: remoteName) {
+                for record in SyncSnapshotStore.records(remoteName: remoteName, containerIdentifier: container) ?? []
+                where reported.insert(NSFileProviderItemIdentifier(record.identifier)).inserted {
+                    firstListed.append(FileProviderItem(record: record, parentIdentifier: container, remoteName: remoteName))
+                }
+            }
             var generation = SyncSnapshotStore.remoteGeneration(remoteName: remoteName)
-            if outcome.hasChanges {
+            if outcome.hasChanges || !firstListed.isEmpty {
                 generation = SyncSnapshotStore.bumpRemoteGeneration(remoteName: remoteName)
                 if !outcome.updated.isEmpty { box.observer.didUpdate(outcome.updated) }
+                if !firstListed.isEmpty { box.observer.didUpdate(firstListed) }
                 if !outcome.deleted.isEmpty { box.observer.didDeleteItems(withIdentifiers: outcome.deleted) }
             }
-            logger.info("working set \(remoteName, privacy: .public): scanned \(outcome.listedContainers) folders, \(outcome.updated.count) updated, \(outcome.deleted.count) deleted")
+            logger.info("working set \(remoteName, privacy: .public): scanned \(outcome.listedContainers) folders, \(outcome.updated.count) updated, \(outcome.deleted.count) deleted, \(firstListed.count) from first listings")
             box.observer.finishEnumeratingChanges(
                 upTo: Self.anchor(pins: changes.latest, generation: generation), moreComing: false
             )
