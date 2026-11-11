@@ -1,8 +1,10 @@
 name: Release
 
 # Builds, signs (Developer ID), notarizes and staples Nimbus, then opens a
-# DRAFT GitHub release with the DMG and its .sha256. Publishing the draft
-# stays a person's call.
+# DRAFT GitHub release with the DMG, its .sha256 and the Sparkle appcast.
+# Publishing the draft stays a person's call, and it is also what offers the
+# version to installed copies: their feed is
+# releases/latest/download/appcast.xml, which never resolves to a draft.
 #
 # Run it from the Actions tab (Run workflow, tag e.g. v1.0.0) or push a v* tag.
 # The tag's version must match MARKETING_VERSION, and docs/releases/<version>.md
@@ -12,6 +14,9 @@ name: Release
 # Developer ID Application certificate), APPLE_CERTIFICATE_PASSWORD, and
 # APPLE_ID / APPLE_PASSWORD (app-specific) / APPLE_TEAM_ID for notarytool.
 # They go into a throwaway keychain that is deleted at the end.
+# SPARKLE_PRIVATE_KEY (the EdDSA key from Sparkle's `generate_keys -x`) signs
+# the DMG for the updater; its public half is SUPublicEDKey in
+# Nimbus/Config/Nimbus-Info.plist.
 
 on:
   push:
@@ -98,7 +103,15 @@ jobs:
       - name: Build, sign, notarize, staple
         env:
           NIMBUS_UNSIGNED_BUILD: '1'
-        run: bash scripts/package-release.sh
+          NIMBUS_SPARKLE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$NIMBUS_SPARKLE_KEY" ]; then
+            echo "error: the SPARKLE_PRIVATE_KEY secret is missing; installed copies could not update to this release" >&2
+            exit 1
+          fi
+          bash scripts/package-release.sh
+          test -f dist/appcast.xml
 
       - name: Verify the DMG
         run: |
@@ -116,7 +129,13 @@ jobs:
           appex="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/PlugIns/FileProviderExtension.appex/Contents/Info.plist")"
           app_archs="$(lipo -archs "$app/Contents/MacOS/Nimbus")"
           appex_archs="$(lipo -archs "$app/Contents/PlugIns/FileProviderExtension.appex/Contents/MacOS/FileProviderExtension")"
+          public_key="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$app/Contents/Info.plist")"
+          build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")"
           hdiutil detach "$mount" >/dev/null
+          # Sparkle orders updates by CFBundleVersion and trusts SUPublicEDKey.
+          [ "$build" = "$VERSION" ] || { echo "error: CFBundleVersion is $build, expected $VERSION" >&2; exit 1; }
+          xcrun swift scripts/verify-appcast.swift dist/appcast.xml "$dmg" "$public_key"
+          grep -q "<sparkle:version>$VERSION</sparkle:version>" dist/appcast.xml
           echo "app $shipped ($app_archs), extension $appex ($appex_archs)"
           for a in "$app_archs" "$appex_archs"; do
             case " $a " in *" arm64 "*) ;; *) echo "error: arm64 missing" >&2; exit 1 ;; esac
@@ -132,12 +151,12 @@ jobs:
           sum="$(cut -d' ' -f1 "dist/Nimbus-$VERSION.dmg.sha256")"
           sed "s/(filled in when the signed DMG is built)/$sum/" "docs/releases/$VERSION.md" > "$RUNNER_TEMP/notes.md"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "dist/Nimbus-$VERSION.dmg" "dist/Nimbus-$VERSION.dmg.sha256" --clobber
+            gh release upload "$TAG" "dist/Nimbus-$VERSION.dmg" "dist/Nimbus-$VERSION.dmg.sha256" dist/appcast.xml --clobber
             gh release edit "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
           else
             gh release create "$TAG" --draft --target "$GITHUB_SHA" \
               --title "Nimbus $VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
-              "dist/Nimbus-$VERSION.dmg" "dist/Nimbus-$VERSION.dmg.sha256"
+              "dist/Nimbus-$VERSION.dmg" "dist/Nimbus-$VERSION.dmg.sha256" dist/appcast.xml
           fi
           echo "Checksum: $sum"
 

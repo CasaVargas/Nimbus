@@ -12,11 +12,15 @@
 #   4. If NIMBUS_SIGN_IDENTITY and NIMBUS_NOTARY_PROFILE are both set, sign
 #      the DMG, submit it to Apple's notary service with notarytool, wait for
 #      the verdict, and staple the ticket.
+#   5. If NIMBUS_SPARKLE_KEY is set, sign the finished DMG for Sparkle and
+#      write dist/appcast.xml (scripts/make-appcast.sh), then check it
+#      against the SUPublicEDKey of the app in the DMG.
 #
 # Environment:
 #   NIMBUS_SIGN_IDENTITY   e.g. "Developer ID Application: Your Name (TEAMID)"
 #   NIMBUS_NOTARY_PROFILE  a keychain profile created with
 #                          `xcrun notarytool store-credentials <name>`
+#   NIMBUS_SPARKLE_KEY     the Sparkle EdDSA private key (`generate_keys -x`)
 #   NIMBUS_SKIP_BUILD=1    package the existing Release build without rebuilding
 #   NIMBUS_DIST_DIR        output directory (default: <repo>/dist)
 #
@@ -49,6 +53,7 @@ trap 'rm -rf "$STAGE"' EXIT
 ditto "$BUILT_APP" "$STAGE/Nimbus.app"
 APP="$STAGE/Nimbus.app"
 APPEX="$APP/Contents/PlugIns/FileProviderExtension.appex"
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
 
 # Every release runs on Apple silicon and Intel: refuse a build missing either.
 for binary in "$APP/Contents/MacOS/Nimbus" "$APPEX/Contents/MacOS/FileProviderExtension"; do
@@ -109,6 +114,19 @@ if [ -n "$SIGN_IDENTITY" ]; then
   # get-task-allow; --options runtime enables the hardened runtime that
   # notarization requires.
   drop_dev_profile "$APP"
+  # Sparkle's helpers first, innermost out, as its documentation orders them.
+  # Signing the app does not sign code nested in a framework, and CI builds
+  # unsigned, so without this they keep the Sparkle project's signature and
+  # the notary service rejects the app. Downloader.xpc keeps its entitlements.
+  if [ -d "$SPARKLE" ]; then
+    SPARKLE_CODE="$SPARKLE/Versions/Current"
+    codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$SPARKLE_CODE/XPCServices/Installer.xpc"
+    codesign --force --timestamp --options runtime --preserve-metadata=entitlements \
+      --sign "$SIGN_IDENTITY" "$SPARKLE_CODE/XPCServices/Downloader.xpc"
+    codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$SPARKLE_CODE/Autoupdate"
+    codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$SPARKLE_CODE/Updater.app"
+    codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$SPARKLE"
+  fi
   if [ -d "$APPEX" ]; then
     drop_dev_profile "$APPEX"
     release_entitlements "$APPEX" "$ENT_DIR/appex.plist" "$ROOT_DIR/Nimbus/FileProviderExtension/FileProviderExtension.entitlements"
@@ -186,6 +204,23 @@ elif [ -n "$SIGN_IDENTITY" ]; then
 fi
 
 (cd "$DIST_DIR" && shasum -a 256 "$(basename "$DMG")" > "$(basename "$DMG").sha256")
+
+# The appcast signs the DMG's bytes, so it comes after stapling, which
+# rewrites the DMG.
+rm -f "$DIST_DIR/appcast.xml"
+if [ -n "${NIMBUS_SPARKLE_KEY:-}" ]; then
+  log "Writing the Sparkle appcast"
+  MIN_OS="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$APP/Contents/Info.plist")"
+  PUBLIC_KEY="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$APP/Contents/Info.plist")"
+  bash "$ROOT_DIR/scripts/make-appcast.sh" "$DMG" "$VERSION" "$MIN_OS" "$DIST_DIR/appcast.xml"
+  if ! xcrun swift "$ROOT_DIR/scripts/verify-appcast.swift" "$DIST_DIR/appcast.xml" "$DMG" "$PUBLIC_KEY"; then
+    # Never leave an appcast that installed copies would reject.
+    rm -f "$DIST_DIR/appcast.xml"
+    exit 1
+  fi
+else
+  log "NIMBUS_SPARKLE_KEY not set; no appcast, so this build is not offered as an update"
+fi
 
 log "Done: $DMG (Nimbus $VERSION, build $BUILD)"
 cat "$DMG.sha256"

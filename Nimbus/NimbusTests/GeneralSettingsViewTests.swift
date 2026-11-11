@@ -31,6 +31,23 @@ struct GeneralSettingsViewTests {
         )
     }
 
+    @Test func rendersUpdatesSection() throws {
+        let driver = FakeUpdateDriver()
+        driver.automaticallyChecksForUpdates = true
+        let updater = UpdaterService(driver: driver)
+        updater.start()
+        try SnapshotHelpers.assertHostedSnapshot(
+            GeneralSettingsView()
+                .environment(AppSettings(defaults: isolatedDefaults()))
+                .environment(LaunchAtLoginService(refreshOnInit: false))
+                .environment(BackgroundBackupsService(refreshOnInit: false))
+                .environment(updater)
+                .preferredColorScheme(.dark),
+            size: CGSize(width: 680, height: 680),
+            named: "Settings-General-updates"
+        )
+    }
+
     private func isolatedDefaults() -> UserDefaults {
         let name = "NimbusTests.GeneralSettings.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!

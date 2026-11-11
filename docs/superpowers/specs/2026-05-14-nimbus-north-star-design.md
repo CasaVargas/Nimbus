@@ -31,7 +31,7 @@ Four non-negotiable principles every decision must satisfy. If a feature can't s
 
 - SwiftUI-first for every screen
 - AppKit bridge only where SwiftUI gives genuinely worse UX (likely candidates: outline-view-heavy interactions, advanced drag-and-drop, Quick Look host integration)
-- Zero third-party UI dependencies; zero third-party for anything Apple already provides (`URLSession`, `AVKit`, `AsyncImage`, `Combine`/Observation, etc.)
+- Zero third-party UI dependencies; zero third-party for anything Apple already provides (`URLSession`, `AVKit`, `AsyncImage`, `Combine`/Observation, etc.). One exception since 2026-11-11: Sparkle, the updater, because Apple provides none outside the App Store (see `2026-11-11-sparkle-updates-design.md`)
 - HIG is canon — when in doubt, copy Apple
 
 ### 2. Finder-grade file interaction
@@ -212,7 +212,7 @@ The wedge is *feel*, which is hard to measure. Mix of objective and subjective g
 - VoiceOver: every interactive element labeled; in-scope screens fully usable VoiceOver-only
 - Dynamic Type XXXL doesn't break any in-scope layout
 - Zero `.system(size:)` calls (lint check)
-- Zero third-party UI dependency added (Package.resolved diff check)
+- Zero third-party UI dependency added (Package.resolved check; Sparkle is the only remote package it allows)
 
 ### Subjective (self-graded per phase exit)
 

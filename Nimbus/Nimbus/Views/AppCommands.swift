@@ -23,10 +23,15 @@ extension FocusedValues {
 /// window sharing one daemon/mount state is untested territory — and its
 /// ⌘N goes to New Folder, matching the in-app "use ⌘N" copy.
 struct AppCommands: Commands {
+    let updater: UpdaterService
     @FocusedValue(\.browserActions) private var browser
     @FocusedValue(\.sidebarSelection) private var sidebarSelection
 
     var body: some Commands {
+        CommandGroup(after: .appInfo) {
+            CheckForUpdatesButton(updater: updater)
+        }
+
         CommandGroup(replacing: .newItem) {
             Button("New Folder") { browser?.newFolder() }
                 .keyboardShortcut("n")
@@ -63,5 +68,15 @@ struct AppCommands: Commands {
             Button("Backups") { sidebarSelection?.wrappedValue = .backups }
                 .keyboardShortcut("b", modifiers: [.command, .shift])
         }
+    }
+}
+
+/// A view, so the item's enabled state follows the updater.
+private struct CheckForUpdatesButton: View {
+    let updater: UpdaterService
+
+    var body: some View {
+        Button("Check for Updates…") { updater.checkForUpdates() }
+            .disabled(!updater.canCheck)
     }
 }
