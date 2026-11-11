@@ -120,6 +120,7 @@ final class CloudMonitor {
         await RemotesViewModel(client: client).deleteRemote(name: name)
         status.clear(name)
         PinStore.shared?.removeAll(domain: name)
+        UploadFailureStore.shared?.removeAll(domain: name)
         await refresh()
     }
 }
