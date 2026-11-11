@@ -11,6 +11,8 @@ struct FileInspector: View {
     var onQuickLook: ([FileItem]) -> Void
     var onCopy: (FileItem) -> Void
 
+    @Environment(CloudMonitor.self) private var monitor
+
     static let width: CGFloat = 240
 
     private var selected: [FileItem] {
@@ -52,6 +54,9 @@ struct FileInspector: View {
         }
         KeepOnThisMacRow(remote: remote, file: file)
         ShareLinkRow(remote: remote, file: file)
+        if VersionSupport.showsHistory(for: file, backendType: backendType) {
+            FileVersionsRow(remote: remote, file: file)
+        }
         keyValues([
             ("Kind", Self.kind(of: file)),
             ("Size", file.isDir ? "--" : FileRowView.formatSize(file.size)),
@@ -138,6 +143,11 @@ struct FileInspector: View {
                 .font(DesignSystem.Typography.caption)
             }
         }
+    }
+
+    /// The cloud's own backend type (not alias-resolved: see `VersionSupport`).
+    private var backendType: String? {
+        monitor.remotes.first { $0.name == remote }?.type
     }
 
     private var currentFolderName: String {
