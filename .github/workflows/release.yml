@@ -19,8 +19,17 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Tag to release (e.g. v1.0.0). Created on the selected branch's head if missing.
+        description: Tag to release (e.g. v1.0.0). Created at `target` if missing.
         required: true
+      target:
+        description: Commit to build and tag (default the selected branch's head).
+        required: false
+        default: ''
+      runner:
+        description: Where to build. jonathans-mini is the self-hosted Mac mini.
+        type: choice
+        options: [xcode-27, jonathans-mini]
+        default: xcode-27
 
 permissions:
   contents: write
@@ -32,21 +41,29 @@ concurrency:
 jobs:
   release:
     name: Build, sign, notarize, draft
-    runs-on: xcode-27
+    runs-on: ${{ inputs.runner == 'jonathans-mini' && fromJSON('["self-hosted","jonathans-mini"]') || 'xcode-27' }}
     timeout-minutes: 90
     env:
       TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target || github.sha }}
 
-      - name: Select newest Xcode 27
+      # Hosted runners carry several Xcodes; a self-hosted Mac uses its own
+      # selected one, which must be 27.
+      - name: Select Xcode 27
         run: |
           xcode="$(find /Applications -maxdepth 1 -name 'Xcode_27*.app' | sort -V | tail -n 1)"
-          echo "Using $xcode"
-          sudo xcode-select -s "$xcode"
+          if [ -n "$xcode" ]; then
+            echo "Using $xcode"
+            sudo xcode-select -s "$xcode"
+          fi
+          xcodebuild -version
+          xcodebuild -version | head -n 1 | grep -q '^Xcode 27'
 
       - name: Install XcodeGen
-        run: brew install xcodegen
+        run: command -v xcodegen || brew install xcodegen
 
       - name: Check version and notes
         run: |
@@ -72,6 +89,10 @@ jobs:
           set -euo pipefail
           keychain="$RUNNER_TEMP/release.keychain-db"
           password="$(uuidgen)"
+          # Remember the user's keychain setup: on a self-hosted Mac the
+          # cleanup step puts it back.
+          security default-keychain -d user | tr -d ' "' > "$RUNNER_TEMP/default-keychain"
+          security list-keychains -d user | tr -d ' "' > "$RUNNER_TEMP/keychain-list"
           security create-keychain -p "$password" "$keychain"
           security set-keychain-settings -lut 7200 "$keychain"
           security unlock-keychain -p "$password" "$keychain"
@@ -129,7 +150,7 @@ jobs:
             gh release upload "$TAG" "dist/Nimbus-$VERSION.dmg" "dist/Nimbus-$VERSION.dmg.sha256" --clobber
             gh release edit "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
           else
-            gh release create "$TAG" --draft --target "$GITHUB_SHA" \
+            gh release create "$TAG" --draft --target "$(git rev-parse HEAD)" \
               --title "Nimbus $VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
               "dist/Nimbus-$VERSION.dmg" "dist/Nimbus-$VERSION.dmg.sha256"
           fi
@@ -144,6 +165,14 @@ jobs:
       - name: Delete the release keychain
         if: always()
         run: |
+          if [ -s "$RUNNER_TEMP/default-keychain" ]; then
+            security default-keychain -d user -s "$(cat "$RUNNER_TEMP/default-keychain")" || true
+          fi
+          if [ -s "$RUNNER_TEMP/keychain-list" ]; then
+            # shellcheck disable=SC2046
+            security list-keychains -d user -s $(cat "$RUNNER_TEMP/keychain-list") || true
+          fi
           if [ -n "${RELEASE_KEYCHAIN:-}" ]; then
             security delete-keychain "$RELEASE_KEYCHAIN" || true
           fi
+          rm -f "$RUNNER_TEMP/default-keychain" "$RUNNER_TEMP/keychain-list"
