@@ -476,11 +476,29 @@ enum BackupSuggestions {
 
 /// The menu bar glyph: a template SF Symbol per overall state.
 enum CompanionGlyph {
-    static func symbol(for overall: CloudSummary.Overall) -> String {
+    /// The Nimbus symbol, the same one Finder shows beside its locations.
+    static let symbolName = "nimbus"
+
+    /// What the menu bar glyph adds to the Nimbus symbol for a state.
+    enum Badge: Equatable {
+        case none, uploading, downloading, attention
+
+        /// The SF Symbol drawn in the glyph's corner.
+        var systemSymbol: String? {
+            switch self {
+            case .none: nil
+            case .uploading: "arrow.up"
+            case .downloading: "arrow.down"
+            case .attention: "exclamationmark"
+            }
+        }
+    }
+
+    static func badge(for overall: CloudSummary.Overall) -> Badge {
         switch overall {
-        case .starting, .noClouds, .allReady: "icloud"
-        case .busy(let busy): busy.direction == .down ? "icloud.and.arrow.down" : "icloud.and.arrow.up"
-        case .needsAttention, .engineDown: "exclamationmark.icloud"
+        case .starting, .noClouds, .allReady: .none
+        case .busy(let busy): busy.direction == .down ? .downloading : .uploading
+        case .needsAttention, .engineDown: .attention
         }
     }
 
