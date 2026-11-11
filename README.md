@@ -28,7 +28,7 @@
 
 **It does not reimplement cloud providers.** Nimbus spawns [rclone](https://rclone.org) as a local daemon and talks to its RC API over loopback. Every backend rclone supports (S3 and compatibles, Google Drive, OneDrive, Dropbox, Backblaze B2, SFTP, WebDAV, crypt, and dozens more) works in Nimbus, with rclone's own config format, so you can keep using the `rclone` command line alongside the app.
 
-**It integrates with the system instead of replacing it.** Remotes show up in Finder's sidebar through a File Provider extension, or as NFS volumes if you prefer a classic mount. There is no account, no sign-in, no telemetry and no update pinging; the only process that touches the network is rclone.
+**It integrates with the system instead of replacing it.** Remotes show up in Finder's sidebar through a File Provider extension, or as NFS volumes if you prefer a classic mount. There is no account, no sign-in, no telemetry and no update pinging. rclone does all the cloud traffic; Nimbus itself only goes online if you ask it to download rclone for you (from rclone.org, checked against rclone's published checksums).
 
 ## Install
 
@@ -37,7 +37,7 @@ Download the latest signed and notarized DMG from the [Releases](https://github.
 ### Requirements
 
 - macOS 15 (Sequoia) or later, Apple Silicon or Intel
-- rclone on your `PATH`: `brew install rclone` (the path is configurable in Settings > Advanced)
+- rclone: Nimbus uses your Homebrew rclone (`brew install rclone`) if you have one, or offers to download the official build on first launch (the path is configurable in Settings > Advanced)
 
 ### Build from source
 
@@ -88,7 +88,7 @@ File Provider extension (Nimbus/FileProviderExtension/) ────────
 | RcloneKit | Local Swift package: a typed HTTP client for rclone's RC API, used by both the app and the extension |
 | File Provider extension | `NSFileProviderReplicatedExtension` that enumerates remotes into Finder; shares the daemon port with the app through an app group |
 | NFS mounts | `rclone serve nfs` plus `mount_nfs`, managed in-process; survives app restarts and cleans up on quit |
-| rclone | Your installed binary, started as `rclone rcd` on loopback. Nimbus never bundles or patches it |
+| rclone | Your installed binary, started as `rclone rcd` on loopback. Nimbus never bundles or patches it; it can download the official build for you |
 
 No third-party Swift packages. A pre-build lint fails the build if one is added.
 
