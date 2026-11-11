@@ -258,6 +258,7 @@
 		D6B9FF367576BA8C1B521795 /* UploadFailureReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CB87002D7E0C8E4C3EC079 /* UploadFailureReporting.swift */; };
 		D717CF81D7DB9C05536E61BB /* MountRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941B52BF2A1E8F0D27C9A987 /* MountRow.swift */; };
 		D872AC01934287E9DA989928 /* MountRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E61BE3E85906D683B22F88CA /* MountRowTests.swift */; };
+		D93DF2F2789F2D333C9D50B7 /* CompareLiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 531BD04CF958D886FF614251 /* CompareLiveTests.swift */; };
 		D96731E5CE2186E1736C02E0 /* BackupJob.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED716A8B3F17D8D6ADBB097B /* BackupJob.swift */; };
 		D9AF1E4394AE9635984EFF17 /* SheetChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B66BA5D854765E4D13BAFE5D /* SheetChromeTests.swift */; };
 		DAD5B2624B34C841E8166756 /* ConfirmCopySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB914ACBFE020C15E4BF90AB /* ConfirmCopySheet.swift */; };
@@ -444,6 +445,7 @@
 		50D2F227ADA1BAED2F502D90 /* SidebarSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarSelection.swift; sourceTree = "<group>"; };
 		5150D7E529E6EF52A806499E /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		5302F1C84940E5790AC1C522 /* DestructiveCallout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestructiveCallout.swift; sourceTree = "<group>"; };
+		531BD04CF958D886FF614251 /* CompareLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareLiveTests.swift; sourceTree = "<group>"; };
 		5322BA5BF672E9A04097F109 /* MountConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountConfiguration.swift; sourceTree = "<group>"; };
 		54F3EC94BCBDBE29E2675590 /* LocationPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationPicker.swift; sourceTree = "<group>"; };
 		55A205DF8C867C4D59917A09 /* BackupRcloneClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupRcloneClient.swift; sourceTree = "<group>"; };
@@ -1146,6 +1148,7 @@
 				B1381D75853A2DC244378857 /* CloudStatusLabelTests.swift */,
 				F2CB5729D5F43D8787260D73 /* CloudSummaryTests.swift */,
 				126788804458460F15A0FBB3 /* CompanionTests.swift */,
+				531BD04CF958D886FF614251 /* CompareLiveTests.swift */,
 				DB3DF7DF0016411F22B52AEC /* CompareViewModelTests.swift */,
 				0977A39F0057F452FE665760 /* ConfigEncryptionTests.swift */,
 				F2C314376120423C1E134660 /* ConfigFieldLabelTests.swift */,
@@ -1653,6 +1656,7 @@
 				83AD19D4F9EDC719860FB38B /* CloudStatusLabelTests.swift in Sources */,
 				9AE8D1A6286D124164457D6B /* CloudSummaryTests.swift in Sources */,
 				361F9316981A55716C767BFB /* CompanionTests.swift in Sources */,
+				D93DF2F2789F2D333C9D50B7 /* CompareLiveTests.swift in Sources */,
 				0CA5334EB02D5CD355CBED94 /* CompareViewModelTests.swift in Sources */,
 				6D4DDDDADB39B80A7A5F1570 /* ConfigEncryptionTests.swift in Sources */,
 				7C36E9378E37CE1AE196A408 /* ConfigFieldLabelTests.swift in Sources */,
