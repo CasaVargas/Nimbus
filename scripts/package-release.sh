@@ -70,8 +70,13 @@ rm -f "$DMG" "$DMG.sha256"
 #     ("Launchd job spawn failed", no crash log). 0.9.0 shipped that way.
 # The app group entitlement stays: on macOS it needs no profile.
 release_entitlements() {
-  local bundle="$1" out="$2"
-  codesign -d --entitlements :- "$bundle" 2>/dev/null > "$out"
+  local bundle="$1" out="$2" source="$3"
+  codesign -d --entitlements :- "$bundle" 2>/dev/null > "$out" || true
+  # An unsigned build (NIMBUS_UNSIGNED_BUILD=1, CI) carries none: use the
+  # checked-in file, which holds exactly what a release needs.
+  if ! /usr/libexec/PlistBuddy -c "Print" "$out" >/dev/null 2>&1; then
+    cp "$source" "$out"
+  fi
   local key
   for key in com.apple.security.get-task-allow com.apple.application-identifier com.apple.developer.team-identifier; do
     /usr/libexec/PlistBuddy -c "Delete :$key" "$out" 2>/dev/null || true
@@ -95,12 +100,12 @@ if [ -n "$SIGN_IDENTITY" ]; then
   drop_dev_profile "$APP"
   if [ -d "$APPEX" ]; then
     drop_dev_profile "$APPEX"
-    release_entitlements "$APPEX" "$ENT_DIR/appex.plist"
+    release_entitlements "$APPEX" "$ENT_DIR/appex.plist" "$ROOT_DIR/Nimbus/FileProviderExtension/FileProviderExtension.entitlements"
     codesign --force --timestamp --options runtime \
       --entitlements "$ENT_DIR/appex.plist" \
       --sign "$SIGN_IDENTITY" "$APPEX"
   fi
-  release_entitlements "$APP" "$ENT_DIR/app.plist"
+  release_entitlements "$APP" "$ENT_DIR/app.plist" "$ROOT_DIR/Nimbus/Nimbus/Nimbus.entitlements"
   codesign --force --timestamp --options runtime \
     --entitlements "$ENT_DIR/app.plist" \
     --sign "$SIGN_IDENTITY" "$APP"
