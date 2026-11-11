@@ -1,0 +1,149 @@
+name: Release
+
+# Builds, signs (Developer ID), notarizes and staples Nimbus, then opens a
+# DRAFT GitHub release with the DMG and its .sha256. Publishing the draft
+# stays a person's call.
+#
+# Run it from the Actions tab (Run workflow, tag e.g. v1.0.0) or push a v* tag.
+# The tag's version must match MARKETING_VERSION, and docs/releases/<version>.md
+# must exist: its text becomes the release notes, with the checksum filled in.
+#
+# Signing uses the org secrets: APPLE_CERTIFICATE (base64 .p12 holding the
+# Developer ID Application certificate), APPLE_CERTIFICATE_PASSWORD, and
+# APPLE_ID / APPLE_PASSWORD (app-specific) / APPLE_TEAM_ID for notarytool.
+# They go into a throwaway keychain that is deleted at the end.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to release (e.g. v1.0.0). Created on the selected branch's head if missing.
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build, sign, notarize, draft
+    runs-on: xcode-27
+    timeout-minutes: 90
+    env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest Xcode 27
+        run: |
+          xcode="$(find /Applications -maxdepth 1 -name 'Xcode_27*.app' | sort -V | tail -n 1)"
+          echo "Using $xcode"
+          sudo xcode-select -s "$xcode"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Check version and notes
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          declared="$(sed -n 's/^ *MARKETING_VERSION: "\(.*\)"/\1/p' Nimbus/project.yml | head -n 1)"
+          if [ "$version" != "$declared" ]; then
+            echo "error: tag $TAG but MARKETING_VERSION is $declared" >&2
+            exit 1
+          fi
+          test -f "docs/releases/$version.md" || { echo "error: docs/releases/$version.md is missing" >&2; exit 1; }
+          bash scripts/lint-release-notes.sh
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Import Developer ID certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          password="$(uuidgen)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 7200 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          security default-keychain -s "$keychain"
+          identity="$(security find-identity -v -p codesigning "$keychain" | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -n 1)"
+          if [ -z "$identity" ]; then
+            echo "error: APPLE_CERTIFICATE holds no Developer ID Application identity" >&2
+            security find-identity -v -p codesigning "$keychain" >&2
+            exit 1
+          fi
+          echo "Signing identity: $identity"
+          echo "NIMBUS_SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+          xcrun notarytool store-credentials nimbus-ci \
+            --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_PASSWORD" \
+            --keychain "$keychain"
+          echo "NIMBUS_NOTARY_PROFILE=nimbus-ci" >> "$GITHUB_ENV"
+          echo "RELEASE_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+
+      - name: Build, sign, notarize, staple
+        env:
+          NIMBUS_UNSIGNED_BUILD: '1'
+        run: bash scripts/package-release.sh
+
+      - name: Verify the DMG
+        run: |
+          set -euo pipefail
+          dmg="dist/Nimbus-$VERSION.dmg"
+          codesign --verify --strict --verbose=2 "$dmg"
+          xcrun stapler validate "$dmg"
+          spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
+          mount="$(mktemp -d)"
+          hdiutil attach -nobrowse -readonly -mountpoint "$mount" "$dmg" >/dev/null
+          app="$mount/Nimbus.app"
+          spctl --assess --type execute --verbose=2 "$app"
+          codesign --verify --deep --strict "$app"
+          shipped="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")"
+          appex="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/PlugIns/FileProviderExtension.appex/Contents/Info.plist")"
+          hdiutil detach "$mount" >/dev/null
+          echo "app $shipped, extension $appex"
+          [ "$shipped" = "$VERSION" ] && [ "$appex" = "$VERSION" ]
+
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sum="$(cut -d' ' -f1 "dist/Nimbus-$VERSION.dmg.sha256")"
+          sed "s/(filled in when the signed DMG is built)/$sum/" "docs/releases/$VERSION.md" > "$RUNNER_TEMP/notes.md"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "dist/Nimbus-$VERSION.dmg" "dist/Nimbus-$VERSION.dmg.sha256" --clobber
+            gh release edit "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            gh release create "$TAG" --draft --target "$GITHUB_SHA" \
+              --title "Nimbus $VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
+              "dist/Nimbus-$VERSION.dmg" "dist/Nimbus-$VERSION.dmg.sha256"
+          fi
+          echo "Checksum: $sum"
+
+      - name: Upload the DMG as a run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nimbus-${{ env.VERSION }}
+          path: dist/
+
+      - name: Delete the release keychain
+        if: always()
+        run: |
+          if [ -n "${RELEASE_KEYCHAIN:-}" ]; then
+            security delete-keychain "$RELEASE_KEYCHAIN" || true
+          fi
