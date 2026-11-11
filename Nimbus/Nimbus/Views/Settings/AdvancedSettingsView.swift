@@ -8,13 +8,21 @@ struct AdvancedSettingsView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(\.diagnosticsService) private var environmentDiagnosticsService
+    @Environment(MountManager.self) private var mountManager: MountManager?
+    @Environment(TransferStore.self) private var transferStore: TransferStore?
+    @Environment(BackupRunner.self) private var backupRunner: BackupRunner?
 
     @State private var storageModel: GeneralSettingsModel
+    @State private var encryptionModel: ConfigEncryptionModel
     @State private var showingFilePicker = false
     @State private var diagnosticsMessage: String?
 
-    init(storageModel: GeneralSettingsModel = GeneralSettingsModel()) {
+    init(
+        storageModel: GeneralSettingsModel = GeneralSettingsModel(),
+        encryptionModel: ConfigEncryptionModel = ConfigEncryptionModel()
+    ) {
         _storageModel = State(initialValue: storageModel)
+        _encryptionModel = State(initialValue: encryptionModel)
     }
 
     var body: some View {
@@ -34,6 +42,16 @@ struct AdvancedSettingsView: View {
                     showFilePicker: { showingFilePicker = true },
                     revealBinary: revealBinary
                 )
+                SavedSignInsSection(
+                    model: encryptionModel,
+                    blockReason: ConfigEncryptionModel.blockReason(
+                        state: encryptionModel.state,
+                        connectedNetworkDrives: mountManager?.activeMounts.count ?? 0,
+                        transfersRunning: !(transferStore?.activeTransfers.isEmpty ?? true),
+                        backupsRunning: backupRunner?.isRunningAnything ?? false
+                    ),
+                    setLocked: setConfigLocked
+                )
                 NetworkDriveDefaultsSection()
                 DiagnosticsSettingsSection(
                     storageModel: storageModel,
@@ -47,6 +65,9 @@ struct AdvancedSettingsView: View {
         }
         .defaultScrollAnchor(.top)
         .accessibilityIdentifier("settings-advanced")
+        .task(id: settings.rcloneBinaryPath) {
+            await encryptionModel.refresh(binaryPath: settings.rcloneBinaryPath)
+        }
         .fileImporter(
             isPresented: $showingFilePicker,
             allowedContentTypes: [.unixExecutable]
@@ -99,6 +120,24 @@ struct AdvancedSettingsView: View {
                     concurrentTransfers: settings.concurrentTransfers
                 )
             }
+        }
+    }
+
+    @MainActor
+    private func setConfigLocked(_ locked: Bool) {
+        Task { @MainActor in
+            await encryptionModel.setLocked(
+                locked,
+                binaryPath: settings.rcloneBinaryPath,
+                stopEngine: { daemon.stop() },
+                startEngine: {
+                    await daemon.start(
+                        binaryPath: settings.rcloneBinaryPath,
+                        bandwidthLimit: settings.bandwidthLimit,
+                        concurrentTransfers: settings.concurrentTransfers
+                    )
+                }
+            )
         }
     }
 
@@ -221,6 +260,89 @@ private struct DaemonSettingsSection: View {
         case .error: DesignSystem.Color.semantic.statusError
         case .idle, .starting: DesignSystem.Color.semantic.statusMuted
         }
+    }
+}
+
+/// Whether rclone.conf keeps sign-ins in plain text or locked with a key in
+/// the Keychain (#67). Locking costs plain `rclone` CLI use, so the section
+/// shows the one environment variable the CLI then needs.
+private struct SavedSignInsSection: View {
+    let model: ConfigEncryptionModel
+    let blockReason: String?
+    let setLocked: (Bool) -> Void
+
+    var body: some View {
+        FormSection(title: "Saved sign-ins", footer: nil) {
+            FormRow(label: "Lock with Keychain", help: nil) {
+                HStack(spacing: DesignSystem.Spacing.s) {
+                    if model.activity != .idle {
+                        ProgressView().controlSize(.small)
+                    }
+                    Toggle("", isOn: Binding(
+                        get: { model.isLocked },
+                        set: { setLocked($0) }
+                    ))
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .disabled(model.state == nil || model.activity != .idle || blockReason != nil)
+                    .accessibilityLabel("Lock saved sign-ins with Keychain")
+                }
+            }
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
+                Text(verbatim: explanation)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if model.isLocked {
+                    HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.s) {
+                        Text(verbatim: model.password.exportLine)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                        Button("Copy", action: copyExportLine)
+                            .controlSize(.small)
+                            .accessibilityLabel("Copy the rclone command line setting")
+                    }
+                }
+                if let note {
+                    Text(verbatim: note.text)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundStyle(note.isError ? DesignSystem.Color.semantic.statusError
+                                                      : DesignSystem.Color.semantic.statusWarning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.vertical, DesignSystem.Spacing.xs)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var explanation: String {
+        switch model.activity {
+        case .locking: return "Locking rclone.conf. The connection engine restarts…"
+        case .unlocking: return "Unlocking rclone.conf. The connection engine restarts…"
+        case .idle: break
+        }
+        if model.isLocked {
+            return "Sign-ins in rclone.conf are encrypted with a key in your Keychain. To use the rclone command line, set:"
+        }
+        if model.state == .lockedWithoutKey {
+            return "Sign-ins in rclone.conf are encrypted, but not with a key in your Keychain. To unlock it, run rclone config encryption remove in Terminal with its password, then reopen Settings."
+        }
+        return "Sign-ins are saved in rclone.conf as plain text, where the rclone command line can read them. Locking encrypts them with a key kept in your Keychain."
+    }
+
+    private var note: (text: String, isError: Bool)? {
+        if let error = model.errorMessage { return (error, true) }
+        if model.activity == .idle, let blockReason { return (blockReason, model.state == .lockedWithoutKey) }
+        return nil
+    }
+
+    private func copyExportLine() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(model.password.exportLine, forType: .string)
     }
 }
 
