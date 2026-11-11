@@ -43,11 +43,13 @@ final class IntentServices {
 
     static func wait(until ready: @MainActor () -> Bool, or failure: ShortcutError,
                      timeout: Duration = readyTimeout, step: Duration = .milliseconds(250)) async throws {
-        let clock = ContinuousClock()
-        let deadline = clock.now + timeout
-        while !ready() {
-            guard clock.now < deadline else { throw failure }
-            try await Task.sleep(for: step)
+        // Counts checks rather than reading a clock: a busy main actor delays
+        // each check but never skips one, so `timeout / step` checks happen.
+        let checks = max(1, Int((timeout / step).rounded(.up)))
+        for check in 1...checks {
+            if ready() { return }
+            if check < checks { try await Task.sleep(for: step) }
         }
+        throw failure
     }
 }
