@@ -1,7 +1,11 @@
 # Nimbus marketing site
 
 A single static page: `index.html`, `styles.css` and the images in `assets/`. No
-build step, no dependencies, no script, no tracking.
+build step, no dependencies, no tracking, and one small inline script: the
+download counter under the hero (`#stats`). It asks GitHub's public API for the
+DMG download total and the star count, and shows the line only at
+`data-min-downloads` (1,000) or more; stars are added at 100 or more. Without
+scripts, or below the threshold, the line stays hidden and the page is unchanged.
 
 The motion (the pinned paragraph whose sentences light in turn, windows that
 grow into place, tiles that rise in) is CSS scroll timelines, in the last block

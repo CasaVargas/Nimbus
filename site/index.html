@@ -65,6 +65,7 @@
       <a class="more" href="https://github.com/CasaVargas/Nimbus">View the source</a>
     </div>
     <p class="hero__fine">macOS 15 or later. Apple silicon and Intel. Signed and notarized. GPL‑3.0.</p>
+    <p class="hero__fine hero__stats" id="stats" data-min-downloads="1000" hidden></p>
     <p class="hero__fine">Free, from the studio behind <a href="https://beltr.app/?utm_source=nimbus-site&amp;utm_medium=referral&amp;utm_campaign=nimbus-hero">Beltr</a> and <a href="https://apps.apple.com/us/app/onescribe-ai-note-scanner/id6756506734">OneScribe</a>.</p>
   </div>
   <figure class="hero__shot">
@@ -571,5 +572,41 @@
   </div>
 </footer>
 
+<script>
+/* Download count from GitHub, shown only once it says something: at least
+   data-min-downloads DMG downloads across all releases. Below that, or with
+   scripts off, the line stays hidden. One request per visitor per 6 hours. */
+(function () {
+  var el = document.getElementById('stats');
+  if (!el || !window.fetch) return;
+  var min = Number(el.getAttribute('data-min-downloads')) || 1000;
+  var KEY = 'nimbus-stats-v1', TTL = 6 * 60 * 60 * 1000;
+  function show(s) {
+    if (!s || s.downloads < min) return;
+    var n = function (v) { return v.toLocaleString('en-US'); };
+    var text = n(s.downloads) + ' downloads';
+    if (s.stars >= 100) text += ' \u00b7 ' + n(s.stars) + ' stars on GitHub';
+    el.textContent = text;
+    el.hidden = false;
+  }
+  try {
+    var cached = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (cached && Date.now() - cached.at < TTL) { show(cached); return; }
+  } catch (e) {}
+  var api = 'https://api.github.com/repos/CasaVargas/Nimbus';
+  Promise.all([
+    fetch(api + '/releases?per_page=100').then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); }),
+    fetch(api).then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+  ]).then(function (res) {
+    var downloads = 0;
+    res[0].forEach(function (rel) {
+      (rel.assets || []).forEach(function (a) { if (/\.dmg$/.test(a.name)) downloads += a.download_count || 0; });
+    });
+    var stats = { downloads: downloads, stars: res[1].stargazers_count || 0, at: Date.now() };
+    try { localStorage.setItem(KEY, JSON.stringify(stats)); } catch (e) {}
+    show(stats);
+  }).catch(function () {});
+})();
+</script>
 </body>
 </html>
