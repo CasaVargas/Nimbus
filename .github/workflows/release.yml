@@ -114,8 +114,14 @@ jobs:
           codesign --verify --deep --strict "$app"
           shipped="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")"
           appex="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/PlugIns/FileProviderExtension.appex/Contents/Info.plist")"
+          app_archs="$(lipo -archs "$app/Contents/MacOS/Nimbus")"
+          appex_archs="$(lipo -archs "$app/Contents/PlugIns/FileProviderExtension.appex/Contents/MacOS/FileProviderExtension")"
           hdiutil detach "$mount" >/dev/null
-          echo "app $shipped, extension $appex"
+          echo "app $shipped ($app_archs), extension $appex ($appex_archs)"
+          for a in "$app_archs" "$appex_archs"; do
+            case " $a " in *" arm64 "*) ;; *) echo "error: arm64 missing" >&2; exit 1 ;; esac
+            case " $a " in *" x86_64 "*) ;; *) echo "error: x86_64 missing" >&2; exit 1 ;; esac
+          done
           [ "$shipped" = "$VERSION" ] && [ "$appex" = "$VERSION" ]
 
       - name: Draft the release

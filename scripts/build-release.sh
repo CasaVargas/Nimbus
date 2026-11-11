@@ -24,6 +24,9 @@ if [ "${NIMBUS_UNSIGNED_BUILD:-0}" = "1" ]; then
   UNSIGNED_ARGS=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO)
 fi
 
+# generic/platform=macOS builds every architecture (arm64 and x86_64).
+# 'platform=macOS' built only the building Mac's own, so 0.9 through 1.0.0
+# shipped arm64 only while the site promised Intel too.
 echo "==> Building Nimbus (Release)"
 # CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO keeps Xcode from adding the
 # get-task-allow debugging entitlement that a plain `build` (as opposed to an
@@ -31,7 +34,7 @@ echo "==> Building Nimbus (Release)"
 xcodebuild \
   -scheme Nimbus \
   -configuration Release \
-  -destination 'platform=macOS' \
+  -destination 'generic/platform=macOS' \
   -derivedDataPath build \
   CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
   ${UNSIGNED_ARGS[@]+"${UNSIGNED_ARGS[@]}"} \
