@@ -42,6 +42,7 @@ private struct ApplicationSettingsSection: View {
                         .accessibilityLabel("Open at Login error: \(error)")
                 }
             }
+            RunBackupsWhenClosedRow()
             FormRow(label: "Appearance", help: nil) {
                 Picker("Appearance", selection: $settings.appearance) {
                     Text("System").tag(Appearance.system)
@@ -67,6 +68,39 @@ private struct ApplicationSettingsSection: View {
                 }
             }
         )
+    }
+}
+
+/// Run Backups When Nimbus Is Closed (#72): registers the backups agent.
+private struct RunBackupsWhenClosedRow: View {
+    @Environment(BackgroundBackupsService.self) private var backgroundBackups
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            FormRow(label: LocalizedStringKey(OpenAtLoginNote.runsWhenClosedLabel),
+                    help: "Every 15 minutes, if Nimbus is closed, it opens in the background, runs any backups that are due, then quits.") {
+                Toggle("", isOn: backgroundBackups.enabledBinding)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .accessibilityLabel(OpenAtLoginNote.runsWhenClosedLabel)
+            }
+            if backgroundBackups.needsApproval {
+                HStack(spacing: DesignSystem.Spacing.s) {
+                    Text("Allow Nimbus in Login Items so backups can run while it's closed.")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    Button("Open Login Items") { backgroundBackups.openLoginItems() }
+                        .controlSize(.small)
+                }
+            }
+            if let error = backgroundBackups.lastError {
+                Text(verbatim: error)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundStyle(DesignSystem.Color.semantic.statusError)
+                    .accessibilityLabel("\(OpenAtLoginNote.runsWhenClosedLabel) error: \(error)")
+            }
+        }
+        .task { backgroundBackups.refresh() }
     }
 }
 
@@ -149,5 +183,6 @@ private struct AboutSettingsSection: View {
     GeneralSettingsView()
         .environment(AppSettings())
         .environment(LaunchAtLoginService())
+        .environment(BackgroundBackupsService(refreshOnInit: false))
         .frame(width: 680, height: 520)
 }

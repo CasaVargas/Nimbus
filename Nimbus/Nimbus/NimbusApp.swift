@@ -12,6 +12,7 @@ struct NimbusApp: App {
     @State private var transferStore: TransferStore
     @State private var bookmarkStore = BookmarkStore()
     @State private var launchAtLogin = LaunchAtLoginService()
+    @State private var backgroundBackups = BackgroundBackupsService()
     @State private var diagnosticsService: DiagnosticsService
     @State private var transferNotifier: TransferNotificationService
     @State private var generalSettingsModel = GeneralSettingsModel()
@@ -93,6 +94,7 @@ struct NimbusApp: App {
                     .environment(backupScheduler)
                     .environment(bookmarkStore)
                     .environment(launchAtLogin)
+                    .environment(backgroundBackups)
                     .environment(statusService)
                     .environment(providerDirectory)
                     .environment(\.diagnosticsService, diagnosticsService)
@@ -170,6 +172,7 @@ struct NimbusApp: App {
                     .environment(transferStore)
                     .environment(backupRunner)
                     .environment(launchAtLogin)
+                    .environment(backgroundBackups)
                     .environment(\.diagnosticsService, diagnosticsService)
                     .environment(\.transferNotifier, transferNotifier)
             }
@@ -236,6 +239,28 @@ struct NimbusApp: App {
         await transferStore.restoreHistory(retention: settings.transferHistoryRetention)
         await backupStore.load()
 
+        if appDelegate.isBackgroundLaunch {
+            // Launched by the backups agent: nothing due means nothing to do,
+            // so quit before starting rclone.
+            await postReviewNotices()
+            let planner = BackupSchedulePlanner(calendar: .autoupdatingCurrent)
+            if planner.dueJobs(backupStore.jobs, now: Date(), busy: []).isEmpty {
+                NSApp.terminate(nil)
+                return
+            }
+            let mounts = mountManager, configs = mountConfigs, daemon = daemon
+            appDelegate.onUserTookOver = {
+                // A background launch skipped the network drives.
+                guard daemon.status == .connected else { return }
+                Task {
+                    mounts.configs = configs.configs
+                    await mounts.restoreMounts(configs: configs.configs)
+                    await mounts.refreshAll()
+                }
+            }
+            watchBackgroundSession()
+        }
+
         mountManager.rcloneBinaryPath = settings.rcloneBinaryPath
         await mountManager.cleanupStaleMounts()
         await daemon.start(
@@ -259,6 +284,48 @@ struct NimbusApp: App {
                 )
             }
         }
+    }
+
+    /// A background launch quits once its backups are done: the rule holds
+    /// for two checks five seconds apart. Stops watching when the user takes over.
+    private func watchBackgroundSession() {
+        let started = Date()
+        let delegate = appDelegate, scheduler = backupScheduler, runner = backupRunner
+        Task { @MainActor in
+            var idleChecks = 0
+            while !delegate.userTookOver {
+                try? await Task.sleep(for: .seconds(5))
+                let quit = BackgroundQuitDecision.shouldQuit(
+                    isBackgroundLaunch: delegate.isBackgroundLaunch,
+                    userTookOver: delegate.userTookOver,
+                    schedulerStarted: scheduler.hasStarted,
+                    isCatchUpPending: scheduler.isCatchUpPending,
+                    isBackupBusy: runner.isRunningAnything,
+                    elapsed: Date().timeIntervalSince(started)
+                )
+                idleChecks = quit ? idleChecks + 1 : 0
+                if idleChecks >= 2 {
+                    NSApp.terminate(nil)
+                    return
+                }
+            }
+        }
+    }
+
+    /// One notification per changed, due backup per fingerprint: a
+    /// background launch can't show the preview sheet it needs.
+    private func postReviewNotices() async {
+        let key = "backupReviewNotified"
+        let defaults = UserDefaults.standard
+        let planner = BackupSchedulePlanner(calendar: .autoupdatingCurrent)
+        let needing = BackupReviewNotices.jobsNeedingReview(backupStore.jobs, planner: planner, now: Date())
+        let notified = Set(defaults.stringArray(forKey: key) ?? [])
+        for job in BackupReviewNotices.unnotified(needing, alreadyNotified: notified) {
+            await transferNotifier.deliverNotice(BackupReviewNotices.request(for: job),
+                                                 mode: settings.transferNotificationMode)
+        }
+        // Keep only keys still needing review, so the set doesn't grow.
+        defaults.set(needing.map(BackupReviewNotices.key(for:)), forKey: key)
     }
 
     /// Runs after every daemon (re)connect. Idempotent: restoreMounts skips
@@ -287,10 +354,14 @@ struct NimbusApp: App {
 
         mountManager.configs = mountConfigs.configs
         Task { await providerDirectory.load(client: daemon.client) }
-        await mountManager.restoreMounts(configs: mountConfigs.configs)
+        // A background launch runs backups only; the user quit Nimbus, so
+        // no network drives are expected. They come back if the user takes over.
+        if !appDelegate.isBackgroundLaunch || appDelegate.userTookOver {
+            await mountManager.restoreMounts(configs: mountConfigs.configs)
 
-        // Phase 2c: refreshAll reconciles mount(8) state and FP domains against configs
-        await mountManager.refreshAll()
+            // Phase 2c: refreshAll reconciles mount(8) state and FP domains against configs
+            await mountManager.refreshAll()
+        }
 
         do {
             let remotes = try await daemon.client.listRemotes()

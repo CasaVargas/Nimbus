@@ -24,6 +24,7 @@ struct GeneralSettingsViewTests {
             GeneralSettingsView()
                 .environment(AppSettings(defaults: isolatedDefaults()))
                 .environment(LaunchAtLoginService(refreshOnInit: false))
+                .environment(BackgroundBackupsService(refreshOnInit: false))
                 .preferredColorScheme(.dark),
             size: CGSize(width: 680, height: 520),
             named: "Settings-General"

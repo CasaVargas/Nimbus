@@ -19,6 +19,7 @@ struct BackupsView: View {
     @Environment(CloudMonitor.self) private var monitor
     @Environment(RcloneDaemon.self) private var daemon
     @Environment(LaunchAtLoginService.self) private var launchAtLogin
+    @Environment(BackgroundBackupsService.self) private var backgroundBackups
 
     private struct EditorRequest: Identifiable {
         let id = UUID()
@@ -44,6 +45,7 @@ struct BackupsView: View {
                 loadState: store.loadState,
                 actions: actions,
                 openAtLoginNote: showsOpenAtLoginNote ? launchAtLogin.enabledBinding : nil,
+                runsWhenClosed: backgroundBackups.enabledBinding,
                 scrollTarget: scrollTarget
             )
         }
@@ -52,7 +54,10 @@ struct BackupsView: View {
             focusedJob = nil
             scrollTarget = id
         }
-        .task { launchAtLogin.refresh() }
+        .task {
+            launchAtLogin.refresh()
+            backgroundBackups.refresh()
+        }
         .navigationTitle("Backups")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -128,7 +133,8 @@ struct BackupsView: View {
     }
 
     private var showsOpenAtLoginNote: Bool {
-        OpenAtLoginNote.isShown(schedules: store.jobs.map(\.schedule), openAtLoginIsOn: launchAtLogin.isEnabled)
+        OpenAtLoginNote.isShown(schedules: store.jobs.map(\.schedule), openAtLoginIsOn: launchAtLogin.isEnabled,
+                                runsWhenClosed: backgroundBackups.isEnabled)
     }
 
     private var deleteTitle: String {

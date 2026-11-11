@@ -33,6 +33,8 @@ struct BackupsContent: View {
     let actions: Actions
     /// Non-nil shows the Open at Login note with this toggle.
     var openAtLoginNote: Binding<Bool>? = nil
+    /// The Run Backups When Nimbus Is Closed toggle shown in that note.
+    var runsWhenClosed: Binding<Bool>? = nil
     /// A backup to scroll to, e.g. from a notification.
     var scrollTarget: UUID? = nil
 
@@ -68,7 +70,7 @@ struct BackupsContent: View {
                                 .id(row.id)
                         }
                         if let openAtLoginNote {
-                            OpenAtLoginNoteView(isOn: openAtLoginNote)
+                            OpenAtLoginNoteView(isOn: openAtLoginNote, runsWhenClosed: runsWhenClosed)
                                 .padding(.horizontal, DesignSystem.Spacing.l)
                                 .padding(.vertical, 14)
                                 .glassSurface(radius: S.Radius.card)

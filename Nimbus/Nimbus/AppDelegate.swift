@@ -8,6 +8,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Read once in applicationWillFinishLaunching.
     private(set) var wasLaunchedAtLogin: Bool = false
 
+    /// True when the backups agent launched us (`--background-backups`):
+    /// Nimbus was quit, runs the due backups hidden and quits when idle.
+    let isBackgroundLaunch = BackgroundLaunch.isBackgroundLaunch()
+    /// A background launch the user has since used (the app became active
+    /// or was reopened). It is then an ordinary session and stays open.
+    private(set) var userTookOver = false
+    /// Called once when the user takes over a background launch (set by
+    /// NimbusApp), to restore what a background launch skipped.
+    var onUserTookOver: (@MainActor () -> Void)?
+
     /// Async cleanup to run before the process dies (set by NimbusApp at
     /// startup): unmount NFS volumes, stop `rclone serve nfs` children and
     /// the RC daemon. Covers ⌘Q, the MenuBarExtra Quit, and logout.
@@ -76,7 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if wasLaunchedAtLogin {
+        if wasLaunchedAtLogin || isBackgroundLaunch {
             // Hide all windows and become an accessory app (no Dock icon).
             for window in NSApp.windows {
                 window.orderOut(nil)
@@ -91,7 +101,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         false
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        markUserTookOver()
+    }
+
+    private func markUserTookOver() {
+        guard isBackgroundLaunch, !userTookOver else { return }
+        userTookOver = true
+        onUserTookOver?()
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        markUserTookOver()
         if !flag {
             // Bring back the Dock icon when reopening from Finder/Spotlight.
             NSApp.setActivationPolicy(.regular)
