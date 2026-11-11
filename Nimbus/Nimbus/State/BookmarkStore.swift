@@ -73,7 +73,7 @@ final class BookmarkStore {
     }
 
     private func syncToAppGroup() {
-        guard let defaults = UserDefaults(suiteName: "group.app.casavargas.nimbus") else { return }
+        guard let defaults = AppGroup.defaults else { return }
         let simplified = bookmarks.map { ["remote": $0.remoteName, "path": $0.path, "label": $0.label] }
         defaults.set(simplified, forKey: "bookmarks")
     }

@@ -12,7 +12,7 @@ enum ShareLinkSignal {
     static let notificationName = "app.casavargas.nimbus.shareLinkCopied"
     private static let nameKey = "lastShareLinkName"
 
-    private static var defaults: UserDefaults? { UserDefaults(suiteName: "group.app.casavargas.nimbus") }
+    private static var defaults: UserDefaults? { AppGroup.defaults }
 
     /// Extension side.
     static func announce(fileName: String) {

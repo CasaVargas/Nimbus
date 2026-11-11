@@ -6,7 +6,7 @@
 	<false/>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.app.casavargas.nimbus</string>
+		<string>53MUTM55LC.app.casavargas.nimbus</string>
 	</array>
 	<key>com.apple.security.network.client</key>
 	<true/>

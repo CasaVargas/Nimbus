@@ -27,7 +27,7 @@ protocol FileProviderBridgeProtocol: AnyObject {
 @MainActor @Observable
 final class FileProviderBridge {
     private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "fileprovider")
-    private static let appGroupID = "group.app.casavargas.nimbus"
+    private static let appGroupID = AppGroup.identifier
     private(set) var activeDomains: Set<String> = []
 
     /// Bump whenever the extension's item-identifier scheme changes.
@@ -35,7 +35,11 @@ final class FileProviderBridge {
     /// container-joined paths that double-prefixed subfolders). A mismatch
     /// triggers reimportItems on every domain so Finder rebuilds its local
     /// replica under the new identifiers instead of serving stale ones.
-    private static let itemSchemaVersion = 2
+    /// v3: the app group moved to a team-prefixed identifier (`AppGroup`).
+    /// The extension's sync snapshots start empty in the new container and
+    /// items carry `userInfo` computed while the old one was unreadable
+    /// (never shareable, never pinned); a re-import rebuilds both.
+    private static let itemSchemaVersion = 3
     private static let itemSchemaKey = "fpItemSchemaVersion"
 
     /// Per-domain cache of basenames currently materialized to the FP cache.
