@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02C1F7DADC9FF13ECA1177DB /* UpdaterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAB00B3A3F92BCAA01974005 /* UpdaterService.swift */; };
 		03F04182AFBC7E02B92BA293 /* ExcludeListEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607479F7E8FFC11D2FC50B65 /* ExcludeListEditor.swift */; };
 		04E78F101F0D29A9A650F7ED /* TransferEndpointTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 379D6CEE911C0C2D3B473E2D /* TransferEndpointTests.swift */; };
 		04EC499A7C0DF8F96188864B /* RemotesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E054B9B81CE216542BE82F5F /* RemotesViewModel.swift */; };
@@ -111,6 +112,7 @@
 		51B8DE3D3348A8F907082A61 /* VolumeHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A464404A4605D4412BFD10D /* VolumeHeader.swift */; };
 		53185BE42E73B300337515B4 /* MountConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5322BA5BF672E9A04097F109 /* MountConfiguration.swift */; };
 		5751D98FD7CA56EB05E12EAE /* StorageQuota.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22841085C3D66CD88DB46B46 /* StorageQuota.swift */; };
+		5788B71E4454498F08D8F107 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 4D1D8CB96C84487786A59B91 /* Sparkle */; };
 		5815AA81C0AA183509CAC587 /* CloudSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EE9A52C43C01A3C9210BDE5 /* CloudSummary.swift */; };
 		586B5A02008AFF90430A860A /* DiagnosticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F79B11737630756DEDF2D35E /* DiagnosticsService.swift */; };
 		591CB11FE3D80BAEE4C3C0AC /* AccessibilityAuditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C64BEDB5742B197BBB7C290D /* AccessibilityAuditTests.swift */; };
@@ -324,6 +326,7 @@
 		FAF51C71F488F47CE9D1AC63 /* BandwidthLimitValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD9BC07B84EE8699B766E881 /* BandwidthLimitValidatorTests.swift */; };
 		FB5D8F7887C2D8639ACBDE33 /* MockRcloneClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 142E40237D8B40C1220EDF33 /* MockRcloneClient.swift */; };
 		FB77045C44E0A163992B23CE /* DragDropCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15FA1F3BDA73D07840AB71F1 /* DragDropCoordinator.swift */; };
+		FCDFC52B49C11083A42E739D /* UpdaterServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60099BC78B00EBF0447287E8 /* UpdaterServiceTests.swift */; };
 		FCF4F526454B3DE04ADAF5CF /* RcloneInstallerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7529A335F2DAE51FEFE5E9D /* RcloneInstallerTests.swift */; };
 		FE78D26BC1734F957EA979CA /* BackupRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3F72A7EE386CA83552F0D5 /* BackupRequest.swift */; };
 		FE8556FD778BEC2F3B3AD22B /* EndpointWell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969B633ABEAB6A7B3C910797 /* EndpointWell.swift */; };
@@ -507,6 +510,7 @@
 		5CCCEBA204DCFCEBF2063D66 /* Colors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Colors.swift; sourceTree = "<group>"; };
 		5CFC0CEBAED68EF1E4D1672F /* SidebarRemoteRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarRemoteRowTests.swift; sourceTree = "<group>"; };
 		60047C16A0C6CF11B6F7AC77 /* StorageTotalsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageTotalsTests.swift; sourceTree = "<group>"; };
+		60099BC78B00EBF0447287E8 /* UpdaterServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterServiceTests.swift; sourceTree = "<group>"; };
 		607479F7E8FFC11D2FC50B65 /* ExcludeListEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcludeListEditor.swift; sourceTree = "<group>"; };
 		6086BF3BA862C6A306A728AE /* FileTableRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTableRepresentable.swift; sourceTree = "<group>"; };
 		6117220A13D742738D0DF8FD /* HomeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeComponents.swift; sourceTree = "<group>"; };
@@ -656,6 +660,7 @@
 		E6FD1A3D6100AC0DBDCF1315 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		E7CB87002D7E0C8E4C3EC079 /* UploadFailureReporting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadFailureReporting.swift; sourceTree = "<group>"; };
 		E861CBD9BFF217A344F26E9E /* TransferHistoryFileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferHistoryFileTests.swift; sourceTree = "<group>"; };
+		EAB00B3A3F92BCAA01974005 /* UpdaterService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterService.swift; sourceTree = "<group>"; };
 		EADD1A9B43D02699CD7368E0 /* VolumeTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeTab.swift; sourceTree = "<group>"; };
 		EB7B68C6B22F204E93DD2967 /* ShortcutsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsTests.swift; sourceTree = "<group>"; };
 		EBA7B6CB016DCE782B5443EA /* AddMountSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMountSheet.swift; sourceTree = "<group>"; };
@@ -712,6 +717,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1D3E03BCC64A52A469FF1729 /* RcloneKit in Frameworks */,
+				5788B71E4454498F08D8F107 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -834,6 +840,7 @@
 				7B390FCDFD80A6D1AB88F696 /* ShareLinkSupport.swift */,
 				BCAC9985B428E97E63330C61 /* TimedCache.swift */,
 				CAF1892F1AE04AA335B2F8AC /* TransferNotificationService.swift */,
+				EAB00B3A3F92BCAA01974005 /* UpdaterService.swift */,
 				1D31C157C829C12486C1B570 /* VersionsPruner.swift */,
 				ACD969AFC34753DCC4B82CBC /* VersionSupport.swift */,
 			);
@@ -1308,6 +1315,7 @@
 				F64769A3CF8D71A9EEB4D801 /* TransferStoreBackupTests.swift */,
 				DBCD67F8F5D2E0A876CC4C72 /* TransferStorePersistenceTests.swift */,
 				94F44A6F7708A8A306ABDA7E /* TransferVerificationTests.swift */,
+				60099BC78B00EBF0447287E8 /* UpdaterServiceTests.swift */,
 				C22B03B9E3CC9B0306F8411C /* VersionsPrunerTests.swift */,
 				6931DB6112D99442632B61C8 /* VersionSupportTests.swift */,
 				17C527F7D5BE6B44A85632C9 /* Mocks */,
@@ -1367,6 +1375,7 @@
 			name = Nimbus;
 			packageProductDependencies = (
 				DCD4DDB2F588D5DB4E9F558F /* RcloneKit */,
+				4D1D8CB96C84487786A59B91 /* Sparkle */,
 			);
 			productName = Nimbus;
 			productReference = D2765A4CFF808628E32AA17B /* Nimbus.app */;
@@ -1439,6 +1448,7 @@
 			mainGroup = 617866E59968FDC96CC1252C;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				7DC88AEA1D6B8F8360055B41 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				BD5EDF3F3D8A9C42167BF1BE /* XCLocalSwiftPackageReference "../RcloneKit" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -1705,6 +1715,7 @@
 				CE5116AE83345587BF008037 /* TransferVerification.swift in Sources */,
 				A0711627A70DE50CB302CBA1 /* TransfersView.swift in Sources */,
 				E3AB99E3E6035A1D4D8EAC43 /* Typography.swift in Sources */,
+				02C1F7DADC9FF13ECA1177DB /* UpdaterService.swift in Sources */,
 				D49AC8695701C25DDCDAD958 /* UploadFailureStore.swift in Sources */,
 				CA9A38CA81217336AE9CF083 /* VersionSupport.swift in Sources */,
 				106C3873960E16E52127B714 /* VersionsPruner.swift in Sources */,
@@ -1844,6 +1855,7 @@
 				B44729F733EDD82BC89F4420 /* TransferStoreBackupTests.swift in Sources */,
 				F00D57B1B55149EF5149A025 /* TransferStorePersistenceTests.swift in Sources */,
 				7DAA6CE04C46DDBD00C3E739 /* TransferVerificationTests.swift in Sources */,
+				FCDFC52B49C11083A42E739D /* UpdaterServiceTests.swift in Sources */,
 				3E6AFBCCA6F0A6370E582CDC /* VersionSupportTests.swift in Sources */,
 				312DB9EE6C2A9D41F2813EBF /* VersionsPrunerTests.swift in Sources */,
 			);
@@ -1875,6 +1887,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/Nimbus-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Nimbus;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1921,7 +1934,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(MARKETING_VERSION)";
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -1980,6 +1993,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/Nimbus-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Nimbus;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2064,7 +2078,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(MARKETING_VERSION)";
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -2154,10 +2168,26 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		7DC88AEA1D6B8F8360055B41 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = exactVersion;
+				version = 2.10.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		11AF8C8943FA319B962BF492 /* RcloneKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RcloneKit;
+		};
+		4D1D8CB96C84487786A59B91 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7DC88AEA1D6B8F8360055B41 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 		DCD4DDB2F588D5DB4E9F558F /* RcloneKit */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -28,7 +28,7 @@
 
 **It does not reimplement cloud providers.** Nimbus spawns [rclone](https://rclone.org) as a local daemon and talks to its RC API over loopback. Every backend rclone supports (S3 and compatibles, Google Drive, OneDrive, Dropbox, Backblaze B2, SFTP, WebDAV, crypt, and dozens more) works in Nimbus, with rclone's own config format, so you can keep using the `rclone` command line alongside the app. If you lock your sign-ins with the Keychain, the command line needs one environment variable ([see below](#sign-ins-and-the-keychain)).
 
-**It integrates with the system instead of replacing it.** Remotes show up in Finder's sidebar through a File Provider extension, or as NFS volumes if you prefer a classic mount. There is no account, no sign-in, no telemetry and no update pinging. rclone does all the cloud traffic; Nimbus itself only goes online if you ask it to download rclone for you (from rclone.org, checked against rclone's published checksums).
+**It integrates with the system instead of replacing it.** Remotes show up in Finder's sidebar through a File Provider extension, or as NFS volumes if you prefer a classic mount. There is no account, no sign-in and no telemetry. rclone does all the cloud traffic; Nimbus itself goes online for two things, both only if you ask: to download rclone for you (from rclone.org, checked against rclone's published checksums), and to look for a new version of Nimbus on GitHub (off until you turn it on or choose Check for Updates).
 
 ## Install
 
@@ -100,9 +100,10 @@ File Provider extension (Nimbus/FileProviderExtension/) ────────
 | RcloneKit | Local Swift package: a typed HTTP client for rclone's RC API, used by both the app and the extension |
 | File Provider extension | `NSFileProviderReplicatedExtension` that enumerates remotes into Finder; shares the daemon port with the app through an app group |
 | NFS mounts | `rclone serve nfs` plus `mount_nfs`, managed in-process; survives app restarts and cleans up on quit |
+| Updates | Sparkle, opt-in. The feed is the appcast attached to the latest GitHub release; updates are EdDSA-signed |
 | rclone | Your installed binary, started as `rclone rcd` on loopback. Nimbus never bundles or patches it; it can download the official build for you |
 
-No third-party Swift packages. A pre-build lint fails the build if one is added.
+One third-party Swift package: [Sparkle](https://sparkle-project.org), for updates. A pre-build lint fails the build if another is added.
 
 ## Status
 

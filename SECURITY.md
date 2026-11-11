@@ -39,9 +39,20 @@ Out of scope:
 Nimbus starts `rclone rcd` bound to `127.0.0.1` on a local port (5572 by
 default) with authentication disabled, and both the app and the File Provider
 extension talk to that daemon over loopback HTTP. All traffic to cloud
-providers is made by rclone. Nimbus itself makes no other network requests:
-no update checks, no crash reporting, no analytics. If you find that claim to
-be false, that is a bug worth reporting here.
+providers is made by rclone. Nimbus itself makes two other kinds of request,
+each only after you ask for it:
+
+- the rclone download offered on first launch (rclone.org and github.com,
+  checked against rclone's published checksums);
+- update checks through [Sparkle](https://sparkle-project.org). They are off
+  until you turn on "Check for updates automatically" or choose Check for
+  Updates. A check is one HTTPS request for the appcast attached to the
+  latest GitHub release; no system profile is sent. An update is installed
+  only if its EdDSA signature matches the key built into the app and it
+  carries the same Developer ID.
+
+There is no crash reporting and no analytics. If you find that claim to be
+false, that is a bug worth reporting here.
 
 ## Supported versions
 

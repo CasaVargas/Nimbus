@@ -117,6 +117,8 @@ All apps and extensions use the `app.casavargas.nimbus` bundle ID family:
 - NFS servers use ports starting at 19049.
 - View models are `@Observable @MainActor`; services own background work via actors or `@unchecked Sendable` classes where justified.
 - New features land under `Nimbus/Nimbus/Views/<Feature>/` plus matching `ViewModels/` entries.
+- Sparkle (updates) is the only remote Swift package; `scripts/lint-package-resolved.sh` fails the build on any other. It is linked by the app target only, never the File Provider extension.
+- `CFBundleVersion` equals `MARKETING_VERSION` (Sparkle orders updates by it): bump `MARKETING_VERSION` in `Nimbus/project.yml` and nothing else.
 
 ## Historical Context
 

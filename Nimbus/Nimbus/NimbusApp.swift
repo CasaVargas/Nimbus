@@ -20,6 +20,8 @@ struct NimbusApp: App {
     @State private var cloudMonitor: CloudMonitor
     /// Checks hot Finder folders for remote changes between full refreshes (#76).
     @State private var remoteChangeTicker = RemoteChangeTicker()
+    /// App updates through Sparkle (#100).
+    @State private var updater = UpdaterService.live()
     @State private var router = AppRouter()
     @State private var backupStore: BackupStore
     @State private var backupRunner: BackupRunner
@@ -124,7 +126,7 @@ struct NimbusApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: Self.defaultWindowSize.width, height: Self.defaultWindowSize.height)
         .commands {
-            AppCommands()
+            AppCommands(updater: updater)
             #if DEBUG
             CommandMenu("Debug") {
                 OpenBenchCommand()
@@ -175,6 +177,7 @@ struct NimbusApp: App {
                     .environment(backupRunner)
                     .environment(launchAtLogin)
                     .environment(backgroundBackups)
+                    .environment(updater)
                     .environment(\.diagnosticsService, diagnosticsService)
                     .environment(\.transferNotifier, transferNotifier)
             }
@@ -208,6 +211,7 @@ struct NimbusApp: App {
     /// `onDaemonConnected`, which the `.task(id: daemon.status)` reruns.
     private func bootstrap() async {
         guard !isHostedLaunch else { return }
+        updater.startWhenActive()
         // Quit (⌘Q, logout, MenuBarExtra) must unmount volumes and stop the
         // daemon before the process dies — otherwise a restart finds orphan
         // `rclone serve nfs` children and stale NFS mounts.

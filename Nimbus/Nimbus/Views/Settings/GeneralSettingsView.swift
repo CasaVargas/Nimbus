@@ -10,6 +10,7 @@ struct GeneralSettingsView: View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
                 ApplicationSettingsSection()
                 NewCloudsSection()
+                UpdatesSection()
                 AboutSettingsSection()
             }
             .padding(DesignSystem.Spacing.xl)
@@ -124,6 +125,38 @@ private struct NewCloudsSection: View {
     }
 }
 
+/// Updates through Sparkle (#100). Off until the user turns them on.
+private struct UpdatesSection: View {
+    /// Optional so a host that has no updater (a preview) shows no section.
+    @Environment(UpdaterService.self) private var updater: UpdaterService?
+
+    var body: some View {
+        if let updater {
+            FormSection(
+                title: "Updates",
+                footer: updater.isAvailable
+                    ? "Nimbus looks for a new version on GitHub only when this is on or when you check."
+                    : "This build of Nimbus does not update itself."
+            ) {
+                FormRow(label: "Check for updates automatically", help: nil) {
+                    Toggle("", isOn: Binding(
+                        get: { updater.automaticallyChecks },
+                        set: { updater.setAutomaticallyChecks($0) }
+                    ))
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .disabled(!updater.isAvailable)
+                    .accessibilityLabel("Check for updates automatically")
+                }
+                FormRow(label: "Check for a new version", help: nil) {
+                    Button("Check Now") { updater.checkForUpdates() }
+                        .disabled(!updater.canCheck)
+                }
+            }
+        }
+    }
+}
+
 private struct AboutSettingsSection: View {
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
@@ -131,6 +164,12 @@ private struct AboutSettingsSection: View {
 
     private var build: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "Unknown"
+    }
+
+    /// The build number tracks the version since #100, so it is shown only
+    /// when it says something more.
+    private var versionLine: String {
+        build == version ? String(localized: "Version \(version)") : String(localized: "Version \(version) (\(build))")
     }
 
     var body: some View {
@@ -145,7 +184,7 @@ private struct AboutSettingsSection: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Nimbus")
                         .font(DesignSystem.Typography.headline)
-                    Text("Version \(version) (\(build))")
+                    Text(versionLine)
                         .font(DesignSystem.Typography.caption)
                         .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
                         .textSelection(.enabled)
