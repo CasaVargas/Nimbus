@@ -18,6 +18,18 @@ struct CompareView: View {
 
     private typealias S = DesignSystem.Stratosphere
 
+    init() {}
+
+#if DEBUG
+    /// A screen with places chosen and a model already in some state.
+    init(preview model: CompareViewModel, a: TransferEndpoint, b: TransferEndpoint) {
+        _viewModel = State(initialValue: model)
+        _a = State(initialValue: a)
+        _b = State(initialValue: b)
+        _compared = State(initialValue: (a, b))
+    }
+#endif
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.l) {
@@ -167,10 +179,27 @@ struct CompareView: View {
     }
 }
 
-#Preview {
+#Preview("Empty") {
     CompareView()
         .environment(RcloneDaemon())
         .frame(width: 900, height: 620)
+        .background { StratosphereBackdrop() }
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Results") {
+    let model = CompareViewModel(client: RcloneClient())
+    model.setPreviewState(.finished(CompareResult(combined: [
+        "= Photos/2024/beach.jpg", "= Photos/2024/hike.jpg", "= Notes.md", "= Recipes.pdf",
+        "* Taxes/2025 return.pdf", "* Budget.numbers",
+        "+ Projects/Nimbus/spec.md", "+ Projects/Nimbus/plan.md", "+ Inbox/receipt.png",
+        "- Old/archive.zip",
+    ])))
+    return CompareView(preview: model,
+                       a: .local(path: NSHomeDirectory() + "/Documents"),
+                       b: .cloud(remote: "gdrive", path: "Backup/Documents"))
+        .environment(RcloneDaemon())
+        .frame(width: 960, height: 820)
         .background { StratosphereBackdrop() }
         .preferredColorScheme(.dark)
 }

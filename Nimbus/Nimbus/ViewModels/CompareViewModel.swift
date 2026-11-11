@@ -80,6 +80,11 @@ final class CompareViewModel {
         self.pollInterval = pollInterval
     }
 
+#if DEBUG
+    /// Previews show a finished or running screen without a daemon.
+    func setPreviewState(_ state: State) { self.state = state }
+#endif
+
     var isRunning: Bool {
         if case .running = state { return true }
         return false
