@@ -308,6 +308,9 @@ struct SceneAppearanceRoot<Content: View>: View {
         content
             .environment(settings)
             .preferredColorScheme(settings.colorScheme)
+            // One accent everywhere: without this, system controls take the
+            // Mac's accent colour and sit beside the theme's blue buttons.
+            .tint(DesignSystem.Stratosphere.Palette.dark.actionTop.color)
     }
 }
 

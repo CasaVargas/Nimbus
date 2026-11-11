@@ -252,12 +252,13 @@ struct BackupPreviewContent: View {
             if let preview, preview.limitHit || !preview.errors.isEmpty {
                 Button("Edit Backup…", action: actions.edit)
                     .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.primaryPill(.small))
             } else {
                 Button("Approve") { approve(preview, runNow: false) }
                     .disabled(!(preview?.canApprove ?? false))
                 Button("Approve and Back Up Now") { approve(preview, runNow: true) }
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.primaryPill(.small))
                     .disabled(!(preview?.canApprove ?? false))
             }
         } else {
@@ -265,7 +266,7 @@ struct BackupPreviewContent: View {
                 .keyboardShortcut(.cancelAction)
             Button(context.startLabel ?? "Start", action: actions.start)
                 .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.primaryPill(.small))
                 .disabled(preview == nil)
         }
     }

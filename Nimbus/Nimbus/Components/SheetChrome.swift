@@ -72,6 +72,9 @@ struct SheetChrome<BodyContent: View, Actions: View>: View {
             Spacer()
             actions()
         }
+        // Every sheet's buttons are the theme's: a quiet glass capsule
+        // unless the sheet marks one as its primary pill.
+        .buttonStyle(.glassCapsule)
         .padding(.horizontal, DesignSystem.Spacing.xl)
         .padding(.vertical, DesignSystem.Spacing.m)
     }

@@ -76,7 +76,7 @@ struct ImportConfigSheet: View {
                     Task { await importSelected() }
                 }
                 .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.primaryPill(.small))
                 .disabled(selected.isEmpty || isImporting || parsedRemotes.isEmpty || !finderFailures.isEmpty)
             }
         )

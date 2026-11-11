@@ -38,7 +38,7 @@ struct ReconnectSheet: View {
                     .keyboardShortcut(.cancelAction)
                 Button("Open \(row.providerName) Sign-In") { start() }
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.primaryPill(.small))
             }
         case .preparing, .waitingForBrowser:
             ProgressView().controlSize(.small)
@@ -57,7 +57,7 @@ struct ReconnectSheet: View {
             actions {
                 Button("Done") { onFinished(); dismiss() }
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.primaryPill(.small))
             }
         case .needsSettings:
             message("\(row.name) needs more than a sign-in to reconnect. Open it and choose Edit to update its settings.")
@@ -66,7 +66,7 @@ struct ReconnectSheet: View {
                     .keyboardShortcut(.cancelAction)
                 Button("Open \(row.name)") { onOpenCloud(); dismiss() }
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.primaryPill(.small))
             }
         case .failed(let reason):
             message("Signing in didn't finish.")
@@ -80,7 +80,7 @@ struct ReconnectSheet: View {
                     .keyboardShortcut(.cancelAction)
                 Button("Try Again") { start() }
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.primaryPill(.small))
             }
         }
     }
@@ -100,6 +100,7 @@ struct ReconnectSheet: View {
 
     private func actions<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         HStack(spacing: DesignSystem.Spacing.s) { content() }
+            .buttonStyle(.glassCapsule)
             .padding(.top, DesignSystem.Spacing.s)
     }
 }

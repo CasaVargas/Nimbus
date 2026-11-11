@@ -73,12 +73,13 @@ struct ConfirmCopySheet: View {
                     Spacer()
                     Button("Cancel") { request = nil }
                         .keyboardShortcut(.cancelAction)
+                        .buttonStyle(.glassCapsule)
                     Button("Copy") {
                         onCopy(req)
                         request = nil
                     }
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.primaryPill(.small))
                 }
             }
             .padding(DesignSystem.Spacing.xl)
