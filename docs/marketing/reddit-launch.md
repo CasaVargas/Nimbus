@@ -193,3 +193,89 @@ It is Swift and SwiftUI, with AppKit for the file table, and no third-party pack
 It is free, including the signed build, and has no account or telemetry. My two paid apps fund it.
 
 Known gaps: no Spotlight indexing of cloud files, no Share Sheet, and macOS 15 or later only.
+
+---
+
+# General-audience posts
+
+Plain language, no rclone internals. Same spacing rule: two or three a day at most, different text each.
+
+## r/coolgithubprojects
+
+Link post to the repo. Pick the Swift flair if the form asks for one.
+
+**Title:** Nimbus: every cloud drive you have (Google Drive, OneDrive, Dropbox, S3, 50+ more) in Finder, from one free native Mac app
+
+**URL:** https://github.com/CasaVargas/Nimbus
+
+---
+
+## r/SideProject
+
+**Title:** I built a free Mac app that puts all your cloud drives in Finder. Just shipped 1.0
+
+**Body:**
+
+I have files spread over Google Drive, S3 and Backblaze, and I got tired of running a different app for each one. So I built Nimbus.
+
+What it does:
+
+- Your clouds show up in Finder's sidebar like any other drive. Files download when you open them
+- One window to browse all of them, with drag and drop from one cloud to another
+- Backups on a schedule, and it shows you what it is going to do before it does it
+- Search for a file name across every cloud at once
+
+It works with Google Drive, OneDrive, Dropbox, S3, Backblaze and about 50 others, because it is built on an open-source tool called rclone.
+
+It's free, with no account and no tracking, and the code is open. I make my living from two other apps, so this one doesn't need to earn anything.
+
+It's a proper Mac app, not a web page in a window. Needs macOS 15 or later.
+
+Download: https://github.com/CasaVargas/Nimbus/releases/latest
+Code: https://github.com/CasaVargas/Nimbus
+
+Tell me what breaks.
+
+---
+
+## r/MacOS
+
+Check the sidebar first: self-promotion may be limited to certain days or threads.
+
+**Title:** I made a free app that puts Google Drive, OneDrive, Dropbox and others in Finder without installing each company's app
+
+**Body:**
+
+I'm the developer. Nimbus is a free, open-source Mac app for cloud storage.
+
+Sign in to your clouds once and they appear in Finder's sidebar. Files download when you open them, and you can mark a folder to keep it on your Mac. The app also has its own browser for moving files between clouds, and it can back up a folder to any cloud on a schedule.
+
+It supports Google Drive, OneDrive, Dropbox, S3, Backblaze, SFTP, WebDAV and about 50 more.
+
+No account, no tracking, no subscription. It is free and will stay free. macOS 15 or later, Apple Silicon and Intel.
+
+Download: https://github.com/CasaVargas/Nimbus/releases/latest
+
+It's a new 1.0, so I'd like to hear what doesn't work for you.
+
+---
+
+## r/cloudstorage
+
+**Title:** Free Mac app to see all your cloud storage in one place and move files between clouds
+
+**Body:**
+
+I wrote Nimbus because I use more than one cloud and wanted to see them together. I'm the author; it is free and open source.
+
+- A Home screen showing how much space is free on each cloud
+- Browse any of them, and drag files from one cloud straight to another
+- Each cloud can appear in Finder as a drive
+- Scheduled backups from your Mac to a cloud, or from one cloud to another, with a preview first
+- Optional encrypted folder inside any cloud, so the provider can't read the files
+
+Works with Google Drive, OneDrive, Dropbox, Backblaze B2, S3 and compatibles, pCloud, Box, Mega and many more (anything rclone supports).
+
+No account and no tracking. Mac only, macOS 15 or later.
+
+https://github.com/CasaVargas/Nimbus
