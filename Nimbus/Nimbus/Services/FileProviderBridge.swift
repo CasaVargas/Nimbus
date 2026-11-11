@@ -203,17 +203,24 @@ final class FileProviderBridge {
     /// container (`.rootContainer` included); its working-set enumerator
     /// reports pin changes and re-lists the folders Finder knows about
     /// (`RemoteChangeScanner` in the extension).
-    nonisolated static func signalWorkingSets(remote: String? = nil) async {
+    ///
+    /// `fullScan` asks the extension to re-list every known folder on this
+    /// pass; without it the extension re-lists only hot folders, and only
+    /// when their wait is up (#76, `RemoteChangeCadence`).
+    nonisolated static func signalWorkingSets(remote: String? = nil, fullScan: Bool = true) async {
         let logger = Logger(subsystem: "app.casavargas.nimbus", category: "fileprovider")
         do {
             let domains = try await NSFileProviderManager.domains()
             for domain in domains where remote == nil || domain.identifier.rawValue == remote {
                 guard let manager = NSFileProviderManager(for: domain) else { continue }
+                if fullScan { FullScanRequest.request(remote: domain.identifier.rawValue) }
                 do {
                     try await manager.signalEnumerator(for: .workingSet)
-                    logger.info("Signaled working set: \(domain.identifier.rawValue, privacy: .public)")
-                } catch {
+                    if fullScan { logger.info("Signaled working set: \(domain.identifier.rawValue, privacy: .public)") }
+                } catch where fullScan {
                     logger.info("Working-set signal failed for \(domain.identifier.rawValue, privacy: .public): \(FileProviderErrorText.describe(error), privacy: .public)")
+                } catch {
+                    // The 30 s tick: the next full refresh logs a failure.
                 }
             }
         } catch {

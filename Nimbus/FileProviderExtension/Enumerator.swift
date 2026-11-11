@@ -44,6 +44,8 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
         let logger = self.logger
         let offset = Self.offset(from: page)
         let boxedDomain = UncheckedBox(value: self.domain)
+        // The system listing a folder makes it hot (#76).
+        HotFolderStore.touch(remoteName: remoteName, container: parentId)
 
         let boxedObserver = UncheckedBox(value: observer)
         Task { @Sendable in

@@ -123,6 +123,9 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let logger = self.logger
         let handler = SendableBox(value: completionHandler)
         let remotePath = Self.extractPathStatic(from: itemIdentifier, remoteName: remoteName)
+        // Opening a file makes its folder hot: checked for remote changes
+        // more often for a while (#76).
+        HotFolderStore.touchParent(remoteName: remoteName, of: itemIdentifier)
 
         let progress = Progress(totalUnitCount: 1)
         let task = Task { @Sendable in
@@ -182,6 +185,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let logger = self.logger
         let handler = SendableBox(value: completionHandler)
         let parentPath = Self.extractPathStatic(from: itemTemplate.parentItemIdentifier, remoteName: remoteName)
+        HotFolderStore.touch(remoteName: remoteName, container: itemTemplate.parentItemIdentifier)
         let filename = itemTemplate.filename
         let isFolder = itemTemplate.contentType?.conforms(to: .directory) ?? false
         let localURL = url
@@ -253,6 +257,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let handler = SendableBox(value: completionHandler)
         let currentPath = Self.extractPathStatic(from: item.itemIdentifier, remoteName: remoteName)
         let newParentPath = Self.extractPathStatic(from: item.parentItemIdentifier, remoteName: remoteName)
+        HotFolderStore.touch(remoteName: remoteName, container: item.parentItemIdentifier)
         let newFilename = item.filename
         let isDirectory = item.contentType?.conforms(to: .directory) ?? false
         let isRenameOrMove = changedFields.contains(.filename) || changedFields.contains(.parentItemIdentifier)
@@ -348,6 +353,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let logger = self.logger
         let handler = SendableBox(value: completionHandler)
         let remotePath = Self.extractPathStatic(from: identifier, remoteName: remoteName)
+        HotFolderStore.touchParent(remoteName: remoteName, of: identifier)
 
         let progress = Progress(totalUnitCount: 1)
         let task = Task { @Sendable in
