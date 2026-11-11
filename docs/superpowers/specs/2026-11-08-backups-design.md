@@ -759,11 +759,14 @@ Passed:
 - **Removal limit.** With a limit of 1 and two files gone from the source, the run moved one file
   to versions, stopped, and the row read "Stopped … would remove more than 1 files".
 
+- **"Stopped" notification** (checked 2026-11-11 on v0.10.1, notifications allowed). A mirror
+  with a limit of 2 and five destination-only files removed two and stopped, and Notification
+  Center received "Backup … stopped" with "It would have removed more than 2 files. Open Nimbus to
+  preview it."
+
 Not checked:
 
-- **Sleep across a slot.** Skipped.
-- **The "stopped" notification.** Nimbus has no notification permission on the test Mac (the
-  system prompt was never answered), so no banner could appear.
+- **Sleep across a slot.** Dropped (2026-11-11). Only the unit test `wakeTriggersCatchUp` covers it.
 
 Problems found, most serious first:
 
