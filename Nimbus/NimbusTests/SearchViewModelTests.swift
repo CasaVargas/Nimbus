@@ -100,11 +100,18 @@ struct SearchViewModelTests {
 
     @Test func newSearchCancelsTheOldOne() async throws {
         let client = ScriptedSearchClient([
-            "a:": .init(result: .success([item("old")]), delay: .milliseconds(300)),
+            // Long enough that it can only end by being cancelled.
+            "a:": .init(result: .success([item("old")]), delay: .seconds(60)),
         ])
         let model = SearchViewModel(client: client)
         let old = Task { await model.search("old", in: [remote("a")]) }
-        try await Task.sleep(for: .milliseconds(30))
+        // Wait for the search to reach the client instead of a fixed sleep,
+        // which raced on a loaded CI runner.
+        let deadline = ContinuousClock.now + .seconds(10)
+        while client.queries.isEmpty, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(client.queries == ["a:old"])
         old.cancel()
         await old.value
 
