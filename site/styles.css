@@ -225,6 +225,7 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 
 .tile__img { margin: -10px -10px 26px; }
 .tile__img img { width: 100%; border-radius: 14px; box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 24px 50px -20px rgba(0,0,0,.7); }
+.tile__img--sheet img { border-radius: 22px 22px 14px 14px; }
 .tile__img--small { max-width: 240px; margin: 0 0 auto; padding-bottom: 26px; }
 @media (max-width: 900px) {
   .bento, .bento--2 { grid-template-columns: 1fr; }

@@ -336,4 +336,20 @@ private enum SiteFiles {
     }
     .preferredColorScheme(.dark)
 }
+
+#Preview("encrypted-folder", traits: .fixedLayout(width: 1120, height: 1480)) {
+    let client = RcloneClient()
+    let setup = EncryptedFolderSetup(client: client, existingNames: ["Personal", "Work", "Dropbox"])
+    setup.folder = .cloud(remote: "Personal", path: "Private")
+    setup.nameDraft = "Private"
+    setup.password = "demo-password-only"
+    setup.confirmation = "demo-password-only"
+    setup.acknowledged = true
+    return SiteShot(width: 560, height: 740) {
+        EncryptedFolderSheet(client: client, remoteNames: ["Personal", "Work", "Dropbox"], setup: setup, onDismiss: {})
+            .environment(AppSettings(defaults: UserDefaults(suiteName: "SiteScreenshots")!))
+            .environment(FileProviderBridge())
+    }
+    .preferredColorScheme(.dark)
+}
 #endif
