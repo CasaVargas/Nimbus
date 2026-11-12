@@ -13,6 +13,10 @@
   <link rel="icon" type="image/png" href="assets/app-icon.png">
   <link rel="apple-touch-icon" href="assets/app-icon.png">
   <link rel="stylesheet" href="styles.css">
+  <!-- Visit counts, cookieless, on our own server (see site/README.md). The
+       tagged-events build turns the plausible-event-* classes on the download
+       links into a "Nimbus Download" event. -->
+  <script defer data-domain="casavargas.app" src="https://analytics.jonvargas.net/js/script.tagged-events.js"></script>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -48,7 +52,7 @@
       <li><a href="#privacy">Privacy</a></li>
       <li><a href="#specs">Tech Specs</a></li>
     </ul>
-    <a class="nav__cta" href="https://github.com/CasaVargas/Nimbus/releases/latest">Download</a>
+    <a class="nav__cta plausible-event-name=Nimbus+Download plausible-event-position=nav" href="https://github.com/CasaVargas/Nimbus/releases/latest">Download</a>
   </div>
 </nav>
 
@@ -61,7 +65,7 @@
     <h1>Every cloud you use.<br>One window.</h1>
     <p class="hero__sub">Google Drive, OneDrive, Dropbox, S3, your NAS and fifty more services, side by side on your Mac. See what’s free, open anything in Finder, copy from one cloud to another.</p>
     <div class="actions">
-      <a class="btn" href="https://github.com/CasaVargas/Nimbus/releases/latest">Download for Mac</a>
+      <a class="btn plausible-event-name=Nimbus+Download plausible-event-position=hero" href="https://github.com/CasaVargas/Nimbus/releases/latest">Download for Mac</a>
       <a class="more" href="https://github.com/CasaVargas/Nimbus">View the source</a>
     </div>
     <p class="hero__fine">macOS 15 or later. Apple silicon and Intel. Signed and notarized. GPL‑3.0.</p>
@@ -448,6 +452,7 @@
       </tbody>
     </table>
     <p class="fine">Nimbus is GPL‑3.0‑or‑later. You can read every line that runs on your Mac.</p>
+    <p class="fine">All of that is about the app. This web page counts visits and download clicks on our own server, with no cookies and nothing that identifies you.</p>
   </div>
 </section>
 
@@ -544,7 +549,7 @@
     <h2>Get Nimbus.</h2>
     <p class="lede">Free. Signed with a Developer ID certificate and notarized, so Gatekeeper opens it without a warning. Used daily by its author.</p>
     <div class="actions">
-      <a class="btn btn--large" href="https://github.com/CasaVargas/Nimbus/releases/latest">Download for Mac</a>
+      <a class="btn btn--large plausible-event-name=Nimbus+Download plausible-event-position=footer" href="https://github.com/CasaVargas/Nimbus/releases/latest">Download for Mac</a>
       <a class="more" href="https://github.com/CasaVargas/Nimbus/releases">All releases</a>
     </div>
     <dl class="reqs">
