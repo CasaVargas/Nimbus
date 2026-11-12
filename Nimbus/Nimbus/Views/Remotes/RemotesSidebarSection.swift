@@ -42,52 +42,55 @@ struct RemotesSidebarSection: View {
                     Button("New Encrypted Folder…", systemImage: "lock.rectangle.stack") { showEncryptedFolder = true }
                     Button("Import from rclone.conf…", systemImage: "square.and.arrow.down") { showImportConfig = true }
                 }
-        } header: {
-            Text("Clouds")
-        }
-        .onChange(of: router.pending, initial: true) {
-            guard daemon.status == .connected,
-                  router.take(where: { $0 == .addCloud }) != nil else { return }
-            showAddRemote = true
-        }
-        .sheet(isPresented: $showAddRemote) {
-            AddRemoteSheet(client: daemon.client, onDismiss: { Task { await monitor.refresh() } })
-        }
-        .sheet(isPresented: $showImportConfig) {
-            ImportConfigSheet(onDismiss: { Task { await monitor.refresh() } })
-        }
-        .sheet(isPresented: $showEncryptedFolder) {
-            EncryptedFolderSheet(client: daemon.client, remoteNames: monitor.remotes.map(\.name),
-                                 onDismiss: { Task { await monitor.refresh() } })
-        }
-        .sheet(isPresented: Binding(
-            get: { editingRemote != nil },
-            set: { if !$0 { editingRemote = nil } }
-        )) {
-            if let remote = editingRemote {
-                EditRemoteSheet(client: daemon.client, remote: remote,
-                                onDismiss: { Task { await monitor.refresh() } })
-            }
-        }
-        .confirmationDialog(
-            "Remove \(deletingRemote?.name ?? "") from Nimbus?",
-            isPresented: Binding(
-                get: { deletingRemote != nil },
-                set: { if !$0 { deletingRemote = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Remove", role: .destructive) {
-                if let remote = deletingRemote {
-                    let name = remote.name
-                    Task {
-                        await monitor.remove(name, client: daemon.client)
+                // Presentations hang off this one row, never the Section: in a
+                // List, a Section's modifiers are copied onto every row, so one
+                // binding opened a stacked sheet per cloud (+1 for this row).
+                .onChange(of: router.pending, initial: true) {
+                    guard daemon.status == .connected,
+                          router.take(where: { $0 == .addCloud }) != nil else { return }
+                    showAddRemote = true
+                }
+                .sheet(isPresented: $showAddRemote) {
+                    AddRemoteSheet(client: daemon.client, onDismiss: { Task { await monitor.refresh() } })
+                }
+                .sheet(isPresented: $showImportConfig) {
+                    ImportConfigSheet(onDismiss: { Task { await monitor.refresh() } })
+                }
+                .sheet(isPresented: $showEncryptedFolder) {
+                    EncryptedFolderSheet(client: daemon.client, remoteNames: monitor.remotes.map(\.name),
+                                         onDismiss: { Task { await monitor.refresh() } })
+                }
+                .sheet(isPresented: Binding(
+                    get: { editingRemote != nil },
+                    set: { if !$0 { editingRemote = nil } }
+                )) {
+                    if let remote = editingRemote {
+                        EditRemoteSheet(client: daemon.client, remote: remote,
+                                        onDismiss: { Task { await monitor.refresh() } })
                     }
                 }
-            }
-            Button("Cancel", role: .cancel) { deletingRemote = nil }
-        } message: {
-            Text("Nimbus forgets how to reach this cloud. Files stored in the cloud aren't affected.")
+                .confirmationDialog(
+                    "Remove \(deletingRemote?.name ?? "") from Nimbus?",
+                    isPresented: Binding(
+                        get: { deletingRemote != nil },
+                        set: { if !$0 { deletingRemote = nil } }
+                    ),
+                    titleVisibility: .visible
+                ) {
+                    Button("Remove", role: .destructive) {
+                        if let remote = deletingRemote {
+                            let name = remote.name
+                            Task {
+                                await monitor.remove(name, client: daemon.client)
+                            }
+                        }
+                    }
+                    Button("Cancel", role: .cancel) { deletingRemote = nil }
+                } message: {
+                    Text("Nimbus forgets how to reach this cloud. Files stored in the cloud aren't affected.")
+                }
+        } header: {
+            Text("Clouds")
         }
     }
 }
