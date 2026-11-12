@@ -28,12 +28,29 @@ xcodebuild \
 
 # Full release build
 bash scripts/build-release.sh
+
+# Tests (app). RcloneConfigMachineTests pins an older rclone's question order;
+# CI skips it, so skip it locally too unless you're working on it.
+xcodebuild -project Nimbus/Nimbus.xcodeproj -scheme Nimbus -destination 'platform=macOS' \
+  test -skip-testing:NimbusTests/RcloneConfigMachineTests
+
+# A single test class or method
+xcodebuild -project Nimbus/Nimbus.xcodeproj -scheme Nimbus -destination 'platform=macOS' \
+  test -only-testing:NimbusTests/BackupStoreTests[/testMethodName]
+
+# RcloneKit package tests
+cd RcloneKit && swift test
 ```
+
+- **`xcodegen generate` rewrites `Nimbus/FileProviderExtension/Info.plist`** with literal version numbers. Always follow it with `git checkout -- Nimbus/FileProviderExtension/Info.plist` (CI does), or the extension's version stops tracking the app's.
+- Without a signing team, add `CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO` (the app-group entitlements otherwise demand a profile). Local signing: copy `Nimbus/Local.xcconfig.example` to `Nimbus/Local.xcconfig` and set `DEVELOPMENT_TEAM`.
+- Build phases run lints that fail the build: `scripts/lint-no-system-size.sh` (no `.system(size:)` outside `DesignSystem/`; use the semantic typography helpers) and `scripts/lint-package-resolved.sh`. CI also runs `scripts/lint-release-notes.sh`.
+- Snapshot tests (e.g. `GuidedAddRemoteSnapshotTests`) render at a fixed 2x, each in its own window; see `SnapshotHelpers` in `NimbusTests/`.
 
 ### Prerequisites
 
 - macOS 15.0+ deployment target
-- Xcode + Command Line Tools
+- **Xcode 27+.** Earlier Xcode versions crash in IRGen compiling this project (see `.github/workflows/ci.yml`).
 - XcodeGen (`brew install xcodegen`)
 - rclone binary in PATH (default `/usr/local/bin/rclone`, configurable in settings)
 
@@ -67,7 +84,9 @@ File Provider extension (Nimbus/FileProviderExtension/) ────────
 - `Views/` — SwiftUI views organized by feature (`Browser/`, `Remotes/`, `Transfers/`, `Mounts/`, `Settings/`)
 - `ViewModels/` — `@Observable @MainActor` view models (`BrowserViewModel`, `RemotesViewModel`, etc.)
 - `Services/` — `RcloneDaemon` (subprocess lifecycle), `MountManager` (NFS), `FileProviderBridge` (domain registration)
-- `State/` — `TransferStore` (copy/sync job tracking)
+- `State/` — `TransferStore` (copy/sync job tracking), `AppRouter` (one-shot routes from the menu bar companion / notifications into the main window; the view that owns a route `take`s it)
+
+`Nimbus/Shared/` is compiled into **both** the app and the File Provider extension (app group, pins, capabilities, change diffs), so code there must build for both. `Nimbus/LaunchAgents/` holds the background backups agent plist, registered with `SMAppService.agent(plistName:)`.
 
 ### File Provider Extension (`Nimbus/FileProviderExtension/`)
 
@@ -119,6 +138,14 @@ All apps and extensions use the `app.casavargas.nimbus` bundle ID family:
 - New features land under `Nimbus/Nimbus/Views/<Feature>/` plus matching `ViewModels/` entries.
 - Sparkle (updates) is the only remote Swift package; `scripts/lint-package-resolved.sh` fails the build on any other. It is linked by the app target only, never the File Provider extension.
 - `CFBundleVersion` equals `MARKETING_VERSION` (Sparkle orders updates by it): bump `MARKETING_VERSION` in `Nimbus/project.yml` and nothing else.
+- In a `List`, never put `.sheet`, `.alert`, `.confirmationDialog` or `.onChange` on a `Section`/`Group`: SwiftUI copies them onto every row, so one binding presents N stacked sheets (the 1.2.0 Add Cloud bug). Attach them to a view that exists once.
+
+## Releasing
+
+1. One PR: bump `MARKETING_VERSION`, regenerate the project, and add `docs/releases/<version>.md`. Copy the structure of the previous version's notes; the checksum line reads `(filled in when the signed DMG is built)`. The notes must end with the footer from `docs/releases/FOOTER.md`, with `utm_content=<version>` (enforced by `lint-release-notes.sh`).
+2. After merging, push tag `v<version>`. `.github/workflows/release.yml` builds a universal binary, signs it with Developer ID, notarizes it, signs it for Sparkle and creates a **draft** release with the DMG, `.sha256` and `appcast.xml`.
+3. Publishing the draft is what ships it: installed copies read `releases/latest/download/appcast.xml`.
+4. Follow-up PR: record the checksum in `docs/releases/<version>.md`.
 
 ## Historical Context
 
