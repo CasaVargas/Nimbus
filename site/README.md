@@ -1,7 +1,7 @@
 # Nimbus marketing site
 
 A single static page: `index.html`, `styles.css` and the images in `assets/`. No
-build step, no dependencies, no tracking, and one small inline script: the
+build step, no dependencies, no cookies, and one small inline script: the
 download counter under the hero (`#stats`). It asks GitHub's public API for the
 DMG download total and the star count, and shows the line only at
 `data-min-downloads` (1,000) or more; stars are added at 100 or more. Without
@@ -19,6 +19,14 @@ the previews in `Nimbus/Nimbus/Views/Debug/SiteScreenshots.swift` draw the real
 views at 2x, one preview per file name. Render each in Xcode, save the PNG to
 `docs/screenshots/`, and convert it for the site with
 `cwebp -q 90 -alpha_q 100 name.png -o site/assets/name.webp`.
+
+Visits are counted by the self-hosted Plausible at `analytics.jonvargas.net`,
+under the site `casavargas.app` (filter by page `/nimbus/`). It sets no cookies.
+The three download links carry `plausible-event-name=Nimbus+Download` and a
+`plausible-event-position` (nav, hero, footer), so a click shows as a
+"Nimbus Download" event. Plausible ignores localhost, so this can only be checked
+on the live page: a visit should `POST /api/event` and get a 202. The privacy
+section says the page does this; keep the two in step.
 
 Preview locally:
 
