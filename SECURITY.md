@@ -37,8 +37,12 @@ Out of scope:
 ## How Nimbus talks to the network
 
 Nimbus starts `rclone rcd` bound to `127.0.0.1` on a local port (5572 by
-default) with authentication disabled, and both the app and the File Provider
-extension talk to that daemon over loopback HTTP. All traffic to cloud
+default), and both the app and the File Provider extension talk to that daemon
+over loopback HTTP. Since 1.2.2 the daemon requires a username and password
+that Nimbus generates at random on every launch and hands to rclone through
+its environment (never its command line), and it sends no CORS headers, so
+neither other apps nor web pages can use it. Earlier versions ran it without
+authentication (GHSA-c784-cjq9-53gf). All traffic to cloud
 providers is made by rclone. Nimbus itself makes two other kinds of request,
 each only after you ask for it:
 
@@ -56,5 +60,5 @@ false, that is a bug worth reporting here.
 
 ## Supported versions
 
-Only the latest release receives security fixes. Nimbus is pre-1.0; there are
-no long-term support branches.
+Only the latest release receives security fixes. There are no long-term
+support branches.
