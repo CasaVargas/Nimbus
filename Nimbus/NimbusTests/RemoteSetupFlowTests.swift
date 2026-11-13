@@ -142,10 +142,12 @@ private actor Gate {
     }
 }
 
-private func question(_ name: String, state: String, exclusive: Bool = false) -> ConfigQuestion {
+private func question(
+    _ name: String, state: String, exclusive: Bool = false, isPassword: Bool = false
+) -> ConfigQuestion {
     let json = #"""
     {"Name": "\#(name)", "Help": "", "Type": "string", "Required": false,
-     "IsPassword": false, "Advanced": false, "Sensitive": false, "Hide": 0,
+     "IsPassword": \#(isPassword), "Advanced": false, "Sensitive": false, "Hide": 0,
      "Exclusive": \#(exclusive), "Default": "", "DefaultStr": "", "Value": null}
     """#
     let option = try! JSONDecoder().decode(ProviderOption.self, from: Data(json.utf8))
@@ -446,6 +448,35 @@ struct RemoteSetupFlowTests {
         await flow.submitPage()
 
         #expect(client.calls.contains("continue(s0=example.com)"))
+        #expect(flow.phase == .finished)
+    }
+
+    @Test func passwordAnswersAreSentObscuredAndOthersVerbatim() async throws {
+        // #109: rclone stores state-machine answers verbatim and backends
+        // Reveal password options, so a plaintext Proton Drive password
+        // failed with "input too short when revealing password".
+        let client = ScriptedConfigClient()
+        client.scriptFalse = [.done]
+        client.scriptTrue = [
+            .question(question("username", state: "s0")),
+            .question(question("password", state: "s1", isPassword: true)),
+            .question(question("mailbox_password", state: "s2", isPassword: true)),
+            .done,
+        ]
+        let flow = RemoteSetupFlow(provider: provider("protondrive"), client: client)
+        flow.name = "proton"
+        await flow.begin()
+        flow.answers["username"] = "me@proton.me"
+        flow.answers["password"] = "hunter2secret"
+        await flow.submitPage()
+
+        let sent = client.calls.last { $0.hasPrefix("continue(s1=") }
+        let value = try #require(sent).dropFirst("continue(s1=".count).dropLast()
+        #expect(value != "hunter2secret")
+        #expect(RcloneObscure.reveal(String(value)) == "hunter2secret")
+        #expect(client.calls.contains("continue(s0=me@proton.me)"))
+        // An unanswered optional password stays empty, not an obscured "".
+        #expect(client.calls.contains("continue(s2=)"))
         #expect(flow.phase == .finished)
     }
 

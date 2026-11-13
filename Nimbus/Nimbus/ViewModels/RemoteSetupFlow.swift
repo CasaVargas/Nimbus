@@ -500,8 +500,15 @@ final class RemoteSetupFlow {
         }
     }
 
+    /// The value sent to rclone for `question`. `answers` holds what the
+    /// user typed; `IsPassword` answers are obscured on the way out because
+    /// rclone writes state-machine answers verbatim and the backend later
+    /// reveals them (#109). Empty stays empty so an optional password the
+    /// user skipped isn't stored as an obscured "".
     private func answer(for question: ConfigQuestion) -> String {
-        answers[question.option.name] ?? question.option.defaultValue
+        let value = answers[question.option.name] ?? question.option.defaultValue
+        guard question.option.isPassword, !value.isEmpty else { return value }
+        return RcloneObscure.obscure(value)
     }
 
     private func fail(_ error: Error) async {
