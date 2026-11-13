@@ -69,7 +69,7 @@ I'm the author. It's a 1.0 from one person, so there will be bugs; I'd like to h
 
 Rules as of mid-2026: posts must follow Problem / Comparison / Pricing, one promotion per developer per 30 days, relationship to the app disclosed. Main-feed posting needs either an App Store developer account plus 10 karma in the subreddit, or an established history there. If the account doesn't qualify, this goes in the monthly "App Pile" megathread instead, and that also counts as the 30-day slot.
 
-**Title:** Nimbus: a free, open-source, native Mac app for cloud storage (S3, Google Drive, OneDrive, B2, 50+ more) with Finder integration
+**Title:** Nimbus: a free, open-source Mac app that puts your clouds in Finder with Apple's File Provider (Google Drive, S3, OneDrive, B2, 50+ more)
 
 **Body:**
 
@@ -79,7 +79,7 @@ I'm the developer.
 
 I keep files in several clouds (Google Drive, S3, Backblaze). The Mac options were a separate vendor app for each one, a paid mounting tool, or rclone on the command line. I wanted one app that looks and behaves like Finder, shows every cloud in one place, and backs things up on a schedule.
 
-Nimbus does that. Your clouds appear in Finder's sidebar, files download when you open them, and you can pin folders to keep them on the Mac. Inside the app there is a file browser with Quick Look and drag and drop between clouds, scheduled backups with a preview before the first run, search across all clouds at once, and a Home screen that shows free space for each.
+Nimbus does that, and it does the Finder part with Apple's File Provider, the framework Apple gives cloud storage on the Mac and the one the big services' own apps use. Your clouds appear in Finder's sidebar under Locations, files download when you open them, macOS frees the space when it needs to, and you can pin folders to keep them on the Mac. Inside the app there is a file browser with Quick Look and drag and drop between clouds, scheduled backups with a preview before the first run, search across all clouds at once, and a Home screen that shows free space for each.
 
 It is SwiftUI and AppKit, no Electron. Under it is rclone, which is how it supports 50+ services. No account, no telemetry. It can update itself, and it looks for updates only if you turn that on.
 
