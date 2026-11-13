@@ -75,7 +75,7 @@ Before reposting:
 2. Account needs 200+ Reddit karma and 60+ days of age (Rule 6).
 3. Flair: **Free**. Title starts with `[OS]`.
 4. Each label starts its own line, spelled exactly `Problem:`, `Comparison:`, `Pricing:`, `Trust:`.
-5. Trust path is GitHub. Under 100 stars that path needs a LinkedIn link, so fill it in below.
+5. Trust path is GitHub. Under 100 stars that path needs a LinkedIn link, which is in the Trust line below.
 
 **Title:** [OS] Nimbus: a free native Mac app that puts 50+ cloud services (Google Drive, OneDrive, S3, B2) in Finder
 
@@ -96,7 +96,7 @@ Nimbus is a new 1.x and has no Spotlight search for cloud files and no Share She
 
 Pricing: $0. Free with no paid tier, no in-app purchase and no subscription, for the source and the signed build alike. GPL-3.0. Download: https://github.com/CasaVargas/Nimbus/releases/latest
 
-Trust: GitHub. Source: https://github.com/CasaVargas/Nimbus. LinkedIn: LINKEDIN_URL_HERE. The build is Developer ID signed and notarized; privacy: https://casavargas.app/nimbus/#privacy
+Trust: GitHub. Source: https://github.com/CasaVargas/Nimbus. LinkedIn: https://www.linkedin.com/in/jvargas1023/. The build is Developer ID signed and notarized; privacy: https://casavargas.app/nimbus/#privacy
 
 ---
 
