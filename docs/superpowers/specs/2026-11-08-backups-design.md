@@ -2,8 +2,7 @@
 
 **Date:** 2026-11-08
 **Status:** Approved 2026-11-08 with the defaults below (open questions resolved to the spec's proposals). Phase 1 shipped in #25 (2026-11-08). Phases 2 and 3 built on `feat/backups-phase2` (2026-11-10, PR #48). Live checks run 2026-11-10; see "Live checks" at the end for what passed and the open problems.
-**Roadmap:** item 2 of the competitive research's recommended order (Tolaria
-`nimbus/nimbus-competitive-feature-gaps-research.md`), and the north star's phase 4 "scheduled syncs".
+**Roadmap:** item 2 of the competitive research's recommended order (`docs/superpowers/reports/2026-11-08-competitive-feature-gaps.md`), and the north star's phase 4 "scheduled syncs".
 **Builds on:** `Views/CopySync/` (the one-off copy/sync screen), `State/TransferStore.swift`,
 `2026-11-08-home-and-companion-design.md` (which cut Backups from v1 because there was no scheduler).
 **Plan:** `docs/superpowers/plans/2026-11-08-backups.md`
@@ -73,7 +72,7 @@ deleted files, and a removal limit that stops a run that is about to remove too 
 | Option | How it works | For | Against |
 |---|---|---|---|
 | **A. In the app (chosen)** | A `BackupScheduler` inside Nimbus starts runs on the daemon Nimbus already owns. Nimbus keeps running after its window closes (`applicationShouldTerminateAfterLastWindowClosed` returns `false`) and can open at login (`LaunchAtLoginService`). | One rclone process, one `rclone.conf` writer, live progress in Transfers and the menu bar, no new target to sign and notarize. Small. | Nothing runs while Nimbus is quit. |
-| B. LaunchAgent runs rclone | A bundled agent (`SMAppService.agent(plistName:)`) wakes at the scheduled times and runs `rclone sync` itself. | Runs with Nimbus quit. | A second rclone process refreshes OAuth tokens and rewrites `rclone.conf` while the daemon may be doing the same. Nimbus already has a gotcha where one partial `rclone.conf` read destroyed a File Provider domain (Tolaria `nimbus-fileprovider-rclone-contract-gotchas`, item 4). No live progress; history would arrive by file. `SMAppService` agents need a static plist in the bundle, so per-job times require a fixed polling interval or rewriting `~/Library/LaunchAgents` by hand. macOS shows a "background item added" notice. A config password (roadmap item 4) would need a second unlock path. |
+| B. LaunchAgent runs rclone | A bundled agent (`SMAppService.agent(plistName:)`) wakes at the scheduled times and runs `rclone sync` itself. | Runs with Nimbus quit. | A second rclone process refreshes OAuth tokens and rewrites `rclone.conf` while the daemon may be doing the same. Nimbus already has a gotcha where one partial `rclone.conf` read destroyed a File Provider domain. No live progress; history would arrive by file. `SMAppService` agents need a static plist in the bundle, so per-job times require a fixed polling interval or rewriting `~/Library/LaunchAgents` by hand. macOS shows a "background item added" notice. A config password (roadmap item 4) would need a second unlock path. |
 | C. LaunchAgent that only launches Nimbus | The agent runs `open -g -b app.casavargas.nimbus` near the scheduled time. | One rclone process. | Relaunches an app the user chose to quit, which surprises people. Same static-plist problem as B. Adds little over A plus Open at Login. |
 | D. Login-item helper owns the daemon | An always-running helper (`SMAppService.loginItem`) owns rclone; the app and the extension become its clients. | The "right" long-term shape (Dropbox-like). | It re-architects daemon ownership, the port hand-off to the File Provider extension, NFS mounts, and quit handling. It's a project of its own, not part of Backups. |
 
@@ -268,7 +267,7 @@ scheduled run would list both sides twice, which costs real time and API calls o
     {
       "id": "6F1C…",
       "name": "Documents to B2",
-      "source": { "kind": "local", "path": "/Users/jonathan/Documents" },
+      "source": { "kind": "local", "path": "/Users/you/Documents" },
       "destination": { "kind": "cloud", "remote": "b2", "path": "mac-backup/Documents" },
       "mode": "mirror",
       "excludes": [".DS_Store", "._*", "*.tmp"],
@@ -295,7 +294,7 @@ scheduled run would list both sides twice, which costs real time and API calls o
   with **Show in Finder**, never a silent empty list. An unknown `version` leaves the file untouched
   and the screen read-only.
 - **Copy rclone Command** in each job's menu puts the equivalent CLI on the pasteboard, e.g.
-  `rclone sync "/Users/jonathan/Documents" "b2:mac-backup/Documents" --exclude ".DS_Store" --exclude
+  `rclone sync "/Users/you/Documents" "b2:mac-backup/Documents" --exclude ".DS_Store" --exclude
   "/.nimbus-versions/**" --backup-dir "b2:mac-backup/Documents/.nimbus-versions/$(date
   +'%Y-%m-%d %H%M%S')" --max-delete 100`. Leaving Nimbus means pasting that into cron.
 
@@ -558,7 +557,7 @@ Each phase is its own PR, works on its own, and leaves `main` shippable.
   - `BackupsFile`: round-trip, corrupt → quarantine, unknown version → read-only.
   - `TransferHistoryFile` v1 → v2 migration keeps records. The `.backup` origin round-trips.
   - Notification copy for success, failure and limit hit under each notification mode.
-- **RcloneKit tests** assert on the **captured request body** (the Tolaria contract gotcha):
+- **RcloneKit tests** assert on the **captured request body**:
   `_config.DryRun`, `_config.BackupDir`, `_config.MaxDelete`, `_filter.ExcludeRule`, the report
   flags, and `job/status` output decoding for a sync job (with a report) and a non-sync job (no
   report).

@@ -196,9 +196,8 @@ All errors are in plain words:
   - Thumbnail eligibility (type × size) and cache key and pruning.
 - **RenderPreview** of the inspector's Keep on this Mac and Share rows in all states:
   supported, unsupported, expiry hidden, signed out.
-- **Manual check on a real File Provider domain.** Do this on Dave's Mini or a clean user
-  account. Never on a Mac with real Nimbus domains while using a demo config; see Tolaria's
-  domain-cleanup gotcha.
+- **Manual check on a real File Provider domain.** Do this on a spare Mac or a clean user
+  account. Never on a Mac with real Nimbus domains while using a demo config.
   1. Pin a folder: its files download and survive Remove Download.
   2. Unpin: Remove Download works again.
   3. Copy Share Link on Google Drive and on S3: you get a link that opens.

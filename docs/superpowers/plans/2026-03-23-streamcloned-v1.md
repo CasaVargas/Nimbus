@@ -175,7 +175,7 @@
 - [ ] **Step 1: Create Tauri v2 project**
 
 ```bash
-cd /Users/jonathan/Desktop/Dev/StreamCloned
+cd StreamCloned
 npm create tauri-app@latest -- --template react-ts --name streamcloned --identifier com.streamcloned.app --directory .
 ```
 
@@ -184,7 +184,7 @@ If the CLI prompts interactively instead of accepting flags, run `npm create tau
 - [ ] **Step 2: Verify the scaffolded project compiles**
 
 ```bash
-cd /Users/jonathan/Desktop/Dev/StreamCloned
+cd StreamCloned
 npm install
 npm run tauri dev
 ```

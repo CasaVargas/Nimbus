@@ -28,7 +28,7 @@ The redesign has four goals:
 
 ## Background: measured rclone behavior
 
-Every fact below was verified against rclone 1.74 on 2026-08-30 and is recorded in Tolaria as `nimbus-rclone-config-state-machine`. The design depends on all of them.
+Every fact below was verified against rclone 1.74 on 2026-08-30 and is recorded in the maintainer's notes. The design depends on all of them.
 
 **The state machine exists and is reachable.** `config/create` returns `{Error, Option, Result, State}`. `Option` is the question to render, `State` an opaque cursor. Continuation is `config/create` again — there is no `config/continue` method — with `opt: {continue: true, state:…, result:…}`. Empty `State` and null `Option` mean done.
 
@@ -174,7 +174,7 @@ The remote name is asked by Nimbus before the walk begins, not by rclone. `confi
 - Cancel issues `config/delete` for the partial remote; assert on the captured request.
 - A non-200 `Error` body throws rather than reporting success.
 
-**Integration test**, skipped when rclone is absent from PATH: port the walk harness recorded in the Tolaria note, asserting s3 = 13, drive = 8, sftp = 14 steps, and that `all:false` on sftp asks nothing. This is the canary for rclone upgrades changing the flow.
+**Integration test**, skipped when rclone is absent from PATH: port the walk harness recorded in the maintainer's notes, asserting s3 = 13, drive = 8, sftp = 14 steps, and that `all:false` on sftp asks nothing. This is the canary for rclone upgrades changing the flow.
 
 **Visual verification** via `RenderPreview` on three page shapes: OAuth basic (Drive), credential basic (SFTP), and show-all (S3 with `provider = AWS`). Per CLAUDE.md, UI changes are confirmed visually before the work is called done.
 

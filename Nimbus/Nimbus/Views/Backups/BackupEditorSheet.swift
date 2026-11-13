@@ -297,7 +297,7 @@ struct BackupEditorSheet: View {
     BackupEditorSheet(
         original: BackupsFixtures.job(
             "Documents to B2",
-            source: .local(path: "/Users/jonathan/Documents"),
+            source: .local(path: "/Users/you/Documents"),
             destination: .cloud(remote: "b2", path: "mac-backup/Documents")
         ),
         remoteNames: ["b2", "gdrive"],
@@ -312,7 +312,7 @@ struct BackupEditorSheet: View {
     BackupEditorSheet(
         original: BackupsFixtures.job(
             "Documents to B2",
-            source: .local(path: "/Users/jonathan/Documents"),
+            source: .local(path: "/Users/you/Documents"),
             destination: .cloud(remote: "b2", path: "mac-backup/Documents")
         ) { $0.schedule = .weekly(weekday: 6, hour: 21, minute: 30) },
         remoteNames: ["b2", "gdrive"],
@@ -327,7 +327,7 @@ struct BackupEditorSheet: View {
     BackupEditorSheet(
         original: BackupsFixtures.job(
             "Photos to Drive",
-            source: .local(path: "/Users/jonathan/Pictures"),
+            source: .local(path: "/Users/you/Pictures"),
             destination: .cloud(remote: "gdrive", path: "Photos")
         ) { $0.mode = .addOnly; $0.versions.enabled = false },
         remoteNames: ["b2", "gdrive"],
