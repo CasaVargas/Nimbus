@@ -67,40 +67,36 @@ I'm the author. It's a 1.0 from one person, so there will be bugs; I'd like to h
 
 ## r/macapps
 
-Rules as of mid-2026: posts must follow Problem / Comparison / Pricing, one promotion per developer per 30 days, relationship to the app disclosed. Main-feed posting needs either an App Store developer account plus 10 karma in the subreddit, or an established history there. If the account doesn't qualify, this goes in the monthly "App Pile" megathread instead, and that also counts as the 30-day slot.
+First attempt (2026-11-12) was auto-removed twice over: the labels were bold headings without a colon and there was no Trust label, and the "Read The Rules" acknowledgement had not been submitted. A formatting removal can be reposted within 48 hours without losing the 30-day slot.
 
-**Title:** Nimbus: a free, open-source Mac app that puts your clouds in Finder with Apple's File Provider (Google Drive, S3, OneDrive, B2, 50+ more)
+Before reposting:
+
+1. Subreddit menu > "Read The Rules" > submit the acknowledgement.
+2. Account needs 200+ Reddit karma and 60+ days of age (Rule 6).
+3. Flair: **Free**. Title starts with `[OS]`.
+4. Each label starts its own line, spelled exactly `Problem:`, `Comparison:`, `Pricing:`, `Trust:`.
+5. Trust path is GitHub. Under 100 stars that path needs a LinkedIn link, so fill it in below.
+
+**Title:** [OS] Nimbus: a free native Mac app that puts 50+ cloud services (Google Drive, OneDrive, S3, B2) in Finder
 
 **Body:**
 
 I'm the developer.
 
-**Problem**
+Problem: I keep files in several clouds and wanted one native Mac app that shows them all in Finder and backs them up on a schedule, instead of a separate vendor app for each.
 
-I keep files in several clouds (Google Drive, S3, Backblaze). The Mac options were a separate vendor app for each one, a paid mounting tool, or rclone on the command line. I wanted one app that looks and behaves like Finder, shows every cloud in one place, and backs things up on a schedule.
+What it does: your clouds appear in Finder's sidebar, files download when you open them, and you can pin folders to keep them on the Mac. The app has a file browser with Quick Look and drag and drop between clouds, scheduled backups with a preview before the first run, search across every cloud at once, and a Home screen showing free space on each. It is SwiftUI and AppKit, no Electron, and uses rclone underneath, which is how it supports 50+ services. No account, no telemetry. macOS 15 or later, Apple Silicon and Intel.
 
-Nimbus does that, and it does the Finder part with Apple's File Provider, the framework Apple gives cloud storage on the Mac and the one the big services' own apps use. Your clouds appear in Finder's sidebar under Locations, files download when you open them, macOS frees the space when it needs to, and you can pin folders to keep them on the Mac. Inside the app there is a file browser with Quick Look and drag and drop between clouds, scheduled backups with a preview before the first run, search across all clouds at once, and a Home screen that shows free space for each.
+Comparison:
 
-It is SwiftUI and AppKit, no Electron. Under it is rclone, which is how it supports 50+ services. No account, no telemetry. It can update itself, and it looks for updates only if you turn that on.
+- Mountain Duck. Nimbus is better on price (free against a paid license), it is open source, it covers 50+ services against 19 protocols, and it has scheduled backups. Mountain Duck is better on maturity (many years of releases), it also runs on Windows, and it opens Cryptomator vaults.
+- ExpanDrive. Nimbus is better in being open source, covering 50+ services against 15, and having scheduled backups with a preview. ExpanDrive is better in running on Windows and Linux as well, and in having a much longer track record.
 
-**Comparison**
+Nimbus is a new 1.x and has no Spotlight search for cloud files and no Share Sheet yet.
 
-- Mountain Duck: also mounts clouds in Finder. Paid, closed source, 19 protocols. No scheduled backups.
-- ExpanDrive: Finder integration, 15 services, free for personal use, subscription for business. Closed source.
-- Cyberduck: free and open source, but a transfer client; it doesn't mount.
-- rclone itself: same provider support, command line.
+Pricing: $0. Free with no paid tier, no in-app purchase and no subscription, for the source and the signed build alike. GPL-3.0. Download: https://github.com/CasaVargas/Nimbus/releases/latest
 
-Where Nimbus is behind: no Spotlight search for cloud files yet, no Share Sheet, and it is new: 1.0 came out this month.
-
-**Pricing**
-
-Free. The source and the signed, notarized build both, with no paid tier. GPL-3.0. It is paid for by my two other apps, which are one-time purchases.
-
-macOS 15 or later, Apple Silicon and Intel.
-
-Download: https://github.com/CasaVargas/Nimbus/releases/latest
-Source: https://github.com/CasaVargas/Nimbus
-Screenshots: https://casavargas.app/nimbus/
+Trust: GitHub. Source: https://github.com/CasaVargas/Nimbus. LinkedIn: LINKEDIN_URL_HERE. The build is Developer ID signed and notarized; privacy: https://casavargas.app/nimbus/#privacy
 
 ---
 
