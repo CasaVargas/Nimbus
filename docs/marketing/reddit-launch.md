@@ -1,6 +1,6 @@
 # Reddit launch posts (1.0)
 
-Drafts, ready to paste. Written 2026-11-11 against v1.0.1.
+Drafts, ready to paste. Written 2026-11-11 against v1.0.1; brought up to v1.2.0 on 2026-11-12 (updates through Sparkle shipped in 1.1.0, so "no update pings" and "no third-party packages" came out).
 
 Links used everywhere:
 
@@ -27,7 +27,7 @@ Check each sidebar before posting: the rules below came from mirrors dated March
 
 ## Before the first post
 
-- Install `Nimbus-1.0.1.dmg` from the release page on a Mac and add a cloud. 1.0.0 was never installed locally and 1.0.1 was published minutes before this file was written. 0.9.0 passed notarization and did not launch.
+- Install the latest DMG (`Nimbus-1.2.0.dmg`) from the release page on a Mac and add a cloud. 0.9.0 passed notarization and did not launch, and 1.1.0 opened a stack of Add Cloud windows, so check the build people will actually download.
 - Have 3 images ready: `docs/screenshots/window-home.png`, `window-finder.png`, `window-backups.png`.
 
 ---
@@ -54,7 +54,7 @@ What the app adds:
 - A guided crypt setup, a folder compare, and version history for S3 and B2
 - Optional: encrypt rclone.conf with rclone's own config encryption, password kept in the Keychain and passed with `--password-command`
 
-No account, no telemetry, no update pings. Swift and SwiftUI, no Electron. macOS 15 or later, Apple Silicon and Intel. Share links need rclone 1.76 or later.
+No account, no telemetry, and it looks for updates only if you turn that on. Swift and SwiftUI, no Electron. macOS 15 or later, Apple Silicon and Intel. Share links need rclone 1.76 or later.
 
 It's free, including the signed and notarized build, and GPL-3.0.
 
@@ -81,7 +81,7 @@ I keep files in several clouds (Google Drive, S3, Backblaze). The Mac options we
 
 Nimbus does that. Your clouds appear in Finder's sidebar, files download when you open them, and you can pin folders to keep them on the Mac. Inside the app there is a file browser with Quick Look and drag and drop between clouds, scheduled backups with a preview before the first run, search across all clouds at once, and a Home screen that shows free space for each.
 
-It is SwiftUI and AppKit, no Electron. Under it is rclone, which is how it supports 50+ services. No account, no telemetry.
+It is SwiftUI and AppKit, no Electron. Under it is rclone, which is how it supports 50+ services. No account, no telemetry. It can update itself, and it looks for updates only if you turn that on.
 
 **Comparison**
 
@@ -90,7 +90,7 @@ It is SwiftUI and AppKit, no Electron. Under it is rclone, which is how it suppo
 - Cyberduck: free and open source, but a transfer client; it doesn't mount.
 - rclone itself: same provider support, command line.
 
-Where Nimbus is behind: no Spotlight search for cloud files yet, no Share Sheet, and it is a brand-new 1.0.
+Where Nimbus is behind: no Spotlight search for cloud files yet, no Share Sheet, and it is new: 1.0 came out this month.
 
 **Pricing**
 
@@ -100,6 +100,7 @@ macOS 15 or later, Apple Silicon and Intel.
 
 Download: https://github.com/CasaVargas/Nimbus/releases/latest
 Source: https://github.com/CasaVargas/Nimbus
+Screenshots: https://casavargas.app/nimbus/
 
 ---
 
@@ -114,7 +115,7 @@ I've released Nimbus, a Mac app for browsing, mounting and backing up cloud stor
 It is a front end for rclone: it runs your rclone binary as a local daemon and talks to its RC API, so it supports everything rclone does (S3, Google Drive, OneDrive, Dropbox, B2, SFTP, WebDAV and so on) and shares rclone's config file with the command line.
 
 - GPL-3.0-or-later, and the signed, notarized build is free as well. No paid tier, no account, no telemetry
-- Swift 6 and SwiftUI, with no third-party Swift packages (a lint step fails the build if one is added)
+- Swift 6 and SwiftUI, with one third-party Swift package: Sparkle, for updates (a lint step fails the build if another is added)
 - Finder integration through Apple's File Provider, or NFS mounts
 - Scheduled backups with a preview, search across clouds, encrypted folders, folder compare
 
@@ -152,7 +153,7 @@ https://github.com/CasaVargas/Nimbus
 
 ## r/swift (or r/SwiftUI)
 
-**Title:** I shipped a Finder-style file manager in SwiftUI with a File Provider extension and no dependencies. Notes on what was hard
+**Title:** I shipped a Finder-style file manager in SwiftUI with a File Provider extension and one dependency. Notes on what was hard
 
 **Body:**
 
@@ -162,7 +163,7 @@ Nimbus is an open-source macOS cloud storage app (GPL-3.0, Swift 6 strict concur
 - **Developer ID builds lose a `group.` app group.** Without a provisioning profile macOS ignores that entitlement, so the File Provider extension could not read what the app wrote. It worked in every debug build and failed only in the notarized release. A team-ID-prefixed group fixed it
 - **A notarized, Gatekeeper-accepted build can still fail to launch.** A re-sign left a development profile and restricted entitlements in place. The packaging script now launches the app before it builds the DMG
 - **`NSFileProviderReplicatedExtension` change tracking** is done by diffing persisted directory snapshots, because the backend (rclone) has no change feed for most providers
-- **No third-party packages.** The rclone client is a local package over `URLSession`; a pre-build lint fails if a dependency is added
+- **One third-party package.** Sparkle, for updates. The rclone client is a local package over `URLSession`; a pre-build lint fails if any other dependency is added
 
 Source: https://github.com/CasaVargas/Nimbus
 
@@ -188,7 +189,7 @@ If the megathread asks about AI involvement, answer it plainly.
 
 I'm the author. Nimbus is a Mac app for browsing, mounting and backing up cloud storage. It runs your rclone binary as a daemon on loopback and talks to its RC API, so it supports whatever rclone supports and shares its config file with the command line.
 
-It is Swift and SwiftUI, with AppKit for the file table, and no third-party packages. Remotes show up in Finder through a File Provider extension, or as NFS mounts. There are scheduled backups with a preview, search across remotes, and a guided crypt setup.
+It is Swift and SwiftUI, with AppKit for the file table, and one third-party package (Sparkle, for updates). Remotes show up in Finder through a File Provider extension, or as NFS mounts. There are scheduled backups with a preview, search across remotes, and a guided crypt setup.
 
 It is free, including the signed build, and has no account or telemetry. My two paid apps fund it.
 
