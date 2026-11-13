@@ -75,7 +75,7 @@ Before reposting:
 2. Account needs 200+ Reddit karma and 60+ days of age (Rule 6).
 3. Flair: **Free**. Title starts with `[OS]`.
 4. Each label starts its own line, spelled exactly `Problem:`, `Comparison:`, `Pricing:`, `Trust:`.
-5. Trust path is GitHub. Under 100 stars that path needs a LinkedIn link, which is in the Trust line below.
+5. Trust path is Website (their "Transparency" tier): real identity, LinkedIn and contact details in the post, plus a site with a Privacy Policy and Terms of Service. The repo is under a year old and under 100 stars, so the GitHub path alone does not qualify. Do not post until `casavargas.app/nimbus/privacy/` and `/terms/` are live.
 
 **Title:** [OS] Nimbus: a free native Mac app that puts 50+ cloud services (Google Drive, OneDrive, S3, B2) in Finder
 
@@ -96,7 +96,7 @@ Nimbus is a new 1.x and has no Spotlight search for cloud files and no Share She
 
 Pricing: $0. Free with no paid tier, no in-app purchase and no subscription, for the source and the signed build alike. GPL-3.0. Download: https://github.com/CasaVargas/Nimbus/releases/latest
 
-Trust: GitHub. Source: https://github.com/CasaVargas/Nimbus. LinkedIn: https://www.linkedin.com/in/jvargas1023/. The build is Developer ID signed and notarized; privacy: https://casavargas.app/nimbus/#privacy
+Trust: Website. Nimbus is made by Casa Vargas LLC (https://casavargas.app); I am Jonathan Vargas, LinkedIn: https://www.linkedin.com/in/jvargas1023/, contact: hello@casavargas.app. Privacy Policy: https://casavargas.app/nimbus/privacy/. Terms of Service: https://casavargas.app/nimbus/terms/. The build is Developer ID signed and notarized, and the source is at https://github.com/CasaVargas/Nimbus.
 
 ---
 
