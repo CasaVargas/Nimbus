@@ -153,7 +153,7 @@ struct TransferStoreBackupTests {
     }
 
     @Test func finishingBackupStoresSummaryAndCallsHook() async throws {
-        let store = TransferStore(history: SavedHistory())
+        let store = TransferStore(history: SavedHistory(), retention: .forever)
         var received: [(UUID, BackupRunSummary)] = []
         store.onBackupFinished = { id, summary in received.append((id, summary)) }
         store.addTransfer(jobId: 41, operation: .sync, srcFs: "/Users/j/Documents", dstFs: "b2:mac",
@@ -182,7 +182,7 @@ struct TransferStoreBackupTests {
     }
 
     @Test func limitHitBackupFailsWithLimitOutcome() async throws {
-        let store = TransferStore(history: SavedHistory())
+        let store = TransferStore(history: SavedHistory(), retention: .forever)
         var outcomes: [BackupRunSummary.Outcome] = []
         store.onBackupFinished = { _, summary in outcomes.append(summary.outcome) }
         store.addTransfer(jobId: 42, operation: .sync, srcFs: "a:", dstFs: "b:", origin: .backup, backup: context())
@@ -201,7 +201,7 @@ struct TransferStoreBackupTests {
     }
 
     @Test func plainTransferFinishDoesNotCallHook() async {
-        let store = TransferStore(history: SavedHistory())
+        let store = TransferStore(history: SavedHistory(), retention: .forever)
         var calls = 0
         store.onBackupFinished = { _, _ in calls += 1 }
         store.addTransfer(jobId: 43, operation: .copy, srcFs: "a:", dstFs: "b:")
@@ -211,7 +211,7 @@ struct TransferStoreBackupTests {
     }
 
     @Test func cancellingBackupCallsHookWithCancelled() async {
-        let store = TransferStore(history: SavedHistory())
+        let store = TransferStore(history: SavedHistory(), retention: .forever)
         var outcomes: [BackupRunSummary.Outcome] = []
         store.onBackupFinished = { _, summary in outcomes.append(summary.outcome) }
         store.addTransfer(jobId: 44, operation: .sync, srcFs: "a:", dstFs: "b:", origin: .backup, backup: context())
@@ -222,7 +222,7 @@ struct TransferStoreBackupTests {
     // MARK: - Lost jobs
 
     @Test func lostJobFinishesBackupAsFailed() async throws {
-        let store = TransferStore(history: SavedHistory())
+        let store = TransferStore(history: SavedHistory(), retention: .forever)
         var outcomes: [BackupRunSummary.Outcome] = []
         store.onBackupFinished = { _, summary in outcomes.append(summary.outcome) }
         store.addTransfer(jobId: 50, operation: .sync, srcFs: "a:", dstFs: "b:", origin: .backup, backup: context())
@@ -237,7 +237,7 @@ struct TransferStoreBackupTests {
     }
 
     @Test func transientPollErrorKeepsTransferActive() async {
-        let store = TransferStore(history: SavedHistory())
+        let store = TransferStore(history: SavedHistory(), retention: .forever)
         var calls = 0
         store.onBackupFinished = { _, _ in calls += 1 }
         store.addTransfer(jobId: 51, operation: .sync, srcFs: "a:", dstFs: "b:", origin: .backup, backup: context())
@@ -247,7 +247,7 @@ struct TransferStoreBackupTests {
     }
 
     @Test func abandonActiveTransfersFailsEveryActiveRun() async {
-        let store = TransferStore(history: SavedHistory())
+        let store = TransferStore(history: SavedHistory(), retention: .forever)
         var calls = 0
         store.onBackupFinished = { _, _ in calls += 1 }
         store.addTransfer(jobId: 1, operation: .sync, srcFs: "a:", dstFs: "b:", origin: .backup, backup: context())
@@ -260,7 +260,7 @@ struct TransferStoreBackupTests {
     // MARK: - Filter
 
     @Test func backupsFilterShowsOnlyBackups() {
-        let store = TransferStore(history: SavedHistory())
+        let store = TransferStore(history: SavedHistory(), retention: .forever)
         store.addTransfer(jobId: 1, operation: .sync, srcFs: "a:", dstFs: "b:", origin: .backup, backup: context())
         store.addTransfer(jobId: 2, operation: .sync, srcFs: "a:", dstFs: "b:", origin: .copySyncJob)
         let shown = store.transfers.filter(TransferFilter.backups.matches)
