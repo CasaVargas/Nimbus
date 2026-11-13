@@ -380,22 +380,22 @@ enum BackupsFixtures {
     }
 
     static var everyStatus: [BackupsContent.Row] {
-        let docs = TransferEndpoint.local(path: "/Users/jonathan/Documents")
+        let docs = TransferEndpoint.local(path: "/Users/you/Documents")
         let running = Transfer(jobID: 1, operation: .sync, srcFs: "a", dstFs: "b", startedAt: now, status: .active,
                                origin: .backup, nimbusUUID: UUID(), progress: 0.45, eta: 180)
         return [
             row(job("Documents to B2", source: docs, destination: .cloud(remote: "b2", path: "mac-backup/Documents")), running: running),
-            row(job("Photos to Drive", source: .local(path: "/Users/jonathan/Pictures"), destination: .cloud(remote: "gdrive", path: "Photos")),
+            row(job("Photos to Drive", source: .local(path: "/Users/you/Pictures"), destination: .cloud(remote: "gdrive", path: "Photos")),
                 destinationType: "drive", queued: true),
             row(job("Work to Dropbox", source: docs, destination: .cloud(remote: "dropbox", path: "Work"), approved: false),
                 destinationType: "dropbox"),
-            row(job("Projects", source: .local(path: "/Users/jonathan/Projects"), destination: .cloud(remote: "b2", path: "projects")) {
+            row(job("Projects", source: .local(path: "/Users/you/Projects"), destination: .cloud(remote: "b2", path: "projects")) {
                 $0.lastRun = summary(.failed("The source folder isn't available. Is the drive connected?"), hoursAgo: 9)
             }),
             row(job("Music", source: .cloud(remote: "gdrive", path: "Music"), destination: .local(path: "/Volumes/Backup/Music")) {
                 $0.lastRun = summary(.limitHit, hoursAgo: 30)
             }, destinationType: nil),
-            row(job("Desktop to B2", source: .local(path: "/Users/jonathan/Desktop"), destination: .cloud(remote: "b2", path: "desktop")) {
+            row(job("Desktop to B2", source: .local(path: "/Users/you/Desktop"), destination: .cloud(remote: "b2", path: "desktop")) {
                 $0.lastRun = summary(.completed)
             }),
             row(job("New backup", source: docs, destination: .cloud(remote: "b2", path: "docs2"))),

@@ -299,8 +299,7 @@ for an existing remote. The CLI equivalent is `rclone config reconnect`.
 
 - If it does, add `RemoteSetupFlow.reconnect(remote:)`, which reuses `OAuthStep`.
 - If it doesn't, the button opens `EditRemoteSheet` scrolled to the token field, and the
-  banner copy changes to "Open settings to sign in again". Record the finding in Tolaria next
-  to `nimbus-rclone-config-state-machine`.
+  banner copy changes to "Open settings to sign in again". Record the finding in the maintainer's notes.
 
 ## Phasing
 
