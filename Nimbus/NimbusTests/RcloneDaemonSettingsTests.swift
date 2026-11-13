@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import RcloneKit
 @testable import Nimbus
 
 @Suite("RcloneDaemon settings")
@@ -27,6 +28,29 @@ struct RcloneDaemonSettingsTests {
 
         let limitIndex = try! #require(arguments.firstIndex(of: "--bwlimit"))
         #expect(arguments[arguments.index(after: limitIndex)] == "off")
+    }
+
+    /// Security regression guard: the RC API dumps every credential and
+    /// serves file contents, so it must never run unauthenticated or answer
+    /// cross-origin requests.
+    @Test func launchArgumentsRequireAuthAndSendNoCORSHeaders() {
+        let arguments = RcloneDaemon.launchArguments(
+            port: 5572, bandwidthLimit: "", concurrentTransfers: 4
+        )
+        #expect(!arguments.contains("--rc-no-auth"))
+        #expect(!arguments.contains { $0.hasPrefix("--rc-allow-origin") })
+        #expect(arguments.contains("127.0.0.1:5572"))
+    }
+
+    @Test func rcPasswordTravelsInTheEnvironmentNotArgv() {
+        let credentials = RCCredentials(user: "nimbus", password: "s3cret-value")
+        let process = RcloneDaemon.makeProcess(
+            binaryPath: "/opt/homebrew/bin/rclone", port: 5572, credentials: credentials,
+            bandwidthLimit: "", concurrentTransfers: 4, baseEnvironment: [:]
+        )
+        #expect(!(process.arguments ?? []).contains { $0.contains("s3cret-value") || $0.hasPrefix("--rc-pass") })
+        #expect(process.environment?["RCLONE_RC_USER"] == "nimbus")
+        #expect(process.environment?["RCLONE_RC_PASS"] == "s3cret-value")
     }
 
     @Test func changingConfiguredPathRequiresRestart() {

@@ -23,6 +23,7 @@
 		0AEDE6A4031E667609B8B4C1 /* BackupStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = F438CCC00F6D976833917133 /* BackupStatus.swift */; };
 		0BD0B98BEC207A86C5597120 /* FileInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 865D49549F0BDB60853C9310 /* FileInspector.swift */; };
 		0CA5334EB02D5CD355CBED94 /* CompareViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB3DF7DF0016411F22B52AEC /* CompareViewModelTests.swift */; };
+		0FB77B70867F708655D21152 /* DaemonConnectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7D0DD7F91E7BC139F3140D1 /* DaemonConnectionState.swift */; };
 		106C3873960E16E52127B714 /* VersionsPruner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D31C157C829C12486C1B570 /* VersionsPruner.swift */; };
 		1237323B2476F352B31E60F7 /* GuidedAddRemoteSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC6B8FB8CB7436DC140EB4AE /* GuidedAddRemoteSnapshotTests.swift */; };
 		12AF0C007C05EF5B007B0AD0 /* NimbusErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB2C2B81251C7B4B0282151 /* NimbusErrorTests.swift */; };
@@ -273,6 +274,7 @@
 		CE5116AE83345587BF008037 /* TransferVerification.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4E4B22CDC2DFC712DA2ADC6 /* TransferVerification.swift */; };
 		CE70B7EFF43AE0653AB9E141 /* GlassSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88348B880E07B5FC72549637 /* GlassSurface.swift */; };
 		CF0293E3434494D751AD80F2 /* AdvancedSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 867FAB6A3A547529FA41D631 /* AdvancedSettingsView.swift */; };
+		D027BEA0B764A4259F30946F /* DaemonConnectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7D0DD7F91E7BC139F3140D1 /* DaemonConnectionState.swift */; };
 		D08E7DDABBA219D8EE6F3B2F /* RemoteChangeCadenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A44CF693539E4505E2EDD05E /* RemoteChangeCadenceTests.swift */; };
 		D3D13861BD413F1A3928E805 /* TransferNotificationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56966682DCD80E13741AEA06 /* TransferNotificationServiceTests.swift */; };
 		D404B2430FB680A0B25CB6BF /* BackupPreviewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F24DE6DCE8681A54CC02B4A /* BackupPreviewer.swift */; };
@@ -594,6 +596,7 @@
 		A68F31BEFF95EB831B0F3ABE /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
 		A6C3E0E28CB14B1FC1F0F666 /* SheetChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetChrome.swift; sourceTree = "<group>"; };
 		A7B6FD3ABEC0046306599EA4 /* ConfigQuestionCopyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigQuestionCopyTests.swift; sourceTree = "<group>"; };
+		A7D0DD7F91E7BC139F3140D1 /* DaemonConnectionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonConnectionState.swift; sourceTree = "<group>"; };
 		A82638522AF6D20C3557F806 /* OpenAtLoginNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAtLoginNote.swift; sourceTree = "<group>"; };
 		A855F33877E33DFE4DBD3A20 /* BackupRequestTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupRequestTests.swift; sourceTree = "<group>"; };
 		ABB5DAED70D29021C9AF7060 /* FileTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTableView.swift; sourceTree = "<group>"; };
@@ -1039,6 +1042,7 @@
 			children = (
 				4ED80F38BA5E2514871D0A76 /* AppGroup.swift */,
 				299AFE9FFD95BF3C15E2D4E1 /* CloudCapabilities.swift */,
+				A7D0DD7F91E7BC139F3140D1 /* DaemonConnectionState.swift */,
 				AE522DECA1DB3736E2408FCA /* ItemBadges.swift */,
 				381559F17FCAB7DE01CB69A0 /* PinStore.swift */,
 				080802897673DC9127B539B7 /* RemoteChangeCadence.swift */,
@@ -1585,6 +1589,7 @@
 				4A4AD67312DD3ECF213BED70 /* CopyShareLinkIntent.swift in Sources */,
 				F20DC020AE748305501AE6DC /* CopySyncView.swift in Sources */,
 				27661839BBC147E0FA2D2DFA /* CopySyncViewModel.swift in Sources */,
+				D027BEA0B764A4259F30946F /* DaemonConnectionState.swift in Sources */,
 				AE148200C57EA04A2F17BF57 /* DesignSystem.swift in Sources */,
 				5C40C6C25E739995CB1BADA7 /* DestructiveCallout.swift in Sources */,
 				586B5A02008AFF90430A860A /* DiagnosticsService.swift in Sources */,
@@ -1733,6 +1738,7 @@
 			files = (
 				CA0709CE3B1048211C0F8AFF /* AppGroup.swift in Sources */,
 				BD2408E5FE4B7C15C5CC0398 /* CloudCapabilities.swift in Sources */,
+				0FB77B70867F708655D21152 /* DaemonConnectionState.swift in Sources */,
 				D6295020365053BF15FF340A /* Enumerator.swift in Sources */,
 				72176941173EF046F32623F4 /* Extension.swift in Sources */,
 				786B7D91A11701292C5BC2A0 /* HotFolderStore.swift in Sources */,

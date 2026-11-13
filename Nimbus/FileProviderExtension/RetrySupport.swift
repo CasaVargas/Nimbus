@@ -16,52 +16,59 @@ import os
 enum FileProviderRetry {
     private static let appGroupID = AppGroup.identifier
 
-    /// Re-reads the rclone port from the app group and pushes it into
-    /// `rclone` if it changed since the client was created/last refreshed.
+    /// Re-reads the daemon's port and RC credentials from the shared state
+    /// and pushes whatever changed into `rclone`. The app picks a new port
+    /// and a new credential pair on every daemon launch.
     static func refreshPort(on rclone: RcloneClient, logger: Logger) {
-        let port = readPort()
+        let connection = readConnection()
         let currentPort = rclone.port
-        if port != currentPort {
-            logger.info("Port changed: \(currentPort) → \(port)")
-            rclone.updatePort(port)
+        if connection.port != currentPort {
+            logger.info("Port changed: \(currentPort) → \(connection.port)")
+            rclone.updatePort(connection.port)
+        }
+        if connection.credentials != rclone.credentials {
+            logger.info("RC credentials changed")
+            rclone.updateCredentials(connection.credentials)
         }
     }
 
-    /// Three-way fallback for discovering the rclone daemon's RC port,
-    /// mirroring how the main app publishes it: app-group `UserDefaults`
-    /// first (fast path, works once both processes have entitlement access
-    /// settled), then a `shared-state.json` file in the app-group container,
-    /// then the same file under the extension's own Application Support
-    /// (the unsandboxed main app can write there too). Falls back to
-    /// rclone's documented default port if all three are unavailable.
-    static func readPort() -> Int {
+    /// Discovers how to reach the app's rclone daemon, mirroring how the main
+    /// app publishes it: the `shared-state.json` the app writes into the
+    /// app-group container, then the copy in the extension's own Application
+    /// Support (the unsandboxed main app can write there too). Only those
+    /// files carry the RC credentials. Then app-group `UserDefaults` (port
+    /// only, written by older builds), then rclone's default port.
+    static func readConnection() -> (port: Int, credentials: RCCredentials?) {
         let logger = Logger(subsystem: "app.casavargas.nimbus.FileProvider", category: "extension")
 
-        if let defaults = UserDefaults(suiteName: appGroupID),
-           case let port = defaults.integer(forKey: "rclonePort"), port > 0 {
-            logger.debug("Read port \(port) from UserDefaults")
-            return port
-        }
-
+        var files: [(URL, String)] = []
         if let containerURL = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: appGroupID
         ) {
-            if let port = readPortFromJSON(containerURL.appendingPathComponent("shared-state.json")) {
-                logger.debug("Read port \(port) from group container")
-                return port
+            files.append((containerURL.appendingPathComponent("shared-state.json"), "group container"))
+        }
+        if let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            files.append((appSupport.appendingPathComponent("shared-state.json"), "Application Support"))
+        }
+        for (url, label) in files {
+            guard let data = try? Data(contentsOf: url),
+                  let state = DaemonConnectionState(data: data) else { continue }
+            logger.debug("Read port \(state.port) from \(label)")
+            var credentials: RCCredentials?
+            if let user = state.rcUser, let password = state.rcPassword {
+                credentials = RCCredentials(user: user, password: password)
             }
+            return (state.port, credentials)
         }
 
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-        if let appSupport {
-            if let port = readPortFromJSON(appSupport.appendingPathComponent("shared-state.json")) {
-                logger.debug("Read port \(port) from Application Support")
-                return port
-            }
+        if let defaults = UserDefaults(suiteName: appGroupID),
+           case let port = defaults.integer(forKey: DaemonConnectionState.portKey), port > 0 {
+            logger.debug("Read port \(port) from UserDefaults")
+            return (port, nil)
         }
 
         logger.warning("App group port not found, using default 5572")
-        return 5572
+        return (5572, nil)
     }
 
     /// Returns the app group container URL used for persisted extension
@@ -70,13 +77,6 @@ enum FileProviderRetry {
     /// gracefully rather than crash.
     static func appGroupContainerURL() -> URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)
-    }
-
-    private static func readPortFromJSON(_ url: URL) -> Int? {
-        guard let data = try? Data(contentsOf: url),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let port = json["rclonePort"] as? Int, port > 0 else { return nil }
-        return port
     }
 
     /// Runs `body` with up to `maxAttempts` tries, refreshing the rclone

@@ -16,8 +16,8 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
     required init(domain: NSFileProviderDomain) {
         self.domain = domain
-        let port = FileProviderRetry.readPort()
-        self.rclone = RcloneClient(port: port)
+        let (port, credentials) = FileProviderRetry.readConnection()
+        self.rclone = RcloneClient(port: port, credentials: credentials)
         logger.error("Extension init: domain=\(domain.identifier.rawValue), port=\(port)")
     }
 

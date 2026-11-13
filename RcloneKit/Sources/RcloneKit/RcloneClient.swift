@@ -1,11 +1,21 @@
 import Foundation
+import Synchronization
 
 public final class RcloneClient: @unchecked Sendable {
     public private(set) var port: Int
     private let session: URLSession
+    /// Read on every request, from whatever task makes it, and replaced when
+    /// the daemon restarts (or the extension learns new ones), so it's
+    /// guarded rather than relying on `port`'s set-only-at-startup rule.
+    private let storedCredentials: Mutex<RCCredentials?>
 
-    public init(port: Int = 5572, session: URLSession? = nil) {
+    public var credentials: RCCredentials? {
+        storedCredentials.withLock { $0 }
+    }
+
+    public init(port: Int = 5572, credentials: RCCredentials? = nil, session: URLSession? = nil) {
         self.port = port
+        self.storedCredentials = Mutex(credentials)
         self.session = session ?? {
             let config = URLSessionConfiguration.default
             config.timeoutIntervalForRequest = 30
@@ -20,6 +30,21 @@ public final class RcloneClient: @unchecked Sendable {
 
     public func updatePort(_ newPort: Int) {
         port = newPort
+    }
+
+    public func updateCredentials(_ newCredentials: RCCredentials?) {
+        storedCredentials.withLock { $0 = newCredentials }
+    }
+
+    /// Every request to the daemon goes through here, so none can forget
+    /// the Authorization header.
+    private func makeRequest(url: URL, method: String) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        if let credentials {
+            request.setValue(credentials.authorizationHeader, forHTTPHeaderField: "Authorization")
+        }
+        return request
     }
 
     private var baseURL: String {
@@ -57,8 +82,7 @@ public final class RcloneClient: @unchecked Sendable {
         timeout: TimeInterval? = nil
     ) async throws -> T {
         let url = URL(string: "\(baseURL)/\(endpoint)")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
+        var request = makeRequest(url: url, method: "POST")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let timeout {
             request.timeoutInterval = timeout
@@ -137,8 +161,7 @@ public final class RcloneClient: @unchecked Sendable {
         guard let url = URL(string: "\(baseURL)/%5B\(encFs)%5D/\(encRemote)") else {
             throw RcloneError.invalidResponse
         }
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+        var request = makeRequest(url: url, method: "GET")
         request.timeoutInterval = 600
 
         let (data, response) = try await session.data(for: request)
@@ -175,8 +198,7 @@ public final class RcloneClient: @unchecked Sendable {
         ]
         guard let url = components.url else { throw RcloneError.invalidResponse }
         let boundary = UUID().uuidString
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
+        var request = makeRequest(url: url, method: "POST")
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 600
 
