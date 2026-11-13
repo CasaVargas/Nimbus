@@ -375,6 +375,7 @@ struct NimbusApp: App {
             await fileProviderBridge.syncAfterDaemonConnect(
                 remotes: remotes,
                 port: daemon.port,
+                credentials: daemon.client.credentials,
                 disabledDomains: settings.disabledFileProviderDomains
             )
         } catch {

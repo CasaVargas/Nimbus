@@ -107,10 +107,14 @@ final class RcloneDaemon {
         guard isCurrent(lifecycleID) else { return }
         port = availablePort
         client.updatePort(availablePort)
+        // A fresh pair per launch: a leaked one dies with this daemon.
+        let credentials = RCCredentials.random()
+        client.updateCredentials(credentials)
 
         let proc = Self.makeProcess(
             binaryPath: binaryPath,
             port: availablePort,
+            credentials: credentials,
             bandwidthLimit: bandwidthLimit,
             concurrentTransfers: concurrentTransfers
         )
@@ -204,12 +208,14 @@ final class RcloneDaemon {
     }
 
     /// The configured `rclone rcd` child. Its environment carries the
-    /// Keychain password command (never the password), and stdin is
-    /// /dev/null so a locked config fails fast instead of waiting for a typed
-    /// password.
+    /// Keychain password command (never the password) and the RC server's
+    /// credentials (env, not argv: argv is visible to every user via `ps`),
+    /// and stdin is /dev/null so a locked config fails fast instead of
+    /// waiting for a typed password.
     static func makeProcess(
         binaryPath: String,
         port: Int,
+        credentials: RCCredentials,
         bandwidthLimit: String,
         concurrentTransfers: Int,
         baseEnvironment: [String: String] = ProcessInfo.processInfo.environment
@@ -222,6 +228,7 @@ final class RcloneDaemon {
             concurrentTransfers: concurrentTransfers
         )
         proc.environment = RcloneEnvironment.childEnvironment(base: baseEnvironment)
+            .merging(credentials.environment) { _, rc in rc }
         proc.standardInput = FileHandle.nullDevice
         proc.standardOutput = FileHandle.nullDevice
         proc.standardError = FileHandle.nullDevice
@@ -239,6 +246,12 @@ final class RcloneDaemon {
     /// Builds the rclone command line used for every daemon launch. The empty
     /// persisted bandwidth preference is intentionally represented as rclone's
     /// explicit `off` value, while transfer count is clamped to the UI range.
+    ///
+    /// No `--rc-no-auth` and no `--rc-allow-origin`: the RC API can dump
+    /// every credential (`config/dump`) and `--rc-serve` serves file
+    /// contents, so it requires the per-launch credentials `makeProcess`
+    /// puts in the environment, and sends no CORS headers, so a web page
+    /// can't read its responses. Every client is native code.
     static func launchArguments(
         port: Int,
         bandwidthLimit: String,
@@ -246,9 +259,7 @@ final class RcloneDaemon {
     ) -> [String] {
         [
             "rcd",
-            "--rc-no-auth",
             "--rc-addr", "127.0.0.1:\(port)",
-            "--rc-allow-origin=*",
             "--rc-serve",
             "--bwlimit", bandwidthLimit.isEmpty ? "off" : bandwidthLimit,
             "--transfers", String(min(max(concurrentTransfers, 1), 32)),

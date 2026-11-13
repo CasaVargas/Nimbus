@@ -1,6 +1,7 @@
 import FileProvider
 import Foundation
 import os
+import RcloneKit
 
 func fileProviderReconnectEligibleRemotes(
     from remotes: [String],
@@ -104,7 +105,7 @@ final class FileProviderBridge {
         return domains.map { ($0.identifier.rawValue, $0.displayName) }
     }
 
-    func syncState(remotes: [String], port: Int) {
+    func syncState(remotes: [String], port: Int, credentials: RCCredentials?) {
         // The main app is UNSANDBOXED (see Nimbus.entitlements), so it cannot
         // write the app-group `UserDefaults` suite: that domain lives in the
         // sandbox group container and cfprefsd rejects writes from an
@@ -113,7 +114,7 @@ final class FileProviderBridge {
         // allowed for System Containers, detaching from cfprefsd"). The failed
         // attempt also detaches the prefs cache, so we don't make it — the
         // shared state travels via the JSON files below, which is the
-        // transport the extension's `FileProviderRetry.readPort` relies on.
+        // transport the extension's `FileProviderRetry.readConnection` relies on.
         //
         // Written to every location the extension might read from:
         // 1. Group container — readable by the sandboxed extension via its
@@ -121,18 +122,20 @@ final class FileProviderBridge {
         //    physical path directly.
         // 2. Extension's sandbox container — always writable by the unsandboxed
         //    main app; the path that works even if the group container doesn't.
-        let state: [String: Any] = [
-            "rclonePort": port,
-            "remotes": remotes,
-            "updatedAt": Date().timeIntervalSince1970,
-        ]
-        guard let data = try? JSONSerialization.data(withJSONObject: state) else { return }
+        //
+        // The file carries the daemon's RC credentials, so it's owner-only.
+        let state = DaemonConnectionState(
+            port: port, rcUser: credentials?.user, rcPassword: credentials?.password,
+            remotes: remotes
+        )
+        guard let data = try? state.encoded() else { return }
 
         let paths = Self.sharedStatePaths()
         for path in paths {
             let dir = (path as NSString).deletingLastPathComponent
             try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
             try? data.write(to: URL(fileURLWithPath: path), options: .atomic)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: path)
         }
 
         logger.info("Synced state: port=\(port), remotes=\(remotes)")
@@ -157,8 +160,10 @@ final class FileProviderBridge {
     /// active set, and signal enumerators. Idempotent — safe to call again
     /// after every daemon (re)start, which is exactly when the extension's
     /// port knowledge goes stale.
-    func syncAfterDaemonConnect(remotes: [String], port: Int, disabledDomains: Set<String>) async {
-        syncState(remotes: remotes, port: port)
+    func syncAfterDaemonConnect(
+        remotes: [String], port: Int, credentials: RCCredentials?, disabledDomains: Set<String>
+    ) async {
+        syncState(remotes: remotes, port: port, credentials: credentials)
         for remote in fileProviderReconnectEligibleRemotes(from: remotes, excluding: disabledDomains) {
             try? await addDomain(identifier: remote, displayName: remote)
         }

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import RcloneKit
 @testable import Nimbus
 
 /// A Keychain item under a throwaway service name, deleted afterwards.
@@ -84,11 +85,15 @@ struct ConfigEncryptionWiringTests {
         let process = RcloneDaemon.makeProcess(
             binaryPath: "/opt/homebrew/bin/rclone",
             port: 5572,
+            credentials: RCCredentials(user: "u", password: "p"),
             bandwidthLimit: "",
             concurrentTransfers: 4,
             baseEnvironment: ["PATH": "/usr/bin"]
         )
-        #expect(process.environment == ["PATH": "/usr/bin", "RCLONE_PASSWORD_COMMAND": standardCommand])
+        #expect(process.environment == [
+            "PATH": "/usr/bin", "RCLONE_PASSWORD_COMMAND": standardCommand,
+            "RCLONE_RC_USER": "u", "RCLONE_RC_PASS": "p",
+        ])
         #expect(process.arguments?.first == "rcd")
         #expect(!(process.arguments ?? []).contains { $0.contains("password") })
         #expect(process.standardInput as? FileHandle == FileHandle.nullDevice)
