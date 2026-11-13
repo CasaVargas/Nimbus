@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy: Nimbus</title>
+  <meta name="description" content="What Nimbus and its website collect: the app sends nothing to Casa Vargas, and the site counts visits without cookies.">
+  <meta name="theme-color" content="#0b1640">
+  <link rel="icon" type="image/png" href="../assets/app-icon.png">
+  <link rel="stylesheet" href="../styles.css">
+  <script defer data-domain="casavargas.app" src="https://analytics.jonvargas.net/js/script.tagged-events.js"></script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="nav" aria-label="Primary">
+  <div class="nav__inner">
+    <a class="nav__brand" href="../" aria-label="Nimbus home">
+      <img src="../assets/app-icon.png" width="22" height="22" alt="">
+      <span>Nimbus</span>
+    </a>
+    <a class="nav__cta" href="../">Back to Nimbus</a>
+  </div>
+</nav>
+
+<main id="main" class="section section--black legal">
+  <div class="wrap wrap--narrow">
+    <h1>Privacy Policy</h1>
+    <p class="legal__meta">Nimbus, by Casa Vargas LLC. Last updated November 13, 2026.</p>
+    <p>Nimbus is a Mac app made by Casa Vargas LLC. This policy covers the app and this website. The short version: the app sends us nothing, and the website counts visits without identifying you.</p>
+
+    <h2>The app</h2>
+    <p>Nimbus has no account, no sign‑in with us, no analytics and no crash reporting. Casa Vargas LLC does not receive your files, file names, cloud credentials or usage data, because the app never sends them to us.</p>
+    <table class="table">
+      <thead><tr><th>What connects</th><th>When</th><th>Where it goes</th></tr></thead>
+      <tbody>
+        <tr><td>rclone, to the cloud services you add</td><td>When you browse, copy, back up or open a file</td><td>Directly from your Mac to those services</td></tr>
+        <tr><td>rclone, to a service’s sign‑in page</td><td>During setup, for services that sign in on the web</td><td>Through your browser, to that service</td></tr>
+        <tr><td>Nimbus, to rclone.org</td><td>Only if you ask Nimbus to download rclone</td><td>The download is checked against rclone’s published checksums</td></tr>
+        <tr><td>Nimbus, to GitHub</td><td>Only if you turn on update checks or choose Check for Updates</td><td>It reads the update feed attached to the latest release</td></tr>
+      </tbody>
+    </table>
+    <p>The cloud services you connect, rclone.org and GitHub each see the request your Mac makes to them, including your IP address, and handle it under their own privacy policies.</p>
+
+    <h2>What stays on your Mac</h2>
+    <p>Your sign‑in tokens and access keys are kept by rclone in its configuration file on your Mac. If you turn on Lock with Keychain, that file is encrypted and its password is kept in your login Keychain. Settings, transfer history and backup schedules are stored on your Mac as well. Removing the app and its files removes them; we hold no copy.</p>
+
+    <h2>This website</h2>
+    <p>This site counts page visits and clicks on the download links with Plausible Analytics, running on our own server. It sets no cookies, stores nothing in your browser for tracking, and does not collect anything that identifies you. The download counter on the home page asks GitHub’s public API for totals from your browser, so GitHub sees that request.</p>
+
+    <h2>Email</h2>
+    <p>If you write to us, we keep your message and address for as long as it takes to answer and to keep a record of the conversation. We do not add you to a mailing list.</p>
+
+    <h2>Sharing and selling</h2>
+    <p>We do not sell personal information and have none from the app to sell or share.</p>
+
+    <h2>Children</h2>
+    <p>Nimbus is not directed at children, and we do not knowingly collect information from anyone.</p>
+
+    <h2>Changes</h2>
+    <p>If this policy changes, the new version will be posted here with a new date. The history of this page is public in the <a href="https://github.com/CasaVargas/Nimbus/commits/main/site/privacy/index.html">Nimbus repository</a>.</p>
+
+    <h2>Contact</h2>
+    <p>Casa Vargas LLC, <a href="mailto:hello@casavargas.app">hello@casavargas.app</a>.</p>
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer__inner">
+    <p>© 2026 Casa Vargas LLC. Nimbus is open source under GPL‑3.0‑or‑later.</p>
+    <ul>
+      <li><a href="../">Nimbus</a></li>
+      <li><a href="../privacy/">Privacy Policy</a></li>
+      <li><a href="../terms/">Terms of Service</a></li>
+      <li><a href="https://github.com/CasaVargas/Nimbus">GitHub</a></li>
+      <li><a href="https://casavargas.app">Casa Vargas</a></li>
+    </ul>
+  </div>
+</footer>
+
+</body>
+</html>
