@@ -112,9 +112,7 @@ struct TransferStorePersistenceTests {
     }
 
     private func isolatedDefaults() -> UserDefaults {
-        let name = "NimbusTests.TransferStorePersistence.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defaults.removePersistentDomain(forName: name)
+        let defaults = ScratchDefaults.make("TransferStorePersistence")
         return defaults
     }
 }

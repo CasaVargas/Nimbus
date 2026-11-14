@@ -49,9 +49,7 @@ struct GeneralSettingsViewTests {
     }
 
     private func isolatedDefaults() -> UserDefaults {
-        let name = "NimbusTests.GeneralSettings.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defaults.removePersistentDomain(forName: name)
+        let defaults = ScratchDefaults.make("GeneralSettings")
         return defaults
     }
 }

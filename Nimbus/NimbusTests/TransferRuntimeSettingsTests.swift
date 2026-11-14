@@ -68,9 +68,7 @@ struct TransferRuntimeSettingsTests {
     }
 
     private func makeSettings() -> AppSettings {
-        let name = "NimbusTests.TransferRuntimeSettings.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defaults.removePersistentDomain(forName: name)
+        let defaults = ScratchDefaults.make("TransferRuntimeSettings")
         return AppSettings(defaults: defaults)
     }
 }

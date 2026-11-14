@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		02C1F7DADC9FF13ECA1177DB /* UpdaterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAB00B3A3F92BCAA01974005 /* UpdaterService.swift */; };
 		03F04182AFBC7E02B92BA293 /* ExcludeListEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607479F7E8FFC11D2FC50B65 /* ExcludeListEditor.swift */; };
+		0472B4C23FC67A313EFF63D7 /* ScratchDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9D3BF445D05E9116A474FAC /* ScratchDefaults.swift */; };
 		04E78F101F0D29A9A650F7ED /* TransferEndpointTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 379D6CEE911C0C2D3B473E2D /* TransferEndpointTests.swift */; };
 		04EC499A7C0DF8F96188864B /* RemotesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E054B9B81CE216542BE82F5F /* RemotesViewModel.swift */; };
 		0547DBC2DAD79ADF6180EC83 /* BrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B90D4E52BA97B181F32A18D8 /* BrowserView.swift */; };
@@ -647,6 +648,7 @@
 		D6ECD40E7172BCD436740A23 /* ShareLinkSignal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkSignal.swift; sourceTree = "<group>"; };
 		D8C6FE97E636D47094250253 /* ConfigQuestionCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigQuestionCopy.swift; sourceTree = "<group>"; };
 		D9424E2AE45C4242AFBB7A2D /* ImportRemoteRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportRemoteRow.swift; sourceTree = "<group>"; };
+		D9D3BF445D05E9116A474FAC /* ScratchDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScratchDefaults.swift; sourceTree = "<group>"; };
 		DA5860F785C5911347E26342 /* ShareLinkNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkNotifier.swift; sourceTree = "<group>"; };
 		DB3DF7DF0016411F22B52AEC /* CompareViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareViewModelTests.swift; sourceTree = "<group>"; };
 		DB914ACBFE020C15E4BF90AB /* ConfirmCopySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmCopySheet.swift; sourceTree = "<group>"; };
@@ -898,6 +900,7 @@
 		53F12DC845AFAB4BB5EC5321 /* Support */ = {
 			isa = PBXGroup;
 			children = (
+				D9D3BF445D05E9116A474FAC /* ScratchDefaults.swift */,
 				E6C4E572632B0FC138085082 /* SnapshotHelpers.swift */,
 			);
 			path = Support;
@@ -1832,6 +1835,7 @@
 				6D0277350535EBC0C79CF592 /* RemoteChangeDiffTests.swift in Sources */,
 				775AC50C7F80C02365EFEF33 /* RemoteSetupFlowTests.swift in Sources */,
 				4F25A60A8EA3357E42B51874 /* RemoteStatusServiceTests.swift in Sources */,
+				0472B4C23FC67A313EFF63D7 /* ScratchDefaults.swift in Sources */,
 				F4C61692908EE42B423E26E5 /* SearchViewModelTests.swift in Sources */,
 				8C0B4B7304F04D2ED4C68DBC /* SelectionIntentTests.swift in Sources */,
 				F9FD77DF27F29CDE9EFFFB9D /* SelectionTests.swift in Sources */,

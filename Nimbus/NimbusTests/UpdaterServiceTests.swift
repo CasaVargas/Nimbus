@@ -104,9 +104,7 @@ struct UpdaterServiceTests {
     }
 
     private func isolatedDefaults() -> UserDefaults {
-        let name = "NimbusTests.Updater.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defaults.removePersistentDomain(forName: name)
+        let defaults = ScratchDefaults.make("Updater")
         return defaults
     }
 }
