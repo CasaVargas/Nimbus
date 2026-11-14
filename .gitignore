@@ -34,9 +34,3 @@ Nimbus/Local.xcconfig
 .superpowers/
 .worktrees/
 
-# legacy/tauri (frozen Tauri + React sources, not built)
-node_modules
-dist
-dist-ssr
-*.local
-legacy/tauri/src-tauri/target/

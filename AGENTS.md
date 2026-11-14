@@ -6,7 +6,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 **Nimbus** is a native macOS cloud storage manager built in SwiftUI (Swift 6) with a Swift File Provider extension for Finder integration. It uses **rclone** as the cloud backend (spawned as a subprocess, never reimplemented) to support 50+ cloud providers (S3, Google Drive, OneDrive, etc.).
 
-> The previous Tauri (Rust + React) build is deprecated. Its sources are frozen under `legacy/tauri/` and on the `tauri-eol` branch. See `DEPRECATED.md`.
+> The previous Tauri (Rust + React) build is deprecated. Its sources are frozen on the `tauri-eol` branch. See `DEPRECATED.md`.
 
 ## Build & Development Commands
 
@@ -120,6 +120,5 @@ All apps and extensions use the `app.casavargas.nimbus` bundle ID family:
 
 ## Historical Context
 
-- `legacy/tauri/` — Frozen Tauri + React sources, kept for reference only. Do not build.
 - `tauri-eol` branch — Last working Tauri state before the SwiftUI cutover.
 - Strategic context: `docs/superpowers/specs/2026-05-14-nimbus-north-star-design.md` and `docs/superpowers/specs/2026-05-14-phase1-foundation-browser-design.md`.

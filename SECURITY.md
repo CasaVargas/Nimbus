@@ -30,7 +30,7 @@ Out of scope:
 - rclone itself. Nimbus spawns the rclone binary installed on your Mac and
   never modifies it. Report rclone vulnerabilities upstream at
   https://github.com/rclone/rclone/security.
-- The frozen Tauri sources under `legacy/tauri/`. They are not built, not
+- The frozen Tauri sources on the `tauri-eol` branch. They are not built, not
   shipped and not maintained.
 - Issues in cloud providers' own services.
 
