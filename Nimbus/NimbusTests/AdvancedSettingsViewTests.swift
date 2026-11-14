@@ -141,9 +141,7 @@ struct AdvancedSettingsViewTests {
     }
 
     private func settings(path: String) -> AppSettings {
-        let name = "NimbusTests.AdvancedSettings.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defaults.removePersistentDomain(forName: name)
+        let defaults = ScratchDefaults.make("AdvancedSettings")
         defaults.set(path, forKey: "rcloneBinaryPath")
         return AppSettings(defaults: defaults)
     }

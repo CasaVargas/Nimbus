@@ -211,9 +211,7 @@ struct EncryptedFolderSetupTests {
 @MainActor
 struct EncryptedFolderSheetSnapshotTests {
     private func settings() -> AppSettings {
-        let name = "NimbusTests.EncryptedFolder.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defaults.removePersistentDomain(forName: name)
+        let defaults = ScratchDefaults.make("EncryptedFolder")
         defaults.set("/opt/homebrew/bin/rclone", forKey: "rcloneBinaryPath")
         return AppSettings(defaults: defaults)
     }

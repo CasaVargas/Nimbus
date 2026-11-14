@@ -11,9 +11,7 @@ struct RemoteStatusServiceTests {
     /// file: probes used to leave `remoteLastConnected` entries for test
     /// remotes ("gdrive", "s3") in the user's Nimbus preferences.
     static func isolatedDefaults() -> UserDefaults {
-        let name = "NimbusTests.RemoteStatus.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defaults.removePersistentDomain(forName: name)
+        let defaults = ScratchDefaults.make("RemoteStatus")
         return defaults
     }
 
@@ -131,7 +129,7 @@ struct RemoteStatusServiceTests {
     }
 
     @Test func successfulProbeRecordsAndPersistsLastConnected() async throws {
-        let defaults = try #require(UserDefaults(suiteName: "RemoteStatusServiceTests.\(UUID())"))
+        let defaults = ScratchDefaults.make("RemoteStatus")
         let stamp = Date(timeIntervalSince1970: 1_800_000_000)
         let client = MockRcloneClient()
         client.aboutResults["nas:"] = .success(MockRcloneClient.emptyAbout())
@@ -145,7 +143,7 @@ struct RemoteStatusServiceTests {
     }
 
     @Test func failedProbeKeepsPreviousLastConnected() async throws {
-        let defaults = try #require(UserDefaults(suiteName: "RemoteStatusServiceTests.\(UUID())"))
+        let defaults = ScratchDefaults.make("RemoteStatus")
         let stamp = Date(timeIntervalSince1970: 1_800_000_000)
         let client = MockRcloneClient()
         client.aboutResults["nas:"] = .success(MockRcloneClient.emptyAbout())

@@ -101,9 +101,7 @@ struct NewRemoteIntegrationTests {
     }
 
     private func isolatedDefaults() -> UserDefaults {
-        let name = "NimbusTests.NewRemoteIntegration.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defaults.removePersistentDomain(forName: name)
+        let defaults = ScratchDefaults.make("NewRemoteIntegration")
         return defaults
     }
 }

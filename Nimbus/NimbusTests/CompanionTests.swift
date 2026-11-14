@@ -12,7 +12,7 @@ struct CloudMonitorTests {
         let client = MockRcloneClient()
         client.aboutResults["A:"] = .success(MockRcloneClient.emptyAbout())
         client.aboutResults["B:"] = .success(MockRcloneClient.emptyAbout())
-        let status = RemoteStatusService(client: client, defaults: UserDefaults(suiteName: "cm.\(UUID())")!)
+        let status = RemoteStatusService(client: client, defaults: ScratchDefaults.make("CloudMonitor"))
         let monitor = CloudMonitor(loadRemotes: {
             [Remote(name: "A", type: "drive", config: [:]), Remote(name: "B", type: "s3", config: [:])]
         }, status: status)
@@ -24,7 +24,7 @@ struct CloudMonitorTests {
     }
 
     @Test func failedLoadKeepsPreviousList() async {
-        let status = RemoteStatusService(client: MockRcloneClient(), defaults: UserDefaults(suiteName: "cm.\(UUID())")!)
+        let status = RemoteStatusService(client: MockRcloneClient(), defaults: ScratchDefaults.make("CloudMonitor"))
         final class Flag: @unchecked Sendable { var fail = false }
         let flag = Flag()
         let monitor = CloudMonitor(loadRemotes: {
@@ -39,7 +39,7 @@ struct CloudMonitorTests {
     @Test func refreshIfStaleSkipsFreshData() async {
         let clock = Clock()
         var loads = 0
-        let status = RemoteStatusService(client: MockRcloneClient(), defaults: UserDefaults(suiteName: "cm.\(UUID())")!)
+        let status = RemoteStatusService(client: MockRcloneClient(), defaults: ScratchDefaults.make("CloudMonitor"))
         let monitor = CloudMonitor(loadRemotes: { loads += 1; return [] }, status: status, now: { clock.now })
         await monitor.refreshIfStale()
         #expect(loads == 1)
@@ -53,7 +53,7 @@ struct CloudMonitorTests {
 
     @Test func concurrentRefreshesShareOneRun() async {
         var loads = 0
-        let status = RemoteStatusService(client: MockRcloneClient(), defaults: UserDefaults(suiteName: "cm.\(UUID())")!)
+        let status = RemoteStatusService(client: MockRcloneClient(), defaults: ScratchDefaults.make("CloudMonitor"))
         let monitor = CloudMonitor(loadRemotes: {
             loads += 1
             try? await Task.sleep(for: .milliseconds(50))

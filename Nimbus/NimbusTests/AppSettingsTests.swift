@@ -6,9 +6,7 @@ import Testing
 @MainActor
 struct AppSettingsTests {
     private func isolatedDefaults() -> UserDefaults {
-        let name = "NimbusTests.AppSettings.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defaults.removePersistentDomain(forName: name)
+        let defaults = ScratchDefaults.make("AppSettings")
         return defaults
     }
 

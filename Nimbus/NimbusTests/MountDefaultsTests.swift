@@ -6,9 +6,7 @@ import Testing
 @MainActor
 struct MountDefaultsTests {
     private func isolatedDefaults() -> UserDefaults {
-        let name = "NimbusTests.MountDefaults.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defaults.removePersistentDomain(forName: name)
+        let defaults = ScratchDefaults.make("MountDefaults")
         return defaults
     }
 
