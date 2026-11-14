@@ -358,13 +358,13 @@ extension FileProviderBridge: FileProviderBridgeProtocol {
     }
 
     private func loadMaterializedBasenames(remote: String) async -> Set<String> {
-        Set(await materializedEntries(remote: remote, maxPages: 32).map(\.filename))
+        Set(await materializedEntries(remote: remote, maxPages: 32, readsDisk: false).map(\.filename))
     }
 
     /// Every item the system holds downloaded for `remote`'s domain, from
     /// its materialized-items enumerator. Never walks the Finder folder:
     /// that would make Finder list the whole cloud.
-    func materializedEntries(remote: String, maxPages: Int = 2_000) async -> [MaterializedEntry] {
+    func materializedEntries(remote: String, maxPages: Int = 2_000, readsDisk: Bool = true) async -> [MaterializedEntry] {
         let domain = NSFileProviderDomain(
             identifier: NSFileProviderDomainIdentifier(rawValue: remote),
             displayName: remote
@@ -396,7 +396,28 @@ extension FileProviderBridge: FileProviderBridgeProtocol {
             logger.warning("materializedEntries: hit \(maxPages)-page cap for remote '\(remote)'; materialized set may be incomplete")
         }
         enumerator.invalidate()
-        return collected
+        return readsDisk ? await withDiskFacts(collected, manager: manager) : collected
+    }
+
+    /// The materialized enumerator often reports no size and no content
+    /// type, so read both from the item's file on disk: whether it's a
+    /// directory, and the bytes it actually takes. Metadata only; nothing
+    /// downloads. Items whose file can't be found keep what the enumerator said.
+    private func withDiskFacts(_ entries: [MaterializedEntry], manager: NSFileProviderManager) async -> [MaterializedEntry] {
+        var result: [MaterializedEntry] = []
+        result.reserveCapacity(entries.count)
+        for var entry in entries {
+            if let url = try? await manager.getUserVisibleURL(for: NSFileProviderItemIdentifier(entry.identifier)),
+               let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .totalFileAllocatedSizeKey, .fileAllocatedSizeKey]) {
+                entry.isFolder = values.isDirectory ?? entry.isFolder
+                if !entry.isFolder {
+                    let allocated = values.totalFileAllocatedSize ?? values.fileAllocatedSize
+                    if let allocated { entry.size = Int64(allocated) }
+                }
+            }
+            result.append(entry)
+        }
+        return result
     }
 
     /// Removes the local copies of `identifiers` (files stay in the cloud
