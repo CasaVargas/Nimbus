@@ -38,8 +38,13 @@ final class IdleDisconnectController {
     @ObservationIgnored private let logger = Logger(subsystem: "app.casavargas.nimbus", category: "idle")
     /// Called right after the engine goes to sleep (pause pollers).
     @ObservationIgnored var onSleep: (@MainActor () -> Void)?
+    /// Called once a woken engine is connected. The reconnect work normally
+    /// runs from the main window's view, which doesn't exist while the
+    /// window is closed, so the app hooks it here too.
+    @ObservationIgnored var onWake: (@MainActor () async -> Void)?
 
     private(set) var lastActivity: Date
+    @ObservationIgnored private var lastTickWasBusy: Bool?
 
     static let tickInterval: Duration = .seconds(15)
     static let wakeNotification = Notification.Name("app.casavargas.nimbus.finderWake")
@@ -96,10 +101,17 @@ final class IdleDisconnectController {
             bandwidthLimit: settings.bandwidthLimit,
             concurrentTransfers: settings.concurrentTransfers
         )
+        if daemon.status == .connected { await onWake?() }
     }
 
     func tick() {
-        let busy = activity.hasVisibleWindow() || activity.hasActiveWork()
+        let window = activity.hasVisibleWindow()
+        let work = activity.hasActiveWork()
+        let busy = window || work
+        if busy != lastTickWasBusy {
+            lastTickWasBusy = busy
+            logger.info("Idle tick: busy=\(busy) window=\(window) work=\(work)")
+        }
         if busy {
             lastActivity = now()
             if daemon.status == .asleep { wake() }
@@ -136,10 +148,16 @@ final class IdleDisconnectController {
         )
     }
 
-    /// Whether a Nimbus window (main, Settings, the menu bar companion) is
-    /// on screen. The status item's own window can't become key, so it
-    /// doesn't count.
+    /// Whether a Nimbus window (main or Settings) is on screen, or any
+    /// Nimbus window (the menu bar companion) is key. Only normal-level
+    /// windows count otherwise: the status item's own window is always
+    /// "visible" and would keep the engine awake forever.
     static func hasVisibleWindow() -> Bool {
-        NSApp.windows.contains { $0.isVisible && $0.canBecomeKey && $0.occlusionState.contains(.visible) }
+        NSApp.windows.contains { window in
+            guard window.isVisible, !window.isMiniaturized else { return false }
+            if window.isKeyWindow { return true }
+            return window.level == .normal && window.canBecomeMain && !(window is NSPanel)
+                && window.occlusionState.contains(.visible)
+        }
     }
 }

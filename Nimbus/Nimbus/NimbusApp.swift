@@ -89,7 +89,7 @@ struct NimbusApp: App {
                 hasVisibleWindow: { IdleDisconnectController.hasVisibleWindow() },
                 hasActiveWork: {
                     !transfers.activeTransfers.isEmpty || runner.isRunningAnything
-                        || !mounts.mountedIDs.isEmpty
+                        || mounts.hasMountedNetworkDrive
                 }
             )
         )
@@ -355,6 +355,13 @@ struct NimbusApp: App {
         defaults.set(needing.map(BackupReviewNotices.key(for:)), forKey: key)
     }
 
+    /// Pushes the live port, RC credentials and remotes to the File
+    /// Provider extension (`shared-state.json`).
+    private func publishConnectionToExtension() async {
+        guard let remotes = try? await daemon.client.listRemotes() else { return }
+        fileProviderBridge.syncState(remotes: remotes, port: daemon.port, credentials: daemon.client.credentials)
+    }
+
     /// Runs after every daemon (re)connect. Idempotent: restoreMounts skips
     /// live mounts, addDomain is a no-op for registered domains, and
     /// syncState just rewrites the shared port/remotes snapshot.
@@ -378,6 +385,17 @@ struct NimbusApp: App {
             backupScheduler.start()
             let ticker = remoteChangeTicker
             idleController.onSleep = { ticker.stop() }
+            let app = self
+            idleController.onWake = {
+                // The extension is retrying with the old port right now:
+                // publish the new one before anything slower.
+                await app.publishConnectionToExtension()
+                // With the main window closed its `.task(id: daemon.status)`
+                // isn't there to run the rest of the reconnect.
+                if !app.router.isMainWindowOpen {
+                    await app.onDaemonConnected()
+                }
+            }
             idleController.start()
         } else {
             remoteChangeTicker.start()

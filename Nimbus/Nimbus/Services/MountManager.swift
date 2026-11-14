@@ -83,6 +83,13 @@ final class MountManager {
     /// from `mountPoint` strings on every render.
     private(set) var mountedIDs: Set<String> = []
 
+    /// True while an NFS network drive is mounted. `mountedIDs` also holds
+    /// File Provider configs (Finder drives), which don't need the engine
+    /// kept awake: the extension wakes it on use.
+    var hasMountedNetworkDrive: Bool {
+        configs.contains { $0.backend == .nfs && mountedIDs.contains($0.id) }
+    }
+
     /// IDs whose mount/unmount operation is in flight — used to drive the
     /// `.mounting` / `.unmounting` transitional `StatusToggleState`.
     private(set) var inFlight: Set<String> = []
