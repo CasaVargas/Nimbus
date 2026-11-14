@@ -144,7 +144,7 @@ All apps and extensions use the `app.casavargas.nimbus` bundle ID family:
 
 1. One PR: bump `MARKETING_VERSION`, regenerate the project, and add `docs/releases/<version>.md`. Copy the structure of the previous version's notes; the checksum line reads `(filled in when the signed DMG is built)`. The notes must end with the footer from `docs/releases/FOOTER.md`, with `utm_content=<version>` (enforced by `lint-release-notes.sh`).
 2. After merging, push tag `v<version>`. `.github/workflows/release.yml` builds a universal binary, signs it with Developer ID, notarizes it, signs it for Sparkle and creates a **draft** release with the DMG, `.sha256` and `appcast.xml`.
-3. Publishing the draft is what ships it: installed copies read `releases/latest/download/appcast.xml`.
+3. Publishing the draft is what ships it: installed copies read `releases/latest/download/appcast.xml`, and `bump-homebrew.yml` moves the `nimbus` cask in `CasaVargas/homebrew-tap` to the new version (needs the `HOMEBREW_TAP_TOKEN` secret).
 4. Follow-up PR: record the checksum in `docs/releases/<version>.md`.
 
 ## Historical Context

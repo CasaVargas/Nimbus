@@ -300,6 +300,8 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 .reqs div { border-top: 1px solid var(--rule-dark); padding-top: 12px; }
 .reqs dt { font-size: 13px; color: #9da2c4; font-weight: 600; }
 .reqs dd { margin-top: 4px; font-size: 15px; color: var(--on-dark); }
+.reqs .reqs__wide { grid-column: 1 / -1; }
+.reqs .reqs__wide code { overflow-wrap: anywhere; }
 @media (max-width: 600px) { .reqs { grid-template-columns: 1fr; } }
 
 /* ---------- Footer ---------- */

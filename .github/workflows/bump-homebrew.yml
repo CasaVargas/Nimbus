@@ -1,0 +1,167 @@
+name: Bump Homebrew cask
+
+# When a release is published, opens a PR against CasaVargas/homebrew-tap that
+# moves Casks/nimbus.rb to the new version and DMG sha256, waits for the tap's
+# own `brew audit` check, and squash-merges it when that passes. A failed audit
+# leaves the PR open and this run red.
+#
+# The cask downloads the release DMG itself, so brew installs are counted in
+# the same GitHub download count as everything else (scripts/download-badge.sh).
+# For the same reason this reads the checksum from the release's .sha256 asset
+# instead of downloading the DMG: a bump should not count as a download.
+#
+# `release: published` fires because a person publishes the draft that
+# release.yml creates; a release published by GITHUB_TOKEN would not trigger it.
+#
+# The PR is opened with HOMEBREW_TAP_TOKEN (a PAT with Contents and Pull
+# requests read/write on the tap), so the tap's `on: pull_request` audit runs;
+# a GITHUB_TOKEN-opened PR would not trigger it.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release tag to send to the tap (e.g. v1.2.2)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bump-homebrew
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    name: Bump nimbus in the tap
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+    steps:
+      - name: Resolve the release
+        id: rel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          case "$TAG" in
+            v[0-9]*.[0-9]*.[0-9]*-*)
+              echo "::notice::$TAG is a pre-release tag; the cask tracks stable releases only."
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::'$TAG' is not a vX.Y.Z tag"; exit 1 ;;
+          esac
+          version="${TAG#v}"
+          dmg="Nimbus-$version.dmg"
+          # A missing or rejected token must turn the run red, not look like
+          # "nothing to do".
+          if ! GH_TOKEN="$TAP_TOKEN" gh api repos/CasaVargas/homebrew-tap --jq .full_name >/dev/null; then
+            echo "::error::HOMEBREW_TAP_TOKEN cannot read CasaVargas/homebrew-tap (missing, expired or revoked). Set it: gh secret set HOMEBREW_TAP_TOKEN --repo $GITHUB_REPOSITORY"
+            exit 1
+          fi
+          state="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease --jq '"\(.isDraft) \(.isPrerelease)"')"
+          if [ "$state" != "false false" ]; then
+            echo "::notice::$TAG is a draft or pre-release; the cask's URL would not resolve. Publish it, then re-run."
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          sha="$(gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$dmg.sha256" --output - | cut -d' ' -f1)"
+          if ! [[ "$sha" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::$dmg.sha256 on $TAG does not hold a sha256"
+            exit 1
+          fi
+          {
+            echo "skip=false"
+            echo "version=$version"
+            echo "sha256=$sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Check out the tap
+        if: steps.rel.outputs.skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          repository: CasaVargas/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Update Casks/nimbus.rb
+        if: steps.rel.outputs.skip == 'false'
+        id: edit
+        env:
+          VERSION: ${{ steps.rel.outputs.version }}
+          SHA: ${{ steps.rel.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          cask=Casks/nimbus.rb
+          current="$(sed -nE 's/^  version "([^"]+)"$/\1/p' "$cask")"
+          # Never move the cask backwards (a manual run for an old tag).
+          if [ "$(printf '%s\n%s\n' "$current" "$VERSION" | sort -V | tail -n 1)" != "$VERSION" ]; then
+            echo "::notice::The tap is already at $current, newer than $VERSION; nothing to do."
+            echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          sed -i -E \
+            -e "s/^  version \"[^\"]+\"$/  version \"$VERSION\"/" \
+            -e "s/^  sha256 \"[0-9a-f]{64}\"$/  sha256 \"$SHA\"/" \
+            "$cask"
+          grep -qx "  version \"$VERSION\"" "$cask" || { echo "::error::version line not rewritten"; exit 1; }
+          grep -qx "  sha256 \"$SHA\"" "$cask" || { echo "::error::sha256 line not rewritten"; exit 1; }
+          if git diff --quiet; then
+            echo "::notice::The tap already has $VERSION."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git diff
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open the PR, wait for the audit, merge
+        if: steps.rel.outputs.skip == 'false' && steps.edit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ steps.rel.outputs.version }}
+          SHA: ${{ steps.rel.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          tap=CasaVargas/homebrew-tap
+          branch="bump-nimbus-$VERSION"
+          base="$(gh repo view "$tap" --json defaultBranchRef --jq .defaultBranchRef.name)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -am "nimbus $VERSION"
+          git push --force origin "$branch"
+          if [ -n "$(gh pr list --repo "$tap" --head "$branch" --state open --json number --jq '.[].number')" ]; then
+            echo "A PR for $branch is already open; branch updated."
+          else
+            # The backticks in the body are literal Markdown, not substitutions.
+            # shellcheck disable=SC2016
+            gh pr create --repo "$tap" --base "$base" --head "$branch" \
+              --title "nimbus $VERSION" \
+              --body "$(printf 'Bumps `nimbus` to [%s](https://github.com/%s/releases/tag/%s).\n\n- sha256: `%s`\n\nOpened by `bump-homebrew.yml` in %s, which merges it once the audit passes.' "$VERSION" "$GITHUB_REPOSITORY" "$TAG" "$SHA" "$GITHUB_REPOSITORY")"
+          fi
+
+          # The audit takes a few seconds to register on the new head commit.
+          # `gh pr checks` exits non-zero while none are reported, so poll
+          # until one is, and never merge unaudited.
+          head_sha="$(git rev-parse HEAD)"
+          n=0
+          for _ in $(seq 1 30); do
+            n="$(gh api "repos/$tap/commits/$head_sha/check-runs" --jq '.total_count')"
+            [ "$n" -gt 0 ] && break
+            sleep 10
+          done
+          if [ "$n" -eq 0 ]; then
+            echo "::error::No checks appeared on the tap PR after 5 minutes; it is left open for a manual merge."
+            exit 1
+          fi
+          if ! gh pr checks "$branch" --repo "$tap" --watch --interval 20; then
+            echo "::error::The tap audit failed on nimbus $VERSION; the PR is left open."
+            exit 1
+          fi
+          gh pr merge "$branch" --repo "$tap" --squash --match-head-commit "$head_sha"
+          # Remote only: gh's --delete-branch also tries to delete the local
+          # branch this checkout is sitting on.
+          git push origin --delete "$branch"
+          echo "Merged nimbus $VERSION into $tap."

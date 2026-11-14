@@ -35,6 +35,14 @@
 
 Download the latest signed and notarized DMG from the [Releases](https://github.com/CasaVargas/Nimbus/releases/latest) page (`Nimbus-<version>.dmg`, with a `.sha256` beside it), open it, and drag Nimbus to Applications. You can also build from source (below).
 
+Or with [Homebrew](https://brew.sh), which installs that same DMG:
+
+```bash
+brew trust --tap casavargas/tap && brew tap CasaVargas/tap && brew install --cask nimbus
+```
+
+`brew trust` is Homebrew 7's one-time approval for a tap outside Homebrew's own. Nimbus updates itself once you turn that on, so `brew upgrade` leaves it alone.
+
 ### Requirements
 
 - macOS 15 (Sequoia) or later, Apple Silicon or Intel
