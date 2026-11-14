@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the Nimbus SwiftUI app for release.
-# Tauri build is end-of-life; see DEPRECATED.md and legacy/tauri/.
+# Tauri build is end-of-life; see DEPRECATED.md and the tauri-eol branch.
 
 set -euo pipefail
 

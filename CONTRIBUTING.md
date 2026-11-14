@@ -111,7 +111,6 @@ a spec. Just open the pull request.
 | `Nimbus/project.yml` | XcodeGen definition; the `.xcodeproj` is generated from it |
 | `scripts/` | Build, lint and packaging scripts |
 | `docs/superpowers/specs/` | Design specs and phase exit-gate records |
-| `legacy/tauri/` | Frozen Tauri sources, reference only, not built |
 
 ## Reporting problems
 

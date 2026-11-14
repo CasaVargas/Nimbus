@@ -184,4 +184,4 @@ Nimbus is free, source and signed builds alike. Development is paid for by Casa 
 
 ### Legacy
 
-The original Tauri (Rust + React) build is end-of-life. Its sources are preserved at `legacy/tauri/` for reference, and the last working Tauri state is frozen on the [`tauri-eol`](https://github.com/CasaVargas/Nimbus/tree/tauri-eol) branch. See [`DEPRECATED.md`](DEPRECATED.md).
+The original Tauri (Rust + React) build is end-of-life. Its sources and last working state are frozen on the [`tauri-eol`](https://github.com/CasaVargas/Nimbus/tree/tauri-eol) branch. See [`DEPRECATED.md`](DEPRECATED.md).
