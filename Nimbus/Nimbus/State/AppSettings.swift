@@ -37,6 +37,25 @@ final class AppSettings {
         transferNotificationMode = TransferNotificationMode(rawValue: defaults.string(forKey: "transferNotificationMode") ?? "") ?? .failuresOnly
         transferHistoryRetention = TransferHistoryRetention(rawValue: defaults.string(forKey: "transferHistoryRetention") ?? "") ?? .sevenDays
         dismissedSuggestions = Set(defaults.stringArray(forKey: "dismissedSuggestions") ?? [])
+        showsDockIcon = defaults.object(forKey: DockPolicy.settingKey) as? Bool ?? true
+        idleDisconnect = IdleDisconnect(rawValue: defaults.integer(forKey: "idleDisconnectMinutes")) ?? .never
+        opensAppFromFinder = defaults.object(forKey: "opensAppFromFinder") as? Bool ?? true
+    }
+
+    /// Off: Nimbus lives in the menu bar only (`DockPolicy`).
+    var showsDockIcon: Bool {
+        didSet { defaults.set(showsDockIcon, forKey: DockPolicy.settingKey) }
+    }
+
+    /// How long the rclone engine may sit unused before it stops (`IdleDisconnectController`).
+    var idleDisconnect: IdleDisconnect {
+        didSet { defaults.set(idleDisconnect.rawValue, forKey: "idleDisconnectMinutes") }
+    }
+
+    /// Whether the File Provider extension opens Nimbus (hidden) when a
+    /// drive is used in Finder while Nimbus isn't running (`NimbusWake`).
+    var opensAppFromFinder: Bool {
+        didSet { defaults.set(opensAppFromFinder, forKey: "opensAppFromFinder") }
     }
 
     /// Home suggestions the user closed (`CloudSummary.Suggestion.id`).

@@ -10,6 +10,9 @@ final class RcloneDaemon {
         case idle
         case starting
         case connected
+        /// Stopped after sitting unused (`IdleDisconnectController`); any
+        /// use wakes it. Not an error.
+        case asleep
         case error(String)
     }
 
@@ -17,6 +20,9 @@ final class RcloneDaemon {
     private(set) var port: Int = 5572
     private(set) var activeBinaryPath: String?
     private(set) var rcloneVersion: String?
+    /// True when the current engine was started by `wake`: the one before it
+    /// was idle, so there are no transfers of its to abandon.
+    private(set) var wokeFromSleep = false
     let client: RcloneClient
 
     private var process: Process?
@@ -163,6 +169,7 @@ final class RcloneDaemon {
     }
 
     func stop() {
+        wokeFromSleep = false
         lifecycleID = nil
         healthTask?.cancel()
         healthTask = nil
@@ -176,6 +183,31 @@ final class RcloneDaemon {
         activeBinaryPath = nil
         rcloneVersion = nil
         status = .idle
+    }
+
+    /// Stops an idle engine. Unlike `stop`, the status says it's asleep, so
+    /// nothing shows an error and `wake` knows to start it again.
+    func sleep() {
+        guard status == .connected else { return }
+        stop()
+        status = .asleep
+        logger.info("rclone asleep after idling")
+    }
+
+    /// Starts a sleeping engine. A no-op in any other state.
+    func wake(
+        binaryPath: String,
+        bandwidthLimit: String = "",
+        concurrentTransfers: Int = 4
+    ) async {
+        guard status == .asleep else { return }
+        logger.info("Waking rclone")
+        wokeFromSleep = true
+        await start(
+            binaryPath: binaryPath,
+            bandwidthLimit: bandwidthLimit,
+            concurrentTransfers: concurrentTransfers
+        )
     }
 
     func retry(

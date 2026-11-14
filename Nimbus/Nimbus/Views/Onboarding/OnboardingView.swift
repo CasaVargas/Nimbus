@@ -224,7 +224,7 @@ struct OnboardingView: View {
 
     private var daemonCardState: OnboardingCardState {
         switch daemon.status {
-        case .idle, .starting: return .inProgress
+        case .idle, .starting, .asleep: return .inProgress
         case .connected: return .complete
         case .error: return .actionRequired
         }
@@ -232,7 +232,7 @@ struct OnboardingView: View {
 
     private var daemonCardMessage: LocalizedStringKey {
         switch daemon.status {
-        case .idle: return "Waiting to start…"
+        case .idle, .asleep: return "Waiting to start…"
         case .starting: return "Starting…"
         case .connected: return "Ready to connect to your clouds."
         case .error(let message): return LocalizedStringKey(message)

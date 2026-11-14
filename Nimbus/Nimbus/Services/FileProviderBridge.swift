@@ -2,6 +2,7 @@ import FileProvider
 import Foundation
 import os
 import RcloneKit
+import UniformTypeIdentifiers
 
 func fileProviderReconnectEligibleRemotes(
     from remotes: [String],
@@ -357,6 +358,13 @@ extension FileProviderBridge: FileProviderBridgeProtocol {
     }
 
     private func loadMaterializedBasenames(remote: String) async -> Set<String> {
+        Set(await materializedEntries(remote: remote, maxPages: 32).map(\.filename))
+    }
+
+    /// Every item the system holds downloaded for `remote`'s domain, from
+    /// its materialized-items enumerator. Never walks the Finder folder:
+    /// that would make Finder list the whole cloud.
+    func materializedEntries(remote: String, maxPages: Int = 2_000) async -> [MaterializedEntry] {
         let domain = NSFileProviderDomain(
             identifier: NSFileProviderDomainIdentifier(rawValue: remote),
             displayName: remote
@@ -365,7 +373,7 @@ extension FileProviderBridge: FileProviderBridgeProtocol {
             return []
         }
         let enumerator = manager.enumeratorForMaterializedItems()
-        var collected: Set<String> = []
+        var collected: [MaterializedEntry] = []
         // Defensive absolute cap: walk at most 32 pages. This bounds
         // worst-case walk time against a misbehaving extension that
         // returns a non-nil next page indefinitely. It is NOT a
@@ -376,25 +384,47 @@ extension FileProviderBridge: FileProviderBridgeProtocol {
         // set actually shrinks below the cap. A warning is logged when
         // the cap is hit so stale-badge reports on large domains are
         // diagnosable.
-        let maxPages = 32
         var nextPage: NSFileProviderPage? = NSFileProviderPage(rawValue: Data())
         var pagesWalked = 0
         while let current = nextPage, pagesWalked < maxPages {
             let (names, next) = await enumeratePage(enumerator: enumerator, startingAt: current)
-            collected.formUnion(names)
+            collected.append(contentsOf: names)
             nextPage = next
             pagesWalked += 1
         }
         if nextPage != nil {
-            logger.warning("loadMaterializedBasenames: hit \(maxPages)-page cap for remote '\(remote)'; materialized set may be incomplete")
+            logger.warning("materializedEntries: hit \(maxPages)-page cap for remote '\(remote)'; materialized set may be incomplete")
         }
+        enumerator.invalidate()
         return collected
+    }
+
+    /// Removes the local copies of `identifiers` (files stay in the cloud
+    /// and in Finder as placeholders). Returns how many the system refused:
+    /// open files, unsynced edits.
+    func evict(remote: String, identifiers: [String]) async -> Int {
+        let domain = NSFileProviderDomain(
+            identifier: NSFileProviderDomainIdentifier(rawValue: remote),
+            displayName: remote
+        )
+        guard let manager = NSFileProviderManager(for: domain) else { return identifiers.count }
+        var refused = 0
+        for identifier in identifiers {
+            do {
+                try await manager.evictItem(identifier: NSFileProviderItemIdentifier(identifier))
+            } catch {
+                refused += 1
+                logger.info("evict refused: \((error as NSError).domain, privacy: .public) \((error as NSError).code, privacy: .public)")
+            }
+        }
+        materializedCache.invalidate(remote)
+        return refused
     }
 
     private func enumeratePage(
         enumerator: any NSFileProviderEnumerator,
         startingAt page: NSFileProviderPage
-    ) async -> (Set<String>, NSFileProviderPage?) {
+    ) async -> ([MaterializedEntry], NSFileProviderPage?) {
         await withCheckedContinuation { continuation in
             let observer = MaterializationObserver { names, next in
                 continuation.resume(returning: (names, next))
@@ -406,24 +436,37 @@ extension FileProviderBridge: FileProviderBridgeProtocol {
 
 extension FileProviderBridge: FileProviderDomainAdding {}
 
-/// Collects basenames from one page of an `NSFileProviderEnumerator`.
+/// One downloaded item of a File Provider domain.
+struct MaterializedEntry: Equatable, Sendable {
+    var identifier: String
+    var filename: String
+    var size: Int64
+    var isFolder: Bool
+}
+
+/// Collects entries from one page of an `NSFileProviderEnumerator`.
 /// The framework invokes `didEnumerate` zero or more times then exactly
 /// one of `finishEnumerating(upTo:)` or `finishEnumeratingWithError`.
 /// We resume the continuation on whichever terminal callback fires —
 /// errors are treated as an empty result with no next page so the
 /// cache doesn't hold a broken state forever and the page loop stops.
 private final class MaterializationObserver: NSObject, NSFileProviderEnumerationObserver, @unchecked Sendable {
-    private let completion: (Set<String>, NSFileProviderPage?) -> Void
-    private var collected: Set<String> = []
+    private let completion: ([MaterializedEntry], NSFileProviderPage?) -> Void
+    private var collected: [MaterializedEntry] = []
     private var finished = false
 
-    init(completion: @escaping (Set<String>, NSFileProviderPage?) -> Void) {
+    init(completion: @escaping ([MaterializedEntry], NSFileProviderPage?) -> Void) {
         self.completion = completion
     }
 
     func didEnumerate(_ updatedItems: [any NSFileProviderItem]) {
         for item in updatedItems {
-            collected.insert(item.filename)
+            collected.append(MaterializedEntry(
+                identifier: item.itemIdentifier.rawValue,
+                filename: item.filename,
+                size: item.documentSize??.int64Value ?? 0,
+                isFolder: item.contentType?.conforms(to: .folder) ?? false
+            ))
         }
     }
 

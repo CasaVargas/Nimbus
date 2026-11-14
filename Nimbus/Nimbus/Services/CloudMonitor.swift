@@ -30,6 +30,8 @@ final class CloudMonitor {
     private let now: () -> Date
     private var inFlight: Task<Void, Never>?
     private var periodic: Task<Void, Never>?
+    /// True skips a periodic refresh (the engine is idle-stopped).
+    @ObservationIgnored var skipsPeriodicRefresh: @MainActor () -> Bool = { false }
     private var observer: NSObjectProtocol?
     /// Runs after each successful list load, before probing. Production
     /// uses it to record what each cloud supports (share links) for the
@@ -110,6 +112,9 @@ final class CloudMonitor {
             while !Task.isCancelled {
                 try? await Task.sleep(for: interval)
                 guard !Task.isCancelled, let self else { return }
+                // An idle-stopped engine stays stopped: the periodic
+                // refresh isn't a use (IdleDisconnectController).
+                if self.skipsPeriodicRefresh() { continue }
                 await self.refresh()
             }
         }

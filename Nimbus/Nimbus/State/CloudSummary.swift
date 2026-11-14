@@ -134,7 +134,8 @@ enum CloudSummaryBuilder {
         switch daemon {
         case .idle, .starting: overall = .starting
         case .error(let message): overall = .engineDown(message)
-        case .connected:
+        // Asleep keeps the last known status; any use wakes the engine.
+        case .connected, .asleep:
             if rows.isEmpty {
                 overall = .noClouds
             } else if let attention {

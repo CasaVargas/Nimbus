@@ -9,6 +9,7 @@ struct GeneralSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
                 ApplicationSettingsSection()
+                ConnectionSection()
                 NewCloudsSection()
                 UpdatesSection()
                 AboutSettingsSection()
@@ -44,6 +45,15 @@ private struct ApplicationSettingsSection: View {
                 }
             }
             RunBackupsWhenClosedRow()
+            FormRow(label: "Show in Dock", help: "When this is off, Nimbus lives in the menu bar only.") {
+                Toggle("", isOn: $settings.showsDockIcon)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .accessibilityLabel("Show in Dock")
+            }
+            .onChange(of: settings.showsDockIcon) { _, shows in
+                DockPolicy.settingChanged(to: shows)
+            }
             FormRow(label: "Appearance", help: nil) {
                 Picker("Appearance", selection: $settings.appearance) {
                     Text("System").tag(Appearance.system)
@@ -102,6 +112,45 @@ private struct RunBackupsWhenClosedRow: View {
             }
         }
         .task { backgroundBackups.refresh() }
+    }
+}
+
+/// Idle disconnect and reconnecting from Finder (spec 2026-11-14).
+private struct ConnectionSection: View {
+    @Environment(AppSettings.self) private var settings
+
+    var body: some View {
+        @Bindable var settings = settings
+
+        FormSection(
+            title: "Connection",
+            footer: "While Nimbus is disconnected, opening Nimbus or a drive in Finder connects again. Transfers, backups and network drives keep it connected."
+        ) {
+            FormRow(label: "Disconnect when idle", help: nil) {
+                Picker("Disconnect when idle", selection: $settings.idleDisconnect) {
+                    Text("Never").tag(IdleDisconnect.never)
+                    Text("After 5 minutes").tag(IdleDisconnect.fiveMinutes)
+                    Text("After 15 minutes").tag(IdleDisconnect.fifteenMinutes)
+                    Text("After 30 minutes").tag(IdleDisconnect.thirtyMinutes)
+                    Text("After 1 hour").tag(IdleDisconnect.oneHour)
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(width: 160, alignment: .trailing)
+                .accessibilityLabel("Disconnect when idle")
+            }
+            FormRow(label: "Open Nimbus when a drive is used in Finder",
+                    help: "If Nimbus isn't running, it opens in the menu bar so your Finder drives work.") {
+                Toggle("", isOn: $settings.opensAppFromFinder)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .accessibilityLabel("Open Nimbus when a drive is used in Finder")
+            }
+            .onChange(of: settings.opensAppFromFinder) { _, opens in
+                // The extension can't read Nimbus's preferences.
+                NimbusWake.writePrefs(opensApp: opens, in: AppGroup.containerURL)
+            }
+        }
     }
 }
 

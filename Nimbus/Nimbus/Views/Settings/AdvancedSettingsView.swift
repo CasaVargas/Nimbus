@@ -92,7 +92,7 @@ struct AdvancedSettingsView: View {
         switch daemon.status {
         case .starting:
             nil
-        case .idle:
+        case .idle, .asleep:
             "Start"
         case .connected:
             daemon.restartRequired(for: settings.rcloneBinaryPath) ? "Restart Now" : "Restart"
@@ -128,7 +128,7 @@ struct AdvancedSettingsView: View {
             switch daemon.status {
             case .starting:
                 break
-            case .idle:
+            case .idle, .asleep:
                 await daemon.start(
                     binaryPath: settings.rcloneBinaryPath,
                     bandwidthLimit: settings.bandwidthLimit,
@@ -297,6 +297,7 @@ private struct DaemonSettingsSection: View {
     private var headline: String {
         switch status {
         case .idle: "Stopped"
+        case .asleep: "Asleep"
         case .starting: "Starting…"
         case .connected: "Running"
         case .error(let message): message
@@ -309,6 +310,7 @@ private struct DaemonSettingsSection: View {
         case .connected: return "rclone \(version) on port \(port)"
         case .starting: return "rclone \(version)"
         case .idle: return "Start it to reach your clouds."
+        case .asleep: return "Stopped while unused. It starts again when you use Nimbus or a drive in Finder."
         case .error: return "Try again, or choose a different rclone below."
         }
     }
@@ -330,7 +332,7 @@ private struct DaemonSettingsSection: View {
         switch status {
         case .connected: DesignSystem.Color.semantic.statusOK
         case .error: DesignSystem.Color.semantic.statusError
-        case .idle, .starting: DesignSystem.Color.semantic.statusMuted
+        case .idle, .starting, .asleep: DesignSystem.Color.semantic.statusMuted
         }
     }
 }

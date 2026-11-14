@@ -3,12 +3,14 @@ import SwiftUI
 enum SettingsTab: String, CaseIterable, Hashable {
     case general
     case transfers
+    case storage
     case advanced
 
     var title: String {
         switch self {
         case .general: "General"
         case .transfers: "Transfers"
+        case .storage: "Storage"
         case .advanced: "Advanced"
         }
     }
@@ -17,6 +19,7 @@ enum SettingsTab: String, CaseIterable, Hashable {
         switch self {
         case .general: "gearshape"
         case .transfers: "arrow.up.arrow.down"
+        case .storage: "internaldrive"
         case .advanced: "slider.horizontal.3"
         }
     }
@@ -24,11 +27,14 @@ enum SettingsTab: String, CaseIterable, Hashable {
 
 struct SettingsView: View {
     private let generalModel: GeneralSettingsModel
+    private let storageModel: DownloadedStorageModel?
     @State private var selectedTab: SettingsTab = .general
     @Environment(\.stratosphere) private var palette
 
-    init(generalModel: GeneralSettingsModel = GeneralSettingsModel()) {
+    init(generalModel: GeneralSettingsModel = GeneralSettingsModel(),
+         storageModel: DownloadedStorageModel? = nil) {
         self.generalModel = generalModel
+        self.storageModel = storageModel
     }
 
     var body: some View {
@@ -40,6 +46,12 @@ struct SettingsView: View {
             TransferSettingsView()
                 .tag(SettingsTab.transfers)
                 .tabItem { Label(SettingsTab.transfers.title, systemImage: SettingsTab.transfers.systemImage) }
+
+            if let storageModel {
+                StorageSettingsView(model: storageModel)
+                    .tag(SettingsTab.storage)
+                    .tabItem { Label(SettingsTab.storage.title, systemImage: SettingsTab.storage.systemImage) }
+            }
 
             AdvancedSettingsView(storageModel: generalModel)
                 .tag(SettingsTab.advanced)

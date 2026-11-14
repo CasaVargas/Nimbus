@@ -84,7 +84,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
             let remoteName = domain.identifier.rawValue
             let logger = self.logger
             return WorkingSetEnumerator(domain: domain, fetchItem: { identifier in
-                try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "workingSet.item") {
+                try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "workingSet.item", wakesApp: false) {
                     try await Self.fetchItemStatic(rclone: rclone, identifier: identifier, remoteName: remoteName)
                 }
             }, listFiles: { path in
@@ -92,7 +92,8 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 // server fails here on some backends, and its parent's diff
                 // already reports the deletion.
                 try await FileProviderRetry.withRetry(
-                    rclone: rclone, logger: logger, operation: "workingSet.scan", maxAttempts: 2
+                    rclone: rclone, logger: logger, operation: "workingSet.scan", maxAttempts: 2,
+                    wakesApp: false
                 ) {
                     try await rclone.listFiles(fs: "\(remoteName):", remote: path)
                 }

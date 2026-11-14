@@ -84,16 +84,24 @@ enum FileProviderRetry {
     /// rclone-backed entry point in the extension routes through this so a
     /// not-yet-ready daemon, or a port change picked up mid-retry, doesn't
     /// surface as a hard failure to Finder on the first launch race.
+    ///
+    /// `wakesApp` (on for anything Finder asks for directly) pings the app
+    /// so its idle timer restarts, and on a first failure wakes its sleeping
+    /// engine or opens it (`AppWaker`). The working-set change scan passes
+    /// false: it runs on its own cadence and must not keep the engine awake.
     static func withRetry<T: Sendable>(
         rclone: RcloneClient,
         logger: Logger,
         operation: String,
         maxAttempts: Int = 5,
+        wakesApp: Bool = true,
         _ body: @Sendable () async throws -> T
     ) async throws -> T {
         var lastError: Error?
+        if wakesApp { AppWaker.ping() }
         for attempt in 0..<maxAttempts {
             try Task.checkCancellation()
+            if attempt == 1, wakesApp { AppWaker.connectionFailed() }
             if attempt > 0 {
                 refreshPort(on: rclone, logger: logger)
                 try await Task.sleep(for: .seconds(Double(attempt)))

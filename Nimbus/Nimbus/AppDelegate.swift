@@ -7,6 +7,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// True when launchd started us at login (vs. user-initiated launch).
     /// Read once in applicationWillFinishLaunching.
     private(set) var wasLaunchedAtLogin: Bool = false
+    /// True when the File Provider extension opened Nimbus because a drive
+    /// was used in Finder while it wasn't running (`NimbusWake`). Starts
+    /// hidden, like a login launch.
+    private(set) var wasLaunchedFromFinder: Bool = false
+
+    /// A hidden start: no window, no Dock icon, everything else as usual.
+    var startsHidden: Bool { wasLaunchedAtLogin || wasLaunchedFromFinder }
 
     /// True when the backups agent launched us (`--background-backups`):
     /// Nimbus was quit, runs the due backups hidden and quits when idle.
@@ -83,15 +90,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
            propData.enumCodeValue == keyAELaunchedAsLogInItem {
             wasLaunchedAtLogin = true
         }
+        wasLaunchedFromFinder = NimbusWake.consumeLaunchMarker(in: AppGroup.containerURL)
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if wasLaunchedAtLogin || isBackgroundLaunch {
+        if startsHidden || isBackgroundLaunch {
             // Hide all windows and become an accessory app (no Dock icon).
             for window in NSApp.windows {
                 window.orderOut(nil)
             }
             NSApp.setActivationPolicy(.accessory)
+        } else if !DockPolicy.showsDockIcon() {
+            // "Show in Dock" is off: menu bar only, window still in front.
+            NSApp.setActivationPolicy(.accessory)
+            NSApp.activate()
         }
     }
 
@@ -114,8 +126,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         markUserTookOver()
         if !flag {
-            // Bring back the Dock icon when reopening from Finder/Spotlight.
-            NSApp.setActivationPolicy(.regular)
+            // Bring back the Dock icon (if the user wants one) when reopening
+            // from Finder/Spotlight.
+            DockPolicy.applyForWindow()
             for window in sender.windows {
                 window.makeKeyAndOrderFront(nil)
             }

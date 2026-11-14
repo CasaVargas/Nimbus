@@ -33,6 +33,7 @@ final class IntentServices {
 
     /// Waits for the rclone engine to connect.
     func waitForDaemon() async throws {
+        await IdleDisconnectController.current?.wakeAndWait()
         try await Self.wait(until: { self.daemon.status == .connected }, or: .engineNotReady)
     }
 

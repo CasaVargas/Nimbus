@@ -95,6 +95,7 @@ final class DiagnosticsService {
     private func safeDaemonStatus(_ status: RcloneDaemon.Status) -> String {
         switch status {
         case .idle: "Not running"
+        case .asleep: "Asleep (idle)"
         case .starting: "Starting"
         case .connected: "Connected"
         case .error: "Error"
