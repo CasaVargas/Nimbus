@@ -412,6 +412,7 @@ struct SuggestionView: View {
         case .nearlyFull(let row): "\(row.name) is almost full"
         case .notInFinder(let row): "\(row.name) isn't in Finder yet"
         case .backup(let note): note.sentence
+        case .sharedGoogleID(let row): "\(row.name) uses a shared Google sign-in"
         }
     }
 
@@ -431,6 +432,8 @@ struct SuggestionView: View {
             case .failed: "See what went wrong and run it again."
             case .hasntRun: "Check its schedule or back up now."
             }
+        case .sharedGoogleID:
+            "Google limits it, which makes folders slow to open or time out, and it stops working during 2026. Set up your own in a few minutes."
         }
     }
 
@@ -439,6 +442,7 @@ struct SuggestionView: View {
         case .nearlyFull(let row): "Open \(row.name)"
         case .notInFinder: "Show in Finder"
         case .backup: "Open Backups"
+        case .sharedGoogleID: "Set Up…"
         }
     }
 }

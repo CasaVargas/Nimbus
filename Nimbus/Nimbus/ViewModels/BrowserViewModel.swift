@@ -20,6 +20,12 @@ typealias BrowserError = NimbusError
 final class BrowserViewModel {
     private(set) var files: [FileItem] = []
     private(set) var isLoading = false
+    /// True once a listing has kept the user waiting past `slowAfter`.
+    private(set) var isSlow = false
+    static let slowAfter: Duration = .seconds(8)
+    /// Longer than the client's 30s default: rclone backs off for longer
+    /// than that when a service rate-limits it, then answers.
+    static let listTimeout: TimeInterval = 120
     private(set) var error: BrowserError?
 
     var remote: String = ""
@@ -95,11 +101,20 @@ final class BrowserViewModel {
         }
 
         isLoading = true
+        isSlow = false
         error = nil
-        defer { isLoading = false }
+        let slowTimer = Task { [weak self] in
+            try? await Task.sleep(for: Self.slowAfter)
+            if !Task.isCancelled { self?.isSlow = true }
+        }
+        defer {
+            slowTimer.cancel()
+            isLoading = false
+            isSlow = false
+        }
 
         do {
-            let result = try await client.listFiles(fs: fs, remote: path)
+            let result = try await client.listFiles(fs: fs, remote: path, timeout: Self.listTimeout)
             // rclone returns each item's Path relative to the listed directory
             // (e.g. just the filename when listing a flat folder). Two files with
             // the same display name at the same level therefore produce identical

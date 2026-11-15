@@ -22,8 +22,13 @@ struct HomeView: View {
     @Environment(BackupStore.self) private var backupStore
     @Environment(BackupRunner.self) private var backupRunner
     @Environment(BackupScheduler.self) private var backupScheduler
+    /// Optional: previews and tests host Home without one.
+    @Environment(CloudMonitor.self) private var monitor: CloudMonitor?
 
     @State private var reconnecting: CloudSummary.Row?
+    @State private var settingUpClientID: CloudSummary.Row?
+    /// Clouds still to sign in after a client ID was saved on several.
+    @State private var signInQueue: [CloudSummary.Row] = []
     @State private var finderError: NimbusError?
 
     private var summary: CloudSummary {
@@ -59,6 +64,30 @@ struct HomeView: View {
             pendingSignIn = nil
             reconnecting = summary.rows.first { $0.name == name }
         }
+        .sheet(item: $settingUpClientID) { row in
+            OwnClientIDSheet(
+                cloudName: row.name,
+                otherClouds: summary.rows
+                    .filter { $0.usesSharedGoogleID && $0.id != row.id && $0.health != .needsSignIn }
+                    .map(\.name),
+                client: daemon.client
+            ) { savedNames in
+                // The suggestion is drawn from the config Nimbus last
+                // loaded; reload it, or the card stays up to ten minutes
+                // after the cloud stopped using the shared ID.
+                Task { await monitor?.refresh() }
+                // The old tokens belong to the shared ID; sign each cloud
+                // in again straight away, one after another, so none sits
+                // half set up.
+                let rows = savedNames.compactMap { name in summary.rows.first { $0.name == name } }
+                signInQueue = Array(rows.dropFirst())
+                reconnecting = rows.first
+            }
+        }
+        .onChange(of: reconnecting) { _, current in
+            guard current == nil, !signInQueue.isEmpty else { return }
+            reconnecting = signInQueue.removeFirst()
+        }
         .sheet(item: $reconnecting) { row in
             ReconnectSheet(
                 row: row,
@@ -92,6 +121,7 @@ struct HomeView: View {
         case .nearlyFull(let row): onOpenCloud(row.name)
         case .notInFinder(let row): Task { await showInFinder(row.name) }
         case .backup(let note): router.pending = .backups(note.jobID)
+        case .sharedGoogleID(let row): settingUpClientID = row
         }
     }
 

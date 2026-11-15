@@ -2,10 +2,18 @@ import Foundation
 
 extension RcloneClient {
     public func listFiles(fs: String, remote: String) async throws -> [FileItem] {
+        try await listFiles(fs: fs, remote: remote, timeout: nil)
+    }
+
+    /// - Parameter timeout: Overrides the 30s default. A listing the user
+    ///   is waiting on passes a longer one: a rate-limited service (Google
+    ///   Drive on rclone's shared client ID) answers after rclone's backoff,
+    ///   which can run past 30s.
+    public func listFiles(fs: String, remote: String, timeout: TimeInterval?) async throws -> [FileItem] {
         let response: ListResponse = try await call("operations/list", params: [
             "fs": fs,
             "remote": remote,
-        ])
+        ], timeout: timeout)
         return response.list
     }
 
