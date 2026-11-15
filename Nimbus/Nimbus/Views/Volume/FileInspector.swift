@@ -9,6 +9,7 @@ struct FileInspector: View {
     let remote: String
     let model: BrowserViewModel
     var onQuickLook: ([FileItem]) -> Void
+    var onShare: ([FileItem]) -> Void
     var onCopy: (FileItem) -> Void
 
     @Environment(CloudMonitor.self) private var monitor
@@ -67,6 +68,8 @@ struct FileInspector: View {
             if !file.isDir {
                 Button("Quick Look") { onQuickLook([file]) }
                     .frame(maxWidth: .infinity)
+                Button("Share…") { onShare([file]) }
+                    .frame(maxWidth: .infinity)
             }
             Button("Copy to…") { onCopy(file) }
                 .frame(maxWidth: .infinity)
@@ -88,6 +91,10 @@ struct FileInspector: View {
             ("Total size", FileRowView.formatSize(total)),
         ])
         Button("Quick Look") { onQuickLook(items.filter { !$0.isDir }) }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity)
+            .disabled(items.allSatisfy(\.isDir))
+        Button("Share…") { onShare(items.filter { !$0.isDir }) }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
             .disabled(items.allSatisfy(\.isDir))

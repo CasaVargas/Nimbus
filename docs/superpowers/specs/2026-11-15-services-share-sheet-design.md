@@ -1,7 +1,7 @@
 # Services Menu and Share Sheet — Design
 
 **Date:** 2026-11-15
-**Status:** Draft, waiting on Jon's approval. Nothing is built.
+**Status:** Approved 2026-11-15 (Jon). PR 1 built; PR 2 (share extension) not started.
 **Issue:** none yet (README "Not done yet": "Services menu and Share Sheet").
 **Builds on:** `Views/CopySync/` (`LocationPicker`, `FolderBrowserSheet`), `State/TransferStore.swift`,
 `State/AppRouter.swift`, `Interaction/QuickLookHost.swift` (`downloadToTemp`),
@@ -88,11 +88,16 @@ Three entry points, one destination sheet.
 
 ## Phasing
 
-- **PR 1 (no new target):** Send sheet, Services menu, outbound Share…, `nimbus://` URL
-  scheme. Shippable alone.
-- **PR 2:** the share extension, plus release work: sign it in `package-release.sh`, add it
+- **PR 1 (no new target):** Send sheet, Services menu, outbound Share…. Shippable alone.
+- **PR 2:** the share extension and the `nimbus://send?inbox=<uuid>` URL scheme it hands off
+  through, plus release work: sign it in `package-release.sh`, add it
   to the version and architecture check in `release.yml`, restore its Info.plist after
   `xcodegen generate` the way the File Provider one is.
+
+The URL scheme moved from PR 1 to PR 2 while building (my call): nothing in PR 1 uses it, and
+it should only ever accept an inbox id, never a file path, so that a web page can't prefill
+the Send sheet with a file of its choosing. That is easier to get right next to the
+extension that writes the inbox.
 
 ## Not in this change
 

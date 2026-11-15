@@ -33,6 +33,8 @@ final class AppSettings {
         addNewRemotesToFinder = defaults.object(forKey: "addNewRemotesToFinder") as? Bool ?? true
         newMountAccess = MountAccessDefault(rawValue: defaults.string(forKey: "newMountAccess") ?? "") ?? .readWrite
         newMountAutoMount = defaults.bool(forKey: "newMountAutoMount")
+        lastSendRemote = defaults.string(forKey: "lastSendRemote")
+        lastSendPath = defaults.string(forKey: "lastSendPath")
         defaultConflictPolicy = ConflictPolicy(rawValue: defaults.string(forKey: "defaultConflictPolicy") ?? "") ?? .rename
         transferNotificationMode = TransferNotificationMode(rawValue: defaults.string(forKey: "transferNotificationMode") ?? "") ?? .failuresOnly
         transferHistoryRetention = TransferHistoryRetention(rawValue: defaults.string(forKey: "transferHistoryRetention") ?? "") ?? .sevenDays
@@ -131,6 +133,15 @@ final class AppSettings {
 
     var newMountAutoMount: Bool {
         didSet { defaults.set(newMountAutoMount, forKey: "newMountAutoMount") }
+    }
+
+    /// Where Send to Nimbus last put files, offered again next time.
+    var lastSendRemote: String? {
+        didSet { defaults.set(lastSendRemote, forKey: "lastSendRemote") }
+    }
+
+    var lastSendPath: String? {
+        didSet { defaults.set(lastSendPath, forKey: "lastSendPath") }
     }
 
     var defaultConflictPolicy: ConflictPolicy {

@@ -8,5 +8,23 @@
 	<string>DitcH2M2UzfEyYPccSIxS0NkuE8ghIgusyKegWIiy7E=</string>
 	<key>SUVerifyUpdateBeforeExtraction</key>
 	<true/>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Send to Nimbus…</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>sendToNimbus</string>
+			<key>NSPortName</key>
+			<string>Nimbus</string>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

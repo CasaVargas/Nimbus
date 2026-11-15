@@ -88,6 +88,17 @@ struct BrowserView: View {
                         }
                     }
                 }
+                .overlay(alignment: .bottom) {
+                    if ShareHost.shared.isPreparing {
+                        Label("Getting ready to share…", systemImage: "square.and.arrow.up")
+                            .font(DesignSystem.Typography.callout)
+                            .padding(.horizontal, DesignSystem.Spacing.m)
+                            .padding(.vertical, DesignSystem.Spacing.s)
+                            .background(.regularMaterial, in: Capsule())
+                            .padding(DesignSystem.Spacing.l)
+                            .transition(.opacity)
+                    }
+                }
                 .overlay {
                     if viewModel.isLoading && !viewModel.files.isEmpty {
                         ProgressView()
@@ -324,6 +335,12 @@ struct BrowserView: View {
         case .evict:
             // Will use NSFileProviderManager when wired up
             break
+        case .share:
+            // Sharing a file that's part of the selection shares all of it.
+            let selected = viewModel.sortedFiles.filter { viewModel.selection.ids.contains($0.id) }
+            let items = selected.contains { $0.id == file.id } ? selected : [file]
+            let client = RcloneClientAdapter(client: daemon.client)
+            Task { await ShareHost.shared.share(items, remote: remoteName, client: client) }
         }
     }
 

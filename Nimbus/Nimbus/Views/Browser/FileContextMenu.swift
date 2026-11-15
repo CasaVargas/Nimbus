@@ -8,6 +8,7 @@ enum FileAction {
     case bookmark
     case download
     case evict
+    case share
 }
 
 struct FileContextMenu: View {
@@ -26,6 +27,13 @@ struct FileContextMenu: View {
         // Download Now / Remove Local Copy are intentionally absent until
         // the NSFileProviderManager materialize/evict calls are wired —
         // dead menu items erode trust faster than missing ones.
+        if !file.isDir {
+            Button {
+                onAction(.share)
+            } label: {
+                Label("Share…", systemImage: "square.and.arrow.up")
+            }
+        }
         Divider()
         Button("Rename") { onAction(.rename) }
         Divider()
