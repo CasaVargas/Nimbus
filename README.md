@@ -141,11 +141,12 @@ Works today:
 - Finder badges for pinned files and failed uploads
 - Downloads the official rclone build for you when none is installed
 - Gallery view in the browser: a large preview over a filmstrip, with pictures for photos and PDFs
+- Send to Nimbus in other apps' Services menus, and Share… for cloud files in the browser
 
 Not done yet (tracked in [issues](https://github.com/CasaVargas/Nimbus/issues); how Nimbus compares feature by feature is in the [parity report](docs/superpowers/reports/2026-11-11-feature-parity.md)):
 
 - Cloud files in Spotlight search
-- Services menu and Share Sheet
+- Nimbus in other apps' Share menus (share extension)
 - Column view, tabs and dual pane in the browser
 
 Design specs and per-phase exit gates live in [`docs/superpowers/specs/`](docs/superpowers/specs/).

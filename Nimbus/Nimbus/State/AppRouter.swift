@@ -19,6 +19,8 @@ final class AppRouter {
         case addCloud
         /// The Backups screen, scrolled to a job when there is one.
         case backups(UUID?)
+        /// Local files to put in a cloud (Services menu); shows the Send sheet.
+        case send(SendRequest)
     }
 
     var pending: Route?

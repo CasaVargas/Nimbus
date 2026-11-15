@@ -6,6 +6,7 @@ struct ContentView: View {
     @State private var selection: SidebarSelection? = .home
     @State private var browseTarget: BrowseTarget?
     @State private var pendingSidebarCopy: CopyRequest?
+    @State private var pendingSend: SendRequest?
     /// A Home sign-in the menu bar asked for, handed to HomeView.
     @State private var pendingSignIn: String?
     /// A volume tab the menu bar asked for ("Show Transfers").
@@ -84,6 +85,22 @@ struct ContentView: View {
                 selection = .remote(remote)
                 browseTarget = BrowseTarget(remote: remote, path: "")
             })
+            .sheet(item: $pendingSend) { request in
+                SendToNimbusSheet(
+                    request: request,
+                    remoteNames: monitor.remotes.map(\.name),
+                    lastRemote: settings.lastSendRemote,
+                    lastPath: settings.lastSendPath,
+                    client: daemon.client,
+                    onAddCloud: { router.pending = .addCloud },
+                    onSent: { remote, path in
+                        settings.lastSendRemote = remote
+                        settings.lastSendPath = path
+                        requestedVolumeTab = .transfers
+                        selection = .remote(remote)
+                    }
+                )
+            }
             .sheet(item: $pendingSidebarCopy) { _ in
                 ConfirmCopySheet(request: $pendingSidebarCopy) { req in
                     Task {
@@ -128,6 +145,8 @@ struct ContentView: View {
         case .backups(let id):
             backupFocus = id
             selection = .backups
+        case .send(let request):
+            pendingSend = request
         case .addCloud:
             break
         }

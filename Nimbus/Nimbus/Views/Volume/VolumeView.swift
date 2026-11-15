@@ -141,6 +141,10 @@ struct VolumeView: View {
                             remote: remote.name,
                             model: browserModel,
                             onQuickLook: { items in Task { await quickLook(items) } },
+                            onShare: { items in
+                                let client = RcloneClientAdapter(client: daemon.client)
+                                Task { await ShareHost.shared.share(items, remote: remote.name, client: client) }
+                            },
                             onCopy: { file in onSync(remote.name, file.isDir ? file.path : (file.path as NSString).deletingLastPathComponent) }
                         )
                         .transition(.move(edge: .trailing).combined(with: .opacity))

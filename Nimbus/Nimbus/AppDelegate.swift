@@ -37,6 +37,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// True when a running or queued backup runs again after a quit (set by
     /// NimbusApp); picks the alert's sentence.
     var interruptedBackupRunsAgain: (@MainActor () -> Bool)?
+    /// "Send to Nimbus…" in other apps' Services menus. NimbusApp sets its
+    /// `onSend` once the router exists.
+    let servicesProvider = NimbusServicesProvider()
+
     /// Opens the Backups screen, on a job when the notification names one.
     var onBackupNotificationClick: (@MainActor (UUID?) -> Void)? {
         didSet {
@@ -94,6 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.servicesProvider = servicesProvider
         if startsHidden || isBackgroundLaunch {
             // Hide all windows and become an accessory app (no Dock icon).
             for window in NSApp.windows {

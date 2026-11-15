@@ -32,6 +32,8 @@ enum TransferOrigin: String, Codable, Sendable {
     case copySyncJob
     /// A run of a saved backup (`BackupRunner`).
     case backup
+    /// Local files sent in from another app (Services menu).
+    case sendToNimbus
 }
 
 extension Transfer {

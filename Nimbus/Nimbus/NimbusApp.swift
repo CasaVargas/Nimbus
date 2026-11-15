@@ -257,6 +257,17 @@ struct NimbusApp: App {
                 router.needsWindow = true
             }
         }
+        appDelegate.servicesProvider.onSend = { request in
+            DockPolicy.applyForWindow()
+            NSApp.activate()
+            router.pending = .send(request)
+            if router.isMainWindowOpen,
+               let window = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) {
+                window.makeKeyAndOrderFront(nil)
+            } else {
+                router.needsWindow = true
+            }
+        }
         appDelegate.shutdownHandler = {
             transfers.stopPolling()
             await mounts.stopAll()
