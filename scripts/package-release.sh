@@ -53,10 +53,12 @@ trap 'rm -rf "$STAGE"' EXIT
 ditto "$BUILT_APP" "$STAGE/Nimbus.app"
 APP="$STAGE/Nimbus.app"
 APPEX="$APP/Contents/PlugIns/FileProviderExtension.appex"
+SHARE_APPEX="$APP/Contents/PlugIns/ShareExtension.appex"
 SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
 
 # Every release runs on Apple silicon and Intel: refuse a build missing either.
-for binary in "$APP/Contents/MacOS/Nimbus" "$APPEX/Contents/MacOS/FileProviderExtension"; do
+for binary in "$APP/Contents/MacOS/Nimbus" "$APPEX/Contents/MacOS/FileProviderExtension" \
+              "$SHARE_APPEX/Contents/MacOS/ShareExtension"; do
   archs="$(lipo -archs "$binary")"
   for arch in arm64 x86_64; do
     case " $archs " in
@@ -133,6 +135,13 @@ if [ -n "$SIGN_IDENTITY" ]; then
     codesign --force --timestamp --options runtime \
       --entitlements "$ENT_DIR/appex.plist" \
       --sign "$SIGN_IDENTITY" "$APPEX"
+  fi
+  if [ -d "$SHARE_APPEX" ]; then
+    drop_dev_profile "$SHARE_APPEX"
+    release_entitlements "$SHARE_APPEX" "$ENT_DIR/share-appex.plist" "$ROOT_DIR/Nimbus/ShareExtension/ShareExtension.entitlements"
+    codesign --force --timestamp --options runtime \
+      --entitlements "$ENT_DIR/share-appex.plist" \
+      --sign "$SIGN_IDENTITY" "$SHARE_APPEX"
   fi
   release_entitlements "$APP" "$ENT_DIR/app.plist" "$ROOT_DIR/Nimbus/Nimbus/Nimbus.entitlements"
   codesign --force --timestamp --options runtime \

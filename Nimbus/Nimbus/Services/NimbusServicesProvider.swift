@@ -26,7 +26,24 @@ final class NimbusServicesProvider: NSObject {
             error.pointee = "There were no files to send."
             return
         }
+        deliver(request)
+    }
+
+    /// Hands a request to the app, or holds it until the app is ready.
+    func deliver(_ request: SendRequest) {
         if let onSend { onSend(request) } else { waiting = request }
+    }
+
+    /// The request a share-extension hand-off URL (`nimbus://send?inbox=…`)
+    /// names, read from the app group container. nil for any other URL, a
+    /// missing or unreadable inbox, or one whose files are gone.
+    static func request(fromHandoff url: URL, container: URL?) -> SendRequest? {
+        guard let container, let id = ShareInbox.inboxID(from: url),
+              let manifest = try? ShareInbox.read(id: id, in: container),
+              var request = SendRequest(urls: ShareInbox.fileURLs(of: manifest, id: id, in: container))
+        else { return nil }
+        request.inboxID = id
+        return request
     }
 
     static func request(from pasteboard: NSPasteboard) -> SendRequest? {

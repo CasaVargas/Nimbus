@@ -15,10 +15,15 @@ struct SendRequest: Identifiable, Equatable, Sendable {
 
     let id: UUID
     let items: [Item]
+    /// The share-extension inbox these came from, if any: removed when the
+    /// send is cancelled (a sent one is left for its transfers to read and
+    /// swept a day later).
+    var inboxID: UUID?
 
-    init(id: UUID = UUID(), items: [Item]) {
+    init(id: UUID = UUID(), items: [Item], inboxID: UUID? = nil) {
         self.id = id
         self.items = items
+        self.inboxID = inboxID
     }
 
     /// Keeps file URLs that exist, once each, in the order given. nil when

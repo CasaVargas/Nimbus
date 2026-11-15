@@ -14,6 +14,7 @@ struct SendToNimbusSheet: View {
     @Environment(TransferStore.self) private var transferStore
     @State private var model: SendViewModel
     @State private var isBrowsing = false
+    @State private var didSend = false
 
     init(
         request: SendRequest, remoteNames: [String], lastRemote: String?, lastPath: String?,
@@ -62,6 +63,12 @@ struct SendToNimbusSheet: View {
         }
         .padding(DesignSystem.Spacing.xl)
         .frame(width: 480)
+        .onDisappear {
+            // A cancelled share has no use for its staged copies.
+            if !didSend, let inbox = model.request.inboxID, let container = AppGroup.containerURL {
+                ShareInbox.remove(id: inbox, in: container)
+            }
+        }
         .sheet(isPresented: $isBrowsing) {
             FolderBrowserSheet(remote: model.remote, client: client) { chosen in
                 model.path = chosen
@@ -153,6 +160,7 @@ struct SendToNimbusSheet: View {
     private func send(_ policy: SendClashPolicy?) {
         Task {
             if await model.send(policy: policy, store: transferStore) {
+                didSend = true
                 onSent(model.remote, model.path)
                 dismiss()
             }
