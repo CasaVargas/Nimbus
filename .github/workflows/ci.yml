@@ -114,6 +114,23 @@ jobs:
           path: TestResults.xcresult
           if-no-files-found: ignore
 
+      # A snapshot test that fails saves what it rendered (SnapshotHelpers).
+      # Without the image, a mismatch that only happens on the runner can
+      # only be guessed at.
+      - name: Collect snapshot failures
+        if: failure()
+        run: |
+          src="${TMPDIR%/}/nimbus-snapshot-failures"
+          if [ -d "$src" ]; then cp -R "$src" snapshot-failures; fi
+
+      - name: Upload snapshot failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-failures
+          path: snapshot-failures
+          if-no-files-found: ignore
+
   rclonekit:
     name: RcloneKit swift test
     runs-on: macos-15
