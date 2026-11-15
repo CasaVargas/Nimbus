@@ -45,6 +45,9 @@ struct AppCommands: Commands {
             Button("as Grid") { browser?.setViewMode(.grid) }
                 .keyboardShortcut("2")
                 .disabled(browser == nil)
+            Button("as Gallery") { browser?.setViewMode(.gallery) }
+                .keyboardShortcut("3")
+                .disabled(browser == nil)
             Divider()
             Button("Refresh") { browser?.refresh() }
                 .keyboardShortcut("r")
