@@ -174,13 +174,16 @@ struct SearchResultRow: View {
             }
             Group {
                 if let date = file.modTime {
-                    Text(date, style: .date)
+                    // Short month: "November 12, 2026" is one character too
+                    // wide for the column and wrapped onto a second line.
+                    Text(date, format: .dateTime.month(.abbreviated).day().year())
                 } else {
                     Text(verbatim: "--")
                 }
             }
             .font(DesignSystem.Typography.callout)
             .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+            .lineLimit(1)
             .frame(width: 110, alignment: .trailing)
         }
         .padding(.vertical, 2)
