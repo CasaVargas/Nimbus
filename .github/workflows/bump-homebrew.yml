@@ -74,6 +74,20 @@ jobs:
             echo "::error::$dmg.sha256 on $TAG does not hold a sha256"
             exit 1
           fi
+          # The .sha256 file and the DMG are separate assets. GitHub records
+          # each asset's own digest, so check the DMG really is the one the
+          # file names before the cask pins it (issue #123: the DMG was
+          # replaced after a bump). No download needed.
+          digest="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
+            --jq ".assets[] | select(.name == \"$dmg\") | .digest // empty")"
+          if [ -z "$digest" ]; then
+            echo "::error::$TAG has no $dmg asset (or GitHub reports no digest for it)"
+            exit 1
+          fi
+          if [ "$digest" != "sha256:$sha" ]; then
+            echo "::error::$dmg is $digest but $dmg.sha256 says $sha; not bumping the cask"
+            exit 1
+          fi
           {
             echo "skip=false"
             echo "version=$version"

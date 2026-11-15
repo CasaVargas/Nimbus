@@ -7,6 +7,11 @@ name: Release
 # releases/latest/download/appcast.xml, which never resolves to a draft.
 #
 # Run it from the Actions tab (Run workflow, tag e.g. v1.0.0) or push a v* tag.
+# Publishing the draft creates the tag, which fires `push: tags` again; the
+# `gate` job sees the release is already published and skips the build. A
+# published release's assets are never replaced: the cask, the notes in
+# docs/releases and anyone's downloaded copy all carry the published checksum
+# (issue #123: a rebuild after publishing changed the DMG under the cask).
 # The tag's version must match MARKETING_VERSION, and docs/releases/<version>.md
 # must exist: its text becomes the release notes, with the checksum filled in.
 #
@@ -35,8 +40,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  gate:
+    name: Skip a published release
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.check.outputs.published }}
+    env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - name: Check the release state
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          draft="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null || echo missing)"
+          if [ "$draft" = "false" ]; then
+            echo "::notice::$TAG is already published; not rebuilding. Its assets stay as published."
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
   release:
     name: Build, sign, notarize, draft
+    needs: gate
+    if: needs.gate.outputs.published != 'true'
     runs-on: xcode-27
     timeout-minutes: 90
     env:
@@ -151,6 +180,12 @@ jobs:
           sum="$(cut -d' ' -f1 "dist/Nimbus-$VERSION.dmg.sha256")"
           sed "s/(filled in when the signed DMG is built)/$sum/" "docs/releases/$VERSION.md" > "$RUNNER_TEMP/notes.md"
           if gh release view "$TAG" >/dev/null 2>&1; then
+            # Only a draft may be refreshed. The gate job skips published
+            # releases; this catches one published while the build ran.
+            if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" != "true" ]; then
+              echo "::error::$TAG was published while this run was building; its assets are left as published."
+              exit 1
+            fi
             gh release upload "$TAG" "dist/Nimbus-$VERSION.dmg" "dist/Nimbus-$VERSION.dmg.sha256" dist/appcast.xml --clobber
             gh release edit "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
           else
