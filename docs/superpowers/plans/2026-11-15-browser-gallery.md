@@ -54,10 +54,10 @@ actor BrowserThumbnailLoader: GalleryThumbnailProviding {
 }
 ```
 
-- [ ] Tests (fake client counting downloads, real PNG written to temp, scratch cache dir): `skipsFilesThePolicyRejects` (30 MB photo, `.txt`, size -1: nil and 0 downloads), `drawsAndCachesAPhoto` (non-nil, long side ≤ maxPixel, second call 0 new downloads, also from a fresh loader on the same disk cache), `changedSizeOrDateMissesTheCache`, `removesTheTempFile`, `failedDownloadReturnsNil`, `undecodableBytesReturnNil`, `cancelledBeforeItsTurnDoesNotDownload`.
-- [ ] Run them, see them fail to compile.
-- [ ] Implement. `image(for:)`: policy → memory → disk → `limiter.acquire()` → cancellation check → download → render off the actor → store → delete the temp directory.
-- [ ] Run them, see them pass. Commit.
+- [x] Tests (fake client counting downloads, real PNG written to temp, scratch cache dir): `skipsFilesThePolicyRejects` (30 MB photo, `.txt`, size -1: nil and 0 downloads), `drawsAndCachesAPhoto` (non-nil, long side ≤ maxPixel, second call 0 new downloads, also from a fresh loader on the same disk cache), `changedSizeOrDateMissesTheCache`, `removesTheTempFile`, `failedDownloadReturnsNil`, `undecodableBytesReturnNil`, `cancelledBeforeItsTurnDoesNotDownload`.
+- [x] Run them, see them fail to compile.
+- [x] Implement. `image(for:)`: policy → memory → disk → `limiter.acquire()` → cancellation check → download → render off the actor → store → delete the temp directory.
+- [x] Run them, see them pass. Commit.
 
 ### Task 2: Selection rules
 
@@ -76,8 +76,8 @@ enum GallerySelection {
 }
 ```
 
-- [ ] Tests: empty list → nil; nothing selected → first; stale ID → first; step ±1; clamps at both ends; multi-selection → earliest in order.
-- [ ] Implement, pass, commit.
+- [x] Tests: empty list → nil; nothing selected → first; stale ID → first; step ±1; clamps at both ends; multi-selection → earliest in order.
+- [x] Implement, pass, commit.
 
 ### Task 3: Gallery view and wiring
 
@@ -99,8 +99,8 @@ struct FileGallery: View {
 }
 ```
 
-- [ ] Snapshot test: photo, PDF, folder and a 30 MB file with a stub provider that answers `cachedImage` synchronously; photo selected.
-- [ ] Implement: preview + caption + filmstrip; ←/→/Return/Space via `onKeyPress`; context menu and drag payload as `FileGrid`; selection repaired through `GallerySelection.current` on appear and when `files` changes.
-- [ ] `xcodegen generate`, restore the extension Info.plist, build, full test run.
+- [x] Snapshot test: photo, PDF, folder and a 30 MB file with a stub provider that answers `cachedImage` synchronously; photo selected.
+- [x] Implement: preview + caption + filmstrip; ←/→/Return/Space via `onKeyPress`; context menu and drag payload as `FileGrid`; selection repaired through `GallerySelection.current` on appear and when `files` changes.
+- [x] `xcodegen generate`, restore the extension Info.plist, build, full test run.
 - [ ] Live check in the running app on a real cloud folder; screenshot.
-- [ ] README: move Gallery to the done list, reword the remaining line to "Column view, tabs and dual pane in the browser". Commit, push, PR.
+- [x] README: move Gallery to the done list, reword the remaining line to "Column view, tabs and dual pane in the browser". Commit, push, PR.

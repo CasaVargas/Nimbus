@@ -24,6 +24,9 @@ struct BrowserView: View {
     @State private var viewModel: BrowserViewModel?
     @State private var pendingCopy: CopyRequest?
     @State private var quickLookHost = QuickLookHost()
+    /// Draws the gallery's pictures. Made with the view model, once the
+    /// daemon client is known.
+    @State private var thumbnailLoader: BrowserThumbnailLoader?
 
     var body: some View {
         Group {
@@ -71,6 +74,16 @@ struct BrowserView: View {
                                 selection: viewModel.selection,
                                 onOpen: { file in handleOpen(file, viewModel: viewModel) },
                                 onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) }
+                            )
+                        case .gallery:
+                            FileGallery(
+                                files: viewModel.sortedFiles,
+                                remote: remoteName,
+                                selection: viewModel.selection,
+                                thumbnails: thumbnailLoader,
+                                onOpen: { file in handleOpen(file, viewModel: viewModel) },
+                                onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) },
+                                onQuickLook: { items in previewFiles(items) }
                             )
                         }
                     }
@@ -131,6 +144,12 @@ struct BrowserView: View {
                 vm.path = initialPath
             }
             viewModel = vm
+            if thumbnailLoader == nil {
+                thumbnailLoader = BrowserThumbnailLoader(
+                    client: RcloneClientAdapter(client: daemon.client),
+                    cache: BrowserThumbnailLoader.defaultCache()
+                )
+            }
             await vm.loadFiles()
         }
         .onChange(of: browseTarget) { _, newValue in

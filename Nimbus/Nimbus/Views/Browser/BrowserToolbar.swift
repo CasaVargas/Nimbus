@@ -43,6 +43,7 @@ struct BrowserToolbar: ViewModifier {
                 Picker("View", selection: $viewMode) {
                     Image(systemName: "list.bullet").tag(ViewMode.list)
                     Image(systemName: "square.grid.2x2").tag(ViewMode.grid)
+                    Image(systemName: "squares.below.rectangle").tag(ViewMode.gallery)
                 }
                 .pickerStyle(.segmented)
 

@@ -4,7 +4,7 @@ import RcloneKit
 import SwiftUI
 
 enum ViewMode: String {
-    case list, grid
+    case list, grid, gallery
 }
 
 enum SortField: String, CaseIterable {
