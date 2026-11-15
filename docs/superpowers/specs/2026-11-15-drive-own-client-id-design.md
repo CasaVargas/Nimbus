@@ -41,6 +41,27 @@ Google Drive has both problems, and nothing in the app told them: the daemon's s
    suggestion. Asking every new user for a Google Cloud project before they see a file is worse
    than nudging them afterwards.
 
+## Less friction (added 2026-11-15, after Jon set his own up)
+
+Jon's first run through it showed where the five minutes go, so four things were added:
+
+1. **Drop Google's file.** Step 4 ends with Download JSON; dropping that file on the sheet (or
+   Choose File…) fills both fields. Only a Desktop app client (`"installed"`) is accepted; a
+   Web application client is refused with a sentence saying why.
+2. **A link per step,** each to its own console page, instead of one general link.
+3. **The "Access blocked" page is explained in the sheet.** It appears when the consent screen
+   is in Testing and the account isn't a test user, which is what happened on the first try.
+4. **One client ID for every Drive cloud.** Other Drive clouds on the shared ID are listed with
+   checkboxes, ticked by default. Save writes the pair to each, then the sign-in sheets run one
+   after another. If a save fails part-way, the clouds already saved still get their sign-in.
+
+Also fixed: the Home suggestion stayed after saving, because Home read a config snapshot that
+only reloads every ten minutes. Saving now reloads it.
+
+Why not a Nimbus-owned client ID after all: the `drive` scope is restricted, so verification
+needs a paid yearly security assessment; `drive.file` is free but only sees files the app
+created; an unverified client is free but capped at about 100 users.
+
 ## Approaches considered
 
 | | What | Trade-off |
@@ -83,4 +104,5 @@ Google Drive has both problems, and nothing in the app told them: the daemon's s
 - `CloudSummaryTests`: the suggestion appears, is dismissible, waits for sign-in, and outranks
   storage tips.
 - Live: the suggestion and sheet on a real shared-ID Drive cloud; `rclone.log` contains the
-  shared-ID notice. Saving a real client ID is left to Jon (it needs his Google Cloud project).
+  shared-ID notice. Jon saved a real client ID and signed in on a personal Drive cloud. The file
+  drop, the per-step links and the several-clouds pass are covered by tests only.

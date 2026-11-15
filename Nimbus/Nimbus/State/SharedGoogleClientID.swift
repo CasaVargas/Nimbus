@@ -50,3 +50,36 @@ enum SharedGoogleClientID {
 }
 
 extension SharedGoogleClientID.InputProblem: Error {}
+
+extension SharedGoogleClientID {
+    enum FileProblem: Error, Equatable {
+        case unreadable, webClient
+
+        var message: String {
+            switch self {
+            case .unreadable:
+                "That isn't the file Google's Download JSON button gives you for an OAuth client."
+            case .webClient:
+                "That file is for a Web application client. Create one with application type Desktop app."
+            }
+        }
+    }
+
+    /// Reads the file Google's "Download JSON" gives for an OAuth client:
+    /// `{"installed": {"client_id": "…", "client_secret": "…", …}}`. A
+    /// "web" client is refused: its redirect addresses don't include the
+    /// local one rclone signs in through.
+    static func pair(fromDownloadedJSON data: Data) -> Result<(id: String, secret: String), FileProblem> {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return .failure(.unreadable)
+        }
+        guard let client = root["installed"] as? [String: Any] else {
+            return .failure(root["web"] != nil ? .webClient : .unreadable)
+        }
+        guard let id = client["client_id"] as? String, let secret = client["client_secret"] as? String,
+              case .success(let pair) = validate(id: id, secret: secret) else {
+            return .failure(.unreadable)
+        }
+        return .success(pair)
+    }
+}
