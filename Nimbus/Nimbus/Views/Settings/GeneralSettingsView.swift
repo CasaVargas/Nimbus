@@ -32,7 +32,7 @@ private struct ApplicationSettingsSection: View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                 FormRow(label: "Open at Login", help: nil) {
                     Toggle("", isOn: launchAtLoginBinding)
-                        .toggleStyle(.switch)
+                        .settingsSwitch()
                         .labelsHidden()
                         .accessibilityLabel("Open at Login")
                 }
@@ -46,7 +46,7 @@ private struct ApplicationSettingsSection: View {
             RunBackupsWhenClosedRow()
             FormRow(label: "Show in Dock", help: "When this is off, Nimbus lives in the menu bar only.") {
                 Toggle("", isOn: $settings.showsDockIcon)
-                    .toggleStyle(.switch)
+                    .settingsSwitch()
                     .labelsHidden()
                     .accessibilityLabel("Show in Dock")
             }
@@ -90,7 +90,7 @@ private struct RunBackupsWhenClosedRow: View {
             FormRow(label: LocalizedStringKey(OpenAtLoginNote.runsWhenClosedLabel),
                     help: "Every 15 minutes, if Nimbus is closed, it opens in the background, runs any backups that are due, then quits.") {
                 Toggle("", isOn: backgroundBackups.enabledBinding)
-                    .toggleStyle(.switch)
+                    .settingsSwitch()
                     .labelsHidden()
                     .accessibilityLabel(OpenAtLoginNote.runsWhenClosedLabel)
             }
@@ -141,7 +141,7 @@ private struct ConnectionSection: View {
             FormRow(label: "Open Nimbus when a drive is used in Finder",
                     help: "If Nimbus isn't running, it opens in the menu bar so your Finder drives work.") {
                 Toggle("", isOn: $settings.opensAppFromFinder)
-                    .toggleStyle(.switch)
+                    .settingsSwitch()
                     .labelsHidden()
                     .accessibilityLabel("Open Nimbus when a drive is used in Finder")
             }
@@ -165,7 +165,7 @@ private struct NewCloudsSection: View {
         ) {
             FormRow(label: "Show new clouds in Finder", help: nil) {
                 Toggle("", isOn: $settings.addNewRemotesToFinder)
-                    .toggleStyle(.switch)
+                    .settingsSwitch()
                     .labelsHidden()
                     .accessibilityLabel("Show new clouds in Finder")
             }
@@ -191,7 +191,7 @@ private struct UpdatesSection: View {
                         get: { updater.automaticallyChecks },
                         set: { updater.setAutomaticallyChecks($0) }
                     ))
-                    .toggleStyle(.switch)
+                    .settingsSwitch()
                     .labelsHidden()
                     .disabled(!updater.isAvailable)
                     .accessibilityLabel("Check for updates automatically")

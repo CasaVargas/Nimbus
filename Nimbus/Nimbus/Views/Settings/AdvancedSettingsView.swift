@@ -357,7 +357,7 @@ private struct SavedSignInsSection: View {
                         get: { model.isLocked },
                         set: { setLocked($0) }
                     ))
-                    .toggleStyle(.switch)
+                    .settingsSwitch()
                     .labelsHidden()
                     .disabled(model.state == nil || model.activity != .idle || blockReason != nil)
                     .accessibilityLabel("Lock saved sign-ins with Keychain")
@@ -445,7 +445,7 @@ private struct NetworkDriveDefaultsSection: View {
             }
             FormRow(label: "Connect new network drives at login", help: nil) {
                 Toggle("", isOn: $settings.newMountAutoMount)
-                    .toggleStyle(.switch)
+                    .settingsSwitch()
                     .labelsHidden()
                     .accessibilityLabel("Connect new network drives at login")
             }

@@ -66,10 +66,24 @@ struct SettingsView: View {
         }
         .accessibilityIdentifier("settings-shell")
         .frame(width: 680, height: 520)
+        // Buttons and menus draw their label in the tint. The app's tint is
+        // the theme's blue, which on this blue surface is about 1.3:1; the
+        // text colour reads. Switches keep the blue (`settingsSwitch`).
+        .tint(palette.textPrimary.color)
         // The same opaque surface as a sheet, so form groups match and
         // nothing here depends on what is behind the window.
         .environment(\.isOnStratosphereSheet, true)
         .background(LinearGradient(colors: [palette.sheetTop.color, palette.sheetBottom.color],
                                    startPoint: .top, endPoint: .bottom))
+    }
+}
+
+extension View {
+    /// A Settings switch: the system switch in the theme's action blue,
+    /// which the Settings window's text-coloured tint would otherwise wash
+    /// out to white on white.
+    func settingsSwitch() -> some View {
+        toggleStyle(.switch)
+            .tint(DesignSystem.Stratosphere.Palette.dark.actionTop.color)
     }
 }
