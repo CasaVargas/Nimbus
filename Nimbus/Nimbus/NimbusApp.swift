@@ -5,7 +5,7 @@ struct NimbusApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var daemon: RcloneDaemon
     @State private var statusService: RemoteStatusService
-    @State private var mountManager = MountManager()
+    @State private var mountManager: MountManager
     @State private var fileProviderBridge: FileProviderBridge
     @State private var settings: AppSettings
     @State private var mountConfigs = MountConfigStore()
@@ -26,6 +26,10 @@ struct NimbusApp: App {
     @State private var backupStore: BackupStore
     @State private var backupRunner: BackupRunner
     @State private var backupScheduler: BackupScheduler
+    /// Stops rclone after the idle timeout; wakes it on the next use.
+    @State private var idleController: IdleDisconnectController
+    /// Settings → Storage: downloaded files per Finder drive.
+    @State private var storageModel: DownloadedStorageModel
 
     /// Guards the parts of daemon-connect handling that must run once per
     /// process (pollers, monitors); the rest of `onDaemonConnected` is
@@ -44,6 +48,7 @@ struct NimbusApp: App {
         _cloudMonitor = State(initialValue: monitor)
         let bridge = FileProviderBridge()
         _fileProviderBridge = State(initialValue: bridge)
+        _storageModel = State(initialValue: DownloadedStorageModel(source: .live(bridge: bridge)))
         _settings = State(initialValue: settings)
         _diagnosticsService = State(initialValue: DiagnosticsService())
         _transferNotifier = State(initialValue: transferNotifier)
@@ -76,6 +81,21 @@ struct NimbusApp: App {
             runner?.jobsDidChange()
             scheduler?.replan()
         }
+        let mounts = MountManager()
+        _mountManager = State(initialValue: mounts)
+        let idle = IdleDisconnectController(
+            daemon: d, settings: settings,
+            activity: .init(
+                hasVisibleWindow: { IdleDisconnectController.hasVisibleWindow() },
+                hasActiveWork: {
+                    !transfers.activeTransfers.isEmpty || runner.isRunningAnything
+                        || mounts.hasMountedNetworkDrive
+                }
+            )
+        )
+        _idleController = State(initialValue: idle)
+        runner.wakeDaemon = { [weak idle] in await idle?.wakeAndWait() }
+        monitor.skipsPeriodicRefresh = { d.status == .asleep }
         // Shortcuts actions run in this process and use the same services.
         IntentServices.current = IntentServices(
             daemon: d, backupStore: backups, backupRunner: runner,
@@ -170,7 +190,7 @@ struct NimbusApp: App {
 
         Settings {
             SceneAppearanceRoot(settings: settings) {
-                SettingsView(generalModel: generalSettingsModel)
+                SettingsView(generalModel: generalSettingsModel, storageModel: storageModel)
                     .environment(daemon)
                     .environment(mountManager)
                     .environment(transferStore)
@@ -212,6 +232,7 @@ struct NimbusApp: App {
     private func bootstrap() async {
         guard !isHostedLaunch else { return }
         updater.startWhenActive()
+        NimbusWake.writePrefs(opensApp: settings.opensAppFromFinder, in: AppGroup.containerURL)
         // Quit (⌘Q, logout, MenuBarExtra) must unmount volumes and stop the
         // daemon before the process dies — otherwise a restart finds orphan
         // `rclone serve nfs` children and stale NFS mounts.
@@ -226,7 +247,7 @@ struct NimbusApp: App {
         }
         let router = router
         appDelegate.onBackupNotificationClick = { id in
-            NSApp.setActivationPolicy(.regular)
+            DockPolicy.applyForWindow()
             NSApp.activate()
             router.pending = .backups(id)
             if router.isMainWindowOpen,
@@ -278,7 +299,7 @@ struct NimbusApp: App {
         // A login-item launch races system startup (network, external
         // volumes, Homebrew mounts). Retry a few times before giving up so
         // "starts with macOS" reliably ends in a running daemon + mounts.
-        if appDelegate.wasLaunchedAtLogin {
+        if appDelegate.startsHidden {
             var attempts = 0
             while daemon.status != .connected && attempts < 3 {
                 attempts += 1
@@ -334,6 +355,13 @@ struct NimbusApp: App {
         defaults.set(needing.map(BackupReviewNotices.key(for:)), forKey: key)
     }
 
+    /// Pushes the live port, RC credentials and remotes to the File
+    /// Provider extension (`shared-state.json`).
+    private func publishConnectionToExtension() async {
+        guard let remotes = try? await daemon.client.listRemotes() else { return }
+        fileProviderBridge.syncState(remotes: remotes, port: daemon.port, credentials: daemon.client.credentials)
+    }
+
     /// Runs after every daemon (re)connect. Idempotent: restoreMounts skips
     /// live mounts, addDomain is a no-op for registered domains, and
     /// syncState just rewrites the shared port/remotes snapshot.
@@ -341,8 +369,12 @@ struct NimbusApp: App {
         guard !isHostedLaunch else { return }
         // Every connect is a new rclone process: jobs from a previous one are
         // gone (and job ids restart), so end their transfers and let the
-        // backup queue move on.
-        await transferStore.abandonActiveTransfers()
+        // backup queue move on. Not after an idle wake: the engine slept
+        // only with nothing running, and a backup that woke it may already
+        // have started on the new one.
+        if !daemon.wokeFromSleep {
+            await transferStore.abandonActiveTransfers()
+        }
         if !servicesStarted {
             servicesStarted = true
             ShareLinkNotifier.shared.start()
@@ -351,7 +383,22 @@ struct NimbusApp: App {
             cloudMonitor.startPeriodicRefresh()
             remoteChangeTicker.start()
             backupScheduler.start()
+            let ticker = remoteChangeTicker
+            idleController.onSleep = { ticker.stop() }
+            let app = self
+            idleController.onWake = {
+                // The extension is retrying with the old port right now:
+                // publish the new one before anything slower.
+                await app.publishConnectionToExtension()
+                // With the main window closed its `.task(id: daemon.status)`
+                // isn't there to run the rest of the reconnect.
+                if !app.router.isMainWindowOpen {
+                    await app.onDaemonConnected()
+                }
+            }
+            idleController.start()
         } else {
+            remoteChangeTicker.start()
             // Runs missed while the daemon was down catch up after the settle delay.
             backupScheduler.replan(catchingUp: true)
         }

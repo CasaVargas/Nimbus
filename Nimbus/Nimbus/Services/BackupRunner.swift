@@ -46,6 +46,8 @@ final class BackupRunner: BackupLaunching {
     @ObservationIgnored private let transfers: TransferStore
     @ObservationIgnored private let client: any BackupRcloneClient
     @ObservationIgnored private let isDaemonConnected: @MainActor () -> Bool
+    /// Starts an idle-stopped engine before a run (IdleDisconnectController).
+    @ObservationIgnored var wakeDaemon: (@MainActor () async -> Void)?
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let timeZone: () -> TimeZone
     @ObservationIgnored private let beginActivity: @MainActor (String) -> any NSObjectProtocol
@@ -109,6 +111,7 @@ final class BackupRunner: BackupLaunching {
     }
 
     func enqueue(_ jobID: UUID, trigger: BackupRunSummary.Trigger) async {
+        if !isDaemonConnected(), let wakeDaemon { await wakeDaemon() }
         if let refusal = refusal(for: jobID) {
             lastRefusal = refusal
             logger.info("Backup \(jobID) not queued: \(String(describing: refusal))")

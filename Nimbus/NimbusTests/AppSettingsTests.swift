@@ -22,6 +22,24 @@ struct AppSettingsTests {
         #expect(settings.transferHistoryRetention == .sevenDays)
         #expect(settings.bandwidthLimit.isEmpty)
         #expect(settings.concurrentTransfers == 4)
+        #expect(settings.showsDockIcon)
+        #expect(settings.idleDisconnect == .never)
+        #expect(settings.opensAppFromFinder)
+    }
+
+    @Test func dockIdleAndFinderPreferencesRoundTrip() {
+        let defaults = isolatedDefaults()
+        let first = AppSettings(defaults: defaults)
+        first.showsDockIcon = false
+        first.idleDisconnect = .thirtyMinutes
+        first.opensAppFromFinder = false
+
+        let second = AppSettings(defaults: defaults)
+
+        #expect(second.showsDockIcon == false)
+        #expect(second.idleDisconnect == .thirtyMinutes)
+        #expect(second.opensAppFromFinder == false)
+        #expect(DockPolicy.showsDockIcon(defaults: defaults) == false)
     }
 
     @Test func preferencesRoundTrip() {

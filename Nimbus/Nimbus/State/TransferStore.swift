@@ -373,7 +373,9 @@ final class TransferStore {
         transfers[index].status = status
         transfers[index].completedAt = now
         deliverNotification(for: transfers[index].record)
-        await persistRetainedHistory()
+        // Prune against the same clock the transfer finished on: a caller's
+        // `now` (tests pin one) must not age its own record out.
+        await persistRetainedHistory(now: now)
         await notifyBackupFinished(finished)
     }
 
@@ -612,9 +614,9 @@ final class TransferStore {
         return max(0, min(1, avg / 100.0))
     }
 
-    private func persistRetainedHistory() async {
+    private func persistRetainedHistory(now: Date = Date()) async {
         guard retention != .untilQuit else { return }
-        let retained = TransferHistoryPolicy.prune(transfers.compactMap(\.record), retention: retention)
+        let retained = TransferHistoryPolicy.prune(transfers.compactMap(\.record), retention: retention, now: now)
         let retainedIDs = Set(retained.map(\.id))
         transfers.removeAll { !$0.status.isActive && !retainedIDs.contains($0.id) }
         await save(records: retained)

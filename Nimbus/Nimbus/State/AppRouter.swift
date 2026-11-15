@@ -46,7 +46,7 @@ final class AppRouter {
     /// Shows the main window (re-creating it if it was closed), then routes.
     func open(_ route: Route?, openWindow: OpenWindowAction) {
         if let route { pending = route }
-        NSApp.setActivationPolicy(.regular)
+        DockPolicy.applyForWindow()
         if isMainWindowOpen,
            let window = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) {
             window.makeKeyAndOrderFront(nil)
