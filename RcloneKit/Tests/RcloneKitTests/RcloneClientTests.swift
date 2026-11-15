@@ -3,28 +3,38 @@ import Testing
 @testable import RcloneKit
 
 final class MockURLProtocol: URLProtocol, @unchecked Sendable {
-    nonisolated(unsafe) static var mockResponses: [String: (Data, Int)] = [:]
+    /// Everything below is shared by every suite and read on CFNetwork's
+    /// loader thread while tests on other threads write it. Unguarded, that
+    /// race corrupted a dictionary mid-lookup and crashed the whole run
+    /// ("-[__NSTaggedDate objectForKey:]: unrecognized selector"), so every
+    /// access goes through `lock`.
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var mockResponses: [String: (Data, Int)] = [:]
+    nonisolated(unsafe) private static var storedRequestURLs: [String: URL] = [:]
+    nonisolated(unsafe) private static var responseQueues: [String: [(Data, Int)]] = [:]
+    nonisolated(unsafe) private static var storedRequestBodies: [String: Data] = [:]
 
     /// Last request URL seen per endpoint path, so tests can assert on
     /// query parameters (rclone reads uploadfile's fs/remote from the
     /// query only — a contract worth pinning).
-    nonisolated(unsafe) static var lastRequestURLs: [String: URL] = [:]
+    static var lastRequestURLs: [String: URL] { lock.withLock { storedRequestURLs } }
 
     static func register(endpoint: String, json: String, status: Int = 200) {
-        mockResponses[endpoint] = (json.data(using: .utf8)!, status)
+        let reply = (json.data(using: .utf8)!, status)
+        lock.withLock { mockResponses[endpoint] = reply }
     }
-
-    /// FIFO queues per endpoint, checked before `mockResponses`. Lets one
-    /// test script a *sequence* of replies from a single endpoint — required
-    /// for config/create, which returns a different question each call.
-    nonisolated(unsafe) static var responseQueues: [String: [(Data, Int)]] = [:]
 
     /// Last request body seen per endpoint path. URLProtocol nils out
     /// `request.httpBody` for POSTs, so this is read from `httpBodyStream`.
-    nonisolated(unsafe) static var lastRequestBodies: [String: Data] = [:]
+    static var lastRequestBodies: [String: Data] { lock.withLock { storedRequestBodies } }
 
+    /// Adds to the endpoint's FIFO queue, which is checked before
+    /// `register`ed replies. Lets one test script a *sequence* of replies
+    /// from a single endpoint — required for config/create, which returns a
+    /// different question each call.
     static func enqueue(endpoint: String, json: String, status: Int = 200) {
-        responseQueues[endpoint, default: []].append((json.data(using: .utf8)!, status))
+        let reply = (json.data(using: .utf8)!, status)
+        lock.withLock { responseQueues[endpoint, default: []].append(reply) }
     }
 
     /// Clears queued responses and the captured body for ONE endpoint.
@@ -35,8 +45,10 @@ final class MockURLProtocol: URLProtocol, @unchecked Sendable {
     /// queued responses mid-test. Scope every reset to the endpoint the
     /// calling test actually owns.
     static func reset(endpoint: String) {
-        responseQueues[endpoint] = nil
-        lastRequestBodies[endpoint] = nil
+        lock.withLock {
+            responseQueues[endpoint] = nil
+            storedRequestBodies[endpoint] = nil
+        }
     }
 
     /// URLProtocol hands POST bodies over as a stream, not `httpBody`.
@@ -67,17 +79,20 @@ final class MockURLProtocol: URLProtocol, @unchecked Sendable {
         }
 
         let path = url.path.hasPrefix("/") ? String(url.path.dropFirst()) : url.path
-        Self.lastRequestURLs[path] = url
-        if let body = Self.readBody(request) { Self.lastRequestBodies[path] = body }
+        let body = Self.readBody(request)
+        // One critical section: record the request and take the reply.
+        let reply: (Data, Int)? = Self.lock.withLock {
+            Self.storedRequestURLs[path] = url
+            if let body { Self.storedRequestBodies[path] = body }
+            if var queue = Self.responseQueues[path], !queue.isEmpty {
+                let head = queue.removeFirst()
+                Self.responseQueues[path] = queue
+                return head
+            }
+            return Self.mockResponses[path]
+        }
 
-        let queued: (Data, Int)? = {
-            guard var queue = Self.responseQueues[path], !queue.isEmpty else { return nil }
-            let head = queue.removeFirst()
-            Self.responseQueues[path] = queue
-            return head
-        }()
-
-        if let (data, status) = queued ?? Self.mockResponses[path] {
+        if let (data, status) = reply {
             let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: data)
