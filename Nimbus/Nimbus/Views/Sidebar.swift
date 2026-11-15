@@ -35,7 +35,7 @@ struct Sidebar: View {
                                 Text(bookmark.label)
                                 Text("\(bookmark.remoteName):\(bookmark.path)")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
                             }
                         } icon: {
                             Image(systemName: "folder.badge.star")
