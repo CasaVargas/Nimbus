@@ -102,5 +102,5 @@ struct FileGallery: View {
 - [x] Snapshot test: photo, PDF, folder and a 30 MB file with a stub provider that answers `cachedImage` synchronously; photo selected.
 - [x] Implement: preview + caption + filmstrip; ←/→/Return/Space via `onKeyPress`; context menu and drag payload as `FileGrid`; selection repaired through `GallerySelection.current` on appear and when `files` changes.
 - [x] `xcodegen generate`, restore the extension Info.plist, build, full test run.
-- [ ] Live check in the running app on a real cloud folder; screenshot.
+- [x] Live check in the running app on a real cloud folder; screenshot.
 - [x] README: move Gallery to the done list, reword the remaining line to "Column view, tabs and dual pane in the browser". Commit, push, PR.

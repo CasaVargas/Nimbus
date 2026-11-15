@@ -123,6 +123,14 @@ struct BrowserThumbnailLoaderTests {
         #expect(ThumbnailRequest(file: folder, remote: "drive", maxPixel: 144).kind == nil)
     }
 
+    @Test func cacheLivesUnderTheBundleIdentifier() {
+        let caches = URL(fileURLWithPath: "/tmp/Caches", isDirectory: true)
+        #expect(BrowserThumbnailLoader.cacheDirectory(in: caches, bundleID: "app.casavargas.nimbus").path
+            == "/tmp/Caches/app.casavargas.nimbus/BrowserThumbnails")
+        #expect(BrowserThumbnailLoader.cacheDirectory(in: caches, bundleID: nil).path
+            == "/tmp/Caches/app.casavargas.nimbus/BrowserThumbnails")
+    }
+
     static func pngData(width: Int, height: Int) -> Data {
         let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                 space: CGColorSpaceCreateDeviceRGB(),

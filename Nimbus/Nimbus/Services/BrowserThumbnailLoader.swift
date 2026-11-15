@@ -78,11 +78,18 @@ actor BrowserThumbnailLoader: GalleryThumbnailProviding {
     }
 
     /// The app's Caches folder: macOS may purge it under disk pressure,
-    /// which a cache can afford.
+    /// which a cache can afford. Under the bundle identifier, because the
+    /// app isn't sandboxed and Caches is then the one every app shares.
     static func defaultCache() -> ThumbnailCache? {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first.map {
-            ThumbnailCache(directory: $0.appendingPathComponent("BrowserThumbnails", isDirectory: true))
+            ThumbnailCache(directory: cacheDirectory(in: $0))
         }
+    }
+
+    static func cacheDirectory(in caches: URL, bundleID: String? = Bundle.main.bundleIdentifier) -> URL {
+        caches
+            .appendingPathComponent(bundleID ?? "app.casavargas.nimbus", isDirectory: true)
+            .appendingPathComponent("BrowserThumbnails", isDirectory: true)
     }
 
     nonisolated func cachedImage(for request: ThumbnailRequest) -> CGImage? {
