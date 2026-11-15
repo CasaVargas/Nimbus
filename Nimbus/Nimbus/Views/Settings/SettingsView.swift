@@ -5,6 +5,7 @@ enum SettingsTab: String, CaseIterable, Hashable {
     case transfers
     case storage
     case advanced
+    case about
 
     var title: String {
         switch self {
@@ -12,6 +13,7 @@ enum SettingsTab: String, CaseIterable, Hashable {
         case .transfers: "Transfers"
         case .storage: "Storage"
         case .advanced: "Advanced"
+        case .about: "About"
         }
     }
 
@@ -21,6 +23,7 @@ enum SettingsTab: String, CaseIterable, Hashable {
         case .transfers: "arrow.up.arrow.down"
         case .storage: "internaldrive"
         case .advanced: "slider.horizontal.3"
+        case .about: "info.circle"
         }
     }
 }
@@ -56,6 +59,10 @@ struct SettingsView: View {
             AdvancedSettingsView(storageModel: generalModel)
                 .tag(SettingsTab.advanced)
                 .tabItem { Label(SettingsTab.advanced.title, systemImage: SettingsTab.advanced.systemImage) }
+
+            AboutSettingsView()
+                .tag(SettingsTab.about)
+                .tabItem { Label(SettingsTab.about.title, systemImage: SettingsTab.about.systemImage) }
         }
         .accessibilityIdentifier("settings-shell")
         .frame(width: 680, height: 520)

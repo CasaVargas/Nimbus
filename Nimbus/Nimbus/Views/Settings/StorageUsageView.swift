@@ -190,7 +190,7 @@ struct FinderChangeRecordsRow: View {
         case .available(let bytes):
             Text(verbatim: bytes == 0 ? "Empty" : ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
                 .font(DesignSystem.Typography.body)
-                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                .foregroundStyle(.themeText(.secondary))
         case .failed(let error):
             Label {
                 Text(verbatim: error)
@@ -198,7 +198,7 @@ struct FinderChangeRecordsRow: View {
             } icon: {
                 Image(systemName: "exclamationmark.triangle.fill")
             }
-            .font(DesignSystem.Typography.caption)
+            .font(DesignSystem.Stratosphere.Typography.detail)
             .foregroundStyle(DesignSystem.Color.semantic.statusError)
             .frame(maxWidth: 240, alignment: .trailing)
             .accessibilityLabel("Finder change records unavailable: \(error)")

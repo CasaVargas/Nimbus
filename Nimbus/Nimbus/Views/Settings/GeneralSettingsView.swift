@@ -12,7 +12,6 @@ struct GeneralSettingsView: View {
                 ConnectionSection()
                 NewCloudsSection()
                 UpdatesSection()
-                AboutSettingsSection()
             }
             .padding(DesignSystem.Spacing.xl)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -39,7 +38,7 @@ private struct ApplicationSettingsSection: View {
                 }
                 if let error = launchAtLogin.lastError {
                     Text(verbatim: error)
-                        .font(DesignSystem.Typography.caption)
+                        .font(DesignSystem.Stratosphere.Typography.detail)
                         .foregroundStyle(DesignSystem.Color.semantic.statusError)
                         .accessibilityLabel("Open at Login error: \(error)")
                 }
@@ -98,15 +97,15 @@ private struct RunBackupsWhenClosedRow: View {
             if backgroundBackups.needsApproval {
                 HStack(spacing: DesignSystem.Spacing.s) {
                     Text("Allow Nimbus in Login Items so backups can run while it's closed.")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                        .font(DesignSystem.Stratosphere.Typography.detail)
+                        .foregroundStyle(.themeText(.secondary))
                     Button("Open Login Items") { backgroundBackups.openLoginItems() }
                         .controlSize(.small)
                 }
             }
             if let error = backgroundBackups.lastError {
                 Text(verbatim: error)
-                    .font(DesignSystem.Typography.caption)
+                    .font(DesignSystem.Stratosphere.Typography.detail)
                     .foregroundStyle(DesignSystem.Color.semantic.statusError)
                     .accessibilityLabel("\(OpenAtLoginNote.runsWhenClosedLabel) error: \(error)")
             }
@@ -202,67 +201,6 @@ private struct UpdatesSection: View {
                         .disabled(!updater.canCheck)
                 }
             }
-        }
-    }
-}
-
-private struct AboutSettingsSection: View {
-    private var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
-    }
-
-    private var build: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "Unknown"
-    }
-
-    /// The build number tracks the version since #100, so it is shown only
-    /// when it says something more.
-    private var versionLine: String {
-        build == version ? String(localized: "Version \(version)") : String(localized: "Version \(version) (\(build))")
-    }
-
-    var body: some View {
-        FormSection(title: "About", footer: nil) {
-            HStack(alignment: .center, spacing: DesignSystem.Spacing.m) {
-                Image(nsImage: NSApp.applicationIconImage)
-                    .resizable()
-                    .interpolation(.high)
-                    .frame(width: 56, height: 56)
-                    .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Nimbus")
-                        .font(DesignSystem.Typography.headline)
-                    Text(versionLine)
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-                        .textSelection(.enabled)
-                    Text("© 2026 CasaVargas LLC")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
-                }
-                Spacer()
-            }
-            .padding(.vertical, DesignSystem.Spacing.xs)
-            HStack(spacing: DesignSystem.Spacing.l) {
-                Link("Website", destination: URL(string: "https://casavargas.app")!)
-                Link("Source Code", destination: URL(string: "https://github.com/CasaVargas/Nimbus")!)
-                Link("License", destination: URL(string: "https://github.com/CasaVargas/Nimbus/blob/main/LICENSE")!)
-                Spacer()
-                Link("Built on rclone", destination: URL(string: "https://rclone.org/")!)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-            }
-            .font(DesignSystem.Typography.caption)
-            .padding(.vertical, DesignSystem.Spacing.xs)
-            HStack(spacing: DesignSystem.Spacing.l) {
-                Text("Nimbus is free. More from Casa Vargas:")
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
-                Link("Beltr, karaoke from your own music", destination: URL(string: "https://beltr.app/?utm_source=nimbus-app&utm_medium=about&utm_campaign=nimbus")!)
-                Link("OneScribe, a scanner that reads", destination: URL(string: "https://apps.apple.com/us/app/onescribe-ai-note-scanner/id6756506734")!)
-                Spacer()
-            }
-            .font(DesignSystem.Typography.caption)
-            .padding(.vertical, DesignSystem.Spacing.xs)
         }
     }
 }

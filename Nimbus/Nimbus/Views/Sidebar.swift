@@ -64,8 +64,11 @@ struct Sidebar: View {
         // The window's backdrop shows through the sidebar.
         .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            SidebarStorageFooter()
-                .padding(DesignSystem.Spacing.s)
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                SidebarSettingsLink()
+                SidebarStorageFooter()
+            }
+            .padding(DesignSystem.Spacing.s)
         }
         .navigationTitle("Nimbus")
     }
@@ -88,6 +91,32 @@ struct SidebarToolLabel: View {
                 .lineLimit(1)
         }
         .padding(.vertical, 2)
+    }
+}
+
+/// Settings, one click from the window. The menu bar item (and ⌘,) are
+/// the only other ways in, and neither exists while the Dock icon is hidden
+/// and no Nimbus menu is showing.
+struct SidebarSettingsLink: View {
+    @State private var isHovered = false
+
+    var body: some View {
+        SettingsLink {
+            SidebarToolLabel(title: "Settings", systemImage: "gearshape.fill",
+                             color: DesignSystem.Stratosphere.CloudColors.settings)
+                .padding(.horizontal, DesignSystem.Spacing.s)
+                .padding(.vertical, DesignSystem.Spacing.xs)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(isHovered ? DesignSystem.Color.semantic.surfaceSubtle.opacity(0.6) : .clear)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help("Settings (⌘,)")
+        .accessibilityLabel("Settings")
     }
 }
 

@@ -6,8 +6,8 @@ import Testing
 @Suite("Settings shell", .serialized)
 @MainActor
 struct SettingsViewTests {
-    @Test func shellUsesFourDestinations() {
-        #expect(SettingsTab.allCases == [.general, .transfers, .storage, .advanced])
+    @Test func shellUsesFiveDestinations() {
+        #expect(SettingsTab.allCases == [.general, .transfers, .storage, .advanced, .about])
     }
 
     @Test func sceneRootAppliesLightAppearanceFromSettings() {

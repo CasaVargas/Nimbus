@@ -185,8 +185,8 @@ private struct RcloneSettingsSection: View {
             FormRow(label: "Location", help: nil) {
                 HStack(spacing: DesignSystem.Spacing.s) {
                     Text(verbatim: binaryPath)
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                        .font(DesignSystem.Stratosphere.Typography.detail)
+                        .foregroundStyle(.themeText(.secondary))
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .textSelection(.enabled)
@@ -200,7 +200,7 @@ private struct RcloneSettingsSection: View {
             FormRow(label: "Version", help: nil) {
                 Text(verbatim: version)
                     .font(DesignSystem.Typography.body)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .foregroundStyle(.themeText(.secondary))
                     .accessibilityLabel("rclone version \(version)")
             }
             if let update {
@@ -227,8 +227,8 @@ struct RcloneUpdateRow: View {
                 }
                 if let status {
                     Text(verbatim: status)
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                        .font(DesignSystem.Stratosphere.Typography.detail)
+                        .foregroundStyle(.themeText(.secondary))
                         .lineLimit(2)
                         .multilineTextAlignment(.trailing)
                 }
@@ -274,12 +274,13 @@ private struct DaemonSettingsSection: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: headline)
                         .font(DesignSystem.Typography.body)
-                        .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                        .foregroundStyle(.themeText(.primary))
                         .lineLimit(2)
                     Text(verbatim: detail)
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(restartRequired ? DesignSystem.Color.semantic.statusWarning
-                                                         : DesignSystem.Color.semantic.textSecondary)
+                        .font(DesignSystem.Stratosphere.Typography.detail)
+                        .foregroundStyle(restartRequired
+                            ? AnyShapeStyle(DesignSystem.Color.semantic.statusWarning)
+                            : AnyShapeStyle(.themeText(.secondary)))
                         .lineLimit(2)
                 }
                 Spacer(minLength: DesignSystem.Spacing.m)
@@ -364,14 +365,14 @@ private struct SavedSignInsSection: View {
             }
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.s) {
                 Text(verbatim: explanation)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .font(DesignSystem.Stratosphere.Typography.detail)
+                    .foregroundStyle(.themeText(.secondary))
                     .fixedSize(horizontal: false, vertical: true)
                 if model.isLocked {
                     HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.s) {
                         Text(verbatim: model.password.exportLine)
                             .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                            .foregroundStyle(.themeText(.primary))
                             .textSelection(.enabled)
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 0)
@@ -382,7 +383,7 @@ private struct SavedSignInsSection: View {
                 }
                 if let note {
                     Text(verbatim: note.text)
-                        .font(DesignSystem.Typography.caption)
+                        .font(DesignSystem.Stratosphere.Typography.detail)
                         .foregroundStyle(note.isError ? DesignSystem.Color.semantic.statusError
                                                       : DesignSystem.Color.semantic.statusWarning)
                         .fixedSize(horizontal: false, vertical: true)
@@ -477,8 +478,8 @@ private struct DiagnosticsSettingsSection: View {
                 }
                 if let message {
                     Text(verbatim: message)
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                        .font(DesignSystem.Stratosphere.Typography.detail)
+                        .foregroundStyle(.themeText(.secondary))
                         .frame(maxWidth: .infinity, alignment: .trailing)
                         .accessibilityLabel(message)
                 }

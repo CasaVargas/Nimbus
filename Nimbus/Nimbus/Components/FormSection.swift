@@ -18,7 +18,7 @@ struct FormSection<Content: View>: View {
             if let title {
                 Text(title)
                     .font(DesignSystem.Typography.headline)
-                    .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                    .foregroundStyle(.themeText(.primary))
                     .padding(.leading, DesignSystem.Spacing.xs)
                     .accessibilityAddTraits(.isHeader)
             }
@@ -45,8 +45,8 @@ struct FormSection<Content: View>: View {
             )
             if let footer {
                 Text(footer)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .font(DesignSystem.Stratosphere.Typography.detail)
+                    .foregroundStyle(.themeText(.secondary))
                     .padding(.leading, DesignSystem.Spacing.xs)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -81,14 +81,14 @@ struct FormRow<Trailing: View>: View {
             HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.m) {
                 Text(label)
                     .font(DesignSystem.Typography.body)
-                    .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                    .foregroundStyle(.themeText(.primary))
                 Spacer()
                 trailing()
             }
             if let help {
                 Text(help)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                    .font(DesignSystem.Stratosphere.Typography.detail)
+                    .foregroundStyle(.themeText(.tertiary))
             }
         }
         .padding(.vertical, DesignSystem.Spacing.xs)
