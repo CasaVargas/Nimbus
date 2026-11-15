@@ -213,17 +213,24 @@ struct DemoWindow<Content: View>: View {
                     SidebarToolLabel(title: "Copy Between Clouds", systemImage: "arrow.left.arrow.right",
                                      color: DesignSystem.Stratosphere.CloudColors.copy)
                         .tag(SidebarSelection.copySync)
+                    SidebarToolLabel(title: "Compare Folders", systemImage: "rectangle.on.rectangle",
+                                     color: DesignSystem.Stratosphere.CloudColors.compare)
+                        .tag(SidebarSelection.compare)
                 }
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                SidebarStorageSummary(
-                    totals: StorageTotals(quotas: Self.remotes.compactMap(\.2)),
-                    clouds: Self.remotes.compactMap { remote, _, quota in
-                        quota.map { (name: remote.name, quota: $0, color: Self.cloudColors[remote.name]) }
-                    }
-                )
+                // The same footer as the real sidebar: Settings, then storage.
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    SidebarSettingsLink()
+                    SidebarStorageSummary(
+                        totals: StorageTotals(quotas: Self.remotes.compactMap(\.2)),
+                        clouds: Self.remotes.compactMap { remote, _, quota in
+                            quota.map { (name: remote.name, quota: $0, color: Self.cloudColors[remote.name]) }
+                        }
+                    )
+                }
                 .padding(DesignSystem.Spacing.s)
             }
             .padding(.top, 38)
