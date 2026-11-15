@@ -16,7 +16,10 @@ struct AdvancedSettingsViewTests {
         )
 
         try SnapshotHelpers.assertHostedSnapshot(
-            AdvancedSettingsView(storageModel: GeneralSettingsModel(cacheUsage: .available(4_194_304)))
+            AdvancedSettingsView(
+                storageModel: GeneralSettingsModel(cacheUsage: .available(4_194_304)),
+                encryptionModel: Self.fixedSignIns
+            )
                 .environment(settings)
                 .environment(daemon)
                 .environment(\.diagnosticsService, diagnosticsService),
@@ -35,8 +38,11 @@ struct AdvancedSettingsViewTests {
         )
 
         try SnapshotHelpers.assertHostedSnapshot(
-            AdvancedSettingsView(storageModel: GeneralSettingsModel(
-                cacheUsage: .failed("Nimbus couldn't read its Finder change records.")))
+            AdvancedSettingsView(
+                storageModel: GeneralSettingsModel(
+                    cacheUsage: .failed("Nimbus couldn't read its Finder change records.")),
+                encryptionModel: Self.fixedSignIns
+            )
                 .environment(settings)
                 .environment(daemon)
                 .environment(\.diagnosticsService, diagnosticsService),
@@ -55,7 +61,10 @@ struct AdvancedSettingsViewTests {
         )
 
         try SnapshotHelpers.assertHostedSnapshot(
-            AdvancedSettingsView(storageModel: GeneralSettingsModel(cacheUsage: .available(4_194_304)))
+            AdvancedSettingsView(
+                storageModel: GeneralSettingsModel(cacheUsage: .available(4_194_304)),
+                encryptionModel: Self.fixedSignIns
+            )
                 .environment(settings)
                 .environment(daemon)
                 .environment(\.diagnosticsService, diagnosticsService),
@@ -74,7 +83,10 @@ struct AdvancedSettingsViewTests {
         )
 
         try SnapshotHelpers.assertHostedSnapshot(
-            AdvancedSettingsView(storageModel: GeneralSettingsModel(cacheUsage: .available(4_194_304)))
+            AdvancedSettingsView(
+                storageModel: GeneralSettingsModel(cacheUsage: .available(4_194_304)),
+                encryptionModel: Self.fixedSignIns
+            )
                 .environment(settings)
                 .environment(daemon)
                 .environment(\.diagnosticsService, diagnosticsService),
@@ -93,7 +105,10 @@ struct AdvancedSettingsViewTests {
         )
 
         try SnapshotHelpers.assertHostedSnapshot(
-            AdvancedSettingsView(storageModel: GeneralSettingsModel(cacheUsage: .available(4_194_304)))
+            AdvancedSettingsView(
+                storageModel: GeneralSettingsModel(cacheUsage: .available(4_194_304)),
+                encryptionModel: Self.fixedSignIns
+            )
                 .environment(settings)
                 .environment(daemon)
                 .environment(\.diagnosticsService, diagnosticsService),
@@ -127,6 +142,14 @@ struct AdvancedSettingsViewTests {
             size: CGSize(width: 680, height: 1100),
             named: name
         )
+    }
+
+    /// The saved sign-ins section reads this Mac's rclone config unless it
+    /// is told not to. These snapshots aren't about that section, so pin
+    /// it: otherwise the render differs between a Mac with a config and a
+    /// CI runner without one.
+    private static var fixedSignIns: ConfigEncryptionModel {
+        ConfigEncryptionModel(state: .plain, readsLiveState: false)
     }
 
     private var diagnosticsService: DiagnosticsService {
