@@ -1,7 +1,7 @@
 # Browser Gallery Mode — Design
 
 **Date:** 2026-11-15
-**Status:** Draft, waiting on Jon's approval. Nothing is built.
+**Status:** Approved 2026-11-15 (Jon).
 **Issue:** none yet (README "Not done yet": "Media gallery and other advanced browser modes").
 **Builds on:** `Views/Browser/` (`FileGrid`, `BrowserToolbar`, `Selection<String>`),
 `Shared/Thumbnails.swift` (`ThumbnailPolicy`, `ThumbnailRenderer`, `ThumbnailCache`),
