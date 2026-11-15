@@ -81,6 +81,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        // The share extension's hand-off (`nimbus://send?inbox=…`). Taken
+        // as an Apple Event, before SwiftUI sees it: a WindowGroup answers
+        // an opened URL by making another window.
+        NSAppleEventManager.shared().setEventHandler(
+            self, andSelector: #selector(handleURLEvent(_:replyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL)
+        )
         // Must be set before launch finishes, or the click that launched the
         // app is dropped. Clicks wait in `clickBuffer` until NimbusApp sets
         // the handler.
@@ -97,8 +104,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         wasLaunchedFromFinder = NimbusWake.consumeLaunchMarker(in: AppGroup.containerURL)
     }
 
+    @objc private func handleURLEvent(_ event: NSAppleEventDescriptor, replyEvent: NSAppleEventDescriptor) {
+        guard let text = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
+              let url = URL(string: text),
+              let request = NimbusServicesProvider.request(fromHandoff: url, container: AppGroup.containerURL)
+        else { return }
+        servicesProvider.deliver(request)
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = servicesProvider
+        // Share-extension leftovers: inboxes nobody finished with.
+        if let container = AppGroup.containerURL { ShareInbox.sweep(in: container) }
         if startsHidden || isBackgroundLaunch {
             // Hide all windows and become an accessory app (no Dock icon).
             for window in NSApp.windows {

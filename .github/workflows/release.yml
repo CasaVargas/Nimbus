@@ -156,6 +156,8 @@ jobs:
           codesign --verify --deep --strict "$app"
           shipped="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")"
           appex="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/PlugIns/FileProviderExtension.appex/Contents/Info.plist")"
+          share="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/PlugIns/ShareExtension.appex/Contents/Info.plist")"
+          share_archs="$(lipo -archs "$app/Contents/PlugIns/ShareExtension.appex/Contents/MacOS/ShareExtension")"
           app_archs="$(lipo -archs "$app/Contents/MacOS/Nimbus")"
           appex_archs="$(lipo -archs "$app/Contents/PlugIns/FileProviderExtension.appex/Contents/MacOS/FileProviderExtension")"
           public_key="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$app/Contents/Info.plist")"
@@ -165,12 +167,12 @@ jobs:
           [ "$build" = "$VERSION" ] || { echo "error: CFBundleVersion is $build, expected $VERSION" >&2; exit 1; }
           xcrun swift scripts/verify-appcast.swift dist/appcast.xml "$dmg" "$public_key"
           grep -q "<sparkle:version>$VERSION</sparkle:version>" dist/appcast.xml
-          echo "app $shipped ($app_archs), extension $appex ($appex_archs)"
-          for a in "$app_archs" "$appex_archs"; do
+          echo "app $shipped ($app_archs), extension $appex ($appex_archs), share extension $share ($share_archs)"
+          for a in "$app_archs" "$appex_archs" "$share_archs"; do
             case " $a " in *" arm64 "*) ;; *) echo "error: arm64 missing" >&2; exit 1 ;; esac
             case " $a " in *" x86_64 "*) ;; *) echo "error: x86_64 missing" >&2; exit 1 ;; esac
           done
-          [ "$shipped" = "$VERSION" ] && [ "$appex" = "$VERSION" ]
+          [ "$shipped" = "$VERSION" ] && [ "$appex" = "$VERSION" ] && [ "$share" = "$VERSION" ]
 
       - name: Draft the release
         env:

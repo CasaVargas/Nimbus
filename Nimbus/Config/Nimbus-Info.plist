@@ -8,6 +8,17 @@
 	<string>DitcH2M2UzfEyYPccSIxS0NkuE8ghIgusyKegWIiy7E=</string>
 	<key>SUVerifyUpdateBeforeExtraction</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.casavargas.nimbus.handoff</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>nimbus</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSServices</key>
 	<array>
 		<dict>

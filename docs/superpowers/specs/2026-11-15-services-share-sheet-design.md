@@ -1,7 +1,7 @@
 # Services Menu and Share Sheet — Design
 
 **Date:** 2026-11-15
-**Status:** Approved 2026-11-15 (Jon). PR 1 built; PR 2 (share extension) not started.
+**Status:** Approved 2026-11-15 (Jon). PR 1 shipped in 1.4.0; PR 2 (share extension) built.
 **Issue:** none yet (README "Not done yet": "Services menu and Share Sheet").
 **Builds on:** `Views/CopySync/` (`LocationPicker`, `FolderBrowserSheet`), `State/TransferStore.swift`,
 `State/AppRouter.swift`, `Interaction/QuickLookHost.swift` (`downloadToTemp`),
@@ -98,6 +98,23 @@ The URL scheme moved from PR 1 to PR 2 while building (my call): nothing in PR 1
 it should only ever accept an inbox id, never a file path, so that a web page can't prefill
 the Send sheet with a file of its choosing. That is easier to get right next to the
 extension that writes the inbox.
+
+## As built (PR 2)
+
+- `Shared/ShareInbox.swift` holds the hand-off: the manifest, the `nimbus://send?inbox=<uuid>`
+  URL (nothing but an inbox id is accepted), the staging rules and the cleanup.
+- **Which files are copied:** only those the app may not be able to read where they are
+  (another app's container, a group container, a temporary folder). Everything else is passed
+  by path, so sharing a 10 GB file from Documents copies nothing. Images and text that arrive
+  as data are always written into the inbox.
+- **The URL is taken as an Apple Event** in the app delegate, before SwiftUI sees it. A
+  `WindowGroup` otherwise answers an opened URL by making a second window.
+- **Cleanup:** a cancelled share removes its inbox at once. A sent one is left for its
+  transfers to read and is swept a day later, at the next launch.
+- The extension's Info.plist is hand-written and referenced by `INFOPLIST_FILE`, so
+  `xcodegen generate` does not rewrite it and it needs no restore step.
+- Release: `package-release.sh` signs it and refuses a build missing either architecture;
+  `release.yml` checks its version matches the app's.
 
 ## Not in this change
 

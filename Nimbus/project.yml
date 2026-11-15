@@ -56,6 +56,12 @@ targets:
         buildPhase:
           copyFiles:
             destination: plugins
+      - target: ShareExtension
+        embed: true
+        codeSign: true
+        buildPhase:
+          copyFiles:
+            destination: plugins
     preBuildScripts:
       - name: Lint — no .system(size:)
         script: |
@@ -141,6 +147,31 @@ targets:
               BadgeImageType: com.apple.icon-decoration.badge.pinned
               Category: Badge
               Label: Kept Downloaded
+
+  # "Nimbus" in other apps' Share menus. It links nothing but Foundation and
+  # AppKit: it only records what was shared and opens the app (ShareInbox).
+  # Its Info.plist is hand-written and referenced by INFOPLIST_FILE, so
+  # XcodeGen never rewrites it (unlike the File Provider extension's).
+  ShareExtension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: ShareExtension
+        excludes:
+          - "**/.DS_Store"
+          - Info.plist
+      - path: Shared/AppGroup.swift
+      - path: Shared/ShareInbox.swift
+      - path: Nimbus/Resources/Assets.xcassets
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.casavargas.nimbus.Share
+        INFOPLIST_FILE: ShareExtension/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_ENTITLEMENTS: ShareExtension/ShareExtension.entitlements
+        ENABLE_APP_SANDBOX: YES
+        CODE_SIGN_STYLE: Automatic
 
   NimbusTests:
     type: bundle.unit-test
