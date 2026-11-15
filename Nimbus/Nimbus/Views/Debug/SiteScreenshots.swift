@@ -352,4 +352,172 @@ private enum SiteFiles {
     }
     .preferredColorScheme(.dark)
 }
+
+// MARK: - 1.4 features
+
+/// Stand-in pictures for the gallery shot, drawn here so no real photo or
+/// document is ever in a screenshot: a sky, a sun and hills for photos, a
+/// ruled page for PDFs.
+private struct SiteDemoThumbnails: GalleryThumbnailProviding {
+    func cachedImage(for request: ThumbnailRequest) -> CGImage? {
+        switch request.kind {
+        case .image: Self.landscape(seed: request.name, width: request.maxPixel, height: request.maxPixel * 2 / 3)
+        case .pdf: Self.page(width: request.maxPixel * 17 / 22, height: request.maxPixel)
+        case nil: nil
+        }
+    }
+
+    func image(for request: ThumbnailRequest) async -> CGImage? {
+        cachedImage(for: request)
+    }
+
+    private static let palettes: [(top: (CGFloat, CGFloat, CGFloat), bottom: (CGFloat, CGFloat, CGFloat),
+                                   hill: (CGFloat, CGFloat, CGFloat))] = [
+        ((0.16, 0.32, 0.62), (0.98, 0.72, 0.45), (0.10, 0.22, 0.30)),
+        ((0.35, 0.62, 0.90), (0.86, 0.94, 0.98), (0.16, 0.42, 0.34)),
+        ((0.42, 0.24, 0.52), (0.99, 0.60, 0.50), (0.20, 0.14, 0.30)),
+        ((0.10, 0.45, 0.62), (0.70, 0.90, 0.86), (0.86, 0.74, 0.52)),
+        ((0.92, 0.55, 0.30), (0.99, 0.88, 0.62), (0.45, 0.24, 0.20)),
+    ]
+
+    private static func context(_ width: Int, _ height: Int) -> CGContext? {
+        CGContext(data: nil, width: max(width, 1), height: max(height, 1), bitsPerComponent: 8, bytesPerRow: 0,
+                  space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
+                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+    }
+
+    private static func landscape(seed: String, width: Int, height: Int) -> CGImage? {
+        guard let context = context(width, height) else { return nil }
+        // Constants chosen so the demo folder's names spread over every
+        // palette with no two neighbours alike.
+        let pick = seed.unicodeScalars.reduce(7) { ($0 &* 21 &+ Int($1.value)) % 104_729 }
+        let palette = palettes[(pick / 11) % palettes.count]
+        let w = CGFloat(width), h = CGFloat(height)
+        let space = CGColorSpace(name: CGColorSpace.sRGB)!
+        let sky = CGGradient(colorsSpace: space, colors: [
+            CGColor(srgbRed: palette.bottom.0, green: palette.bottom.1, blue: palette.bottom.2, alpha: 1),
+            CGColor(srgbRed: palette.top.0, green: palette.top.1, blue: palette.top.2, alpha: 1),
+        ] as CFArray, locations: [0.25, 1])!
+        context.drawLinearGradient(sky, start: .zero, end: CGPoint(x: 0, y: h), options: [])
+
+        // Sun.
+        let sunX = w * (0.25 + CGFloat(pick % 5) * 0.12), sunY = h * (0.52 + CGFloat(pick % 3) * 0.08)
+        let radius = h * 0.09
+        context.setFillColor(CGColor(srgbRed: 1, green: 0.96, blue: 0.84, alpha: 0.95))
+        context.fillEllipse(in: CGRect(x: sunX - radius, y: sunY - radius, width: radius * 2, height: radius * 2))
+
+        // Three ridges, nearer ones darker.
+        for layer in 0..<3 {
+            let depth = CGFloat(layer) / 2
+            let base = h * (0.46 - depth * 0.16)
+            let amplitude = h * (0.10 - depth * 0.02)
+            let phase = CGFloat(pick % 7) + CGFloat(layer) * 1.7
+            let path = CGMutablePath()
+            path.move(to: CGPoint(x: 0, y: 0))
+            var x: CGFloat = 0
+            while x <= w {
+                let t = x / w * 2 * .pi
+                let y = base + sin(t * (1.1 + depth) + phase) * amplitude + sin(t * 2.7 + phase * 2) * amplitude * 0.35
+                path.addLine(to: CGPoint(x: x, y: y))
+                x += max(w / 160, 1)
+            }
+            path.addLine(to: CGPoint(x: w, y: 0))
+            path.closeSubpath()
+            let shade = 0.55 + depth * 0.45
+            context.setFillColor(CGColor(srgbRed: palette.hill.0 * (1.6 - shade * 0.6),
+                                         green: palette.hill.1 * (1.6 - shade * 0.6),
+                                         blue: palette.hill.2 * (1.6 - shade * 0.6), alpha: 1))
+            context.addPath(path)
+            context.fillPath()
+        }
+        return context.makeImage()
+    }
+
+    private static func page(width: Int, height: Int) -> CGImage? {
+        guard let context = context(width, height) else { return nil }
+        let w = CGFloat(width), h = CGFloat(height)
+        context.setFillColor(CGColor(gray: 1, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: w, height: h))
+        // A heading and ruled lines: reads as a document, says nothing.
+        context.setFillColor(CGColor(gray: 0.25, alpha: 1))
+        context.fill(CGRect(x: w * 0.12, y: h * 0.86, width: w * 0.46, height: h * 0.028))
+        context.setFillColor(CGColor(gray: 0.78, alpha: 1))
+        var y = h * 0.78
+        var line = 0
+        while y > h * 0.14 {
+            let length: CGFloat = line % 5 == 4 ? 0.42 : 0.76
+            context.fill(CGRect(x: w * 0.12, y: y, width: w * length, height: h * 0.012))
+            y -= h * 0.045
+            line += 1
+        }
+        return context.makeImage()
+    }
+}
+
+private enum SiteGallery {
+    static var files: [FileItem] {
+        func item(_ name: String, _ size: Int64, dir: Bool = false, ago: Double) -> FileItem {
+            FileItem(path: name, name: name, size: dir ? -1 : size, mimeType: "",
+                     modTime: Date().addingTimeInterval(-ago * 86_400), isDir: dir, fileID: nil,
+                     qualifiedRemotePath: "Personal:Photos/Yosemite 2026/\(name)")
+        }
+        return [
+            item("Edits", 0, dir: true, ago: 2),
+            item("Valley at dawn.heic", 8_400_000, ago: 18),
+            item("Half Dome.heic", 7_900_000, ago: 18),
+            item("Meadow.heic", 6_200_000, ago: 18),
+            item("Tunnel View.heic", 9_100_000, ago: 17),
+            item("Mirror Lake.heic", 7_300_000, ago: 17),
+            item("Trail map.pdf", 2_100_000, ago: 21),
+            item("Glacier Point.heic", 8_800_000, ago: 16),
+            item("Campfire.mov", 184_000_000, ago: 16),
+            item("Sunset.heic", 6_900_000, ago: 16),
+            item("Permit.pdf", 310_000, ago: 30),
+            item("Road out.heic", 5_400_000, ago: 15),
+        ]
+    }
+}
+
+#Preview("window-gallery", traits: .fixedLayout(width: 2560, height: 1600)) {
+    @Previewable @State var tab: VolumeTab = .files
+    let files = SiteGallery.files
+    let selection = Selection<String>()
+    selection.select(files[4].id, in: files.map(\.id))
+    return SiteShot(width: 1280, height: 800) {
+        DemoWindow(title: "Personal", selection: .remote("Personal")) {
+            VolumePaneLayout {
+                VolumeHeader(remote: Remote(name: "Personal", type: "drive", config: [:]), providerName: "Google Drive",
+                             quota: StorageQuota(used: 1_280_000_000_000, total: 2_000_000_000_000), status: .connected,
+                             isInFinder: true, onPrimary: {}, onSync: {}, onEdit: {})
+                VolumeTabBar(selection: $tab)
+                FileGallery(files: files, remote: "Personal", selection: selection,
+                            thumbnails: SiteDemoThumbnails(),
+                            onOpen: { _ in }, onContextAction: { _, _ in }, onQuickLook: { _ in })
+                    .glassContentSurface()
+            }
+        }
+    }
+}
+
+#Preview("send-to-nimbus", traits: .fixedLayout(width: 960, height: 460)) {
+    let request = SendRequest(items: [
+        .init(url: URL(fileURLWithPath: "/Users/demo/Desktop/Quarterly report.pdf"), isDirectory: false, size: 9_400_000),
+        .init(url: URL(fileURLWithPath: "/Users/demo/Desktop/Floor plan.png"), isDirectory: false, size: 3_100_000),
+        .init(url: URL(fileURLWithPath: "/Users/demo/Desktop/Notes.txt"), isDirectory: false, size: 1_700_000),
+    ])
+    return SiteShot(width: 480, height: 230) {
+        SendToNimbusSheet(request: request, remoteNames: ["Personal", "Work", "Dropbox"],
+                          lastRemote: "Personal", lastPath: "Inbox", client: RcloneClient(),
+                          onAddCloud: {}, onSent: { _, _ in })
+            .environment(TransferStore())
+    }
+    .preferredColorScheme(.dark)
+}
+
+#Preview("own-google-sign-in", traits: .fixedLayout(width: 1120, height: 1170)) {
+    SiteShot(width: 560, height: 585) {
+        OwnClientIDSheet(cloudName: "Personal", client: RcloneClient(), onSaved: { _ in })
+    }
+    .preferredColorScheme(.dark)
+}
 #endif
