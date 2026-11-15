@@ -24,6 +24,7 @@ struct HomeView: View {
     @Environment(BackupScheduler.self) private var backupScheduler
 
     @State private var reconnecting: CloudSummary.Row?
+    @State private var settingUpClientID: CloudSummary.Row?
     @State private var finderError: NimbusError?
 
     private var summary: CloudSummary {
@@ -59,6 +60,13 @@ struct HomeView: View {
             pendingSignIn = nil
             reconnecting = summary.rows.first { $0.name == name }
         }
+        .sheet(item: $settingUpClientID) { row in
+            OwnClientIDSheet(cloudName: row.name, client: daemon.client) {
+                // The old token belongs to the shared ID; sign in again
+                // straight away so the cloud never sits half set up.
+                reconnecting = row
+            }
+        }
         .sheet(item: $reconnecting) { row in
             ReconnectSheet(
                 row: row,
@@ -92,6 +100,7 @@ struct HomeView: View {
         case .nearlyFull(let row): onOpenCloud(row.name)
         case .notInFinder(let row): Task { await showInFinder(row.name) }
         case .backup(let note): router.pending = .backups(note.jobID)
+        case .sharedGoogleID(let row): settingUpClientID = row
         }
     }
 

@@ -124,15 +124,28 @@ extension RcloneClient {
         ])
     }
 
+    /// Saves `parameters` on an EXISTING remote without starting a sign-in.
+    /// rclone writes them before it asks its first question (verified on
+    /// 1.76 with a Drive remote: `client_id`/`client_secret` are in the
+    /// config when the call returns at `*oauth-confirm`), and the question
+    /// is left unanswered, so nothing else about the remote changes.
+    public func setRemoteParameters(name: String, parameters: [String: String]) async throws {
+        _ = try await configCall(method: "config/update", name: name, type: nil, parameters: parameters, opt: [
+            "nonInteractive": true,
+            "all": false,
+        ])
+    }
+
     private func configCall(
         method: String = "config/create",
         name: String,
         type: String?,
+        parameters: [String: String] = [:],
         opt: [String: any Sendable]
     ) async throws -> ConfigStep {
         var params: [String: any Sendable] = [
             "name": name,
-            "parameters": [String: String](),
+            "parameters": parameters,
             "opt": opt,
         ]
         if let type { params["type"] = type }

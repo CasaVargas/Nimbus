@@ -35,6 +35,7 @@ final class RcloneDaemon {
 #endif
 
     private static let portRange = 5572...5580
+    private static let log = DaemonLog.standard()
 
     init() {
         client = RcloneClient()
@@ -124,6 +125,11 @@ final class RcloneDaemon {
             bandwidthLimit: bandwidthLimit,
             concurrentTransfers: concurrentTransfers
         )
+        // rclone's notices and errors, kept for diagnosis. Not in hosted
+        // (test) launches, which never start a real daemon.
+        if let log = Self.log {
+            proc.standardError = log.makePipe()
+        }
 
         do {
             try proc.run()

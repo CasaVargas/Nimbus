@@ -21,6 +21,8 @@ struct BrowserView: View {
     @Environment(TransferStore.self) private var transferStore
     @Environment(FileProviderBridge.self) private var fileProviderBridge
     @Environment(RemoteStatusService.self) private var statusService
+    /// Optional: the browser is also hosted where no monitor is installed.
+    @Environment(CloudMonitor.self) private var monitor: CloudMonitor?
     @State private var viewModel: BrowserViewModel?
     @State private var pendingCopy: CopyRequest?
     @State private var quickLookHost = QuickLookHost()
@@ -40,6 +42,9 @@ struct BrowserView: View {
                         errorState(for: error, viewModel: viewModel)
                     } else if viewModel.isLoading && viewModel.files.isEmpty {
                         skeletonRows
+                            .overlay(alignment: .bottom) {
+                                if viewModel.isSlow { slowNotice }
+                            }
                     } else if viewModel.files.isEmpty {
                         EmptyState(
                             icon: "folder",
@@ -325,6 +330,24 @@ struct BrowserView: View {
             // Will use NSFileProviderManager when wired up
             break
         }
+    }
+
+    /// Shown once a listing has run long, so a slow answer doesn't look
+    /// like a hang. Names the cause when it's the shared Google sign-in.
+    private var slowNotice: some View {
+        let shared = monitor?.remotes.first { $0.name == remoteName }.map(SharedGoogleClientID.isUsed(by:)) ?? false
+        return Label(Self.slowText(usesSharedGoogleID: shared), systemImage: "hourglass")
+            .font(DesignSystem.Typography.callout)
+            .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+            .multilineTextAlignment(.center)
+            .padding(DesignSystem.Spacing.l)
+            .transition(.opacity)
+    }
+
+    static func slowText(usesSharedGoogleID: Bool) -> String {
+        usesSharedGoogleID
+            ? "Still loading. Google is limiting the shared sign-in this cloud uses; Home has a fix."
+            : "Still loading…"
     }
 
     private var skeletonRows: some View {

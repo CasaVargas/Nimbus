@@ -24,6 +24,8 @@ struct CloudSummary: Equatable {
         let lastConnected: Date?
         /// rclone's own message for `.failing` / `.unreachable`, for detail views.
         let errorDetail: String?
+        /// A Google Drive cloud signed in through rclone's shared client ID.
+        var usesSharedGoogleID = false
 
         var name: String { id }
     }
@@ -51,9 +53,12 @@ struct CloudSummary: Equatable {
         case nearlyFull(Row)
         case notInFinder(Row)
         case backup(BackupNote)
+        /// A Google Drive cloud on rclone's shared, rate-limited client ID.
+        case sharedGoogleID(Row)
 
         var id: String {
             switch self {
+            case .sharedGoogleID(let row): "sharedid:\(row.id)"
             case .nearlyFull(let row): "full:\(row.id)"
             case .notInFinder(let row): "finder:\(row.id)"
             case .backup(let note): note.dismissKey
@@ -212,7 +217,8 @@ enum CloudSummaryBuilder {
             isInFinder: isInFinder,
             tint: CloudTint.slot(forIndex: index),
             lastConnected: lastConnected,
-            errorDetail: detail
+            errorDetail: detail,
+            usesSharedGoogleID: SharedGoogleClientID.isUsed(by: remote)
         )
     }
 
@@ -284,6 +290,12 @@ enum CloudSummaryBuilder {
         var result: [CloudSummary.Suggestion] = BackupSuggestions
             .notes(for: backups, now: now, calendar: calendar, busy: busyBackups, catchUpPending: backupCatchUpPending)
             .map { .backup($0) }
+        // Slow, failing folders and a retirement date outrank storage tips.
+        // Only for a cloud that's signed in: one that needs sign-in gets
+        // that banner first.
+        for row in rows where row.usesSharedGoogleID && row.health != .needsSignIn {
+            result.append(.sharedGoogleID(row))
+        }
         for row in rows where (row.quota?.fraction ?? 0) >= nearlyFullThreshold {
             result.append(.nearlyFull(row))
         }

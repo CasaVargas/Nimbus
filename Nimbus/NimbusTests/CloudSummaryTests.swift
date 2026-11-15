@@ -8,8 +8,38 @@ import RcloneKit
 struct CloudSummaryTests {
     let now = Date(timeIntervalSince1970: 1_800_000_000)
 
+    /// A cloud with its own Google client ID, so tests that aren't about the
+    /// shared-ID suggestion don't get one.
     func remote(_ name: String, _ type: String = "drive") -> Remote {
-        Remote(name: name, type: type, config: [:])
+        Remote(name: name, type: type, config: ["client_id": "own.apps.googleusercontent.com"])
+    }
+
+    func sharedDrive(_ name: String) -> Remote {
+        Remote(name: name, type: "drive", config: [:])
+    }
+
+    // MARK: Shared Google sign-in
+
+    @Test func aDriveCloudOnTheSharedIDGetsASuggestion() {
+        let s = build([sharedDrive("Personal"), remote("Work")],
+                      statuses: ["Personal": .connected, "Work": .connected])
+        #expect(s.rows.map(\.usesSharedGoogleID) == [true, false])
+        #expect(s.suggestions.map(\.id) == ["sharedid:Personal"])
+    }
+
+    @Test func theSharedIDSuggestionCanBeDismissedAndWaitsForSignIn() {
+        let dismissed = build([sharedDrive("Personal")], statuses: ["Personal": .connected],
+                              dismissed: ["sharedid:Personal"])
+        #expect(dismissed.suggestions.isEmpty)
+
+        // Needs sign-in first: that banner is the one thing to do.
+        let signedOut = build([sharedDrive("Personal")], statuses: ["Personal": .authNeeded])
+        #expect(signedOut.suggestions.isEmpty)
+    }
+
+    @Test func theSharedIDSuggestionOutranksStorageTips() {
+        let s = build([sharedDrive("Personal")], statuses: ["Personal": .connected], inFinder: [])
+        #expect(s.suggestions.map(\.id) == ["sharedid:Personal", "finder:Personal"])
     }
 
     func transfer(src: String, dst: String, eta: TimeInterval? = nil, progress: Double = 0.5,
