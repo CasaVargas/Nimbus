@@ -52,6 +52,7 @@ extension DesignSystem.Stratosphere {
         public static let backups = CloudColor(0x3DDC97, 0x0E9F6E)
         public static let copy = CloudColor(0xB49CFF, 0x6D4DFF)
         public static let compare = CloudColor(0x67E8F9, 0x0891B2)
+        public static let settings = CloudColor(0xA3ADC2, 0x5B6478)
         public static let nearlyFull = CloudColor(0xFFB84D, 0xFF8A00)
 
         /// The colour of the first (or only) remote on a backend.
