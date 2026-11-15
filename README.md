@@ -23,6 +23,15 @@
   <img src="docs/screenshots/window-home.png" width="900" alt="The Nimbus window on Home: a sidebar of clouds with capacity bars, how much is free across all of them, a storage ring, and a card per cloud with its status in plain words. Demo data.">
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/window-gallery.png" width="900" alt="A folder of photos open in Gallery view: one large picture of hills at dusk over a filmstrip of the folder, with two documents and a video among the photos. Demo data, drawn pictures.">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/send-to-nimbus.png" width="440" alt="The Send to Nimbus sheet: three items, 14.2 MB, going to a folder named Inbox in the Personal cloud, with Cancel and Send buttons. Demo data.">
+  <img src="docs/screenshots/own-google-sign-in.png" width="400" alt="The sheet for giving a Google Drive cloud its own Google sign-in: five numbered steps with a link each, fields for a client ID and secret, a Choose File button, and Save and Sign In.">
+</p>
+
 ## Why
 
 **It is a real Mac app.** Nimbus is SwiftUI and AppKit, Swift 6, macOS 15 and up. There is no Electron, no web view, no cross-platform toolkit. Selection, drag and drop, Quick Look, keyboard shortcuts and column sorting behave the way they do in Finder, because the design target is "indistinguishable from Finder at a glance".
