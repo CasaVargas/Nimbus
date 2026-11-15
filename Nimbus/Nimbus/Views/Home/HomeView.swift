@@ -22,6 +22,8 @@ struct HomeView: View {
     @Environment(BackupStore.self) private var backupStore
     @Environment(BackupRunner.self) private var backupRunner
     @Environment(BackupScheduler.self) private var backupScheduler
+    /// Optional: previews and tests host Home without one.
+    @Environment(CloudMonitor.self) private var monitor: CloudMonitor?
 
     @State private var reconnecting: CloudSummary.Row?
     @State private var settingUpClientID: CloudSummary.Row?
@@ -62,6 +64,10 @@ struct HomeView: View {
         }
         .sheet(item: $settingUpClientID) { row in
             OwnClientIDSheet(cloudName: row.name, client: daemon.client) {
+                // The suggestion is drawn from the config Nimbus last
+                // loaded; reload it, or the card stays up to ten minutes
+                // after the cloud stopped using the shared ID.
+                Task { await monitor?.refresh() }
                 // The old token belongs to the shared ID; sign in again
                 // straight away so the cloud never sits half set up.
                 reconnecting = row
