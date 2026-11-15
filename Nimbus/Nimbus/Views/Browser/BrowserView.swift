@@ -279,7 +279,7 @@ struct BrowserView: View {
                     if index > 0 {
                         Image(systemName: "chevron.right")
                             .font(DesignSystem.Typography.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
                     }
                     Button {
                         Task { await viewModel.navigateTo(path: component.path) }
@@ -294,7 +294,8 @@ struct BrowserView: View {
                     .font(index == viewModel.pathComponents.count - 1
                           ? DesignSystem.Typography.bodyEmphasized
                           : DesignSystem.Typography.body)
-                    .foregroundStyle(index == viewModel.pathComponents.count - 1 ? .primary : .secondary)
+                    .foregroundStyle(index == viewModel.pathComponents.count - 1
+                                     ? DesignSystem.Color.semantic.textPrimary : DesignSystem.Color.semantic.textSecondary)
                 }
             }
             .padding(.horizontal, DesignSystem.Spacing.l)

@@ -10,6 +10,10 @@ struct SettingsViewTests {
         #expect(SettingsTab.allCases == [.general, .transfers, .storage, .advanced, .about])
     }
 
+    @Test func storageTabIsOfferedOnlyWithAStorageModel() {
+        #expect(SettingsView().tabs == [.general, .transfers, .advanced, .about])
+    }
+
     @Test func sceneRootAppliesLightAppearanceFromSettings() {
         let settings = settings()
         settings.appearance = .light
