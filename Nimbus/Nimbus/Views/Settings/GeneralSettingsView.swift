@@ -38,7 +38,7 @@ private struct ApplicationSettingsSection: View {
                 }
                 if let error = launchAtLogin.lastError {
                     Text(verbatim: error)
-                        .font(DesignSystem.Typography.caption)
+                        .font(DesignSystem.Stratosphere.Typography.detail)
                         .foregroundStyle(DesignSystem.Color.semantic.statusError)
                         .accessibilityLabel("Open at Login error: \(error)")
                 }
@@ -97,15 +97,15 @@ private struct RunBackupsWhenClosedRow: View {
             if backgroundBackups.needsApproval {
                 HStack(spacing: DesignSystem.Spacing.s) {
                     Text("Allow Nimbus in Login Items so backups can run while it's closed.")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                        .font(DesignSystem.Stratosphere.Typography.detail)
+                        .foregroundStyle(.themeText(.secondary))
                     Button("Open Login Items") { backgroundBackups.openLoginItems() }
                         .controlSize(.small)
                 }
             }
             if let error = backgroundBackups.lastError {
                 Text(verbatim: error)
-                    .font(DesignSystem.Typography.caption)
+                    .font(DesignSystem.Stratosphere.Typography.detail)
                     .foregroundStyle(DesignSystem.Color.semantic.statusError)
                     .accessibilityLabel("\(OpenAtLoginNote.runsWhenClosedLabel) error: \(error)")
             }

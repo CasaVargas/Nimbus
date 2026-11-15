@@ -354,9 +354,10 @@ private struct TransferPerformanceSection: View {
                             .accessibilityHint(Self.customHint)
                     }
                     Text(verbatim: Self.customHint)
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(bandwidthInvalid ? DesignSystem.Color.semantic.statusError
-                                                          : DesignSystem.Color.semantic.textTertiary)
+                        .font(DesignSystem.Stratosphere.Typography.detail)
+                        .foregroundStyle(bandwidthInvalid
+                            ? AnyShapeStyle(DesignSystem.Color.semantic.statusError)
+                            : AnyShapeStyle(.themeText(.tertiary)))
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 if let bandwidthRuntimeError {
@@ -368,7 +369,7 @@ private struct TransferPerformanceSection: View {
 
     private func runtimeError(_ message: String) -> some View {
         Text(verbatim: message)
-            .font(DesignSystem.Typography.caption)
+            .font(DesignSystem.Stratosphere.Typography.detail)
             .foregroundStyle(DesignSystem.Color.semantic.statusError)
             .accessibilityLabel("Transfer setting error: \(message)")
     }
@@ -449,7 +450,7 @@ private struct NotificationAuthorizationStatusRow: View {
                 Text("Asking for permission to notify…")
             } else if status == .denied {
                 Label("Notifications are off for Nimbus in System Settings", systemImage: "bell.slash")
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .foregroundStyle(.themeText(.secondary))
                 Spacer()
                 Link("Turn On…", destination: notificationSettingsURL)
             } else if let error {
@@ -461,7 +462,7 @@ private struct NotificationAuthorizationStatusRow: View {
                 .foregroundStyle(DesignSystem.Color.semantic.statusError)
             }
         }
-        .font(DesignSystem.Typography.caption)
+        .font(DesignSystem.Stratosphere.Typography.detail)
         .padding(.vertical, DesignSystem.Spacing.xs)
     }
 

@@ -44,12 +44,12 @@ struct AboutSettingsSection: View {
                     Text("Nimbus")
                         .font(DesignSystem.Typography.headline)
                     Text(versionLine)
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                        .font(DesignSystem.Stratosphere.Typography.detail)
+                        .foregroundStyle(.themeText(.secondary))
                         .textSelection(.enabled)
                     Text("© 2026 CasaVargas LLC")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundStyle(DesignSystem.Color.semantic.textTertiary)
+                        .font(DesignSystem.Stratosphere.Typography.detail)
+                        .foregroundStyle(.themeText(.tertiary))
                 }
                 Spacer()
             }
@@ -60,9 +60,9 @@ struct AboutSettingsSection: View {
                 Link("License", destination: URL(string: "https://github.com/CasaVargas/Nimbus/blob/main/LICENSE")!)
                 Spacer()
                 Link("Built on rclone", destination: URL(string: "https://rclone.org/")!)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .foregroundStyle(.themeText(.secondary))
             }
-            .font(DesignSystem.Typography.caption)
+            .font(DesignSystem.Stratosphere.Typography.detail)
             .padding(.vertical, DesignSystem.Spacing.xs)
         }
     }
@@ -129,15 +129,15 @@ struct StudioAppCard: View {
                     .accessibilityHidden(true)
                 Text(verbatim: app.name)
                     .font(DesignSystem.Typography.titleEmphasized)
-                    .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                    .foregroundStyle(.themeText(.primary))
             }
             Text(verbatim: app.tagline)
                 .font(DesignSystem.Typography.body)
-                .foregroundStyle(DesignSystem.Color.semantic.textPrimary)
+                .foregroundStyle(.themeText(.primary))
                 .fixedSize(horizontal: false, vertical: true)
             Text(verbatim: app.model)
                 .font(DesignSystem.Typography.callout)
-                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                .foregroundStyle(.themeText(.secondary))
             Spacer(minLength: 0)
             Button(app.buttonTitle) { openURL(app.url) }
                 .buttonStyle(.primaryPill(.small))

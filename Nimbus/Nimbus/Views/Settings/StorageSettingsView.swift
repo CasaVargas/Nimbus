@@ -65,13 +65,13 @@ struct StorageSettingsView: View {
                 ProgressView().controlSize(.small)
                 Text("Measuring…")
                     .font(DesignSystem.Typography.body)
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .foregroundStyle(.themeText(.secondary))
             }
             .padding(.vertical, DesignSystem.Spacing.xs)
         } else if model.drives.isEmpty {
             Text("No clouds are in Finder.")
                 .font(DesignSystem.Typography.body)
-                .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                .foregroundStyle(.themeText(.secondary))
                 .padding(.vertical, DesignSystem.Spacing.xs)
         } else {
             FormRow(label: "All drives", help: nil) {
@@ -101,7 +101,7 @@ struct StorageSettingsView: View {
         Text(verbatim: bytes == 0 ? String(localized: "None") : ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
             .font(DesignSystem.Typography.body)
             .monospacedDigit()
-            .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+            .foregroundStyle(.themeText(.secondary))
     }
 }
 
@@ -121,7 +121,7 @@ private struct DriveRow: View {
                      : ByteCountFormatter.string(fromByteCount: drive.bytes, countStyle: .file))
                     .font(DesignSystem.Typography.body)
                     .monospacedDigit()
-                    .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
+                    .foregroundStyle(.themeText(.secondary))
                 Button("Remove Downloads…", action: remove)
                     .controlSize(.small)
                     .disabled(drive.fileCount == 0 || isRemoving)

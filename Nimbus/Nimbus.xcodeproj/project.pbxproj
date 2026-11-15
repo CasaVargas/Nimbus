@@ -347,6 +347,7 @@
 		EBC50EFF50D52BB11B702437 /* FileProviderErrorText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CCA28ACC2C4FB749024BB2A /* FileProviderErrorText.swift */; };
 		EE47A89B6A10C75B2D84B26C /* WorkingSetEnumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC064C2976CC5B4538C0712A /* WorkingSetEnumerator.swift */; };
 		EE5019E8D9B1D58231DA2324 /* RemoteChangeScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DB2DA947E8E6A02DDDD519 /* RemoteChangeScanner.swift */; };
+		EEEB3DF978DDD79855B06CD3 /* StratosphereTextStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A40F7A388157A4288A52A2F5 /* StratosphereTextStyle.swift */; };
 		F00D57B1B55149EF5149A025 /* TransferStorePersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBCD67F8F5D2E0A876CC4C72 /* TransferStorePersistenceTests.swift */; };
 		F0F4A75D1B29B6DF7A215EFB /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DECF7995C720D6A071047D2 /* Motion.swift */; };
 		F20DC020AE748305501AE6DC /* CopySyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10A3816E1EC55E5657611B64 /* CopySyncView.swift */; };
@@ -647,6 +648,7 @@
 		A18E02E9A43A821C8D77BCEE /* HotFolderStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotFolderStore.swift; sourceTree = "<group>"; };
 		A21C381CEE03583B4CADE2DA /* ImportPreviewList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPreviewList.swift; sourceTree = "<group>"; };
 		A21CD08F98A42ACB20E40A27 /* Lints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lints.swift; sourceTree = "<group>"; };
+		A40F7A388157A4288A52A2F5 /* StratosphereTextStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StratosphereTextStyle.swift; sourceTree = "<group>"; };
 		A44CF693539E4505E2EDD05E /* RemoteChangeCadenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteChangeCadenceTests.swift; sourceTree = "<group>"; };
 		A4941C4E1A5484F7CE08EDA6 /* EncryptedFolderSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedFolderSheet.swift; sourceTree = "<group>"; };
 		A4C5BB4DB35ED60D3E6FAA5C /* CloudNaming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudNaming.swift; sourceTree = "<group>"; };
@@ -828,6 +830,7 @@
 				09902A32C538D671F377235B /* CloudColors.swift */,
 				C8C699C83EB0ABE01894935B /* StratosphereColor.swift */,
 				D4942A81625BEACCDCC03BAD /* StratosphereMetrics.swift */,
+				A40F7A388157A4288A52A2F5 /* StratosphereTextStyle.swift */,
 			);
 			path = Stratosphere;
 			sourceTree = "<group>";
@@ -1880,6 +1883,7 @@
 				1911ADBFDD0494D84E5DAAB9 /* StratosphereGallery.swift in Sources */,
 				59DE4BAA34DE524D30834A49 /* StratosphereIndicators.swift in Sources */,
 				147D7EED8CC0868621F6EE59 /* StratosphereMetrics.swift in Sources */,
+				EEEB3DF978DDD79855B06CD3 /* StratosphereTextStyle.swift in Sources */,
 				ABAE01A9C3D77EAC8B751EF7 /* Thumbnails.swift in Sources */,
 				C94C8DD95DA8BF42396D3779 /* TimedCache.swift in Sources */,
 				94F5387CB7E44806325D76E7 /* TransferDrawer.swift in Sources */,
