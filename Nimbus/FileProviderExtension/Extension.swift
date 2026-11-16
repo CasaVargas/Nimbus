@@ -200,7 +200,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
                 if isFolder {
                     try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "createItem.mkdir") {
-                        try await rclone.mkdir(fs: "\(remoteName):", remote: newPath)
+                        try await rclone.createFolder(fs: "\(remoteName):", remote: newPath)
                     }
                 } else if let localURL {
                     // `uploadFile` streams bytes from our sandbox to rclone

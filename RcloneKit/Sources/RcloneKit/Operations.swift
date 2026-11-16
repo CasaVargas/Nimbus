@@ -32,6 +32,93 @@ extension RcloneClient {
         ])
     }
 
+    /// Creates a folder the user can then see and open.
+    ///
+    /// On most services that is `mkdir`. Bucket stores (S3, Backblaze B2,
+    /// Google Cloud Storage, Azure Blob) keep no empty folders: inside a
+    /// bucket `mkdir` succeeds and creates nothing. There the folder is
+    /// made real one of two ways:
+    ///
+    /// - Where rclone has `directory_markers` (S3, GCS, Azure Blob), that
+    ///   option is turned on for the remote and `mkdir` repeated. rclone
+    ///   then writes the zero-byte `folder/` object those services' own
+    ///   consoles write.
+    /// - Anywhere else, or if that left no folder, a zero-byte placeholder file goes into the folder:
+    ///   `.bzEmpty` on B2, as Backblaze's web interface does, else `.keep`.
+    public func createFolder(fs: String, remote: String) async throws {
+        try await mkdir(fs: fs, remote: remote)
+        let info: FsInfoResponse = try await call("operations/fsinfo", params: ["fs": fs])
+        guard info.features["CanHaveEmptyDirectories"] == false else { return }
+        // A new bucket, or a folder that already has files, is there now.
+        guard try await !exists(fs: fs, remote: remote) else { return }
+
+        let base = try await baseRemote(ofFs: fs)
+        if let base, Self.directoryMarkerBackends.contains(base.type) {
+            try await call("config/update", params: [
+                "name": base.name,
+                "parameters": ["directory_markers": "true"],
+                "opt": ["nonInteractive": true],
+            ])
+            // A crypt or alias over this remote keeps using the copy of it
+            // rclone made before the change, until the cache is dropped.
+            try await call("fscache/clear")
+            try await mkdir(fs: fs, remote: remote)
+            if try await exists(fs: fs, remote: remote) { return }
+        }
+        let placeholder = base?.type == "b2" ? Self.b2FolderPlaceholder : Self.folderPlaceholder
+        try await uploadData(Data(), fs: fs, remote: remote, filename: placeholder)
+    }
+
+    /// The file Backblaze's web interface puts in a new, empty folder.
+    public static let b2FolderPlaceholder = ".bzEmpty"
+    /// The placeholder on other services that keep no empty folders.
+    public static let folderPlaceholder = ".keep"
+    /// Backend types with rclone's `directory_markers` option.
+    static let directoryMarkerBackends: Set<String> = ["s3", "google cloud storage", "azureblob"]
+
+    /// Whether `remote` is there. `operations/stat` answers a missing path
+    /// with `{"item": null}`, not an error.
+    public func exists(fs: String, remote: String) async throws -> Bool {
+        let response: OptionalStatResponse = try await call("operations/stat", params: [
+            "fs": fs,
+            "remote": remote,
+        ])
+        return response.item != nil
+    }
+
+    /// A configured remote's backend type ("b2", "drive"), or nil when
+    /// there is no such remote. Answered from rclone's config, no network.
+    public func backendType(ofRemote name: String) async throws -> String? {
+        let config: RemoteConfigResponse = try await call("config/get", params: ["name": name])
+        return config.type
+    }
+
+    /// The remote that stores `fs`'s data: `fs`'s own remote, or the one a
+    /// crypt, alias or similar wrapper points at through its `remote`
+    /// setting. Nil for a local path or an on-the-fly remote.
+    func baseRemote(ofFs fs: String) async throws -> (name: String, type: String)? {
+        var current = fs
+        // Wrappers nest (alias over crypt over S3); the bound stops a loop.
+        for _ in 0..<5 {
+            guard let name = Self.splitFs(current).name else { return nil }
+            let config: RemoteConfigResponse = try await call("config/get", params: ["name": name])
+            guard let type = config.type else { return nil }
+            guard let wrapped = config.remote, !wrapped.isEmpty else { return (name, type) }
+            current = wrapped
+        }
+        return nil
+    }
+
+    /// Splits `"name:path/inside"` into the remote name and the path. Nil
+    /// name for a local path or an on-the-fly `:backend:` remote.
+    static func splitFs(_ fs: String) -> (name: String?, root: String) {
+        guard !fs.hasPrefix("/"), !fs.hasPrefix(":"), let colon = fs.firstIndex(of: ":") else {
+            return (nil, fs)
+        }
+        let root = fs[fs.index(after: colon)...].trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return (String(fs[..<colon]), root)
+    }
+
     public func deleteFile(fs: String, remote: String) async throws {
         try await call("operations/deletefile", params: [
             "fs": fs,
@@ -155,6 +242,16 @@ public struct RemoteFeatures: Sendable, Equatable, Codable {
     public init(publicLink: Bool) {
         self.publicLink = publicLink
     }
+}
+
+private struct RemoteConfigResponse: Decodable, Sendable {
+    let type: String?
+    /// What a wrapper (crypt, alias, chunker) wraps, e.g. `"s3:bucket/dir"`.
+    let remote: String?
+}
+
+private struct OptionalStatResponse: Decodable, Sendable {
+    let item: FileItem?
 }
 
 private struct PublicLinkResponse: Decodable, Sendable {
