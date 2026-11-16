@@ -98,7 +98,7 @@ struct StorageSettingsView: View {
     }
 
     private func sizeText(_ bytes: Int64) -> some View {
-        Text(verbatim: bytes == 0 ? String(localized: "None") : ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
+        Text(verbatim: bytes == 0 ? String(localized: "None") : ByteText.format(bytes))
             .font(DesignSystem.Typography.body)
             .monospacedDigit()
             .foregroundStyle(.themeText(.secondary))
@@ -118,7 +118,7 @@ private struct DriveRow: View {
                         .accessibilityLabel("Removing downloads from \(drive.remote)")
                 }
                 Text(verbatim: drive.bytes == 0 ? String(localized: "None")
-                     : ByteCountFormatter.string(fromByteCount: drive.bytes, countStyle: .file))
+                     : ByteText.format(drive.bytes))
                     .font(DesignSystem.Typography.body)
                     .monospacedDigit()
                     .foregroundStyle(.themeText(.secondary))
