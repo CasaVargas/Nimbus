@@ -43,7 +43,9 @@ struct ProgressMeter: View {
     }
 
     private func formatBytes(_ bytes: Int64) -> String {
-        ByteText.format(bytes)
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: bytes)
     }
 
     private func formatETA(_ seconds: TimeInterval) -> String {

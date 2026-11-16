@@ -90,7 +90,9 @@ struct FileRowView: View {
     }
 
     static func formatSize(_ bytes: Int64) -> String {
-        ByteText.format(bytes)
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: bytes)
     }
 }
 

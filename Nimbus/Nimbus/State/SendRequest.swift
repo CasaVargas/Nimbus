@@ -52,7 +52,7 @@ struct SendRequest: Identifiable, Equatable, Sendable {
         let count = items.count == 1 ? "1 item" : "\(items.count) items"
         guard items.allSatisfy({ $0.size != nil }) else { return count }
         let total = items.compactMap(\.size).reduce(0, +)
-        return "\(count) · \(ByteText.format(total))"
+        return "\(count) · \(ByteCountFormatter.string(fromByteCount: total, countStyle: .file))"
     }
 
     /// "a.pdf, b.png, c.txt and 4 more".

@@ -1,17 +1,8 @@
 import SwiftUI
 
-/// Every size the app shows goes through here, so they all read alike.
 enum ByteText {
     static func format(_ bytes: Int64) -> String {
-        periodDecimal(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
-    }
-
-    /// `ByteCountFormatter` follows the Mac's number format, which in many
-    /// regions writes "1,5 GB". Sizes here always use a period. A file-style
-    /// count never reaches four digits, so a comma between digits is always
-    /// the decimal separator, never a thousands one.
-    static func periodDecimal(_ text: String) -> String {
-        text.replacingOccurrences(of: #"(?<=\d),(?=\d)"#, with: ".", options: .regularExpression)
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 }
 
