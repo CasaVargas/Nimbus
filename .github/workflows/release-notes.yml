@@ -1,0 +1,30 @@
+name: Release notes
+
+# ci.yml skips documentation-only changes, so the release notes get their own
+# check: every docs/releases/<version>.md ends with the footer from
+# docs/releases/FOOTER.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/releases/**'
+      - 'scripts/lint-release-notes.sh'
+      - '.github/workflows/release-notes.yml'
+  pull_request:
+    paths:
+      - 'docs/releases/**'
+      - 'scripts/lint-release-notes.sh'
+      - '.github/workflows/release-notes.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Release notes carry the Beltr / OneScribe footer
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/lint-release-notes.sh
