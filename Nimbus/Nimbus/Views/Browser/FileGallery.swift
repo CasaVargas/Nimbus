@@ -103,7 +103,7 @@ struct FileGallery: View {
         if file.isDir {
             parts.append("Folder")
         } else if file.size >= 0 {
-            parts.append(ByteText.format(file.size))
+            parts.append(ByteCountFormatter.string(fromByteCount: file.size, countStyle: .file))
         }
         if let date = file.modTime {
             parts.append(date.formatted(date: .abbreviated, time: .omitted))

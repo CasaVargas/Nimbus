@@ -65,7 +65,9 @@ struct TransferDrawer: View {
         let speed = active.compactMap(\.speed).reduce(0, +)
         var text = "· \(active.count) active"
         if speed > 0 {
-            text += " · \(ByteText.format(speed))/s"
+            let formatter = ByteCountFormatter()
+            formatter.countStyle = .file
+            text += " · \(formatter.string(fromByteCount: speed))/s"
         }
         return text
     }

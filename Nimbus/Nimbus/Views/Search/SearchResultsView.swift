@@ -167,7 +167,7 @@ struct SearchResultRow: View {
             }
             Spacer(minLength: DesignSystem.Spacing.m)
             if !file.isDir {
-                Text(verbatim: ByteText.format(file.size))
+                Text(file.size, format: .byteCount(style: .file))
                     .font(DesignSystem.Typography.callout)
                     .foregroundStyle(DesignSystem.Color.semantic.textSecondary)
                     .frame(width: 80, alignment: .trailing)

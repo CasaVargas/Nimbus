@@ -317,7 +317,7 @@ struct BackupPreviewContent: View {
     }
 
     private func sizeLine(_ bytes: Int64) -> String {
-        let size = ByteText.format(bytes)
+        let size = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
         return context.destinationIsLocal
             ? String(localized: "About \(size) to copy")
             : String(localized: "About \(size) to upload")

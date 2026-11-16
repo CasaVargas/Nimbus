@@ -188,7 +188,7 @@ struct FinderChangeRecordsRow: View {
                 .controlSize(.small)
                 .accessibilityLabel("Measuring Finder change records")
         case .available(let bytes):
-            Text(verbatim: bytes == 0 ? "Empty" : ByteText.format(bytes))
+            Text(verbatim: bytes == 0 ? "Empty" : ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
                 .font(DesignSystem.Typography.body)
                 .foregroundStyle(.themeText(.secondary))
         case .failed(let error):

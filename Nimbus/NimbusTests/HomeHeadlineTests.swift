@@ -61,23 +61,3 @@ struct HomeHeadlineTests {
         #expect(HomeCloudCard.keepingNumbersWithUnits("Last connected 2 days ago.") == "Last connected 2\(nbsp)days ago.")
     }
 }
-
-@Suite("ByteText")
-struct ByteTextTests {
-    @Test func aRegionalDecimalCommaBecomesAPeriod() {
-        #expect(ByteText.periodDecimal("1,5 GB") == "1.5 GB")
-        #expect(ByteText.periodDecimal("12,34 TB") == "12.34 TB")
-    }
-
-    @Test func textWithoutADecimalCommaIsLeftAlone() {
-        #expect(ByteText.periodDecimal("1.5 GB") == "1.5 GB")
-        #expect(ByteText.periodDecimal("720 GB") == "720 GB")
-        #expect(ByteText.periodDecimal("Zero KB") == "Zero KB")
-    }
-
-    @Test func sizesNeverCarryAComma() {
-        for bytes: Int64 in [0, 999, 1_500, 1_500_000, 1_500_000_000, 2_340_000_000_000, .max] {
-            #expect(!ByteText.format(bytes).contains(","))
-        }
-    }
-}

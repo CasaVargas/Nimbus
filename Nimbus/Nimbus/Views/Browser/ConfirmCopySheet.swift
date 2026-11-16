@@ -110,10 +110,12 @@ struct ConfirmCopySheet: View {
 
     private func formatTotal(_ items: [DropIntent.Item]) -> String {
         let total = items.reduce(0) { $0 + $1.size }
-        return ByteText.format(total)
+        let f = ByteCountFormatter(); f.countStyle = .file
+        return f.string(fromByteCount: total)
     }
 
     private func formatSize(_ b: Int64) -> String {
-        ByteText.format(b)
+        let f = ByteCountFormatter(); f.countStyle = .file
+        return f.string(fromByteCount: b)
     }
 }
