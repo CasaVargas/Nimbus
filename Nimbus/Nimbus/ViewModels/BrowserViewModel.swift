@@ -181,7 +181,7 @@ final class BrowserViewModel {
 
     func createFolder(name: String) async throws {
         let folderPath = path.isEmpty ? name : "\(path)/\(name)"
-        try await client.mkdir(fs: fs, remote: folderPath)
+        try await client.createFolder(fs: fs, remote: folderPath)
         await loadFiles()
     }
 

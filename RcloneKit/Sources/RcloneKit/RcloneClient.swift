@@ -188,6 +188,14 @@ public final class RcloneClient: @unchecked Sendable {
     /// desired remote name — otherwise it defaults to `localURL`'s last path
     /// component.
     public func uploadFile(from localURL: URL, fs: String, remote: String, filename: String? = nil) async throws {
+        try await uploadData(
+            try Data(contentsOf: localURL), fs: fs, remote: remote,
+            filename: filename ?? localURL.lastPathComponent)
+    }
+
+    /// Uploads `data` as the file `filename` in the directory `remote`, via
+    /// the same `operations/uploadfile` endpoint as `uploadFile`.
+    public func uploadData(_ fileData: Data, fs: String, remote: String, filename: String) async throws {
         // rclone reads `fs`/`remote` from the URL query ONLY — multipart
         // form fields for them come back 400 "Didn't find key \"remote\""
         // (verified against rclone rcd). The body carries just the file part.
@@ -202,11 +210,8 @@ public final class RcloneClient: @unchecked Sendable {
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 600
 
-        let fileData = try Data(contentsOf: localURL)
-        let uploadFilename = filename ?? localURL.lastPathComponent
-
         var body = Data()
-        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(uploadFilename)\"\r\nContent-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\nContent-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
         body.append(fileData)
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
 

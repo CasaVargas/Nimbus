@@ -21,6 +21,26 @@ final class MockRcloneClient: RemoteProbeClient, @unchecked Sendable {
 
     var calls: [String] { lock.withLock { _calls } }
 
+    /// Canned root listings, for the fallback probe on services that have
+    /// no `about`. A remote without an entry lists as empty.
+    private var _listResults: [String: Result<[FileItem], Error>] = [:]
+    private var _listCalls: [String] = []
+
+    var listResults: [String: Result<[FileItem], Error>] {
+        get { lock.withLock { _listResults } }
+        set { lock.withLock { _listResults = newValue } }
+    }
+
+    var listCalls: [String] { lock.withLock { _listCalls } }
+
+    func listFiles(fs: String, remote: String) async throws -> [FileItem] {
+        let result: Result<[FileItem], Error>? = lock.withLock {
+            _listCalls.append(fs)
+            return _listResults[fs]
+        }
+        return try result?.get() ?? []
+    }
+
     func about(fs: String) async throws -> AboutResponse {
         let result: Result<AboutResponse, Error>? = lock.withLock {
             _calls.append(fs)

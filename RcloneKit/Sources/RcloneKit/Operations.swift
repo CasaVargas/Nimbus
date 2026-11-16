@@ -32,6 +32,42 @@ extension RcloneClient {
         ])
     }
 
+    /// Creates a folder the user can then see and open.
+    ///
+    /// On most services that is `mkdir`. Backblaze B2 keeps no empty
+    /// folders: inside a bucket `mkdir` succeeds and creates nothing. There
+    /// the folder is made real with a zero-byte `.bzEmpty` file, the same
+    /// placeholder Backblaze's own web interface writes.
+    public func createFolder(fs: String, remote: String) async throws {
+        try await mkdir(fs: fs, remote: remote)
+        // A top-level folder on B2 is a bucket, which `mkdir` does create.
+        let (name, root) = Self.splitFs(fs)
+        let pathInRemote = [root, remote].filter { !$0.isEmpty }.joined(separator: "/")
+        guard pathInRemote.contains("/"), let name else { return }
+        guard try await backendType(ofRemote: name) == "b2" else { return }
+        try await uploadData(Data(), fs: fs, remote: remote, filename: Self.b2FolderPlaceholder)
+    }
+
+    /// The file Backblaze's web interface puts in a new, empty folder.
+    public static let b2FolderPlaceholder = ".bzEmpty"
+
+    /// A configured remote's backend type ("b2", "drive"), or nil when
+    /// there is no such remote. Answered from rclone's config, no network.
+    public func backendType(ofRemote name: String) async throws -> String? {
+        let config: RemoteTypeResponse = try await call("config/get", params: ["name": name])
+        return config.type
+    }
+
+    /// Splits `"name:path/inside"` into the remote name and the path. Nil
+    /// name for a local path or an on-the-fly `:backend:` remote.
+    static func splitFs(_ fs: String) -> (name: String?, root: String) {
+        guard !fs.hasPrefix("/"), !fs.hasPrefix(":"), let colon = fs.firstIndex(of: ":") else {
+            return (nil, fs)
+        }
+        let root = fs[fs.index(after: colon)...].trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return (String(fs[..<colon]), root)
+    }
+
     public func deleteFile(fs: String, remote: String) async throws {
         try await call("operations/deletefile", params: [
             "fs": fs,
@@ -155,6 +191,10 @@ public struct RemoteFeatures: Sendable, Equatable, Codable {
     public init(publicLink: Bool) {
         self.publicLink = publicLink
     }
+}
+
+private struct RemoteTypeResponse: Decodable, Sendable {
+    let type: String?
 }
 
 private struct PublicLinkResponse: Decodable, Sendable {

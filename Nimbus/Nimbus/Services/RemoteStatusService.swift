@@ -3,7 +3,7 @@ import Observation
 import RcloneKit
 
 /// Owner of per-remote connectivity / auth state. Runs `operations/about`
-/// probes on RemotesSidebarSection appear and on Reconnect. Probes are fire-once;
+/// (or a top-level listing, for services without `about`) probes on RemotesSidebarSection appear and on Reconnect. Probes are fire-once;
 /// no timers, no polling. Status is cleared when a remote is deleted.
 ///
 /// Reference: macOS Disk Utility's volume-info refresh-on-appear pattern.
@@ -56,10 +56,30 @@ final class RemoteStatusService {
             statuses[name] = .connected
             quotas[name] = StorageQuota(about: about)
             recordConnected(name)
+        } catch where Self.isUnsupportedAbout(error) {
+            // Backblaze B2 and other bucket stores have no `about` at all.
+            // That says nothing about the connection, so ask for the top
+            // level instead: it needs working credentials just the same.
+            quotas.removeValue(forKey: name)
+            do {
+                _ = try await client.listFiles(fs: "\(name):", remote: "")
+                statuses[name] = .connected
+                recordConnected(name)
+            } catch {
+                statuses[name] = Self.classify(error)
+            }
         } catch {
             statuses[name] = Self.classify(error)
             quotas.removeValue(forKey: name)
         }
+    }
+
+    /// rclone answers `operations/about` with a 500 reading
+    /// "<fs> doesn't support about" when the service has no such call.
+    static func isUnsupportedAbout(_ error: Error) -> Bool {
+        guard let rcloneError = error as? RcloneError,
+              case .requestFailed(_, let message) = rcloneError else { return false }
+        return message.localizedCaseInsensitiveContains("doesn't support about")
     }
 
     /// Refresh only the capacity numbers, leaving the status dot alone. A
@@ -138,10 +158,11 @@ final class RemoteStatusService {
     }
 }
 
-/// Protocol for the single rclone RC method `RemoteStatusService` needs.
+/// Protocol for the rclone RC methods `RemoteStatusService` needs.
 /// Lets tests inject a mock without depending on URLSession.
 protocol RemoteProbeClient: Sendable {
     func about(fs: String) async throws -> AboutResponse
+    func listFiles(fs: String, remote: String) async throws -> [FileItem]
 }
 
 extension RcloneClient: RemoteProbeClient {}

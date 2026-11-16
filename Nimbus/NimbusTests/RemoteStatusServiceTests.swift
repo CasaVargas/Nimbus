@@ -153,4 +153,43 @@ struct RemoteStatusServiceTests {
         await service.probe("nas")
         #expect(service.lastConnected["nas"] == stamp)
     }
+
+    // MARK: - Services without `about` (issue #139: Backblaze B2)
+
+    static let unsupportedAbout = RcloneError.requestFailed(
+        status: 500, message: "B2 root doesn't support about")
+
+    @Test func probeFallsBackToListingWhenAboutIsUnsupported() async {
+        let defaults = Self.isolatedDefaults()
+        let client = MockRcloneClient()
+        client.aboutResults["b2:"] = .failure(Self.unsupportedAbout)
+        let service = RemoteStatusService(client: client, defaults: defaults)
+        await service.probe("b2")
+        #expect(service.statuses["b2"] == .connected)
+        #expect(service.quotas["b2"] == nil)
+        #expect(service.lastConnected["b2"] != nil)
+        #expect(client.listCalls == ["b2:"])
+    }
+
+    @Test func unsupportedAboutStillReportsBadCredentials() async {
+        let client = MockRcloneClient()
+        client.aboutResults["b2:"] = .failure(Self.unsupportedAbout)
+        client.listResults["b2:"] = .failure(
+            RcloneError.requestFailed(status: 500, message: "failed to authorize account: 401 unauthorized"))
+        let service = RemoteStatusService(client: client, defaults: Self.isolatedDefaults())
+        await service.probe("b2")
+        #expect(service.statuses["b2"] == .authNeeded)
+    }
+
+    @Test func otherAboutFailuresDoNotFallBackToListing() async {
+        let client = MockRcloneClient()
+        client.aboutResults["s3:"] = .failure(
+            RcloneError.requestFailed(status: 500, message: "didn't find section in config file"))
+        let service = RemoteStatusService(client: client, defaults: Self.isolatedDefaults())
+        await service.probe("s3")
+        if case .error = service.statuses["s3"] {} else {
+            Issue.record("expected .error, got \(String(describing: service.statuses["s3"]))")
+        }
+        #expect(client.listCalls.isEmpty)
+    }
 }
