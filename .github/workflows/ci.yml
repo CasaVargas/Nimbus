@@ -1,9 +1,20 @@
 name: CI
 
+# A change that only touches the documentation, the website or a top-level
+# Markdown file builds nothing, so it skips this workflow. Release notes are
+# linted by release-notes.yml instead.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'site/**'
+      - '*.md'
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'site/**'
+      - '*.md'
 
 permissions:
   contents: read
@@ -27,9 +38,6 @@ jobs:
     continue-on-error: false
     steps:
       - uses: actions/checkout@v4
-
-      - name: Release notes carry the Beltr / OneScribe footer
-        run: bash scripts/lint-release-notes.sh
 
       - name: Select newest Xcode 27
         run: |

@@ -44,7 +44,7 @@ cd RcloneKit && swift test
 
 - **`xcodegen generate` rewrites `Nimbus/FileProviderExtension/Info.plist`** with literal version numbers. Always follow it with `git checkout -- Nimbus/FileProviderExtension/Info.plist` (CI does), or the extension's version stops tracking the app's.
 - Without a signing team, add `CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO` (the app-group entitlements otherwise demand a profile). Local signing: copy `Nimbus/Local.xcconfig.example` to `Nimbus/Local.xcconfig` and set `DEVELOPMENT_TEAM`.
-- Build phases run lints that fail the build: `scripts/lint-no-system-size.sh` (no `.system(size:)` outside `DesignSystem/`; use the semantic typography helpers) and `scripts/lint-package-resolved.sh`. CI also runs `scripts/lint-release-notes.sh`.
+- Build phases run lints that fail the build: `scripts/lint-no-system-size.sh` (no `.system(size:)` outside `DesignSystem/`; use the semantic typography helpers) and `scripts/lint-package-resolved.sh`. CI runs `scripts/lint-release-notes.sh` (`release-notes.yml`). `ci.yml` skips changes that only touch `docs/`, `site/` or a top-level `*.md`.
 - Snapshot tests (e.g. `GuidedAddRemoteSnapshotTests`) render at a fixed 2x, each in its own window; see `SnapshotHelpers` in `NimbusTests/`.
 
 ### Prerequisites
