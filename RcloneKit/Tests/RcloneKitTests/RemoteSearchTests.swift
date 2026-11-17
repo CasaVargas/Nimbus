@@ -10,12 +10,15 @@ private final class SearchURLProtocol: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) private static var bodies: [String: [Data]] = [:]
     /// When set, `job/status` keeps answering "not finished".
     nonisolated(unsafe) static var neverFinish = false
+    /// Whether `operations/fsinfo` reports a backend that lists recursively.
+    nonisolated(unsafe) private static var listsRecursively = false
 
-    static func reset(statusReplies replies: [String], neverFinish: Bool = false) {
+    static func reset(statusReplies replies: [String], neverFinish: Bool = false, listsRecursively: Bool = false) {
         lock.withLock {
             statusReplies = replies
             bodies = [:]
             self.neverFinish = neverFinish
+            self.listsRecursively = listsRecursively
         }
     }
 
@@ -50,6 +53,10 @@ private final class SearchURLProtocol: URLProtocol, @unchecked Sendable {
             switch endpoint {
             case "operations/list":
                 return #"{"jobid": 42}"#
+            case "operations/fsinfo":
+                return Self.listsRecursively
+                    ? #"{"Features": {"ListR": true, "PublicLink": true}, "Hashes": []}"#
+                    : #"{"Features": {"ListR": false}, "Hashes": []}"#
             case "job/status":
                 if Self.neverFinish { return #"{"finished": false}"# }
                 return Self.statusReplies.isEmpty ? #"{"finished": false}"# : Self.statusReplies.removeFirst()
@@ -103,6 +110,23 @@ struct RemoteSearchTests {
         #expect((body["opt"] as? [String: Any])?["recurse"] as? Bool == true)
         #expect((body["_filter"] as? [String: Any])?["IncludeRule"] as? [String] == ["*{{(?i)report}}*"])
         #expect((body["_config"] as? [String: Any])?["MaxDepth"] as? Int == 4)
+    }
+
+    @Test func aRemoteThatListsRecursivelyIsSearchedWhole() async throws {
+        SearchURLProtocol.reset(statusReplies: [finishedListing], listsRecursively: true)
+        _ = try await makeSearchClient().search(fs: "onedrive:", query: "report", pollInterval: .milliseconds(1))
+
+        #expect(SearchURLProtocol.bodies(for: "operations/fsinfo").first?["fs"] as? String == "onedrive:")
+        let body = try #require(SearchURLProtocol.bodies(for: "operations/list").first)
+        #expect((body["_config"] as? [String: Any])?["MaxDepth"] as? Int == -1)
+    }
+
+    @Test func anyOtherRemoteStopsAtTheDefaultDepth() async throws {
+        SearchURLProtocol.reset(statusReplies: [finishedListing])
+        _ = try await makeSearchClient().search(fs: "sftp:", query: "report", pollInterval: .milliseconds(1))
+
+        let body = try #require(SearchURLProtocol.bodies(for: "operations/list").first)
+        #expect((body["_config"] as? [String: Any])?["MaxDepth"] as? Int == RemoteSearch.defaultMaxDepth)
     }
 
     @Test func pollsUntilFinishedAndDropsUnmatchedFolders() async throws {

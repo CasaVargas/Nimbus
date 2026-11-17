@@ -204,11 +204,27 @@ enum RcloneEnvironment {
     static let passwordCommandKey = "RCLONE_PASSWORD_COMMAND"
     static let configPassKey = "RCLONE_CONFIG_PASS"
 
+    /// Faster settings than rclone's own for every OneDrive remote, given as
+    /// backend environment variables so no config file is rewritten. They
+    /// outrank the same option in a config file; a variable the user has
+    /// set themselves is left alone.
+    ///
+    /// - `delta`: recursive listings (search, sizes) come as one stream
+    ///   from OneDrive's delta API instead of one request per folder.
+    /// - `chunk_size`: 40Mi in place of 10Mi, so a large upload spends less
+    ///   of its time between chunks. A multiple of 320Ki, as OneDrive
+    ///   requires, and under its 60 MiB limit for one request. Each running
+    ///   upload holds one chunk in memory.
+    static let oneDriveDefaults = [
+        "RCLONE_ONEDRIVE_DELTA": "true",
+        "RCLONE_ONEDRIVE_CHUNK_SIZE": "40Mi",
+    ]
+
     static func childEnvironment(
         base: [String: String] = ProcessInfo.processInfo.environment,
         password: KeychainConfigPassword = .standard
     ) -> [String: String] {
-        var environment = base
+        var environment = base.merging(oneDriveDefaults) { own, _ in own }
         if environment[passwordCommandKey] == nil && environment[configPassKey] == nil {
             environment[passwordCommandKey] = password.passwordCommand
         }
