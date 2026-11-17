@@ -15,6 +15,28 @@ struct CompanionActions {
     var quit: () -> Void = {}
 }
 
+/// How tall the companion's cloud list may grow. The panel hangs from the
+/// menu bar, so with many clouds the list scrolls instead of running off
+/// the bottom of the screen (#154).
+enum CompanionLayout {
+    /// Room the rest of the panel can take: header, recent activity, footer,
+    /// dividers and section titles, plus a margin above the Dock.
+    static let reservedHeight: CGFloat = 360
+    /// Never squeeze the list below a few rows, even on a tiny screen.
+    static let minimumListHeight: CGFloat = 180
+    /// A guess at one row's height, used until the list has been measured.
+    static let estimatedRowHeight: CGFloat = 44
+
+    static func cloudListMaxHeight(screenHeight: CGFloat) -> CGFloat {
+        max(minimumListHeight, screenHeight - reservedHeight)
+    }
+
+    /// The list's height: all of it when it fits, otherwise the cap.
+    static func cloudListHeight(contentHeight: CGFloat, screenHeight: CGFloat) -> CGFloat {
+        min(contentHeight, cloudListMaxHeight(screenHeight: screenHeight))
+    }
+}
+
 /// The menu bar window, rendered from data only: what's happening now, each
 /// cloud in one line, the last few finished copies, and the way into the app.
 struct CompanionContent: View {
@@ -27,6 +49,8 @@ struct CompanionContent: View {
 
     @Environment(\.stratosphere) private var palette
     @Environment(\.cloudColors) private var cloudColors
+    /// The cloud rows' measured height; nil until first laid out.
+    @State private var cloudListContentHeight: CGFloat?
 
     private typealias S = DesignSystem.Stratosphere
 
@@ -45,12 +69,7 @@ struct CompanionContent: View {
             header
             if !summary.rows.isEmpty {
                 Divider()
-                section("Clouds") {
-                    ForEach(summary.rows) { row in
-                        CompanionCloudRow(row: row, onOpen: { actions.openCloud(row.name) },
-                                          onSignIn: { actions.signIn(row) })
-                    }
-                }
+                section("Clouds") { cloudList }
             }
             if !activity.isEmpty {
                 Divider()
@@ -89,6 +108,26 @@ struct CompanionContent: View {
         .frame(width: Self.width)
         .background(LinearGradient(colors: [palette.sheetTop.color, palette.sheetBottom.color],
                                    startPoint: .top, endPoint: .bottom))
+    }
+
+    // MARK: - Clouds
+
+    /// Every cloud, scrolling once the list is taller than the screen allows.
+    private var cloudList: some View {
+        let estimate = CGFloat(summary.rows.count) * CompanionLayout.estimatedRowHeight
+        let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
+        return ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(summary.rows) { row in
+                    CompanionCloudRow(row: row, onOpen: { actions.openCloud(row.name) },
+                                      onSignIn: { actions.signIn(row) })
+                }
+            }
+            .onGeometryChange(for: CGFloat.self, of: \.size.height) { cloudListContentHeight = $0 }
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(height: CompanionLayout.cloudListHeight(contentHeight: cloudListContentHeight ?? estimate,
+                                                       screenHeight: screenHeight))
     }
 
     // MARK: - Header
@@ -352,6 +391,14 @@ private enum CompanionPreviewData {
 
 #Preview("All ready") {
     CompanionPreview(summary: HomePreviewData.summary(CompanionPreviewData.readyRows, overall: .allReady), activity: [])
+}
+
+#Preview("Many clouds") {
+    let rows = (1...28).map { index in
+        HomePreviewData.row("Cloud \(index)", "s3", "Amazon S3", .ready, "Ready",
+                            used: Int64(index) * HomePreviewData.gb, total: HomePreviewData.tb, tint: index % 6)
+    }
+    CompanionPreview(summary: HomePreviewData.summary(rows, overall: .allReady))
 }
 
 #Preview("No clouds") {
