@@ -56,7 +56,8 @@ extension RcloneClient {
     ///
     /// With no `maxDepth`, a remote that lists recursively in one stream
     /// (S3, Drive, OneDrive with `delta`) is searched whole, which is also
-    /// the fast way; any other stops `defaultMaxDepth` levels down.
+    /// the fast way; any other stops `defaultMaxDepth` levels down. See
+    /// `searchesWholeInOneStream(fs:)` for the OneDrive exception.
     ///
     /// Cancelling the calling task stops the rclone job and throws
     /// `CancellationError`.
@@ -70,7 +71,7 @@ extension RcloneClient {
         if let maxDepth {
             depth = maxDepth
         } else {
-            let oneStream = (try? await listsRecursively(fs: fs)) ?? false
+            let oneStream = (try? await searchesWholeInOneStream(fs: fs)) ?? false
             depth = oneStream ? RemoteSearch.unlimitedDepth : RemoteSearch.defaultMaxDepth
         }
         let started: AsyncJobResponse = try await call(
@@ -102,5 +103,21 @@ extension RcloneClient {
             }
             throw error
         }
+    }
+}
+
+extension RcloneClient {
+    /// Whether searching `fs` with no depth limit is one cheap stream.
+    ///
+    /// The backend has to list recursively (`ListR`). On OneDrive that comes
+    /// from the delta API, which only lists from the drive's root: from a
+    /// folder below it (a crypt or alias over `"onedrive:Vault"`, or a
+    /// `root_folder_id`), rclone reads the whole drive and drops everything
+    /// outside the folder. That case is walked folder by folder instead.
+    func searchesWholeInOneStream(fs: String) async throws -> Bool {
+        guard try await listsRecursively(fs: fs) else { return false }
+        // Unknown location (no config, local path): trust ListR.
+        guard let location = try? await dataLocation(ofFs: fs) else { return true }
+        return location.type != "onedrive" || location.atRoot
     }
 }

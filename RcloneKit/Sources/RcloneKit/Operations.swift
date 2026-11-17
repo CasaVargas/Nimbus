@@ -97,13 +97,27 @@ extension RcloneClient {
     /// crypt, alias or similar wrapper points at through its `remote`
     /// setting. Nil for a local path or an on-the-fly remote.
     func baseRemote(ofFs fs: String) async throws -> (name: String, type: String)? {
+        try await dataLocation(ofFs: fs).map { ($0.name, $0.type) }
+    }
+
+    /// Where `fs`'s data lives: the remote that stores it, as `baseRemote`,
+    /// and whether `fs` is that remote's own root. A path anywhere along the
+    /// chain (`crypt` over `"onedrive:Vault"`, or `"name:sub"` itself) or a
+    /// `root_folder_id` on the base remote means it isn't.
+    func dataLocation(ofFs fs: String) async throws -> DataLocation? {
         var current = fs
+        var atRoot = true
         // Wrappers nest (alias over crypt over S3); the bound stops a loop.
         for _ in 0..<5 {
-            guard let name = Self.splitFs(current).name else { return nil }
+            let split = Self.splitFs(current)
+            guard let name = split.name else { return nil }
+            if !split.root.isEmpty { atRoot = false }
             let config: RemoteConfigResponse = try await call("config/get", params: ["name": name])
             guard let type = config.type else { return nil }
-            guard let wrapped = config.remote, !wrapped.isEmpty else { return (name, type) }
+            guard let wrapped = config.remote, !wrapped.isEmpty else {
+                if let folder = config.rootFolderID, !folder.isEmpty { atRoot = false }
+                return DataLocation(name: name, type: type, atRoot: atRoot)
+            }
             current = wrapped
         }
         return nil
@@ -255,6 +269,20 @@ private struct RemoteConfigResponse: Decodable, Sendable {
     let type: String?
     /// What a wrapper (crypt, alias, chunker) wraps, e.g. `"s3:bucket/dir"`.
     let remote: String?
+    /// The folder some backends (OneDrive, Drive) treat as their root.
+    let rootFolderID: String?
+
+    enum CodingKeys: String, CodingKey {
+        case type, remote
+        case rootFolderID = "root_folder_id"
+    }
+}
+
+/// See `RcloneClient.dataLocation(ofFs:)`.
+struct DataLocation: Equatable, Sendable {
+    let name: String
+    let type: String
+    let atRoot: Bool
 }
 
 private struct OptionalStatResponse: Decodable, Sendable {
