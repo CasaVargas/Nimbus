@@ -83,6 +83,9 @@ enum ContentTransfer {
             dstFs: "\(remoteName):", dstRemote: directory.isEmpty ? filename : "\(directory)/\(filename)"
         ) { bytes in
             report(bytes, on: progress)
+            // rclone only reads here, so nothing else tells the sweep that
+            // a day-long upload is still alive.
+            try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: folder.path)
         }
     }
 

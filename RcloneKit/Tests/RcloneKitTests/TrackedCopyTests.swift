@@ -173,7 +173,11 @@ struct TrackedCopyTests {
         CopyURLProtocol.reset(statusReplies: [], neverFinish: true)
         let client = makeCopyClient()
         let task = Task { try await copy(client) }
-        try await Task.sleep(for: .milliseconds(60))
+        // Cancel only once the job is being watched: before the start
+        // request has answered there is no job to stop yet.
+        for _ in 0..<500 where CopyURLProtocol.bodies(for: "job/status").isEmpty {
+            try await Task.sleep(for: .milliseconds(10))
+        }
         task.cancel()
 
         await #expect(throws: CancellationError.self) { try await task.value }
