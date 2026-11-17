@@ -80,6 +80,27 @@ private final class UploadCaptureURLProtocol: URLProtocol, @unchecked Sendable {
     #expect(!data.isEmpty)
 }
 
+@Test func downloadFileReplacesAnExistingDestination() async throws {
+    let client = makeTestClient()
+    let dest = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try Data("stale".utf8).write(to: dest)
+    defer { try? FileManager.default.removeItem(at: dest) }
+    try await client.downloadFile(fs: "gdrive:", remote: "photo.jpg", to: dest)
+    let data = try Data(contentsOf: dest)
+    #expect(data == Data("hello world".utf8))
+}
+
+@Test func downloadFileFailureLeavesNoFile() async throws {
+    // Nothing is registered for this path, so the mock answers 404.
+    let client = makeTestClient()
+    let dest = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: dest) }
+    await #expect(throws: RcloneError.self) {
+        try await client.downloadFile(fs: "gdrive:", remote: "missing.bin", to: dest)
+    }
+    #expect(!FileManager.default.fileExists(atPath: dest.path))
+}
+
 @Test func uploadFileUsesExplicitFilenameOverride() async throws {
     let client = makeTestClient()
     let src = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

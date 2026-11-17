@@ -114,8 +114,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = servicesProvider
-        // Share-extension leftovers: inboxes nobody finished with.
-        if let container = AppGroup.containerURL { ShareInbox.sweep(in: container) }
+        // Share-extension leftovers: inboxes nobody finished with. And the
+        // File Provider extension's: transfers it was killed in the middle of.
+        if let container = AppGroup.containerURL {
+            ShareInbox.sweep(in: container)
+            TransferStaging.sweep(in: container)
+        }
         if startsHidden || isBackgroundLaunch {
             // Hide all windows and become an accessory app (no Dock icon).
             for window in NSApp.windows {

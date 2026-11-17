@@ -95,6 +95,7 @@ File Provider extension (Nimbus/FileProviderExtension/) ────────
 - `Enumerator.swift` — Directory enumeration + snapshot-diff change tracking
 - `SystemContainerEnumerator.swift` — Empty enumerator for `.workingSet` / `.trashContainer`
 - `SyncSnapshotStore.swift` — Persisted per-container listing snapshots (sync anchors)
+- `ContentTransfer.swift` — File downloads and uploads. The file is staged in the app group container (`Shared/TransferStaging.swift`) and the daemon copies it itself (`RcloneClient.copyFileAndWait`); pushing the bytes over the daemon's HTTP API is the fallback
 - `RetrySupport.swift` — Shared retry helper; re-reads the daemon port (app group UserDefaults → group container JSON → extension container JSON) each attempt
 - Talks to the rclone daemon via RcloneKit
 
