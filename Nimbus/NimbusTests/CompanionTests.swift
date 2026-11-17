@@ -150,3 +150,19 @@ struct CompanionGlyphTests {
         #expect(CompanionHeadline.title(for: .allReady) == "Everything is ready")
     }
 }
+
+@Suite("Companion layout")
+struct CompanionLayoutTests {
+    @Test func shortListKeepsItsOwnHeight() {
+        #expect(CompanionLayout.cloudListHeight(contentHeight: 200, screenHeight: 1000) == 200)
+    }
+
+    @Test func longListIsCappedToTheScreen() {
+        let cap = 1000 - CompanionLayout.reservedHeight
+        #expect(CompanionLayout.cloudListHeight(contentHeight: 28 * 44, screenHeight: 1000) == cap)
+    }
+
+    @Test func tinyScreenStillShowsSomeRows() {
+        #expect(CompanionLayout.cloudListMaxHeight(screenHeight: 300) == CompanionLayout.minimumListHeight)
+    }
+}
