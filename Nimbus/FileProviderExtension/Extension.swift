@@ -13,16 +13,21 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     let logger = Logger(subsystem: "app.casavargas.nimbus.FileProvider", category: "extension")
     /// Thumbnail downloads for this cloud, at most three at a time.
     let thumbnailLimiter = AsyncLimiter(limit: 3)
+    /// This instance's own staging folder for downloads and thumbnail
+    /// sources (`StagingArea.makeInstanceFolder()`).
+    let stagingFolder: URL
 
     required init(domain: NSFileProviderDomain) {
         self.domain = domain
         let (port, credentials) = FileProviderRetry.readConnection()
         self.rclone = RcloneClient(port: port, credentials: credentials)
+        self.stagingFolder = StagingArea.shared.makeInstanceFolder()
         logger.error("Extension init: domain=\(domain.identifier.rawValue), port=\(port)")
         // Staged transfers an earlier, killed process left behind.
         if let container = AppGroup.containerURL {
             Task.detached(priority: .utility) { TransferStaging.sweep(in: container) }
         }
+        StagingArea.removeOrphansOnce()
     }
 
     /// Re-reads the port from app group UserDefaults — the main app may have
@@ -32,7 +37,12 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     }
 
     func invalidate() {
-        Self.cleanupTempDirectory()
+        // Required by `NSFileProviderReplicatedExtension`. Removes only this
+        // instance's folder, so other live instances of the same domain are
+        // unaffected. A file just handed to `fetchContents`' completion
+        // handler but not yet taken by the system is lost and that download
+        // fails, which is accepted. Crash leftovers are removed at startup.
+        try? FileManager.default.removeItem(at: stagingFolder)
     }
 
     // MARK: - Item Lookup
@@ -128,6 +138,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let logger = self.logger
         let handler = SendableBox(value: completionHandler)
         let remotePath = Self.extractPathStatic(from: itemIdentifier, remoteName: remoteName)
+        let stagingFolder = self.stagingFolder
         // Opening a file makes its folder hot: checked for remote changes
         // more often for a while (#76).
         HotFolderStore.touchParent(remoteName: remoteName, of: itemIdentifier)
@@ -153,12 +164,19 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 // daemon downloads into the app group container and the
                 // file is moved over, or (the fallback) they are streamed
                 // over HTTP and this process writes them.
-                let downloadDir = Self.tempDirectory().appendingPathComponent("Downloads", isDirectory: true)
+                let downloadDir = stagingFolder.appendingPathComponent("Downloads", isDirectory: true)
                 try FileManager.default.createDirectory(at: downloadDir, withIntermediateDirectories: true)
 
                 let filename = (remotePath as NSString).lastPathComponent
                 let localURL = downloadDir.appendingPathComponent(
                     "\(UUID().uuidString)_\(TransferStaging.stagedName(for: filename))")
+
+                // The system only unlinks files it was handed, so a failed or
+                // cancelled download must not leave its staged file behind.
+                var handedOver = false
+                defer {
+                    if !handedOver { try? FileManager.default.removeItem(at: localURL) }
+                }
 
                 try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "fetchContents.download") {
                     try await ContentTransfer.download(
@@ -166,8 +184,10 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                         to: localURL, progress: progress, logger: logger
                     )
                 }
+                try Task.checkCancellation()
 
                 progress.completedUnitCount = progress.totalUnitCount
+                handedOver = true
                 handler.value(localURL, item, nil)
             } catch {
                 logger.error("fetchContents failed: \(error)")
@@ -421,23 +441,6 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         case .requestFailed, .invalidResponse, .decodingError:
             return NSFileProviderError(.serverUnreachable)
         }
-    }
-
-    // MARK: - Temp Directory Management
-
-    /// Single shared root for everything this extension writes to disk
-    /// (currently just staged downloads). `invalidate()` removes exactly
-    /// this directory, so every write path must nest under it — a prior
-    /// version of `fetchContents` wrote to a differently-named directory
-    /// than the one `invalidate()` cleaned up, leaking staged downloads.
-    static func tempDirectory() -> URL {
-        FileManager.default.temporaryDirectory
-            .appendingPathComponent("app.casavargas.nimbus.FileProvider", isDirectory: true)
-    }
-
-    private static func cleanupTempDirectory() {
-        let tempDir = tempDirectory()
-        try? FileManager.default.removeItem(at: tempDir)
     }
 
     // MARK: - Static Helpers (Sendable-safe)
