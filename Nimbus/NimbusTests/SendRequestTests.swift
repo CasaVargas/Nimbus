@@ -20,6 +20,54 @@ struct SendRequestTests {
         return directory
     }
 
+    // MARK: BrowserDrop
+
+    @Test func splitsADropIntoNimbusRefsAndLocalFiles() {
+        let ref = NimbusFileRef(remoteName: "b2", path: "bucket/a.txt", size: 1, isDir: false)
+        let file = URL(fileURLWithPath: "/tmp/src/b.txt")
+        let (refs, urls) = BrowserDrop.split([
+            .file(file), .bundle(NimbusFileBundle(refs: [ref])), .file(URL(string: "https://example.com/c.txt")!),
+        ])
+        #expect(refs == [ref])
+        #expect(urls == [file])
+    }
+
+    private func loadDrop(_ provider: NSItemProvider) async throws -> BrowserDrop {
+        try await withCheckedThrowingContinuation { continuation in
+            _ = provider.loadTransferable(type: BrowserDrop.self) { continuation.resume(with: $0) }
+        }
+    }
+
+    @Test func aFinderFileArrivesAsAFileEvenWhenItIsJSON() async throws {
+        let directory = try scratch()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("data.json")
+        try Data("{}".utf8).write(to: file)
+        let provider = try #require(NSItemProvider(contentsOf: file))
+        provider.registerObject(file as NSURL, visibility: .all)
+
+        guard case .file(let url) = try await loadDrop(provider) else {
+            Issue.record("expected a file drop")
+            return
+        }
+        #expect(url.standardizedFileURL.path == file.standardizedFileURL.path)
+    }
+
+    @Test func aDragFromInsideNimbusStillArrivesAsABundle() async throws {
+        let bundle = NimbusFileBundle(refs: [NimbusFileRef(remoteName: "b2", path: "bucket/a.txt", size: 1, isDir: false)])
+        let provider = NSItemProvider()
+        provider.registerDataRepresentation(forTypeIdentifier: "public.json", visibility: .all) { done in
+            done(try? JSONEncoder().encode(bundle), nil)
+            return nil
+        }
+
+        guard case .bundle(let loaded) = try await loadDrop(provider) else {
+            Issue.record("expected a bundle drop")
+            return
+        }
+        #expect(loaded == bundle)
+    }
+
     // MARK: SendRequest
 
     @Test func keepsExistingFilesOnceAndDropsTheRest() throws {
