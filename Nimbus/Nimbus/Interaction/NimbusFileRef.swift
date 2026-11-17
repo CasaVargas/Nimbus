@@ -34,3 +34,33 @@ struct NimbusFileBundle: Codable, Hashable, Sendable, Transferable {
         CodableRepresentation(contentType: .json)
     }
 }
+
+/// Anything the browser accepts as a drop: a drag that started inside Nimbus,
+/// or files and folders dragged in from Finder (or any other app).
+enum BrowserDrop: Sendable, Transferable {
+    case bundle(NimbusFileBundle)
+    case file(URL)
+
+    static var transferRepresentation: some TransferRepresentation {
+        // File URLs first: a .json file dragged from Finder is a file to
+        // upload, not a Nimbus payload to decode.
+        ProxyRepresentation(importing: { (url: URL) in BrowserDrop.file(url) })
+        DataRepresentation(importedContentType: .json) { data in
+            .bundle(try JSONDecoder().decode(NimbusFileBundle.self, from: data))
+        }
+    }
+
+    /// Splits a drop into in-app references and local file URLs.
+    static func split(_ drops: [BrowserDrop]) -> (refs: [NimbusFileRef], urls: [URL]) {
+        var refs: [NimbusFileRef] = []
+        var urls: [URL] = []
+        for drop in drops {
+            switch drop {
+            case .bundle(let bundle): refs += bundle.refs
+            case .file(let url) where url.isFileURL: urls.append(url)
+            case .file: break
+            }
+        }
+        return (refs, urls)
+    }
+}

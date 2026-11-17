@@ -25,6 +25,8 @@ struct BrowserView: View {
     @Environment(CloudMonitor.self) private var monitor: CloudMonitor?
     @State private var viewModel: BrowserViewModel?
     @State private var pendingCopy: CopyRequest?
+    /// Local files dropped on the browser, waiting on the Send sheet.
+    @State private var pendingSend: SendRequest?
     @State private var quickLookHost = QuickLookHost()
     /// Draws the gallery's pictures. Made with the view model, once the
     /// daemon client is known.
@@ -128,8 +130,13 @@ struct BrowserView: View {
                     onNewFolder: { viewModel.showNewFolderDialog = true },
                     onRefresh: { Task { await viewModel.loadFiles() } }
                 )))
-                .dropDestination(for: NimbusFileBundle.self) { bundles, _ in
-                    let refs = bundles.flatMap(\.refs)
+                .dropDestination(for: BrowserDrop.self) { drops, _ in
+                    let (refs, urls) = BrowserDrop.split(drops)
+                    // Files from Finder: ask where they go, with this folder filled in.
+                    if let request = SendRequest(urls: urls) {
+                        pendingSend = request
+                        return true
+                    }
                     return handleDrop(refs: refs, viewModel: viewModel)
                 }
                 .focusedSceneValue(\.browserActions, !showsToolbar ? nil : BrowserMenuActions(
@@ -236,6 +243,31 @@ struct BrowserView: View {
                 }
             }
         }
+        .sheet(item: $pendingSend) { request in
+            SendToNimbusSheet(
+                request: request,
+                remoteNames: sendDestinations,
+                lastRemote: remoteName,
+                lastPath: viewModel?.path ?? "",
+                client: daemon.client,
+                onAddCloud: {},
+                onSent: { _, _ in }
+            )
+        }
+        // A transfer touching this cloud finished: what it brought is listed.
+        .onChange(of: activeTransferCount) { old, new in
+            guard new < old, let viewModel else { return }
+            Task { await viewModel.loadFiles() }
+        }
+    }
+
+    private var activeTransferCount: Int {
+        transferStore.activeTransfers.count { $0.involves(remote: remoteName) }
+    }
+
+    /// Clouds the Send sheet offers for a Finder drop: this one first.
+    private var sendDestinations: [String] {
+        [remoteName] + (monitor?.remotes.map(\.name) ?? []).filter { $0 != remoteName }
     }
 
     private func makeCoordinator() -> DragDropCoordinator {
