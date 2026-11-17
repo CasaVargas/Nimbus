@@ -12,13 +12,21 @@ private final class SearchURLProtocol: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var neverFinish = false
     /// Whether `operations/fsinfo` reports a backend that lists recursively.
     nonisolated(unsafe) private static var listsRecursively = false
+    /// `config/get` replies by remote name; unknown names answer `{}`.
+    nonisolated(unsafe) private static var configs: [String: String] = [:]
 
-    static func reset(statusReplies replies: [String], neverFinish: Bool = false, listsRecursively: Bool = false) {
+    static func reset(
+        statusReplies replies: [String],
+        neverFinish: Bool = false,
+        listsRecursively: Bool = false,
+        configs: [String: String] = [:]
+    ) {
         lock.withLock {
             statusReplies = replies
             bodies = [:]
             self.neverFinish = neverFinish
             self.listsRecursively = listsRecursively
+            self.configs = configs
         }
     }
 
@@ -57,6 +65,9 @@ private final class SearchURLProtocol: URLProtocol, @unchecked Sendable {
                 return Self.listsRecursively
                     ? #"{"Features": {"ListR": true, "PublicLink": true}, "Hashes": []}"#
                     : #"{"Features": {"ListR": false}, "Hashes": []}"#
+            case "config/get":
+                let name = (try? JSONSerialization.jsonObject(with: body) as? [String: Any])?["name"] as? String
+                return name.flatMap { Self.configs[$0] } ?? "{}"
             case "job/status":
                 if Self.neverFinish { return #"{"finished": false}"# }
                 return Self.statusReplies.isEmpty ? #"{"finished": false}"# : Self.statusReplies.removeFirst()
@@ -119,6 +130,62 @@ struct RemoteSearchTests {
         #expect(SearchURLProtocol.bodies(for: "operations/fsinfo").first?["fs"] as? String == "onedrive:")
         let body = try #require(SearchURLProtocol.bodies(for: "operations/list").first)
         #expect((body["_config"] as? [String: Any])?["MaxDepth"] as? Int == -1)
+    }
+
+    /// Searches `fs` on a backend that lists recursively and returns the
+    /// `MaxDepth` sent.
+    private func searchDepth(fs: String, configs: [String: String]) async throws -> Int? {
+        SearchURLProtocol.reset(statusReplies: [finishedListing], listsRecursively: true, configs: configs)
+        _ = try await makeSearchClient().search(fs: fs, query: "report", pollInterval: .milliseconds(1))
+        let body = try #require(SearchURLProtocol.bodies(for: "operations/list").first)
+        return (body["_config"] as? [String: Any])?["MaxDepth"] as? Int
+    }
+
+    @Test func oneDriveAtItsRootIsSearchedWhole() async throws {
+        let depth = try await searchDepth(fs: "OneDrive:", configs: ["OneDrive": #"{"type": "onedrive"}"#])
+        #expect(depth == RemoteSearch.unlimitedDepth)
+    }
+
+    @Test func cryptOverAOneDriveFolderStopsAtTheDefaultDepth() async throws {
+        // Delta would read the whole drive to search one folder.
+        let depth = try await searchDepth(fs: "Vault:", configs: [
+            "Vault": #"{"type": "crypt", "remote": "OneDrive:Private/Vault"}"#,
+            "OneDrive": #"{"type": "onedrive"}"#,
+        ])
+        #expect(depth == RemoteSearch.defaultMaxDepth)
+    }
+
+    @Test func aliasOverCryptOverAOneDriveFolderStopsAtTheDefaultDepth() async throws {
+        let depth = try await searchDepth(fs: "Docs:", configs: [
+            "Docs": #"{"type": "alias", "remote": "Vault:"}"#,
+            "Vault": #"{"type": "crypt", "remote": "OneDrive:Vault"}"#,
+            "OneDrive": #"{"type": "onedrive"}"#,
+        ])
+        #expect(depth == RemoteSearch.defaultMaxDepth)
+    }
+
+    @Test func cryptOverTheWholeOneDriveIsSearchedWhole() async throws {
+        let depth = try await searchDepth(fs: "Vault:", configs: [
+            "Vault": #"{"type": "crypt", "remote": "OneDrive:"}"#,
+            "OneDrive": #"{"type": "onedrive"}"#,
+        ])
+        #expect(depth == RemoteSearch.unlimitedDepth)
+    }
+
+    @Test func oneDriveWithARootFolderIDStopsAtTheDefaultDepth() async throws {
+        let depth = try await searchDepth(fs: "OneDrive:", configs: [
+            "OneDrive": #"{"type": "onedrive", "root_folder_id": "ABC123!101"}"#,
+        ])
+        #expect(depth == RemoteSearch.defaultMaxDepth)
+    }
+
+    @Test func cryptOverAnS3FolderIsSearchedWhole() async throws {
+        // Only OneDrive's delta listing is tied to the root.
+        let depth = try await searchDepth(fs: "Vault:", configs: [
+            "Vault": #"{"type": "crypt", "remote": "s3:bucket/vault"}"#,
+            "s3": #"{"type": "s3"}"#,
+        ])
+        #expect(depth == RemoteSearch.unlimitedDepth)
     }
 
     @Test func anyOtherRemoteStopsAtTheDefaultDepth() async throws {
