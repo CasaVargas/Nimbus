@@ -120,7 +120,7 @@ private struct ThumbnailContext: Sendable {
         let directory = FileProviderExtension.tempDirectory().appendingPathComponent("Thumbnails", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let localURL = directory.appendingPathComponent(
-            "\(UUID().uuidString)_\((remotePath as NSString).lastPathComponent)")
+            "\(UUID().uuidString)_\(TransferStaging.stagedName(for: (remotePath as NSString).lastPathComponent))")
         defer { try? FileManager.default.removeItem(at: localURL) }
 
         try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "thumbnail.download") {
