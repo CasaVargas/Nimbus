@@ -301,6 +301,10 @@ final class RcloneDaemon {
             "--rc-serve",
             "--bwlimit", bandwidthLimit.isEmpty ? "off" : bandwidthLimit,
             "--transfers", String(min(max(concurrentTransfers, 1), 32)),
+            // rclone drops a remote it hasn't used for 5 minutes and sets it
+            // up again (several requests on OneDrive) on the next call.
+            // Editing or removing a remote still drops it at once.
+            "--fs-cache-expire-duration", "30m",
         ]
     }
 

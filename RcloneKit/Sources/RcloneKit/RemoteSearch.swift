@@ -8,8 +8,12 @@ import Foundation
 /// client therefore checks every name again, which also drops folders whose
 /// name doesn't match.
 public enum RemoteSearch {
-    /// Default recursion cap below the remote root.
+    /// Default recursion cap below the remote root, for a remote rclone
+    /// has to walk folder by folder.
     public static let defaultMaxDepth = 10
+    /// rclone's "no limit". Any limit at all makes rclone walk folder by
+    /// folder, even on a remote that can list everything in one stream.
+    public static let unlimitedDepth = -1
 
     /// An rclone include rule that keeps names containing `query`, ignoring
     /// case, at any depth. The query is regex-escaped, so `.` or `(` in a
@@ -50,17 +54,28 @@ extension RcloneClient {
     /// Files and folders in `fs` whose name contains `query` (case-insensitive),
     /// at most `maxDepth` levels down. Paths are relative to the remote root.
     ///
+    /// With no `maxDepth`, a remote that lists recursively in one stream
+    /// (S3, Drive, OneDrive with `delta`) is searched whole, which is also
+    /// the fast way; any other stops `defaultMaxDepth` levels down.
+    ///
     /// Cancelling the calling task stops the rclone job and throws
     /// `CancellationError`.
     public func search(
         fs: String,
         query: String,
-        maxDepth: Int = RemoteSearch.defaultMaxDepth,
+        maxDepth: Int? = nil,
         pollInterval: Duration = .milliseconds(300)
     ) async throws -> [FileItem] {
+        let depth: Int
+        if let maxDepth {
+            depth = maxDepth
+        } else {
+            let oneStream = (try? await listsRecursively(fs: fs)) ?? false
+            depth = oneStream ? RemoteSearch.unlimitedDepth : RemoteSearch.defaultMaxDepth
+        }
         let started: AsyncJobResponse = try await call(
             "operations/list",
-            params: RemoteSearch.parameters(fs: fs, query: query, maxDepth: maxDepth)
+            params: RemoteSearch.parameters(fs: fs, query: query, maxDepth: depth)
         )
         let jobID = started.jobid
 

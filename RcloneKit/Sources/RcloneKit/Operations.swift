@@ -226,6 +226,13 @@ extension RcloneClient {
         return RemoteFeatures(publicLink: info.features["PublicLink"] ?? false)
     }
 
+    /// Whether the backend can list a whole tree in one stream (`ListR`
+    /// from `operations/fsinfo`) instead of folder by folder.
+    func listsRecursively(fs: String) async throws -> Bool {
+        let info: FsInfoResponse = try await call("operations/fsinfo", params: ["fs": fs])
+        return info.features["ListR"] ?? false
+    }
+
     /// Hash types this remote's backend supports (`Hashes` from
     /// `operations/fsinfo`), in rclone's own order, e.g. `["md5", "sha1"]`.
     /// rclone verifies a copy with the first type both sides share.

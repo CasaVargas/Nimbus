@@ -73,6 +73,16 @@ struct ConfigEncryptionWiringTests {
         #expect(environment["RCLONE_PASSWORD_COMMAND"] == standardCommand)
     }
 
+    @Test func childEnvironmentCarriesOneDriveDefaultsUnlessTheUserSetThem() {
+        let environment = RcloneEnvironment.childEnvironment(base: [:])
+        #expect(environment["RCLONE_ONEDRIVE_DELTA"] == "true")
+        #expect(environment["RCLONE_ONEDRIVE_CHUNK_SIZE"] == "40Mi")
+
+        let own = RcloneEnvironment.childEnvironment(base: ["RCLONE_ONEDRIVE_CHUNK_SIZE": "10Mi"])
+        #expect(own["RCLONE_ONEDRIVE_CHUNK_SIZE"] == "10Mi")
+        #expect(own["RCLONE_ONEDRIVE_DELTA"] == "true")
+    }
+
     @Test func userPasswordSettingsWin() {
         let own = RcloneEnvironment.childEnvironment(base: ["RCLONE_PASSWORD_COMMAND": "pass rclone"])
         #expect(own["RCLONE_PASSWORD_COMMAND"] == "pass rclone")
@@ -93,7 +103,7 @@ struct ConfigEncryptionWiringTests {
         #expect(process.environment == [
             "PATH": "/usr/bin", "RCLONE_PASSWORD_COMMAND": standardCommand,
             "RCLONE_RC_USER": "u", "RCLONE_RC_PASS": "p",
-        ])
+        ].merging(RcloneEnvironment.oneDriveDefaults) { own, _ in own })
         #expect(process.arguments?.first == "rcd")
         #expect(!(process.arguments ?? []).contains { $0.contains("password") })
         #expect(process.standardInput as? FileHandle == FileHandle.nullDevice)
@@ -107,7 +117,8 @@ struct ConfigEncryptionWiringTests {
             readOnly: false,
             baseEnvironment: ["PATH": "/usr/bin"]
         )
-        #expect(process.environment == ["PATH": "/usr/bin", "RCLONE_PASSWORD_COMMAND": standardCommand])
+        #expect(process.environment == ["PATH": "/usr/bin", "RCLONE_PASSWORD_COMMAND": standardCommand]
+            .merging(RcloneEnvironment.oneDriveDefaults) { own, _ in own })
         #expect(Array((process.arguments ?? []).prefix(3)) == ["serve", "nfs", "gdrive:"])
         #expect(!(process.arguments ?? []).contains { $0.contains("password") })
         #expect(process.standardInput as? FileHandle == FileHandle.nullDevice)

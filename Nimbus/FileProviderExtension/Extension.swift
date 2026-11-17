@@ -19,6 +19,10 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let (port, credentials) = FileProviderRetry.readConnection()
         self.rclone = RcloneClient(port: port, credentials: credentials)
         logger.error("Extension init: domain=\(domain.identifier.rawValue), port=\(port)")
+        // Staged transfers an earlier, killed process left behind.
+        if let container = AppGroup.containerURL {
+            Task.detached(priority: .utility) { TransferStaging.sweep(in: container) }
+        }
     }
 
     /// Re-reads the port from app group UserDefaults — the main app may have
@@ -144,11 +148,11 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 }
 
                 // `NSTemporaryDirectory()` resolves inside the extension's own
-                // sandbox container. Unlike the old `operations/copyfile`
-                // approach (which required the unsandboxed rclone process to
-                // write into our sandbox), `downloadFile` streams bytes over
-                // HTTP via `operations/cat` and this process writes them —
-                // rclone never needs filesystem access to our container.
+                // sandbox container, which the rclone daemon can't write
+                // to. `ContentTransfer` gets the bytes here either way: the
+                // daemon downloads into the app group container and the
+                // file is moved over, or (the fallback) they are streamed
+                // over HTTP and this process writes them.
                 let downloadDir = Self.tempDirectory().appendingPathComponent("Downloads", isDirectory: true)
                 try FileManager.default.createDirectory(at: downloadDir, withIntermediateDirectories: true)
 
@@ -156,7 +160,10 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 let localURL = downloadDir.appendingPathComponent("\(UUID().uuidString)_\(filename)")
 
                 try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "fetchContents.download") {
-                    try await rclone.downloadFile(fs: "\(remoteName):", remote: remotePath, to: localURL)
+                    try await ContentTransfer.download(
+                        rclone: rclone, remoteName: remoteName, remotePath: remotePath,
+                        to: localURL, progress: progress, logger: logger
+                    )
                 }
 
                 progress.completedUnitCount = progress.totalUnitCount
@@ -203,17 +210,20 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                         try await rclone.createFolder(fs: "\(remoteName):", remote: newPath)
                     }
                 } else if let localURL {
-                    // `uploadFile` streams bytes from our sandbox to rclone
-                    // over HTTP (multipart), so — unlike the old
-                    // `operations/copyfile` with `dstFs: "/"` — rclone never
-                    // needs to read from our sandbox container directly. The
-                    // destination filename is passed explicitly since the
-                    // system-staged `localURL` isn't guaranteed to be named
-                    // `filename`.
+                    // rclone can't read the system-staged `localURL` where
+                    // it is, so `ContentTransfer` clones it into the app
+                    // group container for the daemon to upload, or (the
+                    // fallback) sends the bytes over HTTP. The destination
+                    // filename is passed explicitly since `localURL` isn't
+                    // guaranteed to be named `filename`.
                     let identifier = "\(remoteName):\(newPath)"
                     do {
                         try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "createItem.upload") {
-                            try await rclone.uploadFile(from: localURL, fs: "\(remoteName):", remote: parentPath, filename: filename)
+                            try await ContentTransfer.upload(
+                                rclone: rclone, from: localURL, remoteName: remoteName,
+                                directory: parentPath, filename: filename,
+                                progress: progress, logger: logger
+                            )
                         }
                     } catch {
                         await UploadFailureReporting.failed(error, identifier: identifier, domain: domainBox.value, logger: logger)
@@ -311,7 +321,11 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     let uploadFilename = (workingPath as NSString).lastPathComponent
                     do {
                         try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "modifyItem.upload") {
-                            try await rclone.uploadFile(from: contentsURL, fs: "\(remoteName):", remote: uploadDir, filename: uploadFilename)
+                            try await ContentTransfer.upload(
+                                rclone: rclone, from: contentsURL, remoteName: remoteName,
+                                directory: uploadDir, filename: uploadFilename,
+                                progress: progress, logger: logger
+                            )
                         }
                     } catch {
                         // Under the identifier the system knows: after a

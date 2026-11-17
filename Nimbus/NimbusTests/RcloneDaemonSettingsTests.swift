@@ -19,6 +19,12 @@ struct RcloneDaemonSettingsTests {
         #expect(arguments.contains("7"))
     }
 
+    @Test func launchArgumentsKeepIdleRemotesOpen() throws {
+        let arguments = RcloneDaemon.launchArguments(port: 5572, bandwidthLimit: "", concurrentTransfers: 4)
+        let index = try #require(arguments.firstIndex(of: "--fs-cache-expire-duration"))
+        #expect(arguments[arguments.index(after: index)] == "30m")
+    }
+
     @Test func emptyPersistedBandwidthLaunchesWithRcloneOff() {
         let arguments = RcloneDaemon.launchArguments(
             port: 5572,

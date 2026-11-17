@@ -137,10 +137,6 @@ public final class RcloneClient: @unchecked Sendable {
         let _: EmptyResponse = try await call(endpoint, params: params)
     }
 
-    /// Downloads raw file bytes via the rclone RC API and writes them to
-    /// a local destination URL. Uses `operations/cat` which streams the
-    /// file content as the HTTP response body — no local filesystem access
-    /// by rclone is needed, making this safe for sandboxed callers.
     /// Characters safe to leave literal in the `/[fs]/path` download URL.
     /// Everything else (spaces, brackets, colons, unicode, "•", …) gets
     /// percent-encoded; rclone decodes the path server-side.
@@ -150,6 +146,11 @@ public final class RcloneClient: @unchecked Sendable {
         return set
     }()
 
+    /// Downloads a file's bytes from the daemon over HTTP and writes them to
+    /// `destination`, replacing anything already there. rclone needs no
+    /// access to the local filesystem, which makes this safe for sandboxed
+    /// callers. The response is written to disk as it arrives, never held
+    /// in memory.
     public func downloadFile(fs: String, remote: String, to destination: URL) async throws {
         // rclone's RC API has NO download method — operations/cat does not
         // exist (404 "couldn't find method"). File content is served over
@@ -164,17 +165,22 @@ public final class RcloneClient: @unchecked Sendable {
         var request = makeRequest(url: url, method: "GET")
         request.timeoutInterval = 600
 
-        let (data, response) = try await session.data(for: request)
+        // The async download leaves its temporary file for the caller to
+        // dispose of.
+        let (temporary, response) = try await session.download(for: request)
+        defer { try? FileManager.default.removeItem(at: temporary) }
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw RcloneError.invalidResponse
         }
         guard (200...299).contains(httpResponse.statusCode) else {
-            let body = String(data: data, encoding: .utf8) ?? "unknown"
+            // On an error status the "file" is rclone's short error text.
+            let body = (try? String(contentsOf: temporary, encoding: .utf8)) ?? "unknown"
             throw RcloneError.requestFailed(status: httpResponse.statusCode, message: body)
         }
 
-        try data.write(to: destination, options: .atomic)
+        try? FileManager.default.removeItem(at: destination)
+        try FileManager.default.moveItem(at: temporary, to: destination)
     }
 
     /// Uploads a local file to a remote via rclone's `operations/uploadfile`
