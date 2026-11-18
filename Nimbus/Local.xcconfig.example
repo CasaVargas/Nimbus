@@ -10,3 +10,18 @@
 //   xcodebuild ... CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
 DEVELOPMENT_TEAM = YOURTEAMID
+
+// Optional overrides when signing with a team other than 53MUTM55LC.
+// You must set both: NIMBUS_TEAM_PREFIX to your Team ID and NIMBUS_BUNDLE_ID
+// to a reverse-DNS identifier you control (Apple App IDs are unique across
+// teams). NIMBUS_APP_GROUP is derived automatically as
+// $(NIMBUS_TEAM_PREFIX).$(NIMBUS_BUNDLE_ID).
+//
+// A distinct bundle ID also lets the dev build sit next to an installed
+// release copy. Don't run both at the same time (they share the rclone config
+// and notification names). A cloud the release copy already shows in Finder
+// can't also appear from the dev build, because both use the folder
+// ~/Library/CloudStorage/Nimbus-<remote>.
+//
+// NIMBUS_TEAM_PREFIX = YOURTEAMID
+// NIMBUS_BUNDLE_ID = com.example.nimbus

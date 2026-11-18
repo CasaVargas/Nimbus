@@ -1,9 +1,17 @@
 // Base build configuration shared by every Nimbus target and configuration.
 //
-// Settings that differ per developer (code signing team, signing identity)
-// live in Nimbus/Local.xcconfig, which is gitignored. Copy
-// Nimbus/Local.xcconfig.example to Nimbus/Local.xcconfig and fill in your
-// own values. The include is optional: without a Local.xcconfig the project
-// still generates and builds with signing disabled, which is how CI builds.
+// Settings that differ per developer (code signing team, signing identity,
+// team prefix and bundle ID) live in Nimbus/Local.xcconfig, which is
+// gitignored. Copy Nimbus/Local.xcconfig.example to Nimbus/Local.xcconfig and
+// fill in your own values. The include is optional: without a Local.xcconfig
+// the project still generates and builds with signing disabled, which is how
+// CI builds.
+
+// Team prefix, base bundle ID and derived app group shared across the app
+// and extensions. Contributors signing with another team override
+// NIMBUS_TEAM_PREFIX and NIMBUS_BUNDLE_ID in Nimbus/Local.xcconfig.
+NIMBUS_TEAM_PREFIX = 53MUTM55LC
+NIMBUS_BUNDLE_ID = app.casavargas.nimbus
+NIMBUS_APP_GROUP = $(NIMBUS_TEAM_PREFIX).$(NIMBUS_BUNDLE_ID)
 
 #include? "../Local.xcconfig"

@@ -5,7 +5,7 @@ import os
 /// wake ping on every user-driven rclone call, and, when the app isn't
 /// running at all, a hidden launch of the containing app.
 enum AppWaker {
-    private static let mainBundleID = "app.casavargas.nimbus"
+    private static let mainBundleID = AppGroup.mainBundleID
     private static let pingInterval: TimeInterval = 20
     private static let launchInterval: TimeInterval = 30
     private static let state = OSAllocatedUnfairLock(initialState: (lastPing: Date.distantPast, lastLaunch: Date.distantPast))
