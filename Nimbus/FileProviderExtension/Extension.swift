@@ -157,7 +157,8 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 try FileManager.default.createDirectory(at: downloadDir, withIntermediateDirectories: true)
 
                 let filename = (remotePath as NSString).lastPathComponent
-                let localURL = downloadDir.appendingPathComponent("\(UUID().uuidString)_\(filename)")
+                let localURL = downloadDir.appendingPathComponent(
+                    "\(UUID().uuidString)_\(TransferStaging.stagedName(for: filename))")
 
                 try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "fetchContents.download") {
                     try await ContentTransfer.download(
