@@ -43,6 +43,12 @@ xcodebuild -project Nimbus/Nimbus.xcodeproj -scheme Nimbus \
 A signed build (with a team) is required to actually register the File
 Provider extension with Finder and to use the shared app group. Everything
 else, including the browser, mounts and transfers, works unsigned.
+If you sign with a team other than upstream's (a free Personal Team works),
+also set `NIMBUS_TEAM_PREFIX` and `NIMBUS_BUNDLE_ID` in
+`Nimbus/Local.xcconfig`, as described in `Nimbus/Local.xcconfig.example`.
+macOS adds a newly built File Provider switched off: turn it on in System
+Settings > General > Login Items & Extensions > File Providers, or its
+locations in Finder stay empty.
 
 ## Run the tests
 

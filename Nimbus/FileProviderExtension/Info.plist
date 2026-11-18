@@ -61,7 +61,7 @@
 			</dict>
 		</array>
 		<key>NSExtensionFileProviderDocumentGroup</key>
-		<string>53MUTM55LC.app.casavargas.nimbus</string>
+		<string>$(NIMBUS_APP_GROUP)</string>
 		<key>NSExtensionFileProviderSupportsEnumeration</key>
 		<true/>
 		<key>NSExtensionPointIdentifier</key>
@@ -92,5 +92,9 @@
 			</dict>
 		</array>
 	</dict>
+	<key>NimbusAppGroup</key>
+	<string>$(NIMBUS_APP_GROUP)</string>
+	<key>NimbusBundleID</key>
+	<string>$(NIMBUS_BUNDLE_ID)</string>
 </dict>
 </plist>

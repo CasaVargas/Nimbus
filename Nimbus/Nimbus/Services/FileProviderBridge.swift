@@ -146,7 +146,7 @@ final class FileProviderBridge {
     /// to all of them; the extension reads from whichever one it can access.
     private static func sharedStatePaths() -> [String] {
         let home = NSHomeDirectory()  // real home for unsandboxed main app
-        let extensionContainer = "\(home)/Library/Containers/app.casavargas.nimbus.FileProvider/Data"
+        let extensionContainer = "\(home)/Library/Containers/\(AppGroup.mainBundleID).FileProvider/Data"
         return [
             // Group container (ideal, requires provisioned app group)
             "\(home)/Library/Group Containers/\(appGroupID)/shared-state.json",

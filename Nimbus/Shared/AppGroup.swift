@@ -10,12 +10,29 @@ import Foundation
 /// entitlement without a word and the sandboxed extension is locked out of
 /// the container (0.9.1 and 0.10.0 shipped that way).
 ///
-/// A fork signed by another team changes the prefix here, in both
-/// `.entitlements` files and in `NSExtensionFileProviderDocumentGroup`
-/// (`project.yml` and the extension's `Info.plist`). `AppGroupTests` checks
-/// that they agree.
+/// The group comes from the `NIMBUS_APP_GROUP` build setting
+/// (`Config/Base.xcconfig`, overridable in `Local.xcconfig`) through the
+/// `NimbusAppGroup` Info.plist key, falling back to `defaultIdentifier` when
+/// missing or unexpanded.
+///
+/// `mainBundleID`, the containing app's bundle ID, comes the same way from
+/// `NIMBUS_BUNDLE_ID` through the `NimbusBundleID` key, so the extensions can
+/// name the app without hardcoding it.
 enum AppGroup {
-    static let identifier = "53MUTM55LC.app.casavargas.nimbus"
+    static let defaultIdentifier = "53MUTM55LC.app.casavargas.nimbus"
+    static let defaultMainBundleID = "app.casavargas.nimbus"
+
+    static let identifier = infoValue("NimbusAppGroup") ?? defaultIdentifier
+    static let mainBundleID = infoValue("NimbusBundleID") ?? defaultMainBundleID
+
+    /// A build-setting value from Info.plist, or nil if it's missing or
+    /// was never expanded.
+    private static func infoValue(_ key: String) -> String? {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String,
+              !value.isEmpty,
+              !value.contains("$(") else { return nil }
+        return value
+    }
 
     static var containerURL: URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier)

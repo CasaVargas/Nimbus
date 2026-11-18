@@ -2117,7 +2117,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.casavargas.nimbus.Share;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(NIMBUS_BUNDLE_ID).Share";
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -2139,7 +2139,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.casavargas.nimbus;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(NIMBUS_BUNDLE_ID)";
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -2222,7 +2222,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.casavargas.nimbus.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(NIMBUS_BUNDLE_ID).tests";
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Nimbus.app/Contents/MacOS/Nimbus";
 			};
@@ -2245,7 +2245,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.casavargas.nimbus;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(NIMBUS_BUNDLE_ID)";
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -2264,7 +2264,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.casavargas.nimbus.FileProvider;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(NIMBUS_BUNDLE_ID).FileProvider";
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -2284,7 +2284,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.casavargas.nimbus.Share;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(NIMBUS_BUNDLE_ID).Share";
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -2303,7 +2303,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.casavargas.nimbus.FileProvider;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(NIMBUS_BUNDLE_ID).FileProvider";
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -2379,7 +2379,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.casavargas.nimbus.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(NIMBUS_BUNDLE_ID).tests";
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Nimbus.app/Contents/MacOS/Nimbus";
 			};
