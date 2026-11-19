@@ -24,6 +24,7 @@ extension FileProviderExtension: NSFileProviderThumbnailing {
             remoteName: domain.identifier.rawValue,
             maxPixel: max(1, Int(max(size.width, size.height).rounded(.up))),
             cache: thumbnailCache(for: domain),
+            stagingFolder: stagingFolder,
             limiter: thumbnailLimiter,
             logger: logger
         )
@@ -50,10 +51,12 @@ extension FileProviderExtension: NSFileProviderThumbnailing {
     }
 
     /// One folder per cloud in the extension's Caches directory: it survives
-    /// extension restarts (unlike the temp directory `invalidate()` empties),
-    /// and macOS may purge it under disk pressure, which a cache can afford.
-    /// Not the domain's `stateDirectoryURL()`: writing there fails with
-    /// EPERM from the sandboxed extension.
+    /// extension restarts (unlike staged thumbnail sources in `tmp`, which
+    /// are deleted after each render and when the instance is invalidated,
+    /// with crash leftovers removed at startup), and macOS may purge it under
+    /// disk pressure, which a cache can afford. Not the domain's
+    /// `stateDirectoryURL()`: writing there fails with EPERM from the
+    /// sandboxed extension.
     private func thumbnailCache(for domain: NSFileProviderDomain) -> ThumbnailCache? {
         guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
             return nil
@@ -73,6 +76,8 @@ private struct ThumbnailContext: Sendable {
     let remoteName: String
     let maxPixel: Int
     let cache: ThumbnailCache?
+    /// The extension instance's staging folder.
+    let stagingFolder: URL
     let limiter: AsyncLimiter
     let logger: Logger
 
@@ -117,7 +122,7 @@ private struct ThumbnailContext: Sendable {
     private func render(identifier: NSFileProviderItemIdentifier, kind: ThumbnailPolicy.Kind) async throws -> Data? {
         try Task.checkCancellation()
         let remotePath = FileProviderExtension.extractPathStatic(from: identifier, remoteName: remoteName)
-        let directory = FileProviderExtension.tempDirectory().appendingPathComponent("Thumbnails", isDirectory: true)
+        let directory = stagingFolder.appendingPathComponent("Thumbnails", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let localURL = directory.appendingPathComponent(
             "\(UUID().uuidString)_\(TransferStaging.stagedName(for: (remotePath as NSString).lastPathComponent))")
