@@ -84,8 +84,13 @@ enum RemoteChangeDiff {
 /// (every known item, for Spotlight). Earlier builds listed nothing: their
 /// anchors (16 bytes, or 8 with the pin sequence only) decode as format 0,
 /// and the enumerator expires them once so the system re-lists.
+///
+/// Format 2: items report `fileSystemFlags`. Items the system took from
+/// earlier builds carry its default, which hides the last ".xxx" of every
+/// name (`me@example.com` showed as `me@example`); expiring format-1
+/// anchors re-lists them with the new flags.
 enum WorkingSetAnchor {
-    static let currentFormat = 1
+    static let currentFormat = 2
 
     static func encode(pinSequence: Int, remoteGeneration: Int, format: Int = currentFormat) -> Data {
         var data = Data()

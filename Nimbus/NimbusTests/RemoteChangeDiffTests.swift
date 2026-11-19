@@ -85,6 +85,13 @@ struct RemoteChangeDiffTests {
         #expect(decoded.format < WorkingSetAnchor.currentFormat)
     }
 
+    @Test func anchorFromBeforeTheFileSystemFlagsIsExpired() {
+        // Items listed before `fileSystemFlags` carry the system default's
+        // hidden extension; a format-1 anchor must re-list them.
+        let old = WorkingSetAnchor.encode(pinSequence: 42, remoteGeneration: 7, format: 1)
+        #expect(WorkingSetAnchor.decode(old).format < WorkingSetAnchor.currentFormat)
+    }
+
     @Test func legacyPinOnlyAnchorDecodesWithGenerationZero() {
         let legacy = withUnsafeBytes(of: Int64(9).littleEndian) { Data($0) }
         let decoded = WorkingSetAnchor.decode(legacy)
