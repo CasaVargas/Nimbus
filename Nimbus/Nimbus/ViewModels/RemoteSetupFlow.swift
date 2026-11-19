@@ -200,12 +200,24 @@ final class RemoteSetupFlow {
             // before it can be reached — e.g. a second begin() from
             // .page/.signingIn after a rename (NB-3).
             await cleanUpPartialRemote()
-            let first = try await start(askAll: false)
-            switch first {
-            case .oauth:
+            let first: ConfigStep?
+            do {
+                first = try await start(askAll: false)
+            } catch RcloneError.requestFailed {
+                // Some credential backends run their config hook on the
+                // probe and reject it outright, because `all:false` never
+                // asked for the login: iclouddrive answers HTTP 500 "an
+                // Apple ID is required" (#162). rclone has still written a
+                // stub remote. An OAuth backend never fails here — its first
+                // step is the sign-in question — so this is the credential
+                // branch below. Only rclone-reported errors take it; a dead
+                // daemon or bad response still fails the walk.
+                first = nil
+            }
+            if let first, case .oauth = first {
                 isOAuthBackend = true
                 await advance(from: first, askAll: false)
-            default:
+            } else {
                 isOAuthBackend = false
                 await cleanUpPartialRemote()
                 let restarted = try await start(askAll: true)

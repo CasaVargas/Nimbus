@@ -21,6 +21,8 @@ private final class ScriptedConfigClient: RemoteConfigDriving {
     /// returning a step, then clears itself. Models a daemon/network failure
     /// without adding test-only state to the production RemoteSetupFlow type.
     var failNextStart: Error?
+    /// When set, EVERY `startConfig` call throws this (after recording it).
+    var failEveryStart: Error?
     /// Test seam for C2/NB-1: when set, every `continueConfig` call awaits
     /// this BEFORE recording the call or returning a step — so a test can
     /// suspend a walk mid-flight, start a second concurrent operation, and
@@ -39,6 +41,7 @@ private final class ScriptedConfigClient: RemoteConfigDriving {
             self.failNextStart = nil
             throw failNextStart
         }
+        if let failEveryStart { throw failEveryStart }
         if askAll { cursorTrue = 0 } else { cursorFalse = 0 }
         return next(askAll: askAll)
     }
@@ -420,6 +423,51 @@ struct RemoteSetupFlowTests {
             return
         }
         #expect(page.questions.map(\.option.name) == ["host"])
+    }
+
+    /// #162: rclone 1.76's iclouddrive runs its config hook on the
+    /// `all:false` probe and answers HTTP 500 "an Apple ID is required"
+    /// (still writing a stub remote). That must route to the credential
+    /// branch — delete the stub, restart asking everything — not fail.
+    @Test func credentialBackendWhoseProbeIsRejectedRestartsWithAskAll() async throws {
+        let client = ScriptedConfigClient()
+        client.failNextStart = RcloneError.requestFailed(
+            status: 500, message: "an Apple ID is required"
+        )
+        client.scriptTrue = [
+            .question(question("service", state: "*all-set,0,false")),
+            .question(question("apple_id", state: "*all-set,1,false")),
+            .question(question("password", state: "*all-set,2,false", isPassword: true)),
+            .advancedGate(question("config_fs_advanced", state: "*all-advanced")),
+        ]
+        let flow = RemoteSetupFlow(provider: provider("iclouddrive"), client: client)
+        flow.name = "iCloud"
+        await flow.begin()
+
+        #expect(client.calls == [
+            "start(all:false)", "delete(iCloud)", "start(all:true)",
+            "continue(*all-set,0,false=)", "continue(*all-set,1,false=)",
+            "continue(*all-set,2,false=)",
+        ])
+        guard case .page(let page) = flow.phase else {
+            Issue.record("expected .page, got \(flow.phase)"); return
+        }
+        #expect(page.questions.map(\.option.name) == ["service", "apple_id", "password"])
+    }
+
+    @Test func probeRejectedAndAskAllRetryFailingEndsFailed() async throws {
+        let client = ScriptedConfigClient()
+        client.failEveryStart = RcloneError.requestFailed(status: 500, message: "nope")
+        let flow = RemoteSetupFlow(provider: provider("iclouddrive"), client: client)
+        flow.name = "iCloud"
+        await flow.begin()
+
+        guard case .failed(let message) = flow.phase else {
+            Issue.record("expected .failed, got \(flow.phase)"); return
+        }
+        #expect(message.contains("nope"))
+        #expect(client.calls.prefix(3) == ["start(all:false)", "delete(iCloud)", "start(all:true)"])
+        #expect(client.deletedRemotes.last == "iCloud")
     }
 
     @Test func finishedBoundaryPageSubmitAppliesRealAnswersOverDefaults() async throws {
