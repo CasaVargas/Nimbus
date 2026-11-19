@@ -11,11 +11,25 @@ struct ConfigFieldView: View {
     @Binding var value: String
 
     /// rclone flags credentials two different ways: `IsPassword` for things
-    /// it obscures in the config file, `Sensitive` for things that merely
-    /// shouldn't be shoulder-surfed (SFTP key passphrases, API secrets).
-    /// Both deserve a SecureField.
+    /// it obscures in the config file, `Sensitive` for things it redacts from
+    /// logs and `config dump` (SFTP key passphrases, API secrets). Both
+    /// deserve a SecureField — except that `Sensitive` also covers account
+    /// identifiers (iCloud's `apple_id`, SFTP/SMB `host` and `user`, Mega's
+    /// `user`), and masking those means you can't see what you typed (#162).
     static func isSecure(_ option: ProviderOption) -> Bool {
-        option.isPassword || option.sensitive
+        if option.isPassword { return true }
+        return option.sensitive && !isIdentifier(option)
+    }
+
+    /// `Sensitive` options that name who or where, not a secret. Matched on
+    /// the option name: rclone has no flag for this distinction.
+    static let identifierNames: Set<String> = [
+        "apple_id", "user", "username", "email", "host", "url",
+        "domain", "namenode", "plex_username", "cloud_name",
+    ]
+
+    static func isIdentifier(_ option: ProviderOption) -> Bool {
+        identifierNames.contains(option.name)
     }
 
     /// Non-zero `Hide` means rclone considers the option internal.
@@ -35,11 +49,31 @@ struct ConfigFieldView: View {
         option.defaultStr.isEmpty ? option.defaultValue : option.defaultStr
     }
 
+    /// Lets the user check a masked value they typed. Never persisted: every
+    /// field starts masked again.
+    @State private var isRevealed = false
+
     var body: some View {
         if Self.isSecure(option) {
-            SecureField(placeholder, text: $value)
+            HStack(spacing: 4) {
+                Group {
+                    if isRevealed {
+                        TextField(placeholder, text: $value)
+                    } else {
+                        SecureField(placeholder, text: $value)
+                    }
+                }
                 .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 240)
+                Button {
+                    isRevealed.toggle()
+                } label: {
+                    Image(systemName: isRevealed ? "eye.slash" : "eye")
+                }
+                .buttonStyle(.borderless)
+                .help(isRevealed ? "Hide" : "Show")
+                .accessibilityLabel(isRevealed ? "Hide value" : "Show value")
+            }
+            .frame(maxWidth: 240)
         } else if let examples = option.examples, !examples.isEmpty {
             Picker("", selection: $value) {
                 Text("Choose…").tag("")

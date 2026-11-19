@@ -20,6 +20,10 @@ struct ConfigQuestionCopy: Equatable {
     let title: String
     /// Empty for a question that needs typing rather than choosing.
     let choices: [Choice]
+    /// The line above the title: where the user is in the sign-in.
+    var status: String = "Signed in"
+    /// Whether "You can change this later" applies. Not to a one-time code.
+    var isChangeableLater: Bool = true
 
     static func copy(for option: ProviderOption) -> ConfigQuestionCopy {
         if let written = written[option.name] { return written }
@@ -27,6 +31,21 @@ struct ConfigQuestionCopy: Equatable {
     }
 
     private static let written: [String: ConfigQuestionCopy] = [
+        // iCloud Drive / Photos, after the Apple ID and password are
+        // accepted (rclone 1.76 state `2fa_do`).
+        "config_2fa": ConfigQuestionCopy(
+            title: "Enter the verification code shown on your Apple device",
+            choices: [],
+            status: "Password accepted",
+            isChangeableLater: false
+        ),
+        // Same, when the code went by text message (state `2fa_sms_…`).
+        "config_2fa_sms": ConfigQuestionCopy(
+            title: "Enter the verification code sent by text message",
+            choices: [],
+            status: "Password accepted",
+            isChangeableLater: false
+        ),
         "config_change_team_drive": ConfigQuestionCopy(
             title: "Which drive is this?",
             choices: [

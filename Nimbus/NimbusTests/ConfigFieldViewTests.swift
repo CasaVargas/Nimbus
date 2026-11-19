@@ -38,6 +38,24 @@ struct ConfigFieldViewTests {
         #expect(ConfigFieldView.isSecure(option("key_file_pass", sensitive: true)))
     }
 
+    /// #162: rclone marks iCloud's apple_id (and SFTP/SMB host/user) as
+    /// Sensitive, but they are identifiers — masking them hid the Apple ID.
+    @Test func sensitiveIdentifiersAreNotSecure() {
+        for name in ["apple_id", "user", "username", "email", "host"] {
+            #expect(!ConfigFieldView.isSecure(option(name, sensitive: true)), "\(name)")
+        }
+    }
+
+    @Test func sensitiveSecretsStaySecure() {
+        for name in ["secret_access_key", "api_key", "client_secret", "key"] {
+            #expect(ConfigFieldView.isSecure(option(name, sensitive: true)), "\(name)")
+        }
+    }
+
+    @Test func passwordIsSecureEvenWithAnIdentifierName() {
+        #expect(ConfigFieldView.isSecure(option("user", isPassword: true)))
+    }
+
     @Test func ordinaryOptionsAreNotSecure() {
         #expect(!ConfigFieldView.isSecure(option("host")))
     }

@@ -79,7 +79,7 @@ struct FollowUpQuestion: View {
                 LogoTile(provider: providerPrefix)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Label("Signed in", systemImage: "checkmark")
+                    Label(copy.status, systemImage: "checkmark")
                         .font(DesignSystem.Stratosphere.Typography.segment)
                         .foregroundStyle(palette.ok.color)
                     Text(verbatim: copy.title)
@@ -98,9 +98,11 @@ struct FollowUpQuestion: View {
                                onSelect: { onChange(choice.value) })
                 }
             }
-            Text("You can change this later in the cloud's settings.")
-                .font(DesignSystem.Stratosphere.Typography.detail)
-                .foregroundStyle(palette.textTertiary.color)
+            if copy.isChangeableLater {
+                Text("You can change this later in the cloud's settings.")
+                    .font(DesignSystem.Stratosphere.Typography.detail)
+                    .foregroundStyle(palette.textTertiary.color)
+            }
         }
     }
 }
