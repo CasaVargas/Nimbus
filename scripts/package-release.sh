@@ -91,9 +91,18 @@ release_entitlements() {
   local bundle="$1" out="$2" source="$3"
   codesign -d --entitlements :- "$bundle" 2>/dev/null > "$out" || true
   # An unsigned build (NIMBUS_UNSIGNED_BUILD=1, CI) carries none: use the
-  # checked-in file, which holds exactly what a release needs.
+  # checked-in file. Xcode expands build settings in it when it signs, but
+  # codesign takes the file verbatim, so expand $(NIMBUS_APP_GROUP) here from
+  # the value Xcode wrote into the built app's Info.plist. 1.5.3 skipped this
+  # and shipped the literal "$(NIMBUS_APP_GROUP)" as its app group, which
+  # broke Finder integration.
   if ! /usr/libexec/PlistBuddy -c "Print" "$out" >/dev/null 2>&1; then
-    cp "$source" "$out"
+    sed "s/\$(NIMBUS_APP_GROUP)/$APP_GROUP/g" "$source" > "$out"
+  fi
+  if grep -q '\$(' "$out"; then
+    echo "error: unexpanded build setting in entitlements for $bundle:" >&2
+    grep '\$(' "$out" >&2
+    exit 1
   fi
   local key
   for key in com.apple.security.get-task-allow com.apple.application-identifier com.apple.developer.team-identifier; do
@@ -108,8 +117,27 @@ drop_dev_profile() {
   rm -f "$1/Contents/embedded.provisionprofile"
 }
 
+# Fails unless the signed bundle's app group is exactly $APP_GROUP.
+check_app_group() {
+  local bundle="$1" groups plist
+  plist="$(mktemp "${TMPDIR:-/tmp}/nimbus-check.XXXXXX")"
+  codesign -d --entitlements - --xml "$bundle" 2>/dev/null > "$plist" || true
+  # PlistBuddy, not plutil: plutil's key paths split on the dots in the key.
+  groups="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' "$plist" 2>/dev/null || true)"
+  rm -f "$plist"
+  if [ "$groups" != "$APP_GROUP" ]; then
+    echo "error: $bundle is signed with app group '$groups', expected '$APP_GROUP'" >&2
+    exit 1
+  fi
+}
+
 if [ -n "$SIGN_IDENTITY" ]; then
   log "Signing with: $SIGN_IDENTITY"
+  APP_GROUP="$(/usr/libexec/PlistBuddy -c 'Print :NimbusAppGroup' "$APP/Contents/Info.plist" 2>/dev/null || true)"
+  case "$APP_GROUP" in
+    ''|*'$('*) echo "error: NimbusAppGroup missing or unexpanded in $APP/Contents/Info.plist: '$APP_GROUP'" >&2; exit 1 ;;
+  esac
+  log "App group: $APP_GROUP"
   ENT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/nimbus-ent.XXXXXX")"
   # Sign inside-out so the embedded extension is sealed before the app that
   # contains it. Entitlements are re-applied from the build minus
@@ -148,6 +176,9 @@ if [ -n "$SIGN_IDENTITY" ]; then
     --entitlements "$ENT_DIR/app.plist" \
     --sign "$SIGN_IDENTITY" "$APP"
   codesign --verify --deep --strict --verbose=2 "$APP"
+  check_app_group "$APP"
+  [ -d "$APPEX" ] && check_app_group "$APPEX"
+  [ -d "$SHARE_APPEX" ] && check_app_group "$SHARE_APPEX"
   for key in get-task-allow application-identifier team-identifier; do
     if codesign -d --entitlements :- "$APP" 2>/dev/null | grep -q "$key"; then
       echo "error: $key is still present after re-signing" >&2
