@@ -28,6 +28,13 @@ final class FileProviderItem: NSObject, NSFileProviderItem, NSFileProviderItemDe
 
     let capabilities: NSFileProviderItemCapabilities
 
+    /// Without this the system defaults to adding `.pathExtensionHidden`,
+    /// so Finder hides the last ".xxx" of every name: a folder named
+    /// `me@example.com` shows as `me@example`, and files lose their
+    /// extensions. Existing items pick this up through the working set's
+    /// anchor format 2 (`WorkingSetAnchor`).
+    var fileSystemFlags: NSFileProviderFileSystemFlags { [.userReadable, .userWritable] }
+
     /// Pinned with Keep Downloaded (directly, not via a folder).
     let isPinned: Bool
     /// Kept downloaded because a folder above it is pinned.

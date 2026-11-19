@@ -20,8 +20,8 @@ import os
 ///
 /// Listing the working set returns every item in every folder the system
 /// has listed (read from the snapshots, no network). The system indexes
-/// those items in Spotlight, downloaded or not. An anchor from a build that
-/// listed nothing is expired once, so existing domains re-list.
+/// those items in Spotlight, downloaded or not. An anchor from an older
+/// format (`WorkingSetAnchor`) is expired once, so existing domains re-list.
 final class WorkingSetEnumerator: NSObject, NSFileProviderEnumerator {
     private let logger = Logger(subsystem: "app.casavargas.nimbus.FileProvider", category: "working-set")
     private let domain: NSFileProviderDomain
@@ -96,9 +96,10 @@ final class WorkingSetEnumerator: NSObject, NSFileProviderEnumerator {
         let remoteName = domain.identifier.rawValue
         let decoded = WorkingSetAnchor.decode(syncAnchor.rawValue)
         guard decoded.format >= WorkingSetAnchor.currentFormat else {
-            // Anchored by a build whose listing was empty: re-list so every
-            // known item reaches Spotlight.
-            logger.info("working set \(remoteName, privacy: .public): anchor predates the full listing, expiring it")
+            // Anchored by an older build (an empty listing, or items
+            // without `fileSystemFlags`): re-list so every known item
+            // reaches Spotlight with its current flags.
+            logger.info("working set \(remoteName, privacy: .public): anchor format \(decoded.format) is out of date, expiring it")
             observer.finishEnumeratingWithError(NSFileProviderError(.syncAnchorExpired))
             return
         }
