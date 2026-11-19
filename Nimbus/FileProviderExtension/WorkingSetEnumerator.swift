@@ -96,9 +96,9 @@ final class WorkingSetEnumerator: NSObject, NSFileProviderEnumerator {
         let remoteName = domain.identifier.rawValue
         let decoded = WorkingSetAnchor.decode(syncAnchor.rawValue)
         guard decoded.format >= WorkingSetAnchor.currentFormat else {
-            // Anchored by an older build (an empty listing, or items
-            // without `fileSystemFlags`): re-list so every known item
-            // reaches Spotlight with its current flags.
+            // Anchored by an older build (an empty listing, items without
+            // `fileSystemFlags`, or unknown sizes as -1): re-list so every
+            // known item reaches the system with its current metadata.
             logger.info("working set \(remoteName, privacy: .public): anchor format \(decoded.format) is out of date, expiring it")
             observer.finishEnumeratingWithError(NSFileProviderError(.syncAnchorExpired))
             return

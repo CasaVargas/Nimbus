@@ -59,6 +59,7 @@
 		2353A87935A69F0AEDB61EB5 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6FD1A3D6100AC0DBDCF1315 /* AppDelegate.swift */; };
 		235AA0FE71613057F81EF398 /* BackupsHeadlineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CE10A23B8CE67C3A3AE3D2E /* BackupsHeadlineTests.swift */; };
 		24737E3DFC915CD276DE3A46 /* AddMountSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBA7B6CB016DCE782B5443EA /* AddMountSheet.swift */; };
+		248D80B738FA12FFA897ABFE /* ItemSize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0812FDBA759DB1C7849EE4AC /* ItemSize.swift */; };
 		25A7070405FE69D4AEDED6E3 /* ItemBadgesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59C9AEFFEAD60115AF907ACA /* ItemBadgesTests.swift */; };
 		25DA4AD53EF27768DC29591B /* Sidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5EB7927C6E50511B15E82C3 /* Sidebar.swift */; };
 		26663AE890439C946ADA24F7 /* RemoteChangeCadence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 080802897673DC9127B539B7 /* RemoteChangeCadence.swift */; };
@@ -139,6 +140,7 @@
 		5C406B453B1A1567E325AEF5 /* BrowserToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E059E24ADEB8ACBC1AE9096 /* BrowserToolbar.swift */; };
 		5C40C6C25E739995CB1BADA7 /* DestructiveCallout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5302F1C84940E5790AC1C522 /* DestructiveCallout.swift */; };
 		5C679CD21DB845ADC8EF3227 /* CloudMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4CB5321F6256DF278935DAD /* CloudMonitor.swift */; };
+		5D3066905CD89CF0130D090C /* ItemSizeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C28E2695955424D6448BC2B /* ItemSizeTests.swift */; };
 		5D488723823C9AA075BC3C10 /* ConfigFieldViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84609C73887AD0B60570E9E4 /* ConfigFieldViewTests.swift */; };
 		5E112D3F787B4B6792B7F563 /* RcloneDaemonSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A65E95E3A964C6BB33215EF /* RcloneDaemonSettingsTests.swift */; };
 		60C7AAB720B55F64773F1B4C /* RcloneConfigMachineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0958E0B2D957D8EF2F3FFBD5 /* RcloneConfigMachineTests.swift */; };
@@ -264,6 +266,7 @@
 		AE148200C57EA04A2F17BF57 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C597E692310630A9FD68C83 /* DesignSystem.swift */; };
 		B00080307FD8EA793F2CEAD7 /* NimbusError.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD46B92F934C6AADF654A9BA /* NimbusError.swift */; };
 		B0AD368D3BC258AA033CD103 /* ConfigPageForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75E75859C6C60BC7A4E87C81 /* ConfigPageForm.swift */; };
+		B3144EE970A19D3092E3C940 /* ItemSize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0812FDBA759DB1C7849EE4AC /* ItemSize.swift */; };
 		B3310183AC6C141B30250271 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ED80F38BA5E2514871D0A76 /* AppGroup.swift */; };
 		B33A069079E79A65E7D1FD49 /* KeepDownloadedIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A51A874375FA05E362DEA37 /* KeepDownloadedIntents.swift */; };
 		B33B762BA9D1403D850A9E62 /* SidebarSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8C0D0BC95A7D1919E7FB034 /* SidebarSelectionTests.swift */; };
@@ -438,6 +441,7 @@
 		0583AC13082683C90F767904 /* TransferSettingsViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferSettingsViewTests.swift; sourceTree = "<group>"; };
 		05A4748DA3D9244673B9D1FE /* TransferHistoryFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferHistoryFile.swift; sourceTree = "<group>"; };
 		080802897673DC9127B539B7 /* RemoteChangeCadence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteChangeCadence.swift; sourceTree = "<group>"; };
+		0812FDBA759DB1C7849EE4AC /* ItemSize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemSize.swift; sourceTree = "<group>"; };
 		086C038EB001CCFAB4A7037A /* BackupRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupRunnerTests.swift; sourceTree = "<group>"; };
 		0958E0B2D957D8EF2F3FFBD5 /* RcloneConfigMachineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RcloneConfigMachineTests.swift; sourceTree = "<group>"; };
 		095E1922A73E213289493473 /* FolderBrowserSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderBrowserSheet.swift; sourceTree = "<group>"; };
@@ -572,6 +576,7 @@
 		5B4AA5DCF3B1E5DDEAD8A021 /* ConfigFieldLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigFieldLabel.swift; sourceTree = "<group>"; };
 		5B4EDE78A4EEDF0C9EE8A0E9 /* SyncSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSnapshotStore.swift; sourceTree = "<group>"; };
 		5BDF868D264DA8342B8B2973 /* SetupSteps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupSteps.swift; sourceTree = "<group>"; };
+		5C28E2695955424D6448BC2B /* ItemSizeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemSizeTests.swift; sourceTree = "<group>"; };
 		5CCCEBA204DCFCEBF2063D66 /* Colors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Colors.swift; sourceTree = "<group>"; };
 		5CFC0CEBAED68EF1E4D1672F /* SidebarRemoteRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarRemoteRowTests.swift; sourceTree = "<group>"; };
 		60047C16A0C6CF11B6F7AC77 /* StorageTotalsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageTotalsTests.swift; sourceTree = "<group>"; };
@@ -1162,6 +1167,7 @@
 				299AFE9FFD95BF3C15E2D4E1 /* CloudCapabilities.swift */,
 				A7D0DD7F91E7BC139F3140D1 /* DaemonConnectionState.swift */,
 				AE522DECA1DB3736E2408FCA /* ItemBadges.swift */,
+				0812FDBA759DB1C7849EE4AC /* ItemSize.swift */,
 				BC7EE1CD45CC36C54DFC54D0 /* NimbusWake.swift */,
 				381559F17FCAB7DE01CB69A0 /* PinStore.swift */,
 				080802897673DC9127B539B7 /* RemoteChangeCadence.swift */,
@@ -1406,6 +1412,7 @@
 				FC6B8FB8CB7436DC140EB4AE /* GuidedAddRemoteSnapshotTests.swift */,
 				6C4CA258F3F5FB0396025ADF /* HomeHeadlineTests.swift */,
 				59C9AEFFEAD60115AF907ACA /* ItemBadgesTests.swift */,
+				5C28E2695955424D6448BC2B /* ItemSizeTests.swift */,
 				CE6352CE9D017F8C0445AE17 /* KeyboardCoordinatorTests.swift */,
 				CE270D71E00F3313379D69C1 /* LaunchContextTests.swift */,
 				AF7DD3A807EA1EDFB8319331 /* MountDefaultsTests.swift */,
@@ -1811,6 +1818,7 @@
 				B4C719D6E99C2E5961856594 /* ImportRemoteRow.swift in Sources */,
 				66F126212768C68183552F7F /* IntentServices.swift in Sources */,
 				0A45A6AF7858257482EA861A /* ItemBadges.swift in Sources */,
+				248D80B738FA12FFA897ABFE /* ItemSize.swift in Sources */,
 				B33A069079E79A65E7D1FD49 /* KeepDownloadedIntents.swift in Sources */,
 				B59DB74E76B93E5440D76430 /* KeyboardCoordinator.swift in Sources */,
 				E5589C4F42939982895BEEDF /* LaunchAtLoginService.swift in Sources */,
@@ -1942,6 +1950,7 @@
 				786B7D91A11701292C5BC2A0 /* HotFolderStore.swift in Sources */,
 				E68C93C65CBC2C2403BF9431 /* Item.swift in Sources */,
 				E3F98A5DA47D0C0124FA6B14 /* ItemBadges.swift in Sources */,
+				B3144EE970A19D3092E3C940 /* ItemSize.swift in Sources */,
 				A4B4FD4C770A77CC7C43889E /* KeepDownloadedAction.swift in Sources */,
 				6BB157AE4D568A4FE3DB7318 /* NimbusWake.swift in Sources */,
 				C8DE07661C0B986CC23D0DEE /* PinStore.swift in Sources */,
@@ -2025,6 +2034,7 @@
 				1237323B2476F352B31E60F7 /* GuidedAddRemoteSnapshotTests.swift in Sources */,
 				CBD2B9227A110F1D7B87B29E /* HomeHeadlineTests.swift in Sources */,
 				25A7070405FE69D4AEDED6E3 /* ItemBadgesTests.swift in Sources */,
+				5D3066905CD89CF0130D090C /* ItemSizeTests.swift in Sources */,
 				3B570AF7E92B487AA5A10BCE /* KeyboardCoordinatorTests.swift in Sources */,
 				6B93B1C31081429C57FD484C /* LaunchContextTests.swift in Sources */,
 				AD97BD8EEEF12C40C33FD293 /* MockBackupClient.swift in Sources */,
