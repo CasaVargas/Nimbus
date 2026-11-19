@@ -171,10 +171,10 @@ struct RemoteSetupFlowTests {
         // all:false on sftp asks nothing (a stub); all:true asks for real.
         client.scriptFalse = [.done]
         client.scriptTrue = [
-            .question(question("host", state: "s0")),
-            .question(question("user", state: "s1")),
-            .question(question("port", state: "s2")),
-            .advancedGate(question("config_fs_advanced", state: "s3")),
+            .question(question("host", state: "*s0")),
+            .question(question("user", state: "*s1")),
+            .question(question("port", state: "*s2")),
+            .advancedGate(question("config_fs_advanced", state: "*s3")),
         ]
         let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
         flow.name = "myserver"
@@ -184,7 +184,7 @@ struct RemoteSetupFlowTests {
             Issue.record("expected .page, got \(flow.phase)"); return
         }
         #expect(page.questions.map(\.option.name) == ["host", "user", "port"])
-        #expect(page.boundary == .advancedGate(question("config_fs_advanced", state: "s3")))
+        #expect(page.boundary == .advancedGate(question("config_fs_advanced", state: "*s3")))
     }
 
     @Test func oauthBackendSkipsStraightToSignIn() async throws {
@@ -405,7 +405,7 @@ struct RemoteSetupFlowTests {
         // all:false on sftp asks nothing and writes a stub remote.
         client.scriptFalse = [.done]
         // all:true is what actually asks for the host.
-        client.scriptTrue = [.question(question("host", state: "s0")), .done]
+        client.scriptTrue = [.question(question("host", state: "*s0")), .done]
         let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
         flow.name = "myserver"
         await flow.begin()
@@ -413,7 +413,7 @@ struct RemoteSetupFlowTests {
         // Exact sequence, not just "contains": proves the stub was deleted
         // BEFORE the restart, not merely at some point during the walk (I2).
         #expect(client.calls == [
-            "start(all:false)", "delete(myserver)", "start(all:true)", "continue(s0=)",
+            "start(all:false)", "delete(myserver)", "start(all:true)", "continue(*s0=)",
         ])
         // Landed on the last page (boundary .finished), not some garbage
         // intermediate state — and NOT yet .finished, since the user hasn't
@@ -455,6 +455,43 @@ struct RemoteSetupFlowTests {
         #expect(page.questions.map(\.option.name) == ["service", "apple_id", "password"])
     }
 
+    /// #162, second half: after the credentials page is submitted, iCloud's
+    /// config hook logs in, pushes a code to the user's devices and asks
+    /// `config_2fa` (state `2fa_do`). That must reach the user as its own
+    /// page — not be answered with "" during discovery, which rclone rejects
+    /// ("2FA codes can't be blank") — and answering it must walk forward,
+    /// not replay the login (which would push another code).
+    @Test func backendHookTwoFactorQuestionIsAskedAndAnsweredForwardOnly() async throws {
+        let client = ScriptedConfigClient()
+        client.failNextStart = RcloneError.requestFailed(
+            status: 500, message: "an Apple ID is required"
+        )
+        client.scriptTrue = [
+            .question(question("apple_id", state: "*all-set,0,false")),
+            .advancedGate(question("config_fs_advanced", state: "*all-advanced")),
+            .question(question("config_2fa", state: "2fa_do")),
+            .done,
+        ]
+        let flow = RemoteSetupFlow(provider: provider("iclouddrive"), client: client)
+        flow.name = "iCloud"
+        await flow.begin()
+        await flow.answerChanged(question("apple_id", state: "*all-set,0,false"), to: "me@example.com")
+        await flow.submitPage()
+
+        guard case .page(let page) = flow.phase, page.boundary == .afterSignIn else {
+            Issue.record("expected the 2FA question on its own page, got \(flow.phase)"); return
+        }
+        #expect(page.questions.map(\.option.name) == ["config_2fa"])
+        #expect(!client.calls.contains("continue(2fa_do=)"))
+
+        let callsBeforeCode = client.calls.count
+        await flow.answerChanged(question("config_2fa", state: "2fa_do"), to: "123456")
+        await flow.submitPage()
+
+        #expect(Array(client.calls.dropFirst(callsBeforeCode)) == ["continue(2fa_do=123456)"])
+        #expect(flow.phase == .finished)
+    }
+
     @Test func probeRejectedAndAskAllRetryFailingEndsFailed() async throws {
         let client = ScriptedConfigClient()
         client.failEveryStart = RcloneError.requestFailed(status: 500, message: "nope")
@@ -481,7 +518,7 @@ struct RemoteSetupFlowTests {
         // the placeholder remote and silently discard the user's answer.
         let client = ScriptedConfigClient()
         client.scriptFalse = [.done]
-        client.scriptTrue = [.question(question("host", state: "s0")), .done]
+        client.scriptTrue = [.question(question("host", state: "*s0")), .done]
         let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
         flow.name = "myserver"
         await flow.begin()
@@ -495,7 +532,7 @@ struct RemoteSetupFlowTests {
 
         await flow.submitPage()
 
-        #expect(client.calls.contains("continue(s0=example.com)"))
+        #expect(client.calls.contains("continue(*s0=example.com)"))
         #expect(flow.phase == .finished)
     }
 
@@ -506,9 +543,9 @@ struct RemoteSetupFlowTests {
         let client = ScriptedConfigClient()
         client.scriptFalse = [.done]
         client.scriptTrue = [
-            .question(question("username", state: "s0")),
-            .question(question("password", state: "s1", isPassword: true)),
-            .question(question("mailbox_password", state: "s2", isPassword: true)),
+            .question(question("username", state: "*s0")),
+            .question(question("password", state: "*s1", isPassword: true)),
+            .question(question("mailbox_password", state: "*s2", isPassword: true)),
             .done,
         ]
         let flow = RemoteSetupFlow(provider: provider("protondrive"), client: client)
@@ -518,13 +555,13 @@ struct RemoteSetupFlowTests {
         flow.answers["password"] = "hunter2secret"
         await flow.submitPage()
 
-        let sent = client.calls.last { $0.hasPrefix("continue(s1=") }
-        let value = try #require(sent).dropFirst("continue(s1=".count).dropLast()
+        let sent = client.calls.last { $0.hasPrefix("continue(*s1=") }
+        let value = try #require(sent).dropFirst("continue(*s1=".count).dropLast()
         #expect(value != "hunter2secret")
         #expect(RcloneObscure.reveal(String(value)) == "hunter2secret")
-        #expect(client.calls.contains("continue(s0=me@proton.me)"))
+        #expect(client.calls.contains("continue(*s0=me@proton.me)"))
         // An unanswered optional password stays empty, not an obscured "".
-        #expect(client.calls.contains("continue(s2=)"))
+        #expect(client.calls.contains("continue(*s2=)"))
         #expect(flow.phase == .finished)
     }
 
@@ -532,8 +569,8 @@ struct RemoteSetupFlowTests {
         let client = ScriptedConfigClient()
         client.scriptFalse = [.done]
         client.scriptTrue = [
-            .question(question("host", state: "s0")),
-            .advancedGate(question("config_fs_advanced", state: "s1")),
+            .question(question("host", state: "*s0")),
+            .advancedGate(question("config_fs_advanced", state: "*s1")),
         ]
         let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
         flow.name = "myserver"
@@ -541,7 +578,7 @@ struct RemoteSetupFlowTests {
         flow.answers["host"] = "example.com"
         await flow.rewalk()
 
-        #expect(client.calls.contains("continue(s0=example.com)"))
+        #expect(client.calls.contains("continue(*s0=example.com)"))
     }
 
     @Test func includeAdvancedTrueAnswersTheAdvancedGateWithTrue() async throws {
@@ -551,8 +588,8 @@ struct RemoteSetupFlowTests {
         let client = ScriptedConfigClient()
         client.scriptFalse = [.done]
         client.scriptTrue = [
-            .question(question("host", state: "s0")),
-            .advancedGate(question("config_fs_advanced", state: "s1")),
+            .question(question("host", state: "*s0")),
+            .advancedGate(question("config_fs_advanced", state: "*s1")),
             .done,
         ]
         let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
@@ -561,7 +598,7 @@ struct RemoteSetupFlowTests {
         flow.includeAdvanced = true
         await flow.submitPage()
 
-        #expect(client.calls.contains("continue(s1=true)"))
+        #expect(client.calls.contains("continue(*s1=true)"))
         #expect(flow.phase == .finished)
     }
 
@@ -584,8 +621,8 @@ struct RemoteSetupFlowTests {
         let client = ScriptedConfigClient()
         client.scriptFalse = [.done]
         client.scriptTrue = [
-            .question(question("host", state: "s0")),
-            .question(question("user", state: "s1")),
+            .question(question("host", state: "*s0")),
+            .question(question("user", state: "*s1")),
             .done,
         ]
         let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
@@ -624,14 +661,14 @@ struct RemoteSetupFlowTests {
         // The two walks' calls appear as two clean, non-interleaved runs —
         // not, e.g., both walks' deletes followed by both walks' starts.
         let afterBothRewalks = Array(client.calls[callsBeforeRewalks...])
-        let oneWalk = ["delete(myserver)", "start(all:true)", "continue(s0=)", "continue(s1=)"]
+        let oneWalk = ["delete(myserver)", "start(all:true)", "continue(*s0=)", "continue(*s1=)"]
         #expect(afterBothRewalks == oneWalk + oneWalk)
     }
 
     @Test func cancelDeletesThePartialRemote() async throws {
         let client = ScriptedConfigClient()
         client.scriptFalse = [.done]
-        client.scriptTrue = [.question(question("host", state: "s0")), .done]
+        client.scriptTrue = [.question(question("host", state: "*s0")), .done]
         let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
         flow.name = "myserver"
         await flow.begin()
@@ -668,7 +705,7 @@ struct RemoteSetupFlowTests {
         // exceeds the 200-step cap without running past the script's end
         // (which ScriptedConfigClient itself now flags as a test failure).
         let client = ScriptedConfigClient()
-        let stuckQuestion = question("host", state: "stuck")
+        let stuckQuestion = question("host", state: "*stuck")
         client.scriptFalse = Array(repeating: ConfigStep.question(stuckQuestion), count: 205)
         client.scriptTrue = client.scriptFalse
         let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
@@ -689,8 +726,8 @@ struct RemoteSetupFlowTests {
         let client = ScriptedConfigClient()
         client.scriptFalse = [.done]
         client.scriptTrue = [
-            .question(question("host", state: "s0")),
-            .question(question("user", state: "s1")),
+            .question(question("host", state: "*s0")),
+            .question(question("user", state: "*s1")),
             .done,
         ]
         let flow = RemoteSetupFlow(provider: provider("sftp"), client: client)
@@ -737,15 +774,15 @@ struct RemoteSetupFlowTests {
         // all:false on s3 asks nothing and writes a stub, same as sftp.
         client.scriptFalse = [.done]
         client.scriptTrue = [
-            .question(question("provider", state: "s0", exclusive: true)),
-            .advancedGate(question("config_fs_advanced", state: "s1")),
+            .question(question("provider", state: "*s0", exclusive: true)),
+            .advancedGate(question("config_fs_advanced", state: "*s1")),
         ]
         let flow = RemoteSetupFlow(provider: provider("s3"), client: client)
         flow.name = "bucket"
         await flow.begin()
 
         let before = client.calls.filter { $0.hasPrefix("start(") }.count
-        await flow.answerChanged(question("provider", state: "s0", exclusive: true), to: "AWS")
+        await flow.answerChanged(question("provider", state: "*s0", exclusive: true), to: "AWS")
         let after = client.calls.filter { $0.hasPrefix("start(") }.count
 
         #expect(after > before)
@@ -756,15 +793,15 @@ struct RemoteSetupFlowTests {
         let client = ScriptedConfigClient()
         client.scriptFalse = [.done]
         client.scriptTrue = [
-            .question(question("access_key_id", state: "s0")),
-            .advancedGate(question("config_fs_advanced", state: "s1")),
+            .question(question("access_key_id", state: "*s0")),
+            .advancedGate(question("config_fs_advanced", state: "*s1")),
         ]
         let flow = RemoteSetupFlow(provider: provider("s3"), client: client)
         flow.name = "bucket"
         await flow.begin()
 
         let before = client.calls.filter { $0.hasPrefix("start(") }.count
-        await flow.answerChanged(question("access_key_id", state: "s0"), to: "AKIA")
+        await flow.answerChanged(question("access_key_id", state: "*s0"), to: "AKIA")
         let after = client.calls.filter { $0.hasPrefix("start(") }.count
 
         #expect(after == before)
@@ -781,23 +818,23 @@ struct RemoteSetupFlowTests {
         let client = ScriptedConfigClient()
         client.scriptFalse = [.done]
         client.scriptTrue = [
-            .question(question("provider", state: "s0", exclusive: true)),
-            .question(question("access_key_id", state: "s1")),
-            .advancedGate(question("config_fs_advanced", state: "s2")),
+            .question(question("provider", state: "*s0", exclusive: true)),
+            .question(question("access_key_id", state: "*s1")),
+            .advancedGate(question("config_fs_advanced", state: "*s2")),
         ]
         let flow = RemoteSetupFlow(provider: provider("s3"), client: client)
         flow.name = "bucket"
         await flow.begin()
         flow.answers["access_key_id"] = "AKIA"
 
-        await flow.answerChanged(question("provider", state: "s0", exclusive: true), to: "Wasabi")
+        await flow.answerChanged(question("provider", state: "*s0", exclusive: true), to: "Wasabi")
 
         // Both values, on the wire — begin()'s own walk sent empty defaults
         // for both fields (nothing was answered yet), so these exact calls
         // can only have come from the triggered re-walk actually replaying
         // the preserved "AKIA" alongside the newly-changed "Wasabi".
-        #expect(client.calls.contains("continue(s1=AKIA)"))
-        #expect(client.calls.contains("continue(s0=Wasabi)"))
+        #expect(client.calls.contains("continue(*s1=AKIA)"))
+        #expect(client.calls.contains("continue(*s0=Wasabi)"))
     }
 
     @Test func cancelDuringSignInAbortsTheBlockingOAuthWaitAndCleansUp() async throws {

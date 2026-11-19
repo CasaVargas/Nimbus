@@ -22,10 +22,13 @@ struct ConfigPage: Equatable {
         case advancedGate(ConfigQuestion)
         case finished
         /// A question rclone asked AFTER the browser sign-in (Drive's
-        /// "Shared Drive?", OneDrive's drive choice). The remote already
-        /// holds the OAuth token, so the page carries exactly one question,
-        /// not yet answered, and submitting it walks forward from that
-        /// question's own state — never a replay from the start.
+        /// "Shared Drive?", OneDrive's drive choice), or one the backend's
+        /// own config hook asked after logging in with the user's
+        /// credentials (iCloud's 2FA code, #162). Either way the remote's
+        /// state can't be rebuilt by a replay — a token would be lost, or
+        /// Apple would send another code — so the page carries exactly one
+        /// question, not yet answered, and submitting it walks forward from
+        /// that question's own state.
         case afterSignIn
     }
     let questions: [ConfigQuestion]
@@ -96,9 +99,10 @@ final class RemoteSetupFlow {
     /// holds.
     private var partialRemoteName: String?
     /// Set once rclone's browser round-trip has succeeded for the current
-    /// partial remote, carrying the `askAll` that walk used. From then on
-    /// the remote holds an OAuth token, so the walk is forward-only: a
-    /// restart would delete the token and send the user back to Sign In.
+    /// partial remote, or once a backend's config hook has asked its first
+    /// question, carrying the `askAll` that walk used. From then on the walk
+    /// is forward-only: a restart would delete the OAuth token and send the
+    /// user back to Sign In, or log in again and trigger another 2FA code.
     /// Cleared whenever the partial remote is discarded.
     private var signedInAskAll: Bool?
 
@@ -371,6 +375,14 @@ final class RemoteSetupFlow {
         return try await skippingAutomaticAnswers(next, askAll: askAll)
     }
 
+    /// rclone's own option walk uses `*`-prefixed states (`*all-set,…`,
+    /// `*all-advanced`, `*oauth…`). Any other state is the backend's config
+    /// hook, which runs after the options are in and may already have acted
+    /// on them — logged in, sent a code.
+    static func isBackendHookQuestion(_ question: ConfigQuestion) -> Bool {
+        !question.state.hasPrefix("*")
+    }
+
     private func start(askAll: Bool) async throws -> ConfigStep {
         // Capture the name this call actually uses, and record it BEFORE
         // calling the client: rclone writes the partial remote on the first
@@ -409,6 +421,14 @@ final class RemoteSetupFlow {
                     return
                 }
                 switch step {
+                case .question(let q) where collected.isEmpty && Self.isBackendHookQuestion(q):
+                    // Answering this with a default (as discovery does)
+                    // sends that default to the service: iCloud's hook has
+                    // already logged in and pushed a 2FA code, and "" fails
+                    // with "2FA codes can't be blank" (#162). Ask it as-is.
+                    signedInAskAll = askAll
+                    phase = .page(ConfigPage(questions: [q], boundary: .afterSignIn))
+                    return
                 case .question(let q):
                     collected.append(q)
                     step = try await continueWalk(
