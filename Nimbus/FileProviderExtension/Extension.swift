@@ -408,23 +408,28 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let task = Task { @Sendable in
             do {
                 try Task.checkCancellation()
-                try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "deleteItem") { _ in
-                    // `deleteItem` only gets an identifier — a path — not the
-                    // `NSFileProviderItem`, so directory-ness has to be
-                    // determined authoritatively via `operations/stat`
-                    // immediately before deleting rather than guessed from
-                    // the identifier (which carries no type information) or
-                    // a possibly-stale local cache. `operations/deletefile`
-                    // fails on directories; those go through
-                    // `operations/purge`, as a job.
-                    let stat = try await rclone.stat(fs: "\(remoteName):", remote: remotePath)
-                    if stat.isDir {
-                        try await rclone.purgeAndWait(fs: "\(remoteName):", remote: remotePath) { stats in
-                            Self.reportJobProgress(stats, on: progress)
+                do {
+                    try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "deleteItem") { _ in
+                        // `deleteItem` only gets an identifier — a path — not the
+                        // `NSFileProviderItem`, so directory-ness comes from
+                        // `operations/stat` (`rclone.item`) right before
+                        // deleting: a missing path returns `nil` (already
+                        // deleted remotely, which counts as success), folders
+                        // go through `operations/purge` as a job, and files go
+                        // through `operations/deletefile`.
+                        guard let item = try await rclone.item(fs: "\(remoteName):", remote: remotePath) else {
+                            return
                         }
-                    } else {
-                        try await rclone.deleteFile(fs: "\(remoteName):", remote: remotePath)
+                        if item.isDir {
+                            try await rclone.purgeAndWait(fs: "\(remoteName):", remote: remotePath) { stats in
+                                Self.reportJobProgress(stats, on: progress)
+                            }
+                        } else {
+                            try await rclone.deleteFile(fs: "\(remoteName):", remote: remotePath)
+                        }
                     }
+                } catch RcloneError.requestFailed(status: 404, _) {
+                    // The item vanished between the lookup and the delete call.
                 }
                 try? PinStore.shared?.removed(identifier.rawValue, domain: remoteName)
                 try? UploadFailureStore.shared?.removed(identifier.rawValue, domain: remoteName)
