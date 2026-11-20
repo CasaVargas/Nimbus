@@ -92,6 +92,13 @@ struct RemoteChangeDiffTests {
         #expect(WorkingSetAnchor.decode(old).format < WorkingSetAnchor.currentFormat)
     }
 
+    @Test func anchorFromBeforeUnknownSizesIsExpired() {
+        // Items listed before unknown sizes became nil carry size -1, which
+        // the system shows as Int64.max; a format-2 anchor must re-list them.
+        let old = WorkingSetAnchor.encode(pinSequence: 42, remoteGeneration: 7, format: 2)
+        #expect(WorkingSetAnchor.decode(old).format < WorkingSetAnchor.currentFormat)
+    }
+
     @Test func legacyPinOnlyAnchorDecodesWithGenerationZero() {
         let legacy = withUnsafeBytes(of: Int64(9).littleEndian) { Data($0) }
         let decoded = WorkingSetAnchor.decode(legacy)

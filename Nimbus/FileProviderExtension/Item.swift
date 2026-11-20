@@ -133,7 +133,7 @@ final class FileProviderItem: NSObject, NSFileProviderItem, NSFileProviderItemDe
             self.capabilities = [.allowsReading, .allowsContentEnumerating, .allowsAddingSubItems, .allowsRenaming, .allowsDeleting]
         } else {
             self.contentType = UTType(filenameExtension: (file.name as NSString).pathExtension) ?? .data
-            self.documentSize = NSNumber(value: file.size)
+            self.documentSize = ItemSize.documentSize(listed: file.size).map { NSNumber(value: $0) }
             self.capabilities = [.allowsReading, .allowsWriting, .allowsRenaming, .allowsDeleting]
         }
 
@@ -150,7 +150,13 @@ final class FileProviderItem: NSObject, NSFileProviderItem, NSFileProviderItemDe
         var metadataVersion = versionData
         metadataVersion.append(contentsOf: ItemBadges.metadataSuffix(
             keepState: Self.keepState(pinned: pinned, keptByFolder: keptByFolder), uploadFailed: uploadFailed))
-        self.itemVersion = NSFileProviderItemVersion(contentVersion: versionData, metadataVersion: metadataVersion)
+        // A file whose size is unknown carries a marker in its content
+        // version (`ItemSize.contentVersionSuffix`); folders never do.
+        var contentVersion = versionData
+        if !file.isDir {
+            contentVersion.append(contentsOf: ItemSize.contentVersionSuffix(listed: file.size))
+        }
+        self.itemVersion = NSFileProviderItemVersion(contentVersion: contentVersion, metadataVersion: metadataVersion)
     }
 
     private init(identifier: NSFileProviderItemIdentifier, parent: NSFileProviderItemIdentifier, name: String,

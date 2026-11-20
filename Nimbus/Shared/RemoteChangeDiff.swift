@@ -89,8 +89,14 @@ enum RemoteChangeDiff {
 /// earlier builds carry its default, which hides the last ".xxx" of every
 /// name (`me@example.com` showed as `me@example`); expiring format-1
 /// anchors re-lists them with the new flags.
+///
+/// Format 3: a size rclone doesn't know (-1, e.g. Google Docs) is reported
+/// as unknown, with a marker in the content version (`ItemSize`). Items
+/// the system took from earlier builds have a size of Int64.max; expiring
+/// format-2 anchors re-lists them, and the changed content version makes
+/// the system take the new size.
 enum WorkingSetAnchor {
-    static let currentFormat = 2
+    static let currentFormat = 3
 
     static func encode(pinSequence: Int, remoteGeneration: Int, format: Int = currentFormat) -> Data {
         var data = Data()
