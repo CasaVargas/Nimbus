@@ -464,3 +464,18 @@ public enum RcloneError: Error, LocalizedError, Sendable {
         }
     }
 }
+
+/// The daemon answered `job/status` with `job not found` (e.g. it restarted
+/// while the caller was waiting on the job). Kept separate from `RcloneError`
+/// so callers that switch exhaustively over `RcloneError` are unaffected.
+public struct RcloneJobLostError: Error, LocalizedError, Equatable, Sendable {
+    public let jobID: Int
+
+    public init(jobID: Int) {
+        self.jobID = jobID
+    }
+
+    public var errorDescription: String? {
+        "rclone job \(jobID) no longer exists"
+    }
+}
