@@ -98,14 +98,42 @@ public struct FileItem: Codable, Identifiable, Sendable {
         }
     }
 
-    private static func parseModTime(_ string: String) -> Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: string) {
-            return date
-        }
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: string)
+    /// Parses rclone's `ModTime`, with or without fractional seconds.
+    /// Listings decode this once per entry, so the formatters are made once
+    /// (see `ModTimeFormatters`).
+    static func parseModTime(_ string: String) -> Date? {
+        ModTimeFormatters.shared.date(from: string)
+    }
+}
+
+/// The two `ISO8601DateFormatter`s `FileItem` parses `ModTime` with.
+/// Making a formatter (and changing its options) sets up ICU each time,
+/// which cost about 2 ms per entry: seconds for a large folder. The
+/// results are the same as a fresh formatter's, so dates (and the File
+/// Provider item versions built from them) don't change. The formatters
+/// aren't documented as thread-safe, hence the lock.
+private final class ModTimeFormatters: @unchecked Sendable {
+    static let shared = ModTimeFormatters()
+
+    private let lock = NSLock()
+    private let fractional: ISO8601DateFormatter
+    private let whole: ISO8601DateFormatter
+
+    private init() {
+        fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        whole = ISO8601DateFormatter()
+        whole.formatOptions = [.withInternetDateTime]
+    }
+
+    func date(from string: String) -> Date? {
+        // Try the likely format first: some backends (webdav) send whole
+        // seconds, others always a fraction. A format that can't match
+        // returns nil, so the order doesn't change the result.
+        let (first, second) = string.contains(".") ? (fractional, whole) : (whole, fractional)
+        lock.lock()
+        defer { lock.unlock() }
+        return first.date(from: string) ?? second.date(from: string)
     }
 }
 
