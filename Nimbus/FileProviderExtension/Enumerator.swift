@@ -12,15 +12,6 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
     private let domain: NSFileProviderDomain
     private let logger = Logger(subsystem: "app.casavargas.nimbus.FileProvider", category: "enumerator")
 
-    /// Items per page. rclone's `operations/list` has no server-side paging
-    /// concept (it always returns the full directory listing in one JSON
-    /// body), so pages are sliced client-side out of that single response.
-    /// For a localhost daemon the extra bytes-on-the-wire cost of
-    /// re-fetching the full listing per page is negligible, and this keeps
-    /// the implementation simple/stateless instead of caching listings
-    /// across `enumerateItems` calls.
-    private static let pageSize = 500
-
     init(
         containerIdentifier: NSFileProviderItemIdentifier,
         rclone: RcloneClient,
@@ -43,12 +34,18 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
         let rclone = self.rclone
         let logger = self.logger
         let offset = Self.offset(from: page)
+        // rclone's `operations/list` has no paging, so each page re-lists
+        // the whole folder: pages are as large as the system allows
+        // (`EnumerationPageSize`), which is usually one page per folder.
+        let suggestedPageSize = observer.suggestedPageSize
+        let pageSize = EnumerationPageSize.size(suggested: suggestedPageSize)
         let boxedDomain = UncheckedBox(value: self.domain)
         // The system listing a folder makes it hot (#76).
         HotFolderStore.touch(remoteName: remoteName, container: parentId)
 
         let boxedObserver = UncheckedBox(value: observer)
         Task { @Sendable in
+            let started = Date()
             do {
                 let files = try await FileProviderRetry.withRetry(
                     rclone: rclone,
@@ -71,7 +68,7 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
                 )
 
                 let start = min(max(offset, 0), records.count)
-                let end = min(start + Self.pageSize, records.count)
+                let end = start + min(pageSize, records.count - start)
                 let pageItems = records[start..<end].map(\.item)
 
                 boxedObserver.value.didEnumerate(pageItems)
@@ -80,6 +77,8 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
                 } else {
                     boxedObserver.value.finishEnumerating(upTo: nil)
                 }
+                let suggested = suggestedPageSize.map(String.init) ?? "none"
+                logger.info("enumerateItems \(remoteName, privacy: .public): items \(start)..<\(end) of \(records.count) in \(String(format: "%.2f", Date().timeIntervalSince(started)), privacy: .public) s (page size \(pageSize), suggested \(suggested, privacy: .public))")
                 // Spotlight indexes only what the working set reports: hand
                 // a first listing to it (see `NewlyListedLog`).
                 if firstListing, !records.isEmpty {
