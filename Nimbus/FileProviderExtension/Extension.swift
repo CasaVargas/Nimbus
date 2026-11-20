@@ -454,8 +454,13 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let parentPath = (remotePath as NSString).deletingLastPathComponent
         let filename = (remotePath as NSString).lastPathComponent
 
-        let files = try await rclone.listFiles(fs: "\(remoteName):", remote: parentPath)
-        guard let file = files.first(where: { $0.name == filename }) else {
+        // One `operations/stat`, not a listing of the parent: the system
+        // asks for items one at a time (metadata refreshes, every download,
+        // upload and thumbnail), and listing a folder of thousands of
+        // items for each one took seconds apiece. The name check keeps the
+        // old exact-match rule on services that match names loosely.
+        guard let file = try await rclone.item(fs: "\(remoteName):", remote: remotePath),
+              file.name == filename else {
             throw NSFileProviderError(.noSuchItem)
         }
 

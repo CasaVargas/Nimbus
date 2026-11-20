@@ -79,11 +79,19 @@ extension RcloneClient {
     /// Whether `remote` is there. `operations/stat` answers a missing path
     /// with `{"item": null}`, not an error.
     public func exists(fs: String, remote: String) async throws -> Bool {
+        try await item(fs: fs, remote: remote) != nil
+    }
+
+    /// The entry at `remote`, or nil when there is none. rclone looks a
+    /// file up directly and lists only the parent of a folder, so for a
+    /// file in a large folder this is far cheaper than `listFiles` on its
+    /// parent.
+    public func item(fs: String, remote: String) async throws -> FileItem? {
         let response: OptionalStatResponse = try await call("operations/stat", params: [
             "fs": fs,
             "remote": remote,
         ])
-        return response.item != nil
+        return response.item
     }
 
     /// A configured remote's backend type ("b2", "drive"), or nil when
