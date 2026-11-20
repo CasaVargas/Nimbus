@@ -315,6 +315,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                                 return
                             }
                             let onMoveProgress: @Sendable (StatsResponse) -> Void = { stats in
+                                AppWaker.ping()
                                 if !hasContentsChange {
                                     Self.reportJobProgress(stats, on: progress)
                                 }
@@ -422,6 +423,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                         }
                         if item.isDir {
                             try await rclone.purgeAndWait(fs: "\(remoteName):", remote: remotePath) { stats in
+                                AppWaker.ping()
                                 Self.reportJobProgress(stats, on: progress)
                             }
                         } else {
