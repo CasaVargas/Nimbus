@@ -147,6 +147,20 @@ struct TrackedJobTests {
         #expect(body["dstFs"] as? String == "onedrive:")
         #expect(body["dstRemote"] as? String == "Docs/Report.pdf")
         #expect(body["_async"] as? Bool == true)
+        #expect(body["_config"] == nil)
+    }
+
+    @Test func copyWithImmutableSendsImmutableConfig() async throws {
+        JobURLProtocol.reset(statusReplies: [succeeded])
+        try await makeJobClient().copyFileAndWait(
+            srcFs: "/staging/abc", srcRemote: "content.pdf",
+            dstFs: "onedrive:", dstRemote: "Docs/Report.pdf",
+            immutable: true, pollInterval: .milliseconds(1)
+        )
+
+        let body = try #require(JobURLProtocol.bodies(for: "operations/copyfile").first)
+        let config = try #require(body["_config"] as? [String: Any])
+        #expect(config["Immutable"] as? Bool == true)
     }
 
     @Test func moveFileStartsAnAsyncMovefile() async throws {
@@ -163,6 +177,20 @@ struct TrackedJobTests {
         #expect(body["dstFs"] as? String == "s3:")
         #expect(body["dstRemote"] as? String == "b/new.txt")
         #expect(body["_async"] as? Bool == true)
+        #expect(body["_config"] == nil)
+    }
+
+    @Test func moveFileWithImmutableSendsImmutableConfig() async throws {
+        JobURLProtocol.reset(statusReplies: [succeeded])
+        try await makeJobClient().moveFileAndWait(
+            srcFs: "s3:", srcRemote: "a/old.txt",
+            dstFs: "s3:", dstRemote: "b/new.txt",
+            immutable: true, pollInterval: .milliseconds(1)
+        )
+
+        let body = try #require(JobURLProtocol.bodies(for: "operations/movefile").first)
+        let config = try #require(body["_config"] as? [String: Any])
+        #expect(config["Immutable"] as? Bool == true)
     }
 
     @Test func moveDirectoryStartsAnAsyncSyncMoveThatRemovesEmptySourceFolders() async throws {
@@ -177,6 +205,19 @@ struct TrackedJobTests {
         #expect(body["dstFs"] as? String == "s3:bucket/new")
         #expect(body["deleteEmptySrcDirs"] as? Bool == true)
         #expect(body["_async"] as? Bool == true)
+        #expect(body["_config"] == nil)
+    }
+
+    @Test func moveDirectoryWithImmutableSendsImmutableConfig() async throws {
+        JobURLProtocol.reset(statusReplies: [succeeded])
+        try await makeJobClient().moveDirectoryAndWait(
+            srcFs: "s3:bucket/old", dstFs: "s3:bucket/new",
+            immutable: true, pollInterval: .milliseconds(1)
+        )
+
+        let body = try #require(JobURLProtocol.bodies(for: "sync/move").first)
+        let config = try #require(body["_config"] as? [String: Any])
+        #expect(config["Immutable"] as? Bool == true)
     }
 
     @Test func purgeStartsAnAsyncPurge() async throws {
@@ -222,9 +263,36 @@ struct TrackedJobTests {
 
     @Test func aFailedJobThrowsItsError() async throws {
         JobURLProtocol.reset(statusReplies: [failedJob("quota exceeded")])
-        let failure = await requestFailure { try await copy() }
-        #expect(failure?.status == 500)
-        #expect(failure?.message == "quota exceeded")
+        do {
+            try await copy()
+            Issue.record("expected failure")
+        } catch let error as RcloneError {
+            guard case .requestFailed(let status, let message) = error else {
+                Issue.record("unexpected error: \(error)")
+                return
+            }
+            #expect(status == 500)
+            #expect(message == "quota exceeded")
+            #expect(!error.isDestinationConflict)
+        }
+    }
+
+    @Test func anImmutableConflictIsA409DestinationConflict() async throws {
+        JobURLProtocol.reset(statusReplies: [failedJob("not overwriting: immutable file modified")])
+        do {
+            try await copy()
+            Issue.record("expected destination conflict")
+        } catch let error as RcloneError {
+            guard case .requestFailed(let status, let message) = error else {
+                Issue.record("unexpected error: \(error)")
+                return
+            }
+            #expect(status == 409)
+            #expect(message.contains("immutable file modified"))
+            #expect(error.isDestinationConflict)
+        }
+        #expect(TrackedJob.status(forJobError: "immutable file modified") == 409)
+        #expect(!RcloneError.requestFailed(status: 500, message: "boom").isDestinationConflict)
     }
 
     @Test func aMissingSourceIsANotFound() async throws {

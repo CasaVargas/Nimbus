@@ -465,6 +465,15 @@ public enum RcloneError: Error, LocalizedError, Sendable {
     }
 }
 
+extension RcloneError {
+    /// True when rclone rejected a write because a different file already
+    /// exists at the destination (`Immutable` conflict).
+    public var isDestinationConflict: Bool {
+        if case .requestFailed(status: 409, _) = self { return true }
+        return false
+    }
+}
+
 /// The daemon answered `job/status` with `job not found` (e.g. it restarted
 /// while the caller was waiting on the job). Kept separate from `RcloneError`
 /// so callers that switch exhaustively over `RcloneError` are unaffected.
