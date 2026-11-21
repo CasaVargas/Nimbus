@@ -283,9 +283,12 @@ private enum SiteFiles {
     .preferredColorScheme(.dark)
 }
 
-#Preview("versions", traits: .fixedLayout(width: 1120, height: 900)) {
+// The sheet's own width, and a height that leaves the list at its minimum:
+// the picture is the sheet edge to edge, padding included, with no rows of
+// nothing under the three versions.
+#Preview("versions", traits: .fixedLayout(width: 880, height: 620)) {
     let now = Date()
-    SiteShot(width: 560, height: 450) {
+    SiteShot(width: 440, height: 310) {
         FileVersionsSheet(remote: "Photo Archive",
                           file: SiteFiles.file("Photo Archive", "projects/Deck.key", size: 48_000_000, daysAgo: 0),
                           versionsOverride: [
