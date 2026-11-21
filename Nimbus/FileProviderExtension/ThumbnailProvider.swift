@@ -84,7 +84,7 @@ private struct ThumbnailContext: Sendable {
     /// (nil, nil) means "no thumbnail": Finder keeps the generic icon.
     func thumbnail(for identifier: NSFileProviderItemIdentifier) async -> (Data?, (any Error)?) {
         do {
-            let item = try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "thumbnail.stat") {
+            let item = try await FileProviderRetry.withReadRetry(rclone: rclone, logger: logger, operation: "thumbnail.stat") {
                 try await FileProviderExtension.fetchItemStatic(rclone: rclone, identifier: identifier, remoteName: remoteName)
             }
             guard let kind = ThumbnailPolicy.kind(for: item.contentType, size: item.documentSize?.int64Value) else {
@@ -128,7 +128,7 @@ private struct ThumbnailContext: Sendable {
             "\(UUID().uuidString)_\(TransferStaging.stagedName(for: (remotePath as NSString).lastPathComponent))")
         defer { try? FileManager.default.removeItem(at: localURL) }
 
-        try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "thumbnail.download") {
+        try await FileProviderRetry.withReadRetry(rclone: rclone, logger: logger, operation: "thumbnail.download") {
             try await rclone.downloadFile(fs: "\(remoteName):", remote: remotePath, to: localURL)
         }
         try Task.checkCancellation()

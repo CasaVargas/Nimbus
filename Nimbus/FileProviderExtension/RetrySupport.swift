@@ -9,10 +9,10 @@ import os
 /// mutation) can race the daemon's startup, or the main app relaunching
 /// rclone on a different port between extension process launches — the
 /// extension is stateless across launches (rule 4) and only learns the
-/// current port by re-reading the app group. Centralizing the retry loop
-/// here means every method gets the same behavior instead of duplicating
-/// ad hoc backoff loops (this was previously only implemented inside
-/// `FileProviderEnumerator.enumerateItems`).
+/// current port by re-reading the app group. Reads (`withReadRetry`) retry
+/// anything that may be transient; writes (`withWriteRetry`) retry only when
+/// rclone didn't run the call or the outcome is unknown, and each write is
+/// written to be safe to re-run.
 enum FileProviderRetry {
     private static let appGroupID = AppGroup.identifier
 
@@ -79,17 +79,9 @@ enum FileProviderRetry {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)
     }
 
-    /// Runs `body` with up to `maxAttempts` tries, refreshing the rclone
-    /// port and backing off linearly (1s, 2s, 3s, …) between attempts. Every
-    /// rclone-backed entry point in the extension routes through this so a
-    /// not-yet-ready daemon, or a port change picked up mid-retry, doesn't
-    /// surface as a hard failure to Finder on the first launch race.
-    ///
-    /// `wakesApp` (on for anything Finder asks for directly) pings the app
-    /// so its idle timer restarts, and on a first failure wakes its sleeping
-    /// engine or opens it (`AppWaker`). The working-set change scan passes
-    /// false: it runs on its own cadence and must not keep the engine awake.
-    static func withRetry<T: Sendable>(
+    /// Runs a read `body` with up to `maxAttempts` tries. Reads retry
+    /// anything that may be transient, including an rclone 5xx.
+    static func withReadRetry<T: Sendable>(
         rclone: RcloneClient,
         logger: Logger,
         operation: String,
@@ -97,23 +89,62 @@ enum FileProviderRetry {
         wakesApp: Bool = true,
         _ body: @Sendable () async throws -> T
     ) async throws -> T {
-        var lastError: Error?
-        if wakesApp { AppWaker.ping() }
-        for attempt in 0..<maxAttempts {
-            try Task.checkCancellation()
-            if attempt == 1, wakesApp { AppWaker.connectionFailed() }
-            if attempt > 0 {
-                refreshPort(on: rclone, logger: logger)
-                try await Task.sleep(for: .seconds(Double(attempt)))
-            }
-            do {
-                return try await body()
-            } catch {
-                lastError = error
-                logger.warning("\(operation) attempt \(attempt + 1)/\(maxAttempts) failed on port \(rclone.port): \(String(describing: error))")
-            }
+        try await withRetry(
+            .read, rclone: rclone, logger: logger, operation: operation,
+            maxAttempts: maxAttempts, wakesApp: wakesApp
+        ) { _ in
+            try await body()
         }
-        logger.error("\(operation) exhausted \(maxAttempts) attempts")
-        throw lastError ?? NSFileProviderError(.serverUnreachable)
+    }
+
+    /// Runs a write `body` with up to `maxAttempts` tries. Writes retry only
+    /// when rclone didn't run the call or the outcome is unknown, and each
+    /// write is written to be safe to re-run (`isRetry` is `true` from the
+    /// second attempt on).
+    static func withWriteRetry<T: Sendable>(
+        rclone: RcloneClient,
+        logger: Logger,
+        operation: String,
+        maxAttempts: Int = 5,
+        wakesApp: Bool = true,
+        _ body: @Sendable (_ isRetry: Bool) async throws -> T
+    ) async throws -> T {
+        try await withRetry(
+            .write, rclone: rclone, logger: logger, operation: operation,
+            maxAttempts: maxAttempts, wakesApp: wakesApp
+        ) { attempt in
+            try await body(attempt > 0)
+        }
+    }
+
+    /// The loop both share: `RetryPolicy.run` with the extension's side
+    /// effects. Before each retry it refreshes the rclone port and
+    /// credentials; the backoff is linear (1s, 2s, 3s, …).
+    ///
+    /// `wakesApp` (on for anything Finder asks for directly) pings the app
+    /// so its idle timer restarts, and on a first retry wakes its sleeping
+    /// engine or opens it (`AppWaker`). The working-set change scan passes
+    /// false: it runs on its own cadence and must not keep the engine awake.
+    private static func withRetry<T: Sendable>(
+        _ kind: RetryPolicy.Kind,
+        rclone: RcloneClient,
+        logger: Logger,
+        operation: String,
+        maxAttempts: Int,
+        wakesApp: Bool,
+        _ body: @Sendable (_ attempt: Int) async throws -> T
+    ) async throws -> T {
+        if wakesApp { AppWaker.ping() }
+        return try await RetryPolicy.run(
+            kind: kind,
+            maxAttempts: maxAttempts,
+            operation: operation,
+            logger: logger,
+            beforeRetry: { attempt in
+                if attempt == 1, wakesApp { AppWaker.connectionFailed() }
+                refreshPort(on: rclone, logger: logger)
+            },
+            body
+        )
     }
 }

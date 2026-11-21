@@ -44,6 +44,7 @@ enum ContentTransfer {
             srcFs: "\(remoteName):", srcRemote: remotePath,
             dstFs: stagingFs(in: container), dstRemote: stagedRemote(name, in: folder)
         ) { bytes in
+            AppWaker.ping()
             report(bytes, on: progress)
         }
 
@@ -82,6 +83,7 @@ enum ContentTransfer {
             srcFs: stagingFs(in: container), srcRemote: stagedRemote(name, in: folder),
             dstFs: "\(remoteName):", dstRemote: directory.isEmpty ? filename : "\(directory)/\(filename)"
         ) { bytes in
+            AppWaker.ping()
             report(bytes, on: progress)
             // rclone only reads here, so nothing else tells the sweep that
             // a day-long upload is still alive.

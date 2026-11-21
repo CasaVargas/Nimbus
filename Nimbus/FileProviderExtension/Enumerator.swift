@@ -47,7 +47,7 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
         Task { @Sendable in
             let started = Date()
             do {
-                let files = try await FileProviderRetry.withRetry(
+                let files = try await FileProviderRetry.withReadRetry(
                     rclone: rclone,
                     logger: logger,
                     operation: "enumerateItems(\(remoteName):\(remotePath))"
@@ -111,7 +111,7 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
         let boxedObserver = UncheckedBox(value: observer)
         Task { @Sendable in
             do {
-                let files = try await FileProviderRetry.withRetry(
+                let files = try await FileProviderRetry.withReadRetry(
                     rclone: rclone,
                     logger: logger,
                     operation: "enumerateChanges(\(remoteName):\(remotePath))"

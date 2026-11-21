@@ -193,6 +193,7 @@
 		7F2D61DC7E7CDD14F57173E7 /* FileTablePerfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F5A8E026E6C2BD49858289 /* FileTablePerfTests.swift */; };
 		7F998F9F5E0C909BE0351220 /* ShareHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E1D2CFD2219D38CCBBB29BB /* ShareHost.swift */; };
 		8003FB992907A684C2574B8C /* Spacing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17129623204ED7556BB5F506 /* Spacing.swift */; };
+		808051C9C45D59C80F89F3ED /* RetryPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = D641A77DAAF07E1FAA7F170B /* RetryPolicy.swift */; };
 		81CAA86CB34B69D76112D50A /* ShareLinkSignal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6ECD40E7172BCD436740A23 /* ShareLinkSignal.swift */; };
 		81F55A8DE19D46C519E33712 /* ReconnectSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4328B67A9FB19E650B68BE55 /* ReconnectSheet.swift */; };
 		82C6F7FC98368F62321D1896 /* BackupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86F0BDA98F826F645673A3B3 /* BackupStore.swift */; };
@@ -282,6 +283,7 @@
 		B85590E6C8AA1C9E8B6597BB /* ReconcileFPDomainsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CD4E8CAFFAB8F0A899246EF /* ReconcileFPDomainsTests.swift */; };
 		BA6145E28E9B14BEE0D30C12 /* BackupRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85B0BE0FD5C01136E59B416F /* BackupRunner.swift */; };
 		BAB7887B46E9E405208C8283 /* SettingsEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C331B2168788C9FA6178D061 /* SettingsEnvironment.swift */; };
+		BC42B9B3C78B9EACE2C2DD36 /* RetryPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6052A3C25B5C756013C016A9 /* RetryPolicyTests.swift */; };
 		BCE59C9C7FD670F7A0932A0E /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CE0CC30354E3DF8023BB1B7A /* ShareExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		BD2408E5FE4B7C15C5CC0398 /* CloudCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 299AFE9FFD95BF3C15E2D4E1 /* CloudCapabilities.swift */; };
 		BDB4EC0E1091AEB6099130D2 /* EnumerationPageSizeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8750640E9CDB87FD99907E3 /* EnumerationPageSizeTests.swift */; };
@@ -290,6 +292,7 @@
 		BF4C4ECA5AB41E4A398192F1 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1423413A41E02A06F8E47AF3 /* AppRouter.swift */; };
 		BFF22B953FB079BC7AE62130 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56DDC44A90929A9518155E77 /* AppSettings.swift */; };
 		BFF92DEA354936A0D988CC3E /* ShareInboxTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB7692431656687178964944 /* ShareInboxTests.swift */; };
+		C033DBD5935FB54400442E71 /* RetryPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = D641A77DAAF07E1FAA7F170B /* RetryPolicy.swift */; };
 		C09FB5E583BA449C2B81FDFC /* FileIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200EAEC6F89B9468B9807785 /* FileIcon.swift */; };
 		C0A6FFAAAEEDDD8949B09B07 /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A68F31BEFF95EB831B0F3ABE /* GeneralSettingsView.swift */; };
 		C23F68EB20BA2C41C25E8BF5 /* GeneralSettingsViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B27D0FC2F26DE97E5EE0C98B /* GeneralSettingsViewTests.swift */; };
@@ -585,6 +588,7 @@
 		5CFC0CEBAED68EF1E4D1672F /* SidebarRemoteRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarRemoteRowTests.swift; sourceTree = "<group>"; };
 		60047C16A0C6CF11B6F7AC77 /* StorageTotalsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageTotalsTests.swift; sourceTree = "<group>"; };
 		60099BC78B00EBF0447287E8 /* UpdaterServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterServiceTests.swift; sourceTree = "<group>"; };
+		6052A3C25B5C756013C016A9 /* RetryPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetryPolicyTests.swift; sourceTree = "<group>"; };
 		607479F7E8FFC11D2FC50B65 /* ExcludeListEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcludeListEditor.swift; sourceTree = "<group>"; };
 		6086BF3BA862C6A306A728AE /* FileTableRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTableRepresentable.swift; sourceTree = "<group>"; };
 		6117220A13D742738D0DF8FD /* HomeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeComponents.swift; sourceTree = "<group>"; };
@@ -733,6 +737,7 @@
 		D4CB5321F6256DF278935DAD /* CloudMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudMonitor.swift; sourceTree = "<group>"; };
 		D546B42FD06CE92B26FB9A23 /* RemoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteStatus.swift; sourceTree = "<group>"; };
 		D5EB7927C6E50511B15E82C3 /* Sidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sidebar.swift; sourceTree = "<group>"; };
+		D641A77DAAF07E1FAA7F170B /* RetryPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetryPolicy.swift; sourceTree = "<group>"; };
 		D6ECD40E7172BCD436740A23 /* ShareLinkSignal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkSignal.swift; sourceTree = "<group>"; };
 		D8C6FE97E636D47094250253 /* ConfigQuestionCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigQuestionCopy.swift; sourceTree = "<group>"; };
 		D9424E2AE45C4242AFBB7A2D /* ImportRemoteRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportRemoteRow.swift; sourceTree = "<group>"; };
@@ -1178,6 +1183,7 @@
 				381559F17FCAB7DE01CB69A0 /* PinStore.swift */,
 				080802897673DC9127B539B7 /* RemoteChangeCadence.swift */,
 				49D6574FED65369AF72456E6 /* RemoteChangeDiff.swift */,
+				D641A77DAAF07E1FAA7F170B /* RetryPolicy.swift */,
 				ABEA720A6035E7CB4A0F11EA /* ShareInbox.swift */,
 				D6ECD40E7172BCD436740A23 /* ShareLinkSignal.swift */,
 				F74BD52C0008AEA99648D0B7 /* StagingArea.swift */,
@@ -1442,6 +1448,7 @@
 				947DFA6CFCD3941E73EC2740 /* RemoteChangeDiffTests.swift */,
 				F49337EE8003B1CBE6A0A96C /* RemoteSetupFlowTests.swift */,
 				91C86CE92CC40814A0659DB4 /* RemoteStatusServiceTests.swift */,
+				6052A3C25B5C756013C016A9 /* RetryPolicyTests.swift */,
 				9F0F6BF46BE31CBA8DE2313C /* SearchViewModelTests.swift */,
 				EFDFD6B91C6E9C08C1FFDE89 /* SelectionIntentTests.swift */,
 				2A7B1EA1A669A9C652EB28CE /* SelectionTests.swift */,
@@ -1877,6 +1884,7 @@
 				CA84245C980DE470FB035D8B /* RemoteStatusService.swift in Sources */,
 				E7562F57E1C4EBDF92B4CC8D /* RemotesSidebarSection.swift in Sources */,
 				04EC499A7C0DF8F96188864B /* RemotesViewModel.swift in Sources */,
+				C033DBD5935FB54400442E71 /* RetryPolicy.swift in Sources */,
 				08D2E1AF5E61992E3DBBDAA7 /* RunBackupIntent.swift in Sources */,
 				E79E3B93CD269362B4022AE7 /* SearchResultsView.swift in Sources */,
 				F29D214B6B2461BB7657BF13 /* SearchViewModel.swift in Sources */,
@@ -1966,6 +1974,7 @@
 				26663AE890439C946ADA24F7 /* RemoteChangeCadence.swift in Sources */,
 				C832B7F1A2C419718F2395DF /* RemoteChangeDiff.swift in Sources */,
 				EE5019E8D9B1D58231DA2324 /* RemoteChangeScanner.swift in Sources */,
+				808051C9C45D59C80F89F3ED /* RetryPolicy.swift in Sources */,
 				F3B2DB5C301BC6F1D5517B0F /* RetrySupport.swift in Sources */,
 				48860520FB08FBC0A1F3AE4B /* SearchSupport.swift in Sources */,
 				916A8BC3106C31C82BC0D3AF /* ShareInbox.swift in Sources */,
@@ -2069,6 +2078,7 @@
 				6D0277350535EBC0C79CF592 /* RemoteChangeDiffTests.swift in Sources */,
 				775AC50C7F80C02365EFEF33 /* RemoteSetupFlowTests.swift in Sources */,
 				4F25A60A8EA3357E42B51874 /* RemoteStatusServiceTests.swift in Sources */,
+				BC42B9B3C78B9EACE2C2DD36 /* RetryPolicyTests.swift in Sources */,
 				0472B4C23FC67A313EFF63D7 /* ScratchDefaults.swift in Sources */,
 				F4C61692908EE42B423E26E5 /* SearchViewModelTests.swift in Sources */,
 				8C0B4B7304F04D2ED4C68DBC /* SelectionIntentTests.swift in Sources */,

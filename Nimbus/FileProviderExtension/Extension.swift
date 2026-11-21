@@ -68,7 +68,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let task = Task { @Sendable in
             do {
                 try Task.checkCancellation()
-                let item = try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "item(for:)") {
+                let item = try await FileProviderRetry.withReadRetry(rclone: rclone, logger: logger, operation: "item(for:)") {
                     try await Self.fetchItemStatic(rclone: rclone, identifier: identifier, remoteName: remoteName)
                 }
                 progress.completedUnitCount = 1
@@ -98,14 +98,14 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
             let remoteName = domain.identifier.rawValue
             let logger = self.logger
             return WorkingSetEnumerator(domain: domain, fetchItem: { identifier in
-                try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "workingSet.item", wakesApp: false) {
+                try await FileProviderRetry.withReadRetry(rclone: rclone, logger: logger, operation: "workingSet.item", wakesApp: false) {
                     try await Self.fetchItemStatic(rclone: rclone, identifier: identifier, remoteName: remoteName)
                 }
             }, listFiles: { path in
                 // Two tries, not the full ladder: a folder deleted on the
                 // server fails here on some backends, and its parent's diff
                 // already reports the deletion.
-                try await FileProviderRetry.withRetry(
+                try await FileProviderRetry.withReadRetry(
                     rclone: rclone, logger: logger, operation: "workingSet.scan", maxAttempts: 2,
                     wakesApp: false
                 ) {
@@ -151,7 +151,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 // Fetch metadata first so we know the transfer size up front
                 // (for progress) and can hand Finder the current item
                 // alongside the bytes without a second round trip.
-                let item = try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "fetchContents.stat") {
+                let item = try await FileProviderRetry.withReadRetry(rclone: rclone, logger: logger, operation: "fetchContents.stat") {
                     try await Self.fetchItemStatic(rclone: rclone, identifier: itemIdentifier, remoteName: remoteName)
                 }
                 if let size = item.documentSize?.int64Value, size > 0 {
@@ -178,7 +178,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     if !handedOver { try? FileManager.default.removeItem(at: localURL) }
                 }
 
-                try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "fetchContents.download") {
+                try await FileProviderRetry.withReadRetry(rclone: rclone, logger: logger, operation: "fetchContents.download") {
                     try await ContentTransfer.download(
                         rclone: rclone, remoteName: remoteName, remotePath: remotePath,
                         to: localURL, progress: progress, logger: logger
@@ -227,7 +227,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 let newPath = parentPath.isEmpty ? filename : "\(parentPath)/\(filename)"
 
                 if isFolder {
-                    try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "createItem.mkdir") {
+                    try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "createItem.mkdir") { _ in
                         try await rclone.createFolder(fs: "\(remoteName):", remote: newPath)
                     }
                 } else if let localURL {
@@ -239,7 +239,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     // guaranteed to be named `filename`.
                     let identifier = "\(remoteName):\(newPath)"
                     do {
-                        try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "createItem.upload") {
+                        try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "createItem.upload") { _ in
                             try await ContentTransfer.upload(
                                 rclone: rclone, from: localURL, remoteName: remoteName,
                                 directory: parentPath, filename: filename,
@@ -253,7 +253,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     UploadFailureReporting.succeeded([identifier], remoteName: remoteName, logger: logger)
                 }
 
-                let item = try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "createItem.stat") {
+                let item = try await FileProviderRetry.withReadRetry(rclone: rclone, logger: logger, operation: "createItem.stat") {
                     try await Self.fetchItemStatic(
                         rclone: rclone,
                         identifier: NSFileProviderItemIdentifier("\(remoteName):\(newPath)"),
@@ -307,7 +307,19 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 if isRenameOrMove {
                     let destinationPath = newParentPath.isEmpty ? newFilename : "\(newParentPath)/\(newFilename)"
                     if destinationPath != currentPath {
-                        try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "modifyItem.move") {
+                        try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "modifyItem.move") { isRetry in
+                            if isRetry, try await Self.alreadyMoved(
+                                rclone: rclone, remoteName: remoteName,
+                                from: currentPath, to: destinationPath
+                            ) {
+                                return
+                            }
+                            let onMoveProgress: @Sendable (StatsResponse) -> Void = { stats in
+                                AppWaker.ping()
+                                if !hasContentsChange {
+                                    Self.reportJobProgress(stats, on: progress)
+                                }
+                            }
                             if isDirectory {
                                 // rclone has no "rename a directory" RC verb —
                                 // `operations/movefile` only moves individual
@@ -316,14 +328,16 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                                 // current and destination paths as directory
                                 // roots (the `rclone move <src> <dst>` CLI
                                 // command's RC equivalent).
-                                try await rclone.moveDirectory(
+                                try await rclone.moveDirectoryAndWait(
                                     srcFs: "\(remoteName):\(currentPath)",
-                                    dstFs: "\(remoteName):\(destinationPath)"
+                                    dstFs: "\(remoteName):\(destinationPath)",
+                                    onProgress: onMoveProgress
                                 )
                             } else {
-                                try await rclone.moveFile(
+                                try await rclone.moveFileAndWait(
                                     srcFs: "\(remoteName):", srcRemote: currentPath,
-                                    dstFs: "\(remoteName):", dstRemote: destinationPath
+                                    dstFs: "\(remoteName):", dstRemote: destinationPath,
+                                    onProgress: onMoveProgress
                                 )
                             }
                         }
@@ -341,7 +355,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     let uploadDir = (workingPath as NSString).deletingLastPathComponent
                     let uploadFilename = (workingPath as NSString).lastPathComponent
                     do {
-                        try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "modifyItem.upload") {
+                        try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "modifyItem.upload") { _ in
                             try await ContentTransfer.upload(
                                 rclone: rclone, from: contentsURL, remoteName: remoteName,
                                 directory: uploadDir, filename: uploadFilename,
@@ -360,7 +374,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 }
 
                 let newIdentifier = NSFileProviderItemIdentifier("\(remoteName):\(workingPath)")
-                let resultItem = try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "modifyItem.stat") {
+                let resultItem = try await FileProviderRetry.withReadRetry(rclone: rclone, logger: logger, operation: "modifyItem.stat") {
                     try await Self.fetchItemStatic(rclone: rclone, identifier: newIdentifier, remoteName: remoteName)
                 }
                 progress.completedUnitCount = progress.totalUnitCount
@@ -395,25 +409,33 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let task = Task { @Sendable in
             do {
                 try Task.checkCancellation()
-                try await FileProviderRetry.withRetry(rclone: rclone, logger: logger, operation: "deleteItem") {
-                    // `deleteItem` only gets an identifier — a path — not the
-                    // `NSFileProviderItem`, so directory-ness has to be
-                    // determined authoritatively via `operations/stat`
-                    // immediately before deleting rather than guessed from
-                    // the identifier (which carries no type information) or
-                    // a possibly-stale local cache. `operations/deletefile`
-                    // fails on directories; those must go through
-                    // `operations/purge` instead.
-                    let stat = try await rclone.stat(fs: "\(remoteName):", remote: remotePath)
-                    if stat.isDir {
-                        try await rclone.purge(fs: "\(remoteName):", remote: remotePath)
-                    } else {
-                        try await rclone.deleteFile(fs: "\(remoteName):", remote: remotePath)
+                do {
+                    try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "deleteItem") { _ in
+                        // `deleteItem` only gets an identifier — a path — not the
+                        // `NSFileProviderItem`, so directory-ness comes from
+                        // `operations/stat` (`rclone.item`) right before
+                        // deleting: a missing path returns `nil` (already
+                        // deleted remotely, which counts as success), folders
+                        // go through `operations/purge` as a job, and files go
+                        // through `operations/deletefile`.
+                        guard let item = try await rclone.item(fs: "\(remoteName):", remote: remotePath) else {
+                            return
+                        }
+                        if item.isDir {
+                            try await rclone.purgeAndWait(fs: "\(remoteName):", remote: remotePath) { stats in
+                                AppWaker.ping()
+                                Self.reportJobProgress(stats, on: progress)
+                            }
+                        } else {
+                            try await rclone.deleteFile(fs: "\(remoteName):", remote: remotePath)
+                        }
                     }
+                } catch RcloneError.requestFailed(status: 404, _) {
+                    // The item vanished between the lookup and the delete call.
                 }
                 try? PinStore.shared?.removed(identifier.rawValue, domain: remoteName)
                 try? UploadFailureStore.shared?.removed(identifier.rawValue, domain: remoteName)
-                progress.completedUnitCount = 1
+                progress.completedUnitCount = progress.totalUnitCount
                 handler.value(nil)
             } catch {
                 logger.error("deleteItem failed: \(error)")
@@ -429,6 +451,9 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     static func mapToFileProviderError(_ error: Error) -> Error {
         if error is CancellationError {
             return CocoaError(.userCancelled)
+        }
+        if error is RcloneJobLostError {
+            return NSFileProviderError(.serverUnreachable)
         }
         guard let rcloneError = error as? RcloneError else { return error }
         switch rcloneError {
@@ -500,6 +525,28 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
               size > 0
         else { return orDefault }
         return size
+    }
+
+    /// Advances `progress` from a move or purge job's file counts without
+    /// knowing the total up front: `totalUnitCount` is raised first so
+    /// `completedUnitCount` never exceeds it, and neither count decreases.
+    private static func reportJobProgress(_ stats: StatsResponse, on progress: Progress) {
+        let done = Int64(stats.transfers + (stats.renames ?? 0) + stats.deletes)
+        progress.totalUnitCount = max(progress.totalUnitCount, done + 1)
+        progress.completedUnitCount = max(progress.completedUnitCount, done)
+    }
+
+    /// True on a move retry when an earlier attempt already finished moving
+    /// `sourcePath` to `destinationPath`.
+    private static func alreadyMoved(
+        rclone: RcloneClient,
+        remoteName: String,
+        from sourcePath: String,
+        to destinationPath: String
+    ) async throws -> Bool {
+        let fs = "\(remoteName):"
+        guard try await rclone.item(fs: fs, remote: sourcePath) == nil else { return false }
+        return try await rclone.item(fs: fs, remote: destinationPath) != nil
     }
 }
 
