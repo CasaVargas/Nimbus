@@ -302,23 +302,24 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 .compare__title { font-family: var(--display); font-weight: 700; font-size: 30px; margin: 84px 0 24px; text-align: center; }
 
 /* ---------- From the same studio ---------- */
-.fund { display: grid; grid-template-columns: 7fr 5fr; gap: 20px; }
-.fund__card { background: linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.03)); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 0 0 1px rgba(255,255,255,.08); border-radius: var(--r-tile); overflow: hidden; display: flex; flex-direction: column; }
-.fund__art { position: relative; padding: 28px 28px 0; }
-.fund__art--tv { padding-right: 84px; }
-.fund__tv { border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.2), 0 30px 60px -24px rgba(0,0,0,.6); }
-.fund__phone { position: absolute; right: 20px; bottom: -24px; width: 136px; }
-.fund__art--phone { display: flex; justify-content: center; }
-.fund__hero-phone { width: 230px; margin-bottom: -44px; }
-.fund__body { padding: 40px 28px 28px; display: flex; flex-direction: column; flex: 1; position: relative; background: #0b0e26; }
-.fund__name { display: flex; align-items: center; gap: 12px; }
-.fund__name img { border-radius: 10px; box-shadow: 0 0 0 1px rgba(255,255,255,.14); }
-.fund__name h3 { font-family: var(--display); font-weight: 700; font-size: 28px; }
-.fund__what { margin-top: 14px; font-size: 21px; letter-spacing: -0.015em; }
-.fund__copy { margin-top: 8px; color: var(--ink-2); font-size: 16px; line-height: 1.5; }
-.fund__price { margin-top: 14px; font-size: 14px; font-weight: 600; color: var(--link); }
-.fund .actions { margin-top: auto; padding-top: 22px; }
-@media (max-width: 860px) { .fund { grid-template-columns: 1fr; } }
+/* A thank-you band, not a chapter: a small headline and two plain cards. */
+.studio { padding: 96px 0; }
+.head--quiet { max-width: 640px; margin-bottom: 36px; }
+.head--quiet h2 { font-size: clamp(26px, 3.2vw, 38px); line-height: 1.1; letter-spacing: -0.02em; }
+.head--quiet .lede { font-size: 17px; margin-top: 12px; }
+.fund { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 900px; margin: 0 auto; }
+.fund__card { background: linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.03)); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 0 0 1px rgba(255,255,255,.08); border-radius: var(--r-tile); padding: 28px; display: flex; flex-direction: column; }
+.fund__name { display: flex; align-items: center; gap: 14px; }
+.fund__name img { border-radius: 10px; box-shadow: 0 0 0 1px rgba(255,255,255,.14); flex: none; }
+.fund__name h3 { font-family: var(--display); font-weight: 700; font-size: 22px; line-height: 1.1; }
+.fund__what { font-size: 15px; color: var(--ink-2); margin-top: 2px; }
+.fund__copy { margin-top: 16px; color: var(--ink-2); font-size: 15px; line-height: 1.5; }
+.fund__price { margin-top: 12px; font-size: 14px; font-weight: 600; color: var(--ink); }
+.fund__heard { margin-top: 6px; font-size: 13px; color: var(--ink-3); }
+.fund__heard a { color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
+.fund .actions { margin-top: auto; padding-top: 18px; }
+.fund .more { font-size: 15px; }
+@media (max-width: 760px) { .fund { grid-template-columns: 1fr; } .studio { padding: 72px 0; } }
 
 /* ---------- Download ---------- */
 .cta { padding: 136px 0 120px; text-align: center; }
