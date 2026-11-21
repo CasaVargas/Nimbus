@@ -257,6 +257,7 @@
 		A955FFD33D76B51725905B91 /* TransferHistoryFileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E861CBD9BFF217A344F26E9E /* TransferHistoryFileTests.swift */; };
 		A979C070DA92EC52E67B28C8 /* RcloneKit in Frameworks */ = {isa = PBXBuildFile; productRef = E038A2CCB7EA233033D5CFCD /* RcloneKit */; };
 		AA260E7CE754FA1712E3293E /* BackupsContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27F26A6E391823323E39B1D5 /* BackupsContent.swift */; };
+		AA414D67029557108C6E3E4D /* FolderBrowserPathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D42FBCF57B5C9C095242E12 /* FolderBrowserPathTests.swift */; };
 		AAB2773DD8816BB582370CEB /* AppSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3246BE2376A48EF376CA0FCC /* AppSettingsTests.swift */; };
 		AB0E456B0817D20FB52F51F2 /* EncryptedFolderSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4941C4E1A5484F7CE08EDA6 /* EncryptedFolderSheet.swift */; };
 		AB8C3F55FD0B71927091C5C1 /* ThumbnailProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23444BC642B0E08F0415B05D /* ThumbnailProvider.swift */; };
@@ -559,6 +560,7 @@
 		4A7C4535C61037DF771545DD /* TransferEndpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferEndpoint.swift; sourceTree = "<group>"; };
 		4B324F723793E7CE12706BCB /* BackupScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupScheduler.swift; sourceTree = "<group>"; };
 		4C49D5F221C70E71B1B85C42 /* EncryptedFolderSetupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedFolderSetupTests.swift; sourceTree = "<group>"; };
+		4D42FBCF57B5C9C095242E12 /* FolderBrowserPathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderBrowserPathTests.swift; sourceTree = "<group>"; };
 		4ED80F38BA5E2514871D0A76 /* AppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroup.swift; sourceTree = "<group>"; };
 		4F77052F9AE02AF3CFCEE0D2 /* CompanionContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionContent.swift; sourceTree = "<group>"; };
 		4F844CCAA19021C36593E7C9 /* ChoiceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoiceCard.swift; sourceTree = "<group>"; };
@@ -1419,6 +1421,7 @@
 				1858DE8FEC609D897A5BB819 /* FileGridLayoutTests.swift */,
 				9E786A3EC72630B79374EE38 /* FileProviderErrorTextTests.swift */,
 				75F5A8E026E6C2BD49858289 /* FileTablePerfTests.swift */,
+				4D42FBCF57B5C9C095242E12 /* FolderBrowserPathTests.swift */,
 				30338A429B08B2109735E495 /* FormSectionTests.swift */,
 				1695399E67567F8B258E7967 /* GallerySelectionTests.swift */,
 				B27D0FC2F26DE97E5EE0C98B /* GeneralSettingsViewTests.swift */,
@@ -2047,6 +2050,7 @@
 				1662AABDA624B37F9DA3A672 /* FileGridLayoutTests.swift in Sources */,
 				A7A9FEC67AC14E6731E22D62 /* FileProviderErrorTextTests.swift in Sources */,
 				7F2D61DC7E7CDD14F57173E7 /* FileTablePerfTests.swift in Sources */,
+				AA414D67029557108C6E3E4D /* FolderBrowserPathTests.swift in Sources */,
 				4FA5B60B245C10D5BC4C3CDA /* FormSectionTests.swift in Sources */,
 				3574C2C127AAD4EB7FF7D31D /* GallerySelectionTests.swift in Sources */,
 				C23F68EB20BA2C41C25E8BF5 /* GeneralSettingsViewTests.swift in Sources */,
