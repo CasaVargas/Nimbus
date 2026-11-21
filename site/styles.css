@@ -315,9 +315,20 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 .fund__what { font-size: 15px; color: var(--ink-2); margin-top: 2px; }
 .fund__copy { margin-top: 16px; color: var(--ink-2); font-size: 15px; line-height: 1.5; }
 .fund__price { margin-top: 12px; font-size: 14px; font-weight: 600; color: var(--ink); }
-.fund__heard { margin-top: 6px; font-size: 13px; color: var(--ink-3); }
-.fund__heard a { color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
 .fund .actions { margin-top: auto; padding-top: 18px; }
+/* The thank-you to DTNS for mentioning OneScribe: big letters and one link,
+   to the show's Patreon. It spans both cards. */
+.dtns { grid-column: 1 / -1; display: flex; align-items: center; gap: 28px; padding: 26px 32px; border-radius: var(--r-tile); color: var(--ink);
+  background: radial-gradient(60% 160% at 0% 50%, rgba(64,120,255,.38), transparent 70%), radial-gradient(50% 160% at 100% 50%, rgba(128,72,255,.26), transparent 70%), rgba(255,255,255,.04);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.2), inset 0 0 0 1px rgba(255,255,255,.1); transition: filter .2s; }
+.dtns:hover { text-decoration: none; filter: brightness(1.12); }
+.dtns__mark { flex: none; font-family: var(--display); font-weight: 800; font-size: clamp(56px, 8vw, 92px); line-height: .9; letter-spacing: -0.04em;
+  color: transparent; background: linear-gradient(100deg, #fff 5%, #9fc0ff 60%, #b99cff); -webkit-background-clip: text; background-clip: text; padding-right: .04em; }
+.dtns__copy { display: grid; gap: 4px; font-size: 15px; line-height: 1.45; color: var(--ink-2); }
+.dtns__copy strong { font-family: var(--display); font-size: 21px; font-weight: 700; color: #fff; }
+.dtns__go { flex: none; margin-left: auto; font-weight: 600; font-size: 15px; line-height: 1; color: #fff; padding: 12px 20px; border-radius: 980px;
+  background: linear-gradient(var(--action-top), var(--action-low)); box-shadow: inset 0 1px 0 rgba(255,255,255,.28); }
+@media (max-width: 760px) { .dtns { flex-direction: column; align-items: flex-start; gap: 16px; padding: 26px 28px; } .dtns__go { margin-left: 0; } }
 .fund .more { font-size: 15px; }
 @media (max-width: 760px) { .fund { grid-template-columns: 1fr; } .studio { padding: 72px 0; } }
 
@@ -437,7 +448,7 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
     @keyframes win-in { from { transform: scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
 
     /* Headlines and tiles rise into place. */
-    .head, .tile, .sys__tile, .sys-list > div, .fp, .wall__title, .trio > div, .quad > div, .sheets figure, .panels figure, .panels__copy > div, .fund__card, .zeros > div, .services__row li {
+    .head, .tile, .sys__tile, .sys-list > div, .fp, .wall__title, .trio > div, .quad > div, .sheets figure, .panels figure, .panels__copy > div, .fund__card, .dtns, .zeros > div, .services__row li {
       animation: rise-in linear both; animation-timeline: view(); animation-range: entry 0% entry 90%; }
     @keyframes rise-in { from { opacity: 0; transform: translateY(44px); } to { opacity: 1; transform: none; } }
     /* Tall blocks would never finish their entry on a short screen. */
