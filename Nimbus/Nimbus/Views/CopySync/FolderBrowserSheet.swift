@@ -86,7 +86,7 @@ struct FolderBrowserSheet: View {
         } else {
             List(folders) { folder in
                 Button {
-                    segments.append(folder.path)
+                    Self.enterFolder(folder, segments: &segments)
                 } label: {
                     HStack(spacing: DesignSystem.Spacing.s) {
                         Image(systemName: "folder.fill")
@@ -128,6 +128,11 @@ struct FolderBrowserSheet: View {
             .buttonStyle(.primaryPill(.small))
         }
         .padding(DesignSystem.Spacing.m)
+    }
+
+    static func enterFolder(_ folder: FileItem, segments: inout [String]) {
+        // Listings use a remote-root fs, so Path already includes every ancestor.
+        segments = folder.path.split(separator: "/").map(String.init)
     }
 
     private func load() async {
