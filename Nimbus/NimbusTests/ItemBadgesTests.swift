@@ -1,4 +1,6 @@
+import FileProvider
 import Foundation
+import RcloneKit
 import Testing
 @testable import Nimbus
 
@@ -33,6 +35,18 @@ struct ItemBadgesTests {
         #expect(!UploadFailurePolicy.shouldRecord(URLError(.cancelled)))
         #expect(UploadFailurePolicy.shouldRecord(URLError(.notConnectedToInternet)))
         #expect(UploadFailurePolicy.shouldRecord(CocoaError(.fileWriteUnknown)))
+    }
+
+    @Test func collisionsAreNotFailures() {
+        #expect(!UploadFailurePolicy.shouldRecord(NSFileProviderError(.filenameCollision)))
+        let collisionNSError = NSError(
+            domain: NSFileProviderErrorDomain,
+            code: NSFileProviderError.filenameCollision.rawValue,
+            userInfo: nil
+        )
+        #expect(!UploadFailurePolicy.shouldRecord(collisionNSError))
+        #expect(!UploadFailurePolicy.shouldRecord(RcloneError.requestFailed(status: 409, message: "immutable file modified")))
+        #expect(UploadFailurePolicy.shouldRecord(RcloneError.requestFailed(status: 500, message: "server error")))
     }
 
     /// Every badge the code can return must be declared in the extension's

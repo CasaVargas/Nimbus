@@ -218,17 +218,55 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let filename = itemTemplate.filename
         let isFolder = itemTemplate.contentType?.conforms(to: .directory) ?? false
         let localURL = url
+        let mayAlreadyExist = options.contains(.mayAlreadyExist)
         let domainBox = SendableBox(value: domain)
 
         let progress = Progress(totalUnitCount: Self.fileSizeOnDisk(localURL, orDefault: 1))
         let task = Task { @Sendable in
             do {
                 try Task.checkCancellation()
-                let newPath = parentPath.isEmpty ? filename : "\(parentPath)/\(filename)"
+                let requestedPath = parentPath.isEmpty ? filename : "\(parentPath)/\(filename)"
+                var newPath = requestedPath
+                var shouldFetchContent = false
 
                 if isFolder {
-                    try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "createItem.mkdir") { _ in
-                        try await rclone.createFolder(fs: "\(remoteName):", remote: newPath)
+                    // Check before `withWriteRetry` so a first attempt that fails
+                    // to reach the daemon can't skip the collision check.
+                    let (targetPath, shouldCreate) = try await FileProviderRetry.withReadRetry(
+                        rclone: rclone, logger: logger, operation: "createItem.check"
+                    ) { () -> (String, Bool) in
+                        if mayAlreadyExist {
+                            guard let existing = try await rclone.item(fs: "\(remoteName):", remote: requestedPath) else {
+                                return (requestedPath, true)
+                            }
+                            if existing.isDir, existing.name == filename {
+                                return (requestedPath, false)
+                            }
+                            let first = CollisionName.firstNumber(for: filename, isFolder: true)
+                            let resolved = try await Self.resolveDestination(
+                                rclone: rclone, remoteName: remoteName,
+                                source: nil, destination: requestedPath,
+                                isFolder: true, startingAfter: first - 1
+                            )
+                            return (resolved.path, true)
+                        }
+                        let resolved = try await Self.resolveDestination(
+                            rclone: rclone, remoteName: remoteName,
+                            source: nil, destination: requestedPath, isFolder: true
+                        )
+                        return (resolved.path, true)
+                    }
+                    newPath = targetPath
+                    if newPath != requestedPath {
+                        logger.info("createItem folder collision resolved: \(requestedPath, privacy: .private) → \(newPath, privacy: .private)")
+                    }
+                    if shouldCreate {
+                        // `createFolder` is idempotent, so retrying after our own
+                        // mkdir is safe. It has no Immutable option, so a folder
+                        // created during the check-to-mkdir race merges (accepted).
+                        try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "createItem.mkdir") { _ in
+                            try await rclone.createFolder(fs: "\(remoteName):", remote: targetPath)
+                        }
                     }
                 } else if let localURL {
                     // rclone can't read the system-staged `localURL` where
@@ -237,31 +275,97 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     // fallback) sends the bytes over HTTP. The destination
                     // filename is passed explicitly since `localURL` isn't
                     // guaranteed to be named `filename`.
-                    let identifier = "\(remoteName):\(newPath)"
                     do {
-                        try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "createItem.upload") { _ in
-                            try await ContentTransfer.upload(
-                                rclone: rclone, from: localURL, remoteName: remoteName,
-                                directory: parentPath, filename: filename,
-                                progress: progress, logger: logger
+                        if mayAlreadyExist {
+                            let existing = try await FileProviderRetry.withReadRetry(
+                                rclone: rclone, logger: logger, operation: "createItem.check"
+                            ) {
+                                try await rclone.item(fs: "\(remoteName):", remote: requestedPath)
+                            }
+                            if let existing, existing.isDir || existing.name != filename {
+                                newPath = try await Self.uploadUnderFreeName(
+                                    rclone: rclone, remoteName: remoteName, localURL: localURL,
+                                    requestedPath: requestedPath, skipRequested: true,
+                                    progress: progress, logger: logger
+                                )
+                                if newPath != requestedPath {
+                                    logger.info("createItem file collision resolved: \(requestedPath, privacy: .private) → \(newPath, privacy: .private)")
+                                }
+                            } else {
+                                do {
+                                    try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "createItem.upload") { _ in
+                                        try await ContentTransfer.upload(
+                                            rclone: rclone, from: localURL, remoteName: remoteName,
+                                            directory: parentPath, filename: filename,
+                                            progress: progress, logger: logger, immutable: true
+                                        )
+                                    }
+                                } catch let error as RcloneError where error.isDestinationConflict {
+                                    let conflictPath = try await Self.uploadConflictCopy(
+                                        rclone: rclone, remoteName: remoteName, contents: localURL,
+                                        directory: parentPath, filename: filename,
+                                        progress: progress, logger: logger
+                                    )
+                                    await Self.notifyConflictCopy(
+                                        path: conflictPath, remoteName: remoteName,
+                                        domain: domainBox.value, logger: logger
+                                    )
+                                    shouldFetchContent = true
+                                }
+                            }
+                        } else {
+                            newPath = try await Self.uploadUnderFreeName(
+                                rclone: rclone, remoteName: remoteName, localURL: localURL,
+                                requestedPath: requestedPath, progress: progress, logger: logger
                             )
+                            if newPath != requestedPath {
+                                logger.info("createItem file collision resolved: \(requestedPath, privacy: .private) → \(newPath, privacy: .private)")
+                            }
                         }
                     } catch {
-                        await UploadFailureReporting.failed(error, identifier: identifier, domain: domainBox.value, logger: logger)
+                        await UploadFailureReporting.failed(
+                            error, identifier: "\(remoteName):\(newPath)",
+                            domain: domainBox.value, logger: logger
+                        )
                         throw error
                     }
-                    UploadFailureReporting.succeeded([identifier], remoteName: remoteName, logger: logger)
+                    UploadFailureReporting.succeeded(
+                        ["\(remoteName):\(requestedPath)", "\(remoteName):\(newPath)"],
+                        remoteName: remoteName, logger: logger
+                    )
+                } else if mayAlreadyExist {
+                    // Dataless re-import: match an existing server file, or return
+                    // nil with no error so the system removes the stale placeholder.
+                    let existing = try await FileProviderRetry.withReadRetry(
+                        rclone: rclone, logger: logger, operation: "createItem.stat"
+                    ) {
+                        try await rclone.item(fs: "\(remoteName):", remote: requestedPath)
+                    }
+                    guard let existing, !existing.isDir, existing.name == filename else {
+                        progress.completedUnitCount = progress.totalUnitCount
+                        handler.value(nil, [], false, nil)
+                        return
+                    }
+                    let item = FileProviderItem(
+                        from: existing,
+                        parentIdentifier: Self.parentIdentifier(for: requestedPath, remoteName: remoteName),
+                        remoteName: remoteName
+                    )
+                    progress.completedUnitCount = progress.totalUnitCount
+                    handler.value(item, [], false, nil)
+                    return
                 }
 
+                let createdPath = newPath
                 let item = try await FileProviderRetry.withReadRetry(rclone: rclone, logger: logger, operation: "createItem.stat") {
                     try await Self.fetchItemStatic(
                         rclone: rclone,
-                        identifier: NSFileProviderItemIdentifier("\(remoteName):\(newPath)"),
+                        identifier: NSFileProviderItemIdentifier("\(remoteName):\(createdPath)"),
                         remoteName: remoteName
                     )
                 }
                 progress.completedUnitCount = progress.totalUnitCount
-                handler.value(item, [], false, nil)
+                handler.value(item, [], shouldFetchContent, nil)
             } catch {
                 logger.error("createItem failed: \(error)")
                 handler.value(nil, [], false, Self.mapToFileProviderError(error))
@@ -295,6 +399,9 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let isRenameOrMove = changedFields.contains(.filename) || changedFields.contains(.parentItemIdentifier)
         let hasContentsChange = changedFields.contains(.contents)
         let contentsURL = newContents
+        let mayAlreadyExist = options.contains(.mayAlreadyExist)
+        let baseContentVersion = baseVersion.contentVersion
+        let baseIsBeforeFirstSync = baseContentVersion == NSFileProviderItemVersion.beforeFirstSyncComponent
         let systemIdentifier = item.itemIdentifier.rawValue
         let domainBox = SendableBox(value: domain)
 
@@ -302,43 +409,258 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let task = Task { @Sendable in
             do {
                 try Task.checkCancellation()
+                if mayAlreadyExist {
+                    logger.info("modifyItem called with mayAlreadyExist for \(systemIdentifier, privacy: .private)")
+                }
                 var workingPath = currentPath
+                var shouldFetchContent = false
+                var editDecision: EditConflict.Decision = .upload
+                var hasCheckedSource = false
+                var sourceFileAtCurrentPath: FileItem?
+                var contentsUploadedDuringMove = false
+
+                if hasContentsChange, contentsURL != nil {
+                    // rclone RC has no If-Match, so the lookup-to-upload race
+                    // remains; this catches server edits that happened before
+                    // the upload starts.
+                    let serverFile = try await FileProviderRetry.withReadRetry(
+                        rclone: rclone, logger: logger, operation: "modifyItem.versionCheck"
+                    ) {
+                        try await rclone.item(fs: "\(remoteName):", remote: currentPath)
+                    }
+                    hasCheckedSource = true
+                    sourceFileAtCurrentPath = serverFile
+                    let serverContentVersion = serverFile.map {
+                        ItemVersionBytes.content(
+                            seconds: $0.modTime?.timeIntervalSince1970,
+                            size: $0.size,
+                            isDir: $0.isDir
+                        )
+                    }
+                    editDecision = EditConflict.decide(
+                        baseContentVersion: baseContentVersion,
+                        baseIsBeforeFirstSync: baseIsBeforeFirstSync,
+                        serverContentVersion: serverContentVersion
+                    )
+                }
 
                 if isRenameOrMove {
-                    let destinationPath = newParentPath.isEmpty ? newFilename : "\(newParentPath)/\(newFilename)"
-                    if destinationPath != currentPath {
-                        try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "modifyItem.move") { isRetry in
-                            if isRetry, try await Self.alreadyMoved(
-                                rclone: rclone, remoteName: remoteName,
-                                from: currentPath, to: destinationPath
-                            ) {
-                                return
+                    let requestedPath = newParentPath.isEmpty ? newFilename : "\(newParentPath)/\(newFilename)"
+                    if requestedPath != currentPath {
+                        let onMoveProgress: @Sendable (StatsResponse) -> Void = { stats in
+                            AppWaker.ping()
+                            if !hasContentsChange {
+                                Self.reportJobProgress(stats, on: progress)
                             }
-                            let onMoveProgress: @Sendable (StatsResponse) -> Void = { stats in
-                                AppWaker.ping()
-                                if !hasContentsChange {
-                                    Self.reportJobProgress(stats, on: progress)
+                        }
+                        let destinationPath: String
+                        if isDirectory {
+                            let pendingPath = PendingFolderMoveStore.shared?.pendingDestination(
+                                from: currentPath, requested: requestedPath, domain: remoteName
+                            )
+                            let resumingFolderMove = pendingPath != nil
+                            if let pendingPath {
+                                destinationPath = pendingPath
+                            } else {
+                                let resolved = try await FileProviderRetry.withReadRetry(
+                                    rclone: rclone, logger: logger, operation: "modifyItem.check"
+                                ) {
+                                    try await Self.resolveDestination(
+                                        rclone: rclone, remoteName: remoteName,
+                                        source: currentPath, destination: requestedPath, isFolder: true
+                                    )
+                                }
+                                destinationPath = resolved.path
+                                if destinationPath != requestedPath {
+                                    logger.info("modifyItem folder collision resolved: \(requestedPath, privacy: .private) → \(destinationPath, privacy: .private)")
+                                }
+                                if destinationPath != currentPath {
+                                    // Persist before starting so a cancelled folder move
+                                    // resumes into our own partial destination on the next
+                                    // attempt instead of colliding.
+                                    try? PendingFolderMoveStore.shared?.begin(
+                                        from: currentPath, requested: requestedPath,
+                                        resolved: destinationPath, domain: remoteName
+                                    )
                                 }
                             }
-                            if isDirectory {
-                                // rclone has no "rename a directory" RC verb —
-                                // `operations/movefile` only moves individual
-                                // files — so directory renames/moves go
-                                // through `sync/move` treating both the
-                                // current and destination paths as directory
-                                // roots (the `rclone move <src> <dst>` CLI
-                                // command's RC equivalent).
-                                try await rclone.moveDirectoryAndWait(
-                                    srcFs: "\(remoteName):\(currentPath)",
-                                    dstFs: "\(remoteName):\(destinationPath)",
-                                    onProgress: onMoveProgress
+                            let targetPath = destinationPath
+                            if targetPath != currentPath {
+                                do {
+                                    try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "modifyItem.move") { isRetry in
+                                        // A resumed folder move may find that the job of
+                                        // an interrupted call (a killed process doesn't
+                                        // stop it) already finished.
+                                        if isRetry || resumingFolderMove, try await Self.alreadyMoved(
+                                            rclone: rclone, remoteName: remoteName,
+                                            from: currentPath, to: targetPath, isDirectory: true
+                                        ) {
+                                            return
+                                        }
+                                        // rclone has no "rename a directory" RC verb —
+                                        // `operations/movefile` only moves individual
+                                        // files — so directory renames/moves go
+                                        // through `sync/move` treating both the
+                                        // current and destination paths as directory
+                                        // roots (the `rclone move <src> <dst>` CLI
+                                        // command's RC equivalent).
+                                        try await rclone.moveDirectoryAndWait(
+                                            srcFs: "\(remoteName):\(currentPath)",
+                                            dstFs: "\(remoteName):\(targetPath)",
+                                            immutable: true,
+                                            onProgress: onMoveProgress
+                                        )
+                                    }
+                                } catch let error as RcloneError where error.isDestinationConflict {
+                                    try? PendingFolderMoveStore.shared?.finish(
+                                        from: currentPath, requested: requestedPath, domain: remoteName
+                                    )
+                                    throw await Self.collisionError(rclone: rclone, remoteName: remoteName, path: targetPath)
+                                } catch RcloneError.requestFailed(status: 404, let message) {
+                                    try? PendingFolderMoveStore.shared?.finish(
+                                        from: currentPath, requested: requestedPath, domain: remoteName
+                                    )
+                                    throw RcloneError.requestFailed(status: 404, message: message)
+                                }
+                                try? PendingFolderMoveStore.shared?.finish(
+                                    from: currentPath, requested: requestedPath, domain: remoteName
                                 )
+                            }
+                        } else {
+                            // An earlier call may have moved the file already (and
+                            // failed at the upload or final stat), or the server may
+                            // have deleted it. Moves keep size and modtime, so an
+                            // equal content version at `requestedPath` identifies our
+                            // own move; otherwise a local edit is recreated under a
+                            // free name rather than lost.
+                            let checkedSource = hasCheckedSource
+                            let cachedSource = sourceFileAtCurrentPath
+                            let (sourceFile, existingAtRequested) = try await FileProviderRetry.withReadRetry(
+                                rclone: rclone, logger: logger, operation: "modifyItem.check"
+                            ) { () -> (FileItem?, FileItem?) in
+                                let src = if checkedSource {
+                                    cachedSource
+                                } else {
+                                    try await rclone.item(fs: "\(remoteName):", remote: currentPath)
+                                }
+                                if src != nil {
+                                    return (src, nil)
+                                }
+                                let dst = try await rclone.item(fs: "\(remoteName):", remote: requestedPath)
+                                return (nil, dst)
+                            }
+
+                            if sourceFile == nil {
+                                let existingFileVersion: Data? = if let existingAtRequested, !existingAtRequested.isDir {
+                                    ItemVersionBytes.content(
+                                        seconds: existingAtRequested.modTime?.timeIntervalSince1970,
+                                        size: existingAtRequested.size,
+                                        isDir: false
+                                    )
+                                } else {
+                                    nil
+                                }
+                                if let existingFileVersion, existingFileVersion == baseContentVersion {
+                                    destinationPath = requestedPath
+                                    if hasContentsChange, contentsURL != nil {
+                                        editDecision = EditConflict.decide(
+                                            baseContentVersion: baseContentVersion,
+                                            baseIsBeforeFirstSync: baseIsBeforeFirstSync,
+                                            serverContentVersion: existingFileVersion
+                                        )
+                                    }
+                                } else if hasContentsChange, let contentsURL {
+                                    do {
+                                        // A file at the new name may be this same
+                                        // recreate from an earlier call whose reply was
+                                        // lost: Immutable accepts it when identical.
+                                        var uploadedAtRequested = false
+                                        if let existingAtRequested, !existingAtRequested.isDir,
+                                           existingAtRequested.name == newFilename {
+                                            do {
+                                                try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "modifyItem.upload") { _ in
+                                                    try await ContentTransfer.upload(
+                                                        rclone: rclone, from: contentsURL, remoteName: remoteName,
+                                                        directory: (requestedPath as NSString).deletingLastPathComponent,
+                                                        filename: newFilename,
+                                                        progress: progress, logger: logger, immutable: true
+                                                    )
+                                                }
+                                                uploadedAtRequested = true
+                                            } catch let error as RcloneError where error.isDestinationConflict {
+                                                // Someone else's file: use a free name below.
+                                            }
+                                        }
+                                        if uploadedAtRequested {
+                                            destinationPath = requestedPath
+                                        } else {
+                                            destinationPath = try await Self.uploadUnderFreeName(
+                                                rclone: rclone, remoteName: remoteName, localURL: contentsURL,
+                                                requestedPath: requestedPath, progress: progress, logger: logger
+                                            )
+                                        }
+                                    } catch {
+                                        await UploadFailureReporting.failed(
+                                            error, identifier: systemIdentifier,
+                                            domain: domainBox.value, logger: logger
+                                        )
+                                        throw error
+                                    }
+                                    if destinationPath != requestedPath {
+                                        logger.info("modifyItem file collision resolved: \(requestedPath, privacy: .private) → \(destinationPath, privacy: .private)")
+                                    }
+                                    contentsUploadedDuringMove = true
+                                } else {
+                                    throw NSFileProviderError(.noSuchItem)
+                                }
                             } else {
-                                try await rclone.moveFileAndWait(
-                                    srcFs: "\(remoteName):", srcRemote: currentPath,
-                                    dstFs: "\(remoteName):", dstRemote: destinationPath,
-                                    onProgress: onMoveProgress
-                                )
+                                var startingAfter: Int?
+                                let firstNumber = CollisionName.firstNumber(for: newFilename, isFolder: false)
+                                var movedPath: String?
+                                for _ in 0..<3 {
+                                    let currentStartingAfter = startingAfter
+                                    let resolved = try await FileProviderRetry.withReadRetry(
+                                        rclone: rclone, logger: logger, operation: "modifyItem.check"
+                                    ) {
+                                        try await Self.resolveDestination(
+                                            rclone: rclone, remoteName: remoteName,
+                                            source: currentPath, destination: requestedPath,
+                                            isFolder: false, startingAfter: currentStartingAfter
+                                        )
+                                    }
+                                    let candidatePath = resolved.path
+                                    if candidatePath == currentPath {
+                                        movedPath = candidatePath
+                                        break
+                                    }
+                                    do {
+                                        try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "modifyItem.move") { isRetry in
+                                            if isRetry, try await Self.alreadyMoved(
+                                                rclone: rclone, remoteName: remoteName,
+                                                from: currentPath, to: candidatePath, isDirectory: false
+                                            ) {
+                                                return
+                                            }
+                                            try await rclone.moveFileAndWait(
+                                                srcFs: "\(remoteName):", srcRemote: currentPath,
+                                                dstFs: "\(remoteName):", dstRemote: candidatePath,
+                                                immutable: true,
+                                                onProgress: onMoveProgress
+                                            )
+                                        }
+                                        movedPath = candidatePath
+                                        break
+                                    } catch let error as RcloneError where error.isDestinationConflict {
+                                        startingAfter = resolved.number ?? (firstNumber - 1)
+                                    }
+                                }
+                                guard let resolvedMove = movedPath else {
+                                    throw await Self.collisionError(rclone: rclone, remoteName: remoteName, path: requestedPath)
+                                }
+                                if resolvedMove != requestedPath {
+                                    logger.info("modifyItem file collision resolved: \(requestedPath, privacy: .private) → \(resolvedMove, privacy: .private)")
+                                }
+                                destinationPath = resolvedMove
                             }
                         }
                         workingPath = destinationPath
@@ -352,22 +674,57 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 }
 
                 if hasContentsChange, let contentsURL {
-                    let uploadDir = (workingPath as NSString).deletingLastPathComponent
-                    let uploadFilename = (workingPath as NSString).lastPathComponent
-                    do {
-                        try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "modifyItem.upload") { _ in
-                            try await ContentTransfer.upload(
-                                rclone: rclone, from: contentsURL, remoteName: remoteName,
-                                directory: uploadDir, filename: uploadFilename,
-                                progress: progress, logger: logger
-                            )
+                    if !contentsUploadedDuringMove {
+                        let uploadDir = (workingPath as NSString).deletingLastPathComponent
+                        let uploadFilename = (workingPath as NSString).lastPathComponent
+                        do {
+                            var keepBoth = false
+                            switch editDecision {
+                            case .upload:
+                                try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "modifyItem.upload") { _ in
+                                    try await ContentTransfer.upload(
+                                        rclone: rclone, from: contentsURL, remoteName: remoteName,
+                                        directory: uploadDir, filename: uploadFilename,
+                                        progress: progress, logger: logger
+                                    )
+                                }
+                            case .uploadUnlessDifferent, .keepBoth:
+                                // A version mismatch still tries the original first:
+                                // rclone skips an identical file (our own earlier
+                                // upload whose reply was lost) and refuses a
+                                // different one, which is the real conflict.
+                                do {
+                                    try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "modifyItem.upload") { _ in
+                                        try await ContentTransfer.upload(
+                                            rclone: rclone, from: contentsURL, remoteName: remoteName,
+                                            directory: uploadDir, filename: uploadFilename,
+                                            progress: progress, logger: logger, immutable: true
+                                        )
+                                    }
+                                } catch let error as RcloneError where error.isDestinationConflict {
+                                    keepBoth = true
+                                }
+                            }
+
+                            if keepBoth {
+                                let conflictPath = try await Self.uploadConflictCopy(
+                                    rclone: rclone, remoteName: remoteName, contents: contentsURL,
+                                    directory: uploadDir, filename: uploadFilename,
+                                    progress: progress, logger: logger
+                                )
+                                await Self.notifyConflictCopy(
+                                    path: conflictPath, remoteName: remoteName,
+                                    domain: domainBox.value, logger: logger
+                                )
+                                shouldFetchContent = true
+                            }
+                        } catch {
+                            // Under the identifier the system knows: after a
+                            // rename in this same call, the new one isn't its yet.
+                            await UploadFailureReporting.failed(error, identifier: systemIdentifier,
+                                                                domain: domainBox.value, logger: logger)
+                            throw error
                         }
-                    } catch {
-                        // Under the identifier the system knows: after a
-                        // rename in this same call, the new one isn't its yet.
-                        await UploadFailureReporting.failed(error, identifier: systemIdentifier,
-                                                            domain: domainBox.value, logger: logger)
-                        throw error
                     }
                     UploadFailureReporting.succeeded([systemIdentifier, "\(remoteName):\(workingPath)"],
                                                      remoteName: remoteName, logger: logger)
@@ -378,7 +735,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     try await Self.fetchItemStatic(rclone: rclone, identifier: newIdentifier, remoteName: remoteName)
                 }
                 progress.completedUnitCount = progress.totalUnitCount
-                handler.value(resultItem, [], false, nil)
+                handler.value(resultItem, [], shouldFetchContent, nil)
             } catch {
                 logger.error("modifyItem failed: \(error)")
                 handler.value(nil, [], false, Self.mapToFileProviderError(error))
@@ -459,6 +816,8 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         switch rcloneError {
         case .requestFailed(status: 404, _):
             return NSFileProviderError(.noSuchItem)
+        case .requestFailed(status: 409, _):
+            return NSFileProviderError(.filenameCollision)
         case .requestFailed(status: 403, _):
             return NSFileProviderError(.notAuthenticated)
         case .serverNotRunning:
@@ -476,7 +835,6 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         remoteName: String
     ) async throws -> FileProviderItem {
         let remotePath = extractPathStatic(from: identifier, remoteName: remoteName)
-        let parentPath = (remotePath as NSString).deletingLastPathComponent
         let filename = (remotePath as NSString).lastPathComponent
 
         // One `operations/stat`, not a listing of the parent: the system
@@ -489,11 +847,198 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
             throw NSFileProviderError(.noSuchItem)
         }
 
-        let parentId = parentPath.isEmpty
-            ? NSFileProviderItemIdentifier.rootContainer
-            : NSFileProviderItemIdentifier("\(remoteName):\(parentPath)")
+        return FileProviderItem(
+            from: file,
+            parentIdentifier: parentIdentifier(for: remotePath, remoteName: remoteName),
+            remoteName: remoteName
+        )
+    }
 
-        return FileProviderItem(from: file, parentIdentifier: parentId, remoteName: remoteName)
+    private static func parentIdentifier(for path: String, remoteName: String) -> NSFileProviderItemIdentifier {
+        let parentPath = (path as NSString).deletingLastPathComponent
+        return parentPath.isEmpty
+            ? .rootContainer
+            : NSFileProviderItemIdentifier("\(remoteName):\(parentPath)")
+    }
+
+    private static func collisionError(for existing: FileItem, path: String, remoteName: String) -> NSError {
+        let item = FileProviderItem(
+            from: existing,
+            parentIdentifier: parentIdentifier(for: path, remoteName: remoteName),
+            remoteName: remoteName
+        )
+        return NSError.fileProviderErrorForCollision(with: item)
+    }
+
+    private static func collisionError(rclone: RcloneClient, remoteName: String, path: String) async -> Error {
+        if let existing = try? await rclone.item(fs: "\(remoteName):", remote: path) {
+            return collisionError(for: existing, path: path, remoteName: remoteName)
+        }
+        return NSFileProviderError(.filenameCollision)
+    }
+
+    private static let maxCollisionCandidates = 19
+
+    /// Returns `destination` when it is free, or the first free Finder-style
+    /// alternative (`"report 2.pdf"`, `"Folder 2"`, …) across up to 19
+    /// candidate numbers starting from `CollisionName.firstNumber`.
+    ///
+    /// With `startingAfter == nil` it checks `destination` itself first and
+    /// returns `(destination, nil)` when free. With `startingAfter` set (a 409
+    /// race round) it skips `destination` and tries candidates from
+    /// `max(firstNumber, startingAfter + 1)`. If every candidate is occupied,
+    /// falls back to throwing the collision error for `destination`.
+    private static func resolveDestination(
+        rclone: RcloneClient,
+        remoteName: String,
+        source: String?,
+        destination: String,
+        isFolder: Bool,
+        startingAfter: Int? = nil
+    ) async throws -> (path: String, number: Int?) {
+        let fs = "\(remoteName):"
+        let parentPath = (destination as NSString).deletingLastPathComponent
+        let requestedName = (destination as NSString).lastPathComponent
+        var collidingAtRequested: FileItem?
+
+        if startingAfter == nil {
+            if let source, DestinationCheck.isCaseOnlyRename(from: source, to: destination) {
+                // On case-insensitive backends `operations/stat` of the new case
+                // returns the source itself, so list the parent and collide only on
+                // an exact filename match (case-sensitive backends with both names).
+                let entries = try await rclone.listFiles(fs: fs, remote: parentPath)
+                collidingAtRequested = entries.first(where: { $0.name == requestedName })
+            } else {
+                collidingAtRequested = try await rclone.item(fs: fs, remote: destination)
+            }
+            if collidingAtRequested == nil {
+                return (destination, nil)
+            }
+        }
+
+        let firstNumber = CollisionName.firstNumber(for: requestedName, isFolder: isFolder)
+        let start = if let startingAfter {
+            max(firstNumber, startingAfter + 1)
+        } else {
+            firstNumber
+        }
+
+        for number in start ..< (start + maxCollisionCandidates) {
+            let candidateName = CollisionName.candidate(for: requestedName, number: number, isFolder: isFolder)
+            let candidatePath = parentPath.isEmpty ? candidateName : "\(parentPath)/\(candidateName)"
+            if candidatePath == source {
+                return (candidatePath, number)
+            }
+            if try await rclone.item(fs: fs, remote: candidatePath) == nil {
+                return (candidatePath, number)
+            }
+        }
+
+        if let collidingAtRequested {
+            throw collisionError(for: collidingAtRequested, path: destination, remoteName: remoteName)
+        }
+        throw await collisionError(rclone: rclone, remoteName: remoteName, path: destination)
+    }
+
+    private static func uploadUnderFreeName(
+        rclone: RcloneClient,
+        remoteName: String,
+        localURL: URL,
+        requestedPath: String,
+        skipRequested: Bool = false,
+        progress: Progress,
+        logger: Logger
+    ) async throws -> String {
+        let parentPath = (requestedPath as NSString).deletingLastPathComponent
+        let filename = (requestedPath as NSString).lastPathComponent
+        let firstNumber = CollisionName.firstNumber(for: filename, isFolder: false)
+        var startingAfter: Int? = skipRequested ? (firstNumber - 1) : nil
+
+        for _ in 0..<3 {
+            let currentStartingAfter = startingAfter
+            let resolved = try await FileProviderRetry.withReadRetry(
+                rclone: rclone, logger: logger, operation: "createItem.check"
+            ) {
+                try await Self.resolveDestination(
+                    rclone: rclone, remoteName: remoteName,
+                    source: nil, destination: requestedPath,
+                    isFolder: false, startingAfter: currentStartingAfter
+                )
+            }
+            let chosenPath = resolved.path
+            let uploadFilename = (chosenPath as NSString).lastPathComponent
+            do {
+                // `immutable: true` closes most of the check-to-upload
+                // race and skips an identical retry of our own upload.
+                try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "createItem.upload") { _ in
+                    try await ContentTransfer.upload(
+                        rclone: rclone, from: localURL, remoteName: remoteName,
+                        directory: parentPath, filename: uploadFilename,
+                        progress: progress, logger: logger, immutable: true
+                    )
+                }
+                return chosenPath
+            } catch let error as RcloneError where error.isDestinationConflict {
+                startingAfter = resolved.number ?? (firstNumber - 1)
+            }
+        }
+        throw await Self.collisionError(rclone: rclone, remoteName: remoteName, path: requestedPath)
+    }
+
+    private static let maxConflictCopyAttempts = 20
+
+    private static func uploadConflictCopy(
+        rclone: RcloneClient,
+        remoteName: String,
+        contents localURL: URL,
+        directory: String,
+        filename: String,
+        progress: Progress,
+        logger: Logger
+    ) async throws -> String {
+        let now = Date()
+        for number in 1...maxConflictCopyAttempts {
+            let conflictName = ConflictCopyName.make(for: filename, date: now, number: number)
+            do {
+                // `immutable: true` makes retries safe: an earlier attempt that
+                // already uploaded these bytes is treated as done.
+                try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "conflictCopy.upload") { _ in
+                    try await ContentTransfer.upload(
+                        rclone: rclone, from: localURL, remoteName: remoteName,
+                        directory: directory, filename: conflictName,
+                        progress: progress, logger: logger, immutable: true
+                    )
+                }
+                return directory.isEmpty ? conflictName : "\(directory)/\(conflictName)"
+            } catch let error as RcloneError where error.isDestinationConflict {
+                continue
+            }
+        }
+        // A 409 here would map to `.filenameCollision` and make the system
+        // rename the original item; 503 records an upload failure and retries.
+        throw RcloneError.requestFailed(status: 503, message: "no free conflict-copy name")
+    }
+
+    private static func notifyConflictCopy(
+        path: String,
+        remoteName: String,
+        domain: NSFileProviderDomain,
+        logger: Logger
+    ) async {
+        // WorkingSetEnumerator reports immediately only items in PinStore's
+        // change log; signalling alone is a no-op during the hot-scan cooldown.
+        try? PinStore.shared?.markChanged(["\(remoteName):\(path)"], domain: remoteName)
+        await signalWorkingSet(domain: domain, logger: logger)
+    }
+
+    private static func signalWorkingSet(domain: NSFileProviderDomain, logger: Logger) async {
+        guard let manager = NSFileProviderManager(for: domain) else { return }
+        do {
+            try await manager.signalEnumerator(for: .workingSet)
+        } catch {
+            let ns = error as NSError
+            logger.error("signalEnumerator(workingSet) failed: \(ns.domain, privacy: .public) \(ns.code, privacy: .public)")
+        }
     }
 
     /// Inverse of `FileProviderItem`'s identifier construction — see the
@@ -542,11 +1087,15 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         rclone: RcloneClient,
         remoteName: String,
         from sourcePath: String,
-        to destinationPath: String
+        to destinationPath: String,
+        isDirectory: Bool
     ) async throws -> Bool {
         let fs = "\(remoteName):"
-        guard try await rclone.item(fs: fs, remote: sourcePath) == nil else { return false }
-        return try await rclone.item(fs: fs, remote: destinationPath) != nil
+        guard try await rclone.item(fs: fs, remote: sourcePath) == nil,
+              let destination = try await rclone.item(fs: fs, remote: destinationPath) else {
+            return false
+        }
+        return destination.isDir == isDirectory
     }
 }
 

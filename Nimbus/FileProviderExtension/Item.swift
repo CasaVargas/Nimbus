@@ -137,25 +137,14 @@ final class FileProviderItem: NSObject, NSFileProviderItem, NSFileProviderItemDe
             self.capabilities = [.allowsReading, .allowsWriting, .allowsRenaming, .allowsDeleting]
         }
 
-        let versionData: Data
-        if let versionSeconds {
-            versionData = withUnsafeBytes(of: versionSeconds) { Data($0) }
-        } else {
-            versionData = Data([0])
-        }
         // The pin and badge state are metadata: folding them into the
         // metadata version tells the system the item changed (re-read its
         // content policy and decorations) while the unchanged content
         // version means nothing re-downloads.
-        var metadataVersion = versionData
+        var metadataVersion = ItemVersionBytes.seconds(versionSeconds)
         metadataVersion.append(contentsOf: ItemBadges.metadataSuffix(
             keepState: Self.keepState(pinned: pinned, keptByFolder: keptByFolder), uploadFailed: uploadFailed))
-        // A file whose size is unknown carries a marker in its content
-        // version (`ItemSize.contentVersionSuffix`); folders never do.
-        var contentVersion = versionData
-        if !file.isDir {
-            contentVersion.append(contentsOf: ItemSize.contentVersionSuffix(listed: file.size))
-        }
+        let contentVersion = ItemVersionBytes.content(seconds: versionSeconds, size: file.size, isDir: file.isDir)
         self.itemVersion = NSFileProviderItemVersion(contentVersion: contentVersion, metadataVersion: metadataVersion)
     }
 

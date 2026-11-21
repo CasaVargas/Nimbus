@@ -57,6 +57,9 @@ enum ContentTransfer {
     // MARK: Upload
 
     /// Sends the file at `localURL` to `directory/filename` on the remote.
+    ///
+    /// When `immutable` is `true`, refuses to overwrite a differing destination
+    /// file (throwing 409 / `RcloneError.isDestinationConflict`).
     static func upload(
         rclone: RcloneClient,
         from localURL: URL,
@@ -64,9 +67,20 @@ enum ContentTransfer {
         directory: String,
         filename: String,
         progress: Progress,
-        logger: Logger
+        logger: Logger,
+        immutable: Bool = false
     ) async throws {
+        let destination = directory.isEmpty ? filename : "\(directory)/\(filename)"
         guard let container = await stagingContainer(rclone: rclone, logger: logger) else {
+            if immutable {
+                // `operations/uploadfile` doesn't support rclone's Immutable
+                // option, so check first. Accepted limit on this fallback
+                // path: a retry after an ambiguous failure finds its own
+                // upload and throws 409.
+                if try await rclone.item(fs: "\(remoteName):", remote: destination) != nil {
+                    throw RcloneError.requestFailed(status: 409, message: "immutable file modified")
+                }
+            }
             try await rclone.uploadFile(from: localURL, fs: "\(remoteName):", remote: directory, filename: filename)
             return
         }
@@ -81,7 +95,8 @@ enum ContentTransfer {
 
         try await rclone.copyFileAndWait(
             srcFs: stagingFs(in: container), srcRemote: stagedRemote(name, in: folder),
-            dstFs: "\(remoteName):", dstRemote: directory.isEmpty ? filename : "\(directory)/\(filename)"
+            dstFs: "\(remoteName):", dstRemote: destination,
+            immutable: immutable
         ) { bytes in
             AppWaker.ping()
             report(bytes, on: progress)
