@@ -237,11 +237,13 @@ code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.
 .tile__img--crop img { aspect-ratio: var(--crop); object-fit: cover; object-position: top; }
 .tile__img--crop::after { content: ""; position: absolute; inset: 86% -1px -1px; pointer-events: none;
   background: linear-gradient(180deg, rgba(12,16,48,0), #0c1030); }
-/* A sheet rendered edge to edge, with no margin of its own: give it one. */
-.tile__img--frame { background: #1e1e1e; padding: 18px; border-radius: 14px; box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 24px 50px -20px rgba(0,0,0,.7); }
-.tile--dark .tile__img--frame img, .tile__img--frame img { border-radius: 0; box-shadow: none; }
-.tile__img--frame[style] img { aspect-ratio: var(--crop); object-fit: cover; object-position: top; }
-.tile__img--frame:not([style]) { padding: 0; overflow: hidden; }
+/* A whole sheet. The render is opaque, black outside its rounded corners,
+   so the corners are cut here, as they are for the Add Cloud sheets. */
+.tile__img--sheet { container-type: inline-size; }
+.tile--dark .tile__img--sheet img { border-radius: 5cqw; }
+/* A plain system sheet, square in the render: round it and ring it here. */
+.tile__img--frame { border-radius: 14px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 24px 50px -20px rgba(0,0,0,.7); }
+.tile--dark .tile__img--frame img { border-radius: 0; box-shadow: none; }
 
 /* Keep on this Mac: the inspector's switch, drawn. */
 .tile__top { margin-bottom: auto; padding-bottom: 30px; }
