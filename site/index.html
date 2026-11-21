@@ -124,9 +124,12 @@
     </header>
 
     <article class="fp">
-      <div class="fp__copy">
+      <div class="fp__main">
         <h3>File Provider</h3>
         <p class="fp__lede">One Apple framework, and everything Finder knows how to do with a cloud comes with it.</p>
+        <figure class="fp__shot"><img src="assets/finder-demo.png" width="920" height="406" alt="A Finder window open on a cloud named Nimbus - Personal, listed under Locations beside iCloud Drive. Photos and PDFs show real thumbnails, each with a cloud badge, before any file is downloaded. Demo files." loading="lazy"></figure>
+      </div>
+      <div class="fp__copy">
         <ul class="fp__list">
           <li><strong>Under Locations.</strong> Each cloud sits in Finder’s sidebar and in every app’s Open and Save panel.</li>
           <li><strong>Files on demand.</strong> A file downloads when you open it. macOS manages the local copies and frees the space when it needs to.</li>
@@ -139,7 +142,6 @@
         </ul>
         <p class="fp__fine">No kernel extension. No FUSE. Nothing to approve in Recovery.</p>
       </div>
-      <figure class="fp__shot"><img src="assets/finder-demo.png" width="920" height="406" alt="A Finder window open on a cloud named Nimbus - Personal, listed under Locations beside iCloud Drive. Photos and PDFs show real thumbnails, each with a cloud badge, before any file is downloaded. Demo files." loading="lazy"></figure>
     </article>
 
     <h3 class="wall__title">And everywhere else macOS offers an app a place to live.</h3>
@@ -196,9 +198,12 @@
         <p>Photos and PDFs in the cloud show real previews in Finder, made on demand and cached, so you can find the right file without pulling it down first.</p>
       </article>
       <article class="tile tile--white">
-        <figure class="tile__img tile__img--small">
-          <img src="assets/keep-on-this-mac.png" width="240" height="118" alt="The Keep on this Mac switch." loading="lazy">
-        </figure>
+        <div class="tile__top">
+          <div class="keep" role="img" aria-label="The Keep on this Mac switch, turned on. Stays downloaded and up to date.">
+            <p class="keep__row"><span>Keep on this Mac</span><i class="keep__switch"></i></p>
+            <p class="keep__note">Stays downloaded and up to date.</p>
+          </div>
+        </div>
         <h3>Keep on this Mac</h3>
         <p>Pin a file or folder and it stays downloaded. Finder’s own “Keep Downloaded” and “Remove Download” commands work too.</p>
       </article>
@@ -383,22 +388,22 @@
     </header>
     <div class="bento">
       <article class="tile tile--dark tile--span2 tile--top">
-        <figure class="tile__img"><img src="assets/search.webp" width="1500" height="914" alt="Search results for the word lease, grouped by cloud: two files in Personal, one in Dropbox, Photo Archive still searching, and Work asking to sign in again. Demo data." loading="lazy"></figure>
+        <figure class="tile__img tile__img--crop" style="--crop: 1500 / 700"><img src="assets/search.webp" width="1500" height="914" alt="Search results for the word lease, grouped by cloud: two files in Personal, one in Dropbox, Photo Archive still searching, and Work asking to sign in again. Demo data." loading="lazy"></figure>
         <h3>Search across clouds</h3>
         <p>Type a file name once and Nimbus looks in every cloud at the same time. Results arrive cloud by cloud.</p>
       </article>
       <article class="tile tile--dark tile--top">
-        <figure class="tile__img tile__img--sheet"><img src="assets/encrypted-folder.webp" width="1120" height="1200" alt="The New Encrypted Folder sheet: a folder named Private inside the Personal cloud, a name, a password typed twice, and a warning that nobody can recover the files if the password is forgotten. Demo data." loading="lazy"></figure>
+        <figure class="tile__img tile__img--crop" style="--crop: 1120 / 1130"><img src="assets/encrypted-folder.webp" width="1120" height="1200" alt="The New Encrypted Folder sheet: a folder named Private inside the Personal cloud, a name, a password typed twice, and a warning that nobody can recover the files if the password is forgotten. Demo data." loading="lazy"></figure>
         <h3>New Encrypted Folder</h3>
         <p>A guided setup for a folder whose contents are encrypted before they leave this Mac, inside any cloud you already use.</p>
       </article>
       <article class="tile tile--dark tile--span2 tile--top">
-        <figure class="tile__img"><img src="assets/compare.webp" width="1500" height="976" alt="Compare Folders results: 2 files different, 3 only in Documents, 1 only in the cloud copy, 4 the same, with the two different files listed. Demo data." loading="lazy"></figure>
+        <figure class="tile__img tile__img--crop" style="--crop: 1500 / 640"><img src="assets/compare.webp" width="1500" height="976" alt="Compare Folders results: 2 files different, 3 only in Documents, 1 only in the cloud copy, 4 the same, with the two different files listed. Demo data." loading="lazy"></figure>
         <h3>Compare Folders</h3>
         <p>Pick two folders, on any clouds or this Mac, and see what is only on one side, what differs and what matches. Nothing is changed.</p>
       </article>
       <article class="tile tile--dark tile--top">
-        <figure class="tile__img"><img src="assets/versions.webp" width="816" height="802" alt="Version History for a file named Deck.key: three earlier versions with their dates and sizes, each with Restore and Download buttons. Demo data." loading="lazy"></figure>
+        <figure class="tile__img tile__img--frame" style="--crop: 816 / 440"><img src="assets/versions.webp" width="816" height="802" alt="Version History for a file named Deck.key: three earlier versions with their dates and sizes, each with Restore and Download buttons. Demo data." loading="lazy"></figure>
         <h3>Version history</h3>
         <p>For Amazon S3 and Backblaze B2, the versions the service kept of a file. Restore one or download it.</p>
       </article>
@@ -408,7 +413,7 @@
         <p>Flip a folder to Gallery and step through it with the arrow keys: one large preview over a filmstrip. Photos and PDFs show as pictures while they are still in the cloud.</p>
       </article>
       <article class="tile tile--dark tile--top">
-        <figure class="tile__img"><img src="assets/send-to-nimbus.webp" width="960" height="460" alt="The Send to Nimbus sheet: three items, 14.2 MB, going to a folder named Inbox in the Personal cloud, with Cancel and Send buttons. Demo data." loading="lazy"></figure>
+        <figure class="tile__img tile__img--frame"><img src="assets/send-to-nimbus.webp" width="960" height="460" alt="The Send to Nimbus sheet: three items, 14.2 MB, going to a folder named Inbox in the Personal cloud, with Cancel and Send buttons. Demo data." loading="lazy"></figure>
         <h3>Send to Nimbus</h3>
         <p>From Finder, Photos, Preview or any other app, choose Share and then Nimbus, or Services and then Send to Nimbus. Pick the cloud and folder once. Nimbus remembers it for next time.</p>
       </article>
