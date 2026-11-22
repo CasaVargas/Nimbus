@@ -1,4 +1,6 @@
+import FileProvider
 import Foundation
+import RcloneKit
 
 /// Nimbus's own Finder badges (File Provider item decorations), kept apart
 /// from FileProvider types so the rules can be unit-tested in the app's test
@@ -35,14 +37,19 @@ enum ItemBadges {
 
 /// When an upload error counts as a failure worth a badge.
 enum UploadFailurePolicy {
-    /// Cancellations are the user or the system stopping the upload, not a
-    /// failure.
+    /// Cancellations and filename collisions are not failures: the user or
+    /// system stopped the upload, or the extension gives ours a free name.
     static func shouldRecord(_ error: Error) -> Bool {
         if error is CancellationError { return false }
         if let cocoa = error as? CocoaError, cocoa.code == .userCancelled { return false }
+        if let rcloneError = error as? RcloneError, rcloneError.isDestinationConflict { return false }
         let ns = error as NSError
         if ns.domain == NSCocoaErrorDomain, ns.code == NSUserCancelledError { return false }
         if ns.domain == NSURLErrorDomain, ns.code == NSURLErrorCancelled { return false }
+        if ns.domain == NSFileProviderErrorDomain,
+           ns.code == NSFileProviderError.filenameCollision.rawValue {
+            return false
+        }
         return true
     }
 }

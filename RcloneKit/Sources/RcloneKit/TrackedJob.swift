@@ -14,10 +14,16 @@ enum TrackedJob {
     static let firstPoll: Duration = .milliseconds(50)
 
     /// The HTTP-style status for a failed job, which has only rclone's
-    /// error text. A missing source or target is told apart because callers
-    /// treat it differently (the File Provider extension drops the item).
+    /// error text. Missing paths and `Immutable` conflicts are told apart
+    /// because callers treat them differently (dropping or bouncing the item).
     static func status(forJobError message: String) -> Int {
-        message.contains("object not found") || message.contains("directory not found") ? 404 : 500
+        if message.contains("object not found") || message.contains("directory not found") {
+            return 404
+        }
+        if message.contains("immutable file modified") {
+            return 409
+        }
+        return 500
     }
 }
 
@@ -105,9 +111,15 @@ extension RcloneClient {
     /// looked at. A wait that fails or is cancelled stops the job, so a retry
     /// never runs beside its predecessor; cancelling the calling task throws
     /// `CancellationError`.
+    ///
+    /// When `immutable` is `true`, passes rclone's `Immutable` config option:
+    /// copying onto an existing destination that differs fails with status 409
+    /// (`RcloneError.isDestinationConflict`), while an identical destination
+    /// succeeds without transferring.
     public func copyFileAndWait(
         srcFs: String, srcRemote: String,
         dstFs: String, dstRemote: String,
+        immutable: Bool = false,
         pollInterval: Duration = .milliseconds(500),
         onProgress: (@Sendable (Int64) -> Void)? = nil
     ) async throws {
@@ -116,14 +128,18 @@ extension RcloneClient {
         } else {
             nil
         }
+        var params: [String: any Sendable] = [
+            "srcFs": srcFs,
+            "srcRemote": srcRemote,
+            "dstFs": dstFs,
+            "dstRemote": dstRemote,
+        ]
+        if immutable {
+            params["_config"] = ["Immutable": true]
+        }
         try await runJobAndWait(
             "operations/copyfile",
-            params: [
-                "srcFs": srcFs,
-                "srcRemote": srcRemote,
-                "dstFs": dstFs,
-                "dstRemote": dstRemote,
-            ],
+            params: params,
             pollInterval: pollInterval,
             onProgress: progress
         )
@@ -131,20 +147,30 @@ extension RcloneClient {
 
     /// Moves one file (`operations/movefile`) as an rclone job and returns
     /// once it has finished.
+    ///
+    /// When `immutable` is `true`, passes rclone's `Immutable` config option:
+    /// moving onto an existing destination that differs fails with status 409
+    /// (`RcloneError.isDestinationConflict`), while an identical destination
+    /// succeeds without transferring.
     public func moveFileAndWait(
         srcFs: String, srcRemote: String,
         dstFs: String, dstRemote: String,
+        immutable: Bool = false,
         pollInterval: Duration = .milliseconds(500),
         onProgress: (@Sendable (StatsResponse) -> Void)? = nil
     ) async throws {
+        var params: [String: any Sendable] = [
+            "srcFs": srcFs,
+            "srcRemote": srcRemote,
+            "dstFs": dstFs,
+            "dstRemote": dstRemote,
+        ]
+        if immutable {
+            params["_config"] = ["Immutable": true]
+        }
         try await runJobAndWait(
             "operations/movefile",
-            params: [
-                "srcFs": srcFs,
-                "srcRemote": srcRemote,
-                "dstFs": dstFs,
-                "dstRemote": dstRemote,
-            ],
+            params: params,
             pollInterval: pollInterval,
             onProgress: onProgress
         )
@@ -154,19 +180,29 @@ extension RcloneClient {
     /// rclone job. rclone's `MoveDir` uses a server-side directory move when
     /// the backend has one, falling back to per-file server-side moves or
     /// copies.
+    ///
+    /// When `immutable` is `true`, passes rclone's `Immutable` config option:
+    /// same-named files that already exist and differ fail with status 409
+    /// (`RcloneError.isDestinationConflict`) and identical ones are skipped,
+    /// but non-colliding files still merge into an existing destination folder.
     public func moveDirectoryAndWait(
         srcFs: String,
         dstFs: String,
+        immutable: Bool = false,
         pollInterval: Duration = .milliseconds(500),
         onProgress: (@Sendable (StatsResponse) -> Void)? = nil
     ) async throws {
+        var params: [String: any Sendable] = [
+            "srcFs": srcFs,
+            "dstFs": dstFs,
+            "deleteEmptySrcDirs": true,
+        ]
+        if immutable {
+            params["_config"] = ["Immutable": true]
+        }
         try await runJobAndWait(
             "sync/move",
-            params: [
-                "srcFs": srcFs,
-                "dstFs": dstFs,
-                "deleteEmptySrcDirs": true,
-            ],
+            params: params,
             pollInterval: pollInterval,
             onProgress: onProgress
         )
