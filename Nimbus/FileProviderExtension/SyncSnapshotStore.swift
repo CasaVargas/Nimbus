@@ -130,6 +130,30 @@ enum SyncSnapshotStore {
         try? FileManager.default.removeItem(at: url)
     }
 
+    /// After a folder move: drops the old path's snapshots and seeds the new
+    /// folder's from `listing`, so remote scans follow the folder. The caller
+    /// marks it newly listed once the system has the new identifier, so the
+    /// working set reports its entries (the system never lists a folder it
+    /// took back from `modifyItem` under a new identifier).
+    static func folderMoved(
+        remoteName: String,
+        from oldIdentifier: NSFileProviderItemIdentifier,
+        to newIdentifier: NSFileProviderItemIdentifier,
+        listing: [FileItem]
+    ) {
+        for raw in MovedFolderSnapshots.stale(
+            root: oldIdentifier.rawValue,
+            snapshot: { records(remoteName: remoteName, containerIdentifier: NSFileProviderItemIdentifier($0)) }
+        ) {
+            removeSnapshot(remoteName: remoteName, containerIdentifier: NSFileProviderItemIdentifier(raw))
+        }
+        seed(
+            remoteName: remoteName,
+            containerIdentifier: newIdentifier,
+            current: buildRecords(from: listing, parentIdentifier: newIdentifier, remoteName: remoteName)
+        )
+    }
+
     /// rclone path of a container: `""` for the root, otherwise the
     /// identifier without its `"<remote>:"` prefix.
     static func remotePath(of containerIdentifier: NSFileProviderItemIdentifier, remoteName: String) -> String {

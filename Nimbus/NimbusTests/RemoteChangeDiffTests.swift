@@ -257,6 +257,56 @@ struct WorkingSetListingTests {
     }
 }
 
+@Suite("MovedFolderSnapshots")
+struct MovedFolderSnapshotsTests {
+    private static let root = "s3:a"
+
+    private static func folder(_ id: String) -> SyncedItemRecord {
+        SyncedItemRecord(identifier: id, name: id, isDir: true, size: 0, modTime: nil, keepState: 0)
+    }
+
+    private static func file(_ id: String) -> SyncedItemRecord {
+        SyncedItemRecord(identifier: id, name: id, isDir: false, size: 1, modTime: 1, keepState: 0)
+    }
+
+    private func stale(_ snapshots: [String: [SyncedItemRecord]]) -> [String] {
+        MovedFolderSnapshots.stale(root: Self.root) { snapshots[$0] }
+    }
+
+    @Test func noSnapshotForRootIsEmpty() {
+        #expect(stale([:]).isEmpty)
+    }
+
+    @Test func rootWithFilesOnlyReturnsRoot() {
+        #expect(stale(["s3:a": [Self.file("s3:a/doc.txt")]]) == ["s3:a"])
+    }
+
+    @Test func returnsRootAndListedDescendantsBreadthFirstSkippingUnlisted() {
+        let snapshots: [String: [SyncedItemRecord]] = [
+            "s3:a": [Self.folder("s3:a/listed"), Self.folder("s3:a/unlisted"), Self.file("s3:a/f")],
+            "s3:a/listed": [Self.folder("s3:a/listed/deep"), Self.file("s3:a/listed/g")],
+            "s3:a/listed/deep": [Self.file("s3:a/listed/deep/h")],
+        ]
+        #expect(stale(snapshots) == ["s3:a", "s3:a/listed", "s3:a/listed/deep"])
+    }
+
+    @Test func loopInSnapshotsTerminatesWithEachIdentifierOnce() {
+        let snapshots: [String: [SyncedItemRecord]] = [
+            "s3:a": [Self.folder("s3:a/sub"), Self.folder("s3:a/sub")],
+            "s3:a/sub": [Self.folder("s3:a"), Self.folder("s3:a/sub")],
+        ]
+        #expect(stale(snapshots) == ["s3:a", "s3:a/sub"])
+    }
+
+    @Test func siblingOutsideRootIsNeverReturned() {
+        let snapshots: [String: [SyncedItemRecord]] = [
+            "s3:a": [Self.file("s3:a/f")],
+            "s3:sibling": [Self.file("s3:sibling/g")],
+        ]
+        #expect(stale(snapshots) == ["s3:a"])
+    }
+}
+
 @Suite("NewlyListedLog")
 struct NewlyListedLogTests {
     @Test func linesRoundTripInOrderWithoutRepeats() {
