@@ -152,6 +152,28 @@ enum WorkingSetListing {
     }
 }
 
+/// The containers whose snapshots go stale when a folder moves: the folder
+/// itself and every descendant folder that was listed (has a snapshot).
+/// Walks the snapshots from `root`, no network; each identifier once.
+enum MovedFolderSnapshots {
+    static func stale(root: String, snapshot: (String) -> [SyncedItemRecord]?) -> [String] {
+        var stale: [String] = []
+        var seen: Set<String> = [root]
+        var queue = [root]
+        var index = 0
+        while index < queue.count {
+            let container = queue[index]
+            index += 1
+            guard let records = snapshot(container) else { continue }
+            stale.append(container)
+            for record in records where record.isDir && seen.insert(record.identifier).inserted {
+                queue.append(record.identifier)
+            }
+        }
+        return stale
+    }
+}
+
 /// Folders the system listed for the first time since the working set
 /// last reported. Their entries reach the system through the folder's own
 /// listing, which Spotlight doesn't index, so the working set reports them

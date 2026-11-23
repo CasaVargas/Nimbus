@@ -734,8 +734,20 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 let resultItem = try await FileProviderRetry.withReadRetry(rclone: rclone, logger: logger, operation: "modifyItem.stat") {
                     try await Self.fetchItemStatic(rclone: rclone, identifier: newIdentifier, remoteName: remoteName)
                 }
+                // The system takes a folder returned under a new identifier as already
+                // listed and empty; hand it the listing through the working set.
+                let movedFolderRelisted = if isDirectory, isRenameOrMove, workingPath != currentPath {
+                    await Self.relistMovedFolder(rclone: rclone, remoteName: remoteName,
+                                                 from: currentPath, to: workingPath, logger: logger)
+                } else {
+                    false
+                }
                 progress.completedUnitCount = progress.totalUnitCount
                 handler.value(resultItem, [], shouldFetchContent, nil)
+                if movedFolderRelisted {
+                    SyncSnapshotStore.markNewlyListed(remoteName: remoteName, containerIdentifier: newIdentifier)
+                    await Self.signalWorkingSet(domain: domainBox.value, logger: logger)
+                }
             } catch {
                 logger.error("modifyItem failed: \(error)")
                 handler.value(nil, [], false, Self.mapToFileProviderError(error))
@@ -1029,6 +1041,31 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         // change log; signalling alone is a no-op during the hot-scan cooldown.
         try? PinStore.shared?.markChanged(["\(remoteName):\(path)"], domain: remoteName)
         await signalWorkingSet(domain: domain, logger: logger)
+    }
+
+    /// Lists a moved folder at its new path and hands it to the snapshot
+    /// store (see `SyncSnapshotStore.folderMoved`). False if the listing
+    /// failed; the move itself has succeeded either way.
+    private static func relistMovedFolder(
+        rclone: RcloneClient, remoteName: String, from oldPath: String, to newPath: String, logger: Logger
+    ) async -> Bool {
+        do {
+            let listing = try await FileProviderRetry.withReadRetry(
+                rclone: rclone, logger: logger, operation: "modifyItem.relist", maxAttempts: 2
+            ) {
+                try await rclone.listFiles(fs: "\(remoteName):", remote: newPath)
+            }
+            SyncSnapshotStore.folderMoved(
+                remoteName: remoteName,
+                from: NSFileProviderItemIdentifier("\(remoteName):\(oldPath)"),
+                to: NSFileProviderItemIdentifier("\(remoteName):\(newPath)"),
+                listing: listing
+            )
+            return true
+        } catch {
+            logger.info("modifyItem.relist failed: \(String(describing: error), privacy: .public)")
+            return false
+        }
     }
 
     private static func signalWorkingSet(domain: NSFileProviderDomain, logger: Logger) async {
