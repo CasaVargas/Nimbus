@@ -1,0 +1,15 @@
+# Version updates for the actions our workflows use. Sparkle (the only Swift
+# package) is pinned in the Xcode project's Package.resolved, which Dependabot
+# can't read, so it is updated by hand.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+    labels: []
