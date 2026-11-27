@@ -37,7 +37,7 @@ jobs:
     timeout-minutes: 60
     continue-on-error: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Select newest Xcode 27
         run: |
@@ -116,7 +116,7 @@ jobs:
 
       - name: Upload test results
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: TestResults.xcresult
           path: TestResults.xcresult
@@ -133,7 +133,7 @@ jobs:
 
       - name: Upload snapshot failures
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: snapshot-failures
           path: snapshot-failures
@@ -144,7 +144,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Toolchain versions
         run: swift --version
