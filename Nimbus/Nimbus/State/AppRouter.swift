@@ -58,5 +58,14 @@ final class AppRouter {
         NSApp.activate()
     }
 
+    /// Shows Settings in front. A bare `SettingsLink` in the menu bar panel
+    /// opens the window without activating the app, so a menu-bar-only Nimbus
+    /// put it behind whatever app was frontmost.
+    func openSettings(_ openSettings: OpenSettingsAction) {
+        DockPolicy.applyForWindow()
+        NSApp.activate()
+        openSettings()
+    }
+
     static let mainWindowID = "main"
 }
