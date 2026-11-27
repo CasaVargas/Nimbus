@@ -31,6 +31,12 @@ struct BrowserView: View {
     /// Draws the gallery's pictures. Made with the view model, once the
     /// daemon client is known.
     @State private var thumbnailLoader: BrowserThumbnailLoader?
+    @State private var actionError: ActionError?
+
+    private struct ActionError: Equatable {
+        let title: String
+        let message: String
+    }
 
     var body: some View {
         Group {
@@ -51,8 +57,10 @@ struct BrowserView: View {
                         EmptyState(
                             icon: "folder",
                             title: "Empty Folder",
-                            message: "Drop files here or use ⌘N to create a folder.",
-                            action: .init(label: "New Folder", perform: { viewModel.showNewFolderDialog = true })
+                            message: viewModel.protectsTopLevel ? nil : "Drop files here or use ⌘N to create a folder.",
+                            action: viewModel.protectsTopLevel
+                                ? nil
+                                : .init(label: "New Folder", perform: { viewModel.showNewFolderDialog = true })
                         )
                     } else {
                         switch viewModel.viewMode {
@@ -72,7 +80,8 @@ struct BrowserView: View {
                                 ),
                                 onOpen: { file in handleOpen(file, viewModel: viewModel) },
                                 onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) },
-                                onQuickLook: { items in previewFiles(items) }
+                                onQuickLook: { items in previewFiles(items) },
+                                allowsModifying: !viewModel.protectsTopLevel
                             )
                         case .grid:
                             FileGrid(
@@ -80,7 +89,8 @@ struct BrowserView: View {
                                 remote: remoteName,
                                 selection: viewModel.selection,
                                 onOpen: { file in handleOpen(file, viewModel: viewModel) },
-                                onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) }
+                                onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) },
+                                allowsModifying: !viewModel.protectsTopLevel
                             )
                         case .gallery:
                             FileGallery(
@@ -90,7 +100,8 @@ struct BrowserView: View {
                                 thumbnails: thumbnailLoader,
                                 onOpen: { file in handleOpen(file, viewModel: viewModel) },
                                 onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) },
-                                onQuickLook: { items in previewFiles(items) }
+                                onQuickLook: { items in previewFiles(items) },
+                                allowsModifying: !viewModel.protectsTopLevel
                             )
                         }
                     }
@@ -128,9 +139,12 @@ struct BrowserView: View {
                     onBack: { Task { await viewModel.goBack() } },
                     onForward: { Task { await viewModel.goForward() } },
                     onNewFolder: { viewModel.showNewFolderDialog = true },
+                    canCreateFolder: !viewModel.protectsTopLevel,
                     onRefresh: { Task { await viewModel.loadFiles() } }
                 )))
                 .dropDestination(for: BrowserDrop.self) { drops, _ in
+                    // Nothing can be created at a fixed top level.
+                    if viewModel.protectsTopLevel { return false }
                     let (refs, urls) = BrowserDrop.split(drops)
                     // Files from Finder: ask where they go, with this folder filled in.
                     if let request = SendRequest(urls: urls) {
@@ -146,6 +160,7 @@ struct BrowserView: View {
                     goBack: { Task { await viewModel.goBack() } },
                     goForward: { Task { await viewModel.goForward() } },
                     newFolder: { viewModel.showNewFolderDialog = true },
+                    canCreateFolder: !viewModel.protectsTopLevel,
                     refresh: {
                         Task { await viewModel.loadFiles() }
                         // ⌘R refreshes this cloud in Finder too.
@@ -196,10 +211,15 @@ struct BrowserView: View {
                 set: { viewModel?.newFolderName = $0 }
             ))
             Button("Create") {
-                Task {
-                    if let viewModel {
-                        try? await viewModel.createFolder(name: viewModel.newFolderName)
-                        viewModel.newFolderName = ""
+                if let viewModel {
+                    let name = viewModel.newFolderName
+                    viewModel.newFolderName = ""
+                    Task {
+                        do {
+                            try await viewModel.createFolder(name: name)
+                        } catch {
+                            actionError = ActionError(title: "Couldn't Create Folder", message: NimbusError.classify(error).message)
+                        }
                     }
                 }
             }
@@ -215,10 +235,15 @@ struct BrowserView: View {
             ))
             Button("Rename") {
                 if let viewModel, let file = viewModel.renamingFile {
+                    let newName = viewModel.renameText
+                    viewModel.renamingFile = nil
+                    viewModel.renameText = ""
                     Task {
-                        try? await viewModel.renameItem(oldPath: file.path, newName: viewModel.renameText)
-                        viewModel.renamingFile = nil
-                        viewModel.renameText = ""
+                        do {
+                            try await viewModel.renameItem(oldPath: file.path, newName: newName)
+                        } catch {
+                            actionError = ActionError(title: "Couldn't Rename", message: NimbusError.classify(error).message)
+                        }
                     }
                 }
             }
@@ -226,6 +251,15 @@ struct BrowserView: View {
                 viewModel?.renamingFile = nil
                 viewModel?.renameText = ""
             }
+        }
+        .alert(
+            actionError?.title ?? "Couldn't Complete Action",
+            isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } }),
+            presenting: actionError
+        ) { _ in
+            Button("OK", role: .cancel) { actionError = nil }
+        } message: { current in
+            Text(verbatim: current.message)
         }
         .sheet(item: $pendingCopy) { _ in
             ConfirmCopySheet(request: $pendingCopy) { req in
@@ -356,6 +390,7 @@ struct BrowserView: View {
     }
 
     private func handleAction(_ file: FileItem, _ action: FileAction, viewModel: BrowserViewModel) {
+        if viewModel.protectsTopLevel, action == .rename || action == .delete { return }
         switch action {
         case .open:
             handleOpen(file, viewModel: viewModel)
@@ -363,7 +398,13 @@ struct BrowserView: View {
             viewModel.renamingFile = file
             viewModel.renameText = file.name
         case .delete:
-            Task { try? await viewModel.deleteItems(paths: [file.path]) }
+            Task {
+                do {
+                    try await viewModel.deleteItems(paths: [file.path])
+                } catch {
+                    actionError = ActionError(title: "Couldn't Delete", message: NimbusError.classify(error).message)
+                }
+            }
         case .bookmark:
             let label = file.name.isEmpty ? file.path : file.name
             bookmarkStore.addBookmark(remoteName: remoteName, path: file.path, label: label)

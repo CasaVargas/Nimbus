@@ -226,6 +226,14 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
             do {
                 try Task.checkCancellation()
                 let requestedPath = parentPath.isEmpty ? filename : "\(parentPath)/\(filename)"
+                if parentPath.isEmpty, try await Self.refusesAtFixedTopLevel(
+                    rclone: rclone, remoteName: remoteName, path: requestedPath,
+                    operation: "createItem", logger: logger
+                ) {
+                    // Kept on this Mac only; any other error is retried forever.
+                    handler.value(nil, [], false, NSFileProviderError(.excludedFromSync))
+                    return
+                }
                 var newPath = requestedPath
                 var shouldFetchContent = false
 
@@ -409,6 +417,28 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let task = Task { @Sendable in
             do {
                 try Task.checkCancellation()
+                let requestedPath = newParentPath.isEmpty ? newFilename : "\(newParentPath)/\(newFilename)"
+                if isRenameOrMove, requestedPath != currentPath,
+                   FixedTopLevelPolicy.isTopLevelPath(currentPath) || newParentPath.isEmpty,
+                   try await Self.refusesAtFixedTopLevel(
+                       rclone: rclone, remoteName: remoteName, path: currentPath,
+                       operation: "modifyItem", logger: logger
+                   ) {
+                    // Returning the item as it is on the server makes the
+                    // system undo the local rename or move. A content change
+                    // can't reach this path because the root is read-only on
+                    // disk and top-level folders have no contents.
+                    let serverItem = try await FileProviderRetry.withReadRetry(
+                        rclone: rclone, logger: logger, operation: "modifyItem.revert"
+                    ) {
+                        try await Self.fetchItemStatic(
+                            rclone: rclone, identifier: NSFileProviderItemIdentifier(systemIdentifier), remoteName: remoteName
+                        )
+                    }
+                    progress.completedUnitCount = progress.totalUnitCount
+                    handler.value(serverItem, [], false, nil)
+                    return
+                }
                 if mayAlreadyExist {
                     logger.info("modifyItem called with mayAlreadyExist for \(systemIdentifier, privacy: .private)")
                 }
@@ -778,6 +808,14 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let task = Task { @Sendable in
             do {
                 try Task.checkCancellation()
+                if FixedTopLevelPolicy.isTopLevelPath(remotePath), try await Self.refusesAtFixedTopLevel(
+                    rclone: rclone, remoteName: remoteName, path: remotePath,
+                    operation: "deleteItem", logger: logger
+                ) {
+                    // Reject so rclone never purges; the read-only root prevents
+                    // local unlinks since the system doesn't restore the folder.
+                    throw NSFileProviderError(.deletionRejected)
+                }
                 do {
                     try await FileProviderRetry.withWriteRetry(rclone: rclone, logger: logger, operation: "deleteItem") { _ in
                         // `deleteItem` only gets an identifier — a path — not the
@@ -840,6 +878,28 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     }
 
     // MARK: - Static Helpers (Sendable-safe)
+
+    /// Whether to refuse a top-level change on a remote with fixed top-level
+    /// entries, checked before any rclone write: deleting a top-level folder
+    /// can purge its entire backing storage, and renaming, moving, or creating
+    /// at the root fails with a misleading 404.
+    private static func refusesAtFixedTopLevel(
+        rclone: RcloneClient,
+        remoteName: String,
+        path: String,
+        operation: String,
+        logger: Logger
+    ) async throws -> Bool {
+        let fixedTopLevel = try await FileProviderRetry.withReadRetry(
+            rclone: rclone, logger: logger, operation: "\(operation).fixedTopLevelCheck"
+        ) {
+            try await rclone.hasFixedTopLevel(fs: "\(remoteName):")
+        }
+        if fixedTopLevel {
+            logger.info("Refused \(operation, privacy: .public) at fixed top level: \(path, privacy: .private)")
+        }
+        return fixedTopLevel
+    }
 
     static func fetchItemStatic(
         rclone: RcloneClient,

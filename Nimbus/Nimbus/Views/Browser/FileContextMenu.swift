@@ -14,6 +14,8 @@ enum FileAction {
 struct FileContextMenu: View {
     let file: FileItem
     let onAction: (FileAction) -> Void
+    /// False for fixed top-level folders.
+    var allowsModifying = true
 
     var body: some View {
         Button("Open") { onAction(.open) }
@@ -34,9 +36,11 @@ struct FileContextMenu: View {
                 Label("Share…", systemImage: "square.and.arrow.up")
             }
         }
-        Divider()
-        Button("Rename") { onAction(.rename) }
-        Divider()
-        Button("Delete", role: .destructive) { onAction(.delete) }
+        if allowsModifying {
+            Divider()
+            Button("Rename") { onAction(.rename) }
+            Divider()
+            Button("Delete", role: .destructive) { onAction(.delete) }
+        }
     }
 }

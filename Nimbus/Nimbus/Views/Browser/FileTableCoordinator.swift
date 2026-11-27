@@ -19,6 +19,8 @@ final class FileTableCoordinator: NSObject {
     let keyboard: KeyboardCoordinator
     var onOpen: (FileItem) -> Void
     var onContextAction: (FileItem, FileAction) -> Void
+    /// False for fixed top-level folders: no Rename or Delete.
+    var allowsModifying = true
     var onQuickLook: ([FileItem]) -> Void
     var onSortHeaderClick: (SortField) -> Void
 
@@ -235,7 +237,7 @@ extension FileTableCoordinator: FileTableKeyResponding {
             }
             return true
         case 51, 117: // delete / forward-delete → context delete
-            if let id = selection.anchor, let f = files.first(where: { $0.id == id }) {
+            if allowsModifying, let id = selection.anchor, let f = files.first(where: { $0.id == id }) {
                 onContextAction(f, .delete)
             }
             return true
@@ -279,9 +281,11 @@ extension FileTableCoordinator: FileTableKeyResponding {
         if f.isDir { add("Add to Bookmarks", .bookmark) }
         // Download Now / Remove Local Copy stay out of this menu (and out of
         // FileContextMenu) until the NSFileProviderManager calls are wired.
-        menu.addItem(.separator())
-        add("Rename", .rename)
-        add("Delete", .delete)
+        if allowsModifying {
+            menu.addItem(.separator())
+            add("Rename", .rename)
+            add("Delete", .delete)
+        }
         return menu
     }
 

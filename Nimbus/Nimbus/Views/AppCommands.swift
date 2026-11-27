@@ -10,6 +10,7 @@ struct BrowserMenuActions {
     var goBack: () -> Void
     var goForward: () -> Void
     var newFolder: () -> Void
+    var canCreateFolder = true
     var refresh: () -> Void
     var setViewMode: (ViewMode) -> Void
 }
@@ -35,7 +36,7 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Folder") { browser?.newFolder() }
                 .keyboardShortcut("n")
-                .disabled(browser == nil)
+                .disabled(browser == nil || browser?.canCreateFolder == false)
         }
 
         CommandGroup(after: .toolbar) {

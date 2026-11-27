@@ -33,7 +33,17 @@ final class FileProviderItem: NSObject, NSFileProviderItem, NSFileProviderItemDe
     /// `me@example.com` shows as `me@example`, and files lose their
     /// extensions. Existing items pick this up through the working set's
     /// anchor format 2 (`WorkingSetAnchor`).
-    var fileSystemFlags: NSFileProviderFileSystemFlags { [.userReadable, .userWritable] }
+    ///
+    /// A remote with fixed top-level entries keeps its root read-only on disk
+    /// so `mkdir`, `mv`, and unlinking top-level entries fail locally instead
+    /// of reaching the extension (File Provider grants directory traverse `+x`
+    /// automatically, yielding mode `0500`). Note that `rm -rf <folder>` still
+    /// walks into a writable top-level folder and deletes its contents before
+    /// failing on `rmdir`; the extension guard remains the backstop.
+    var fileSystemFlags: NSFileProviderFileSystemFlags {
+        isReadOnlyRoot ? [.userReadable] : [.userReadable, .userWritable]
+    }
+    private let isReadOnlyRoot: Bool
 
     /// Pinned with Keep Downloaded (directly, not via a folder).
     let isPinned: Bool
@@ -96,7 +106,8 @@ final class FileProviderItem: NSObject, NSFileProviderItem, NSFileProviderItemDe
     /// An entry from a persisted snapshot (the working set's item listing).
     /// The version comes from the stored seconds, byte for byte the version
     /// the folder's own listing reported, so the system sees no change.
-    convenience init(record: SyncedItemRecord, parentIdentifier: NSFileProviderItemIdentifier, remoteName: String) {
+    convenience init(record: SyncedItemRecord, parentIdentifier: NSFileProviderItemIdentifier, remoteName: String,
+                     hasFixedTopLevel: Bool? = nil) {
         let prefix = "\(remoteName):"
         let path = record.identifier.hasPrefix(prefix) ? String(record.identifier.dropFirst(prefix.count)) : record.identifier
         let file = FileItem(
@@ -104,11 +115,12 @@ final class FileProviderItem: NSObject, NSFileProviderItem, NSFileProviderItemDe
             modTime: record.modTime.map { Date(timeIntervalSince1970: $0) }, isDir: record.isDir,
             fileID: nil, qualifiedRemotePath: record.identifier
         )
-        self.init(from: file, parentIdentifier: parentIdentifier, remoteName: remoteName, versionSeconds: record.modTime)
+        self.init(from: file, parentIdentifier: parentIdentifier, remoteName: remoteName,
+                  versionSeconds: record.modTime, hasFixedTopLevel: hasFixedTopLevel)
     }
 
     private init(from file: FileItem, parentIdentifier: NSFileProviderItemIdentifier, remoteName: String,
-                 versionSeconds: TimeInterval?) {
+                 versionSeconds: TimeInterval?, hasFixedTopLevel: Bool? = nil) {
         let fullPath = file.path
         self.fullPath = fullPath
         let identifier = NSFileProviderItemIdentifier("\(remoteName):\(fullPath)")
@@ -123,33 +135,44 @@ final class FileProviderItem: NSObject, NSFileProviderItem, NSFileProviderItemDe
         let uploadFailed = UploadFailureStore.shared?.hasFailed(identifier.rawValue, domain: remoteName) ?? false
         self.uploadFailed = uploadFailed
         self.isRoot = false
+        self.isReadOnlyRoot = false
         self.filename = file.name
         self.contentModificationDate = file.modTime
         self.creationDate = file.modTime
 
+        let fixedTopLevel = hasFixedTopLevel ?? (CloudCapabilities.shared?.hasFixedTopLevel(cloud: remoteName) ?? false)
+        let isTopLevel = parentIdentifier == .rootContainer
         if file.isDir {
             self.contentType = .folder
             self.documentSize = nil
-            self.capabilities = [.allowsReading, .allowsContentEnumerating, .allowsAddingSubItems, .allowsRenaming, .allowsDeleting]
+            if fixedTopLevel && isTopLevel {
+                // Top-level folders are fixed by the remote's configuration:
+                // they cannot be renamed or deleted, only modified inside.
+                self.capabilities = [.allowsReading, .allowsContentEnumerating, .allowsAddingSubItems]
+            } else {
+                self.capabilities = [.allowsReading, .allowsContentEnumerating, .allowsAddingSubItems, .allowsRenaming, .allowsDeleting]
+            }
         } else {
             self.contentType = UTType(filenameExtension: (file.name as NSString).pathExtension) ?? .data
             self.documentSize = ItemSize.documentSize(listed: file.size).map { NSNumber(value: $0) }
             self.capabilities = [.allowsReading, .allowsWriting, .allowsRenaming, .allowsDeleting]
         }
 
-        // The pin and badge state are metadata: folding them into the
-        // metadata version tells the system the item changed (re-read its
-        // content policy and decorations) while the unchanged content
-        // version means nothing re-downloads.
+        // The pin, badge, and fixed-top-level state are metadata: folding them
+        // into the metadata version tells the system the item changed (re-read
+        // capabilities, content policy, and decorations) while the unchanged
+        // content version means nothing re-downloads.
         var metadataVersion = ItemVersionBytes.seconds(versionSeconds)
         metadataVersion.append(contentsOf: ItemBadges.metadataSuffix(
             keepState: Self.keepState(pinned: pinned, keptByFolder: keptByFolder), uploadFailed: uploadFailed))
+        metadataVersion.append(contentsOf: FixedTopLevelPolicy.childMetadataSuffix(
+            isDir: file.isDir, isTopLevel: isTopLevel, hasFixedTopLevel: fixedTopLevel))
         let contentVersion = ItemVersionBytes.content(seconds: versionSeconds, size: file.size, isDir: file.isDir)
         self.itemVersion = NSFileProviderItemVersion(contentVersion: contentVersion, metadataVersion: metadataVersion)
     }
 
     private init(identifier: NSFileProviderItemIdentifier, parent: NSFileProviderItemIdentifier, name: String,
-                 remoteName: String) {
+                 remoteName: String, hasFixedTopLevel: Bool? = nil) {
         self.itemIdentifier = identifier
         self.isPinned = PinStore.shared?.isPinned(identifier.rawValue, domain: remoteName) ?? false
         self.isKeptByFolder = false
@@ -162,17 +185,31 @@ final class FileProviderItem: NSObject, NSFileProviderItem, NSFileProviderItemDe
         self.documentSize = nil
         self.contentModificationDate = nil
         self.creationDate = nil
-        self.capabilities = [.allowsReading, .allowsContentEnumerating, .allowsAddingSubItems]
-        self.itemVersion = NSFileProviderItemVersion(contentVersion: Data([0]), metadataVersion: Data([0]))
+        let fixedTopLevel = hasFixedTopLevel ?? (CloudCapabilities.shared?.hasFixedTopLevel(cloud: remoteName) ?? false)
+        self.isReadOnlyRoot = fixedTopLevel
+        self.capabilities = fixedTopLevel
+            ? [.allowsReading, .allowsContentEnumerating]
+            : [.allowsReading, .allowsContentEnumerating, .allowsAddingSubItems]
+        // A different metadata version makes the system re-read the root's
+        // capabilities and file-system flags when fixed-top-level state changes.
+        self.itemVersion = NSFileProviderItemVersion(
+            contentVersion: Data([0]),
+            metadataVersion: FixedTopLevelPolicy.rootMetadataVersion(hasFixedTopLevel: fixedTopLevel)
+        )
         self.fullPath = ""
     }
 
     static func rootContainer(domain: NSFileProviderDomain) -> FileProviderItem {
+        rootContainer(remoteName: domain.identifier.rawValue, displayName: domain.displayName)
+    }
+
+    static func rootContainer(remoteName: String, displayName: String, hasFixedTopLevel: Bool? = nil) -> FileProviderItem {
         FileProviderItem(
             identifier: .rootContainer,
             parent: .rootContainer,
-            name: domain.displayName,
-            remoteName: domain.identifier.rawValue
+            name: displayName,
+            remoteName: remoteName,
+            hasFixedTopLevel: hasFixedTopLevel
         )
     }
 

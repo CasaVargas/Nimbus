@@ -15,6 +15,23 @@ enum SortField: String, CaseIterable {
 
 typealias BrowserError = NimbusError
 
+enum BrowserActionError: LocalizedError, Equatable, Sendable {
+    case fixedTopLevelDelete
+    case fixedTopLevelRename
+    case fixedTopLevelCreate
+
+    var errorDescription: String? {
+        switch self {
+        case .fixedTopLevelDelete:
+            "Top-level folders in this cloud are fixed by its configuration. Deleting one would erase everything inside it, so Nimbus doesn't allow it."
+        case .fixedTopLevelRename:
+            "Top-level folders in this cloud are fixed by its configuration, so Nimbus doesn't allow renaming them."
+        case .fixedTopLevelCreate:
+            "New folders can't be created at the top level of this cloud. Open one of its folders first."
+        }
+    }
+}
+
 @Observable
 @MainActor
 final class BrowserViewModel {
@@ -94,6 +111,13 @@ final class BrowserViewModel {
 
     var fs: String { "\(remote):" }
 
+    /// True when this remote's top-level entries are fixed by its
+    /// configuration and cannot be created, renamed, moved, or deleted.
+    private(set) var hasFixedTopLevel = false
+
+    /// The listing shows those top-level folders: don't offer to change them.
+    var protectsTopLevel: Bool { hasFixedTopLevel && path.isEmpty }
+
     func loadFiles() async {
         let cacheKey = "\(remote):\(path)"
         if let cached = cache[cacheKey] {
@@ -111,6 +135,11 @@ final class BrowserViewModel {
             slowTimer.cancel()
             isLoading = false
             isSlow = false
+        }
+
+        let checking = remote
+        if let result = try? await client.hasFixedTopLevel(fs: "\(checking):"), checking == remote {
+            hasFixedTopLevel = result
         }
 
         do {
@@ -180,12 +209,19 @@ final class BrowserViewModel {
     }
 
     func createFolder(name: String) async throws {
+        if path.isEmpty, try await client.hasFixedTopLevel(fs: fs) {
+            throw BrowserActionError.fixedTopLevelCreate
+        }
         let folderPath = path.isEmpty ? name : "\(path)/\(name)"
         try await client.createFolder(fs: fs, remote: folderPath)
         await loadFiles()
     }
 
     func deleteItems(paths: [String]) async throws {
+        // Purging a fixed top-level folder can wipe its entire backing storage.
+        if paths.contains(where: FixedTopLevelPolicy.isTopLevelPath), try await client.hasFixedTopLevel(fs: fs) {
+            throw BrowserActionError.fixedTopLevelDelete
+        }
         for itemPath in paths {
             if let file = files.first(where: { $0.path == itemPath }) {
                 if file.isDir {
@@ -200,6 +236,9 @@ final class BrowserViewModel {
     }
 
     func renameItem(oldPath: String, newName: String) async throws {
+        if FixedTopLevelPolicy.isTopLevelPath(oldPath), try await client.hasFixedTopLevel(fs: fs) {
+            throw BrowserActionError.fixedTopLevelRename
+        }
         let parentPath = oldPath.contains("/")
             ? String(oldPath[oldPath.startIndex..<oldPath.lastIndex(of: "/")!])
             : ""

@@ -23,6 +23,7 @@ struct FileTableRepresentable: NSViewRepresentable {
     let onOpen: (FileItem) -> Void
     let onContextAction: (FileItem, FileAction) -> Void
     let onQuickLook: ([FileItem]) -> Void
+    var allowsModifying = true
 
     @Environment(TransferStore.self) private var transferStore
     @Environment(FileProviderBridge.self) private var fileProviderBridge
@@ -83,6 +84,7 @@ struct FileTableRepresentable: NSViewRepresentable {
         coord.onOpen = onOpen
         coord.onContextAction = onContextAction
         coord.onQuickLook = onQuickLook
+        coord.allowsModifying = allowsModifying
         coord.transferStore = transferStore
         coord.fileProviderBridge = fileProviderBridge
         // Only reassign `files` (O(n) rebuildRowIndex didSet) and reload the

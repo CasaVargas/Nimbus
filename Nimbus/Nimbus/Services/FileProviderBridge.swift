@@ -98,6 +98,9 @@ final class FileProviderBridge {
             return
         }
         try await NSFileProviderManager.remove(domain)
+        if let base = AppGroup.containerURL {
+            FixedTopLevelPolicy.clearReportedState(remoteName: identifier, base: base)
+        }
         logger.info("Removed File Provider domain: \(identifier)")
     }
 
@@ -257,6 +260,9 @@ final class FileProviderBridge {
                 }
                 do {
                     try await NSFileProviderManager.remove(domain)
+                    if let base = AppGroup.containerURL {
+                        FixedTopLevelPolicy.clearReportedState(remoteName: id, base: base)
+                    }
                     removed.append(id)
                     logger.info("Cleaned up stale domain: \(id)")
                 } catch {
