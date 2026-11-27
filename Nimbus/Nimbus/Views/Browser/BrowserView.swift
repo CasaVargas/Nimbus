@@ -31,6 +31,12 @@ struct BrowserView: View {
     /// Draws the gallery's pictures. Made with the view model, once the
     /// daemon client is known.
     @State private var thumbnailLoader: BrowserThumbnailLoader?
+    @State private var actionError: ActionError?
+
+    private struct ActionError: Equatable {
+        let title: String
+        let message: String
+    }
 
     var body: some View {
         Group {
@@ -196,10 +202,15 @@ struct BrowserView: View {
                 set: { viewModel?.newFolderName = $0 }
             ))
             Button("Create") {
-                Task {
-                    if let viewModel {
-                        try? await viewModel.createFolder(name: viewModel.newFolderName)
-                        viewModel.newFolderName = ""
+                if let viewModel {
+                    let name = viewModel.newFolderName
+                    viewModel.newFolderName = ""
+                    Task {
+                        do {
+                            try await viewModel.createFolder(name: name)
+                        } catch {
+                            actionError = ActionError(title: "Couldn't Create Folder", message: NimbusError.classify(error).message)
+                        }
                     }
                 }
             }
@@ -215,10 +226,15 @@ struct BrowserView: View {
             ))
             Button("Rename") {
                 if let viewModel, let file = viewModel.renamingFile {
+                    let newName = viewModel.renameText
+                    viewModel.renamingFile = nil
+                    viewModel.renameText = ""
                     Task {
-                        try? await viewModel.renameItem(oldPath: file.path, newName: viewModel.renameText)
-                        viewModel.renamingFile = nil
-                        viewModel.renameText = ""
+                        do {
+                            try await viewModel.renameItem(oldPath: file.path, newName: newName)
+                        } catch {
+                            actionError = ActionError(title: "Couldn't Rename", message: NimbusError.classify(error).message)
+                        }
                     }
                 }
             }
@@ -226,6 +242,15 @@ struct BrowserView: View {
                 viewModel?.renamingFile = nil
                 viewModel?.renameText = ""
             }
+        }
+        .alert(
+            actionError?.title ?? "Couldn't Complete Action",
+            isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } }),
+            presenting: actionError
+        ) { _ in
+            Button("OK", role: .cancel) { actionError = nil }
+        } message: { current in
+            Text(verbatim: current.message)
         }
         .sheet(item: $pendingCopy) { _ in
             ConfirmCopySheet(request: $pendingCopy) { req in
@@ -363,7 +388,13 @@ struct BrowserView: View {
             viewModel.renamingFile = file
             viewModel.renameText = file.name
         case .delete:
-            Task { try? await viewModel.deleteItems(paths: [file.path]) }
+            Task {
+                do {
+                    try await viewModel.deleteItems(paths: [file.path])
+                } catch {
+                    actionError = ActionError(title: "Couldn't Delete", message: NimbusError.classify(error).message)
+                }
+            }
         case .bookmark:
             let label = file.name.isEmpty ? file.path : file.name
             bookmarkStore.addBookmark(remoteName: remoteName, path: file.path, label: label)
