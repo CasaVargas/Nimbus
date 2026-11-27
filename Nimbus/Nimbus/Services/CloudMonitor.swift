@@ -49,13 +49,18 @@ final class CloudMonitor {
     }
 
     /// Production wiring: list via `RemotesViewModel`, refresh on change notices.
-    static func live(client: RcloneClient, status: RemoteStatusService) -> CloudMonitor {
+    static func live(
+        client: RcloneClient,
+        status: RemoteStatusService,
+        onRemotesLoaded: @escaping @MainActor ([Remote]) async -> Void = { _ in }
+    ) -> CloudMonitor {
         let monitor = CloudMonitor(loadRemotes: {
             let model = RemotesViewModel(client: client)
             await model.loadRemotes()
             return model.error == nil ? model.remotes : nil
         }, status: status, afterLoad: { remotes in
             await recordCapabilities(of: remotes, client: client)
+            await onRemotesLoaded(remotes)
             // Every refresh is also Finder's chance to pick up server-side
             // changes: the working-set signal makes the extension re-list
             // the folders it knows about.

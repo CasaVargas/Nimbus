@@ -49,6 +49,10 @@ final class FileProviderBridge {
     /// key by remote only. TTL = 5s to avoid hammering FP on every scroll.
     private let materializedCache = TimedCache<String, Set<String>>(ttl: .seconds(5))
 
+    /// Serializes `reconcileDomains` calls so overlapping daemon-connect and
+    /// monitor refreshes never interleave their awaits.
+    private var reconcileTask: Task<Void, Never>?
+
     func refreshDomains() async {
         do {
             let domains = try await NSFileProviderManager.domains()
@@ -59,6 +63,10 @@ final class FileProviderBridge {
     }
 
     func addDomain(identifier: String, displayName: String) async throws {
+        // Record the remote as known before any await so a concurrent
+        // reconcile can't treat an explicit "Show in Finder" as a new remote
+        // and hide it when "Show new clouds in Finder" is off.
+        recordKnownRemote(identifier)
         let existing = try await NSFileProviderManager.domains()
         if let current = existing.first(where: { $0.identifier.rawValue == identifier }) {
             // Already registered — leave it alone. Removing and re-adding
@@ -69,12 +77,7 @@ final class FileProviderBridge {
             // One exception: a domain registered before system search was
             // supported is updated in place. `add` with the same identifier
             // changes the domain's properties; it doesn't remove anything.
-            if #available(macOS 26.0, *), !current.supportsStringSearchRequest {
-                let updated = NSFileProviderDomain(identifier: current.identifier, displayName: current.displayName)
-                updated.supportsStringSearchRequest = true
-                try await NSFileProviderManager.add(updated)
-                logger.info("Turned on system search for File Provider domain: \(identifier)")
-            }
+            try await turnOnSearchIfNeeded(current)
             return
         }
 
@@ -89,6 +92,15 @@ final class FileProviderBridge {
         }
         try await NSFileProviderManager.add(domain)
         logger.info("Added File Provider domain: \(identifier)")
+    }
+
+    private func turnOnSearchIfNeeded(_ domain: NSFileProviderDomain) async throws {
+        if #available(macOS 26.0, *), !domain.supportsStringSearchRequest {
+            let updated = NSFileProviderDomain(identifier: domain.identifier, displayName: domain.displayName)
+            updated.supportsStringSearchRequest = true
+            try await NSFileProviderManager.add(updated)
+            logger.info("Turned on system search for File Provider domain: \(domain.identifier.rawValue)")
+        }
     }
 
     func removeDomain(identifier: String) async throws {
@@ -158,23 +170,174 @@ final class FileProviderBridge {
         ]
     }
 
-    /// Full domain sync for a freshly connected daemon: push port + remotes
-    /// to the extension, register a domain per remote (except user-disabled
-    /// ones), drop domains for remotes that no longer exist, refresh the
-    /// active set, and signal enumerators. Idempotent — safe to call again
-    /// after every daemon (re)start, which is exactly when the extension's
-    /// port knowledge goes stale.
+    /// Full domain sync for a freshly connected daemon: reconcile registered
+    /// domains with the live remote list (pushing port + remotes to the
+    /// extension, adding missing domains, and dropping confirmed-stale ones),
+    /// run any one-shot schema re-import, and signal enumerators. Idempotent —
+    /// safe to call again after every daemon (re)start, which is exactly when
+    /// the extension's port knowledge goes stale.
     func syncAfterDaemonConnect(
-        remotes: [String], port: Int, credentials: RCCredentials?, disabledDomains: Set<String>
+        remotes: [String], port: Int, credentials: RCCredentials?, settings: AppSettings
     ) async {
-        syncState(remotes: remotes, port: port, credentials: credentials)
-        for remote in fileProviderReconnectEligibleRemotes(from: remotes, excluding: disabledDomains) {
-            try? await addDomain(identifier: remote, displayName: remote)
-        }
-        _ = await cleanupStaleDomains(activeRemotes: remotes)
-        await refreshDomains()
+        await reconcileDomains(remotes: remotes, port: port, credentials: credentials, settings: settings)
         await reimportIfSchemaChanged()
         await signalAllDomains()
+    }
+
+    /// Reconciles registered File Provider domains against `remotes`,
+    /// serialized so overlapping refreshes never interleave.
+    ///
+    /// A domain is only removed after its remote has stayed missing for at
+    /// least `FileProviderDomainReconciler.staleConfirmationInterval` (60 s):
+    /// a single `listremotes` snapshot can be transiently partial (rclone
+    /// rewrites `rclone.conf` during OAuth token refresh, and two back-to-back
+    /// reconciles on connect could read the same partial file) — and removing
+    /// a domain destroys Finder's local replica, which is not a mistake to
+    /// make on flaky evidence.
+    func reconcileDomains(
+        remotes: [String], port: Int, credentials: RCCredentials?, settings: AppSettings
+    ) async {
+        let previous = reconcileTask
+        let task = Task {
+            await previous?.value
+            await self.performReconcile(
+                remotes: remotes, port: port, credentials: credentials, settings: settings
+            )
+        }
+        reconcileTask = task
+        await task.value
+        if reconcileTask == task { reconcileTask = nil }
+    }
+
+    private static let knownRemotesKey = "fpKnownRemotes"
+    private static let pendingStaleSinceKey = "fpPendingStaleSince"
+    private static let legacyPendingStaleKey = "fpPendingStaleDomains"
+
+    private func recordKnownRemote(_ identifier: String) {
+        // Before the first reconcile there's no set yet; creating one here
+        // would skip the first-run seeding and make every other remote "new".
+        let defaults = UserDefaults.standard
+        guard let stored = defaults.stringArray(forKey: Self.knownRemotesKey) else { return }
+        var known = Set(stored)
+        if known.insert(identifier).inserted {
+            defaults.set(Array(known).sorted(), forKey: Self.knownRemotesKey)
+        }
+    }
+
+    private func readKnownRemotes() -> Set<String>? {
+        UserDefaults.standard.stringArray(forKey: Self.knownRemotesKey).map(Set.init)
+    }
+
+    private func readPendingStale() -> [String: Date] {
+        let defaults = UserDefaults.standard
+        if let stored = defaults.dictionary(forKey: Self.pendingStaleSinceKey) as? [String: Date] {
+            return stored
+        }
+        if let legacy = defaults.stringArray(forKey: Self.legacyPendingStaleKey) {
+            return FileProviderDomainReconciler.migratedPendingStale(legacy: legacy)
+        }
+        return [:]
+    }
+
+    private func performReconcile(
+        remotes: [String], port: Int, credentials: RCCredentials?, settings: AppSettings
+    ) async {
+        syncState(remotes: remotes, port: port, credentials: credentials)
+        let domains: [NSFileProviderDomain]
+        do {
+            domains = try await NSFileProviderManager.domains()
+        } catch {
+            logger.error("File Provider not available: \(FileProviderErrorText.describe(error), privacy: .public)")
+            return
+        }
+
+        // Read settings and persisted state after the await so any switch flip
+        // or addDomain that happened during `domains()` is visible here.
+        let now = Date()
+        let known = readKnownRemotes()
+        let pendingStale = readPendingStale()
+        let registered = Set(domains.map(\.identifier.rawValue))
+        let plan = FileProviderDomainReconciler.plan(
+            remotes: remotes,
+            registered: registered,
+            disabled: settings.disabledFileProviderDomains,
+            known: known,
+            pendingStale: pendingStale,
+            addNewRemotesToFinder: settings.addNewRemotesToFinder,
+            now: now
+        )
+
+        if !plan.newlyDisabled.isEmpty {
+            settings.disabledFileProviderDomains.formUnion(plan.newlyDisabled)
+            logger.info("Kept \(plan.newlyDisabled.count) new cloud(s) out of Finder because \"Show new clouds in Finder\" is off")
+        }
+
+        let remoteSet = Set(remotes)
+        for domain in domains {
+            let id = domain.identifier.rawValue
+            guard remoteSet.contains(id), !settings.disabledFileProviderDomains.contains(id) else { continue }
+            do {
+                try await turnOnSearchIfNeeded(domain)
+            } catch {
+                logger.warning("Failed to turn on system search for File Provider domain \(id): \(FileProviderErrorText.describe(error), privacy: .public)")
+            }
+        }
+
+        for name in plan.toAdd {
+            if settings.disabledFileProviderDomains.contains(name) { continue }
+            do {
+                try await addDomain(identifier: name, displayName: name)
+            } catch {
+                logger.warning("Failed to add File Provider domain \(name): \(FileProviderErrorText.describe(error), privacy: .public)")
+                continue
+            }
+            // If the user hid the cloud (or a failed show rolled back) while
+            // addDomain was in flight, undo the registration.
+            if settings.disabledFileProviderDomains.contains(name) {
+                do {
+                    try await removeDomain(identifier: name)
+                } catch {
+                    logger.warning("Failed to undo File Provider domain \(name) after it was disabled: \(FileProviderErrorText.describe(error), privacy: .public)")
+                }
+            }
+        }
+
+        let domainsByID = Dictionary(
+            domains.map { ($0.identifier.rawValue, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        var failedRemovals: Set<String> = []
+        for id in plan.toRemove {
+            guard let domain = domainsByID[id] else { continue }
+            do {
+                try await NSFileProviderManager.remove(domain)
+                if let base = AppGroup.containerURL {
+                    FixedTopLevelPolicy.clearReportedState(remoteName: id, base: base)
+                }
+                logger.info("Cleaned up stale domain: \(id)")
+            } catch {
+                logger.warning("Failed to remove stale domain \(id): \(FileProviderErrorText.describe(error), privacy: .public)")
+                failedRemovals.insert(id)
+            }
+        }
+
+        let saved = FileProviderDomainReconciler.finalized(
+            plan: plan,
+            liveKnown: readKnownRemotes() ?? [],
+            previousPendingStale: pendingStale,
+            failedRemovals: failedRemovals,
+            now: now
+        )
+        let defaults = UserDefaults.standard
+        defaults.set(Array(saved.known).sorted(), forKey: Self.knownRemotesKey)
+        defaults.set(saved.pendingStale, forKey: Self.pendingStaleSinceKey)
+        defaults.removeObject(forKey: Self.legacyPendingStaleKey)
+
+        for id in saved.pendingStale.keys.sorted() where pendingStale[id] == nil && registered.contains(id) {
+            logger.info("Domain \(id) missing from remotes; flagged for removal if still missing on a later sync")
+        }
+
+        await refreshDomains()
     }
 
     /// One-shot migration: when the extension's identifier scheme has
@@ -235,45 +398,6 @@ final class FileProviderBridge {
         } catch {
             logger.error("Failed to signal domains: \(FileProviderErrorText.describe(error), privacy: .public)")
         }
-    }
-
-    /// Domains flagged stale on the previous sync. A domain is only removed
-    /// after two consecutive syncs agree its remote is gone: a single
-    /// listremotes snapshot can be transiently partial (rclone rewrites
-    /// rclone.conf during OAuth token refresh, and a concurrent reader can
-    /// catch it mid-write) — and removing a domain destroys Finder's local
-    /// replica, which is not a mistake to make on flaky evidence.
-    private static let pendingStaleKey = "fpPendingStaleDomains"
-
-    func cleanupStaleDomains(activeRemotes: [String]) async -> [String] {
-        var removed: [String] = []
-        do {
-            let domains = try await NSFileProviderManager.domains()
-            let staleNow = Set(domains.map(\.identifier.rawValue)).subtracting(activeRemotes)
-            let pendingStale = Set(UserDefaults.standard.stringArray(forKey: Self.pendingStaleKey) ?? [])
-            for domain in domains {
-                let id = domain.identifier.rawValue
-                guard staleNow.contains(id) else { continue }
-                guard pendingStale.contains(id) else {
-                    logger.info("Domain \(id) missing from remotes; flagged for removal if still missing next sync")
-                    continue
-                }
-                do {
-                    try await NSFileProviderManager.remove(domain)
-                    if let base = AppGroup.containerURL {
-                        FixedTopLevelPolicy.clearReportedState(remoteName: id, base: base)
-                    }
-                    removed.append(id)
-                    logger.info("Cleaned up stale domain: \(id)")
-                } catch {
-                    logger.warning("Failed to remove stale domain \(id): \(FileProviderErrorText.describe(error), privacy: .public)")
-                }
-            }
-            UserDefaults.standard.set(Array(staleNow).sorted(), forKey: Self.pendingStaleKey)
-        } catch {
-            logger.error("File Provider not available: \(FileProviderErrorText.describe(error), privacy: .public)")
-        }
-        return removed
     }
 }
 

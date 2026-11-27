@@ -44,9 +44,14 @@ struct NimbusApp: App {
         _daemon = State(initialValue: d)
         let status = RemoteStatusService(client: d.client)
         _statusService = State(initialValue: status)
-        let monitor = CloudMonitor.live(client: d.client, status: status)
-        _cloudMonitor = State(initialValue: monitor)
         let bridge = FileProviderBridge()
+        let monitor = CloudMonitor.live(client: d.client, status: status, onRemotesLoaded: { remotes in
+            // A remote added outside Nimbus (rclone config) only shows up here.
+            guard LaunchContext.current.managesSystemProcesses, d.status == .connected else { return }
+            await bridge.reconcileDomains(remotes: remotes.map(\.name), port: d.port,
+                                          credentials: d.client.credentials, settings: settings)
+        })
+        _cloudMonitor = State(initialValue: monitor)
         _fileProviderBridge = State(initialValue: bridge)
         _storageModel = State(initialValue: DownloadedStorageModel(source: .live(bridge: bridge)))
         _settings = State(initialValue: settings)
@@ -434,7 +439,7 @@ struct NimbusApp: App {
                 remotes: remotes,
                 port: daemon.port,
                 credentials: daemon.client.credentials,
-                disabledDomains: settings.disabledFileProviderDomains
+                settings: settings
             )
         } catch {
             // Non-fatal — a later reconnect retriggers this task.
