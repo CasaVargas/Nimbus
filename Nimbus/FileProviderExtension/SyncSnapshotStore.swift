@@ -193,6 +193,20 @@ enum SyncSnapshotStore {
             .appendingPathComponent("remote-generation", isDirectory: false)
     }
 
+    // MARK: - Reported fixed-top-level state
+
+    static func reportedFixedTopLevel(remoteName: String) -> Bool? {
+        guard let base = FileProviderRetry.appGroupContainerURL() else { return nil }
+        return FixedTopLevelPolicy.readReportedState(remoteName: remoteName, base: base)
+    }
+
+    static func recordReportedFixedTopLevel(_ value: Bool, remoteName: String) {
+        guard let base = FileProviderRetry.appGroupContainerURL() else { return }
+        if !FixedTopLevelPolicy.writeReportedState(value, remoteName: remoteName, base: base) {
+            logger.warning("Failed to persist reported fixed-top-level state")
+        }
+    }
+
     // MARK: - Newly listed folders (Spotlight)
 
     /// Records a folder the system just listed for the first time, for the

@@ -15,6 +15,7 @@ struct FileTable: View {
     let onOpen: (FileItem) -> Void
     let onContextAction: (FileItem, FileAction) -> Void
     let onQuickLook: ([FileItem]) -> Void
+    var allowsModifying = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,7 +35,8 @@ struct FileTable: View {
             sortAscending: $sortAscending,
             onOpen: onOpen,
             onContextAction: onContextAction,
-            onQuickLook: onQuickLook
+            onQuickLook: onQuickLook,
+            allowsModifying: allowsModifying
         )
     }
 }

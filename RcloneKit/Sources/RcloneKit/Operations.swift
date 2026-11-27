@@ -75,6 +75,9 @@ extension RcloneClient {
     public static let folderPlaceholder = ".keep"
     /// Backend types with rclone's `directory_markers` option.
     static let directoryMarkerBackends: Set<String> = ["s3", "google cloud storage", "azureblob"]
+    /// Backend types whose top-level entries are fixed by config (`combine`'s
+    /// top-level folders are its upstreams: purging one purges that upstream).
+    private static let fixedTopLevelBackends: Set<String> = ["combine"]
 
     /// Whether `remote` is there. `operations/stat` answers a missing path
     /// with `{"item": null}`, not an error.
@@ -106,6 +109,16 @@ extension RcloneClient {
     /// setting. Nil for a local path or an on-the-fly remote.
     func baseRemote(ofFs fs: String) async throws -> (name: String, type: String)? {
         try await dataLocation(ofFs: fs).map { ($0.name, $0.type) }
+    }
+
+    /// True when `fs` is the root of a backend whose top-level entries are
+    /// fixed (currently rclone's `combine` backend), directly or through
+    /// wrappers (alias, crypt) with no path. Top-level folders cannot be
+    /// created, renamed, moved, or deleted there; on `combine`, purging one
+    /// purges that whole upstream.
+    public func hasFixedTopLevel(fs: String) async throws -> Bool {
+        guard let location = try await dataLocation(ofFs: fs) else { return false }
+        return Self.fixedTopLevelBackends.contains(location.type) && location.atRoot
     }
 
     /// Where `fs`'s data lives: the remote that stores it, as `baseRemote`,

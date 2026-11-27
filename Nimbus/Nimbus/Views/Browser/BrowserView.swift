@@ -57,8 +57,10 @@ struct BrowserView: View {
                         EmptyState(
                             icon: "folder",
                             title: "Empty Folder",
-                            message: "Drop files here or use ⌘N to create a folder.",
-                            action: .init(label: "New Folder", perform: { viewModel.showNewFolderDialog = true })
+                            message: viewModel.protectsTopLevel ? nil : "Drop files here or use ⌘N to create a folder.",
+                            action: viewModel.protectsTopLevel
+                                ? nil
+                                : .init(label: "New Folder", perform: { viewModel.showNewFolderDialog = true })
                         )
                     } else {
                         switch viewModel.viewMode {
@@ -78,7 +80,8 @@ struct BrowserView: View {
                                 ),
                                 onOpen: { file in handleOpen(file, viewModel: viewModel) },
                                 onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) },
-                                onQuickLook: { items in previewFiles(items) }
+                                onQuickLook: { items in previewFiles(items) },
+                                allowsModifying: !viewModel.protectsTopLevel
                             )
                         case .grid:
                             FileGrid(
@@ -86,7 +89,8 @@ struct BrowserView: View {
                                 remote: remoteName,
                                 selection: viewModel.selection,
                                 onOpen: { file in handleOpen(file, viewModel: viewModel) },
-                                onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) }
+                                onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) },
+                                allowsModifying: !viewModel.protectsTopLevel
                             )
                         case .gallery:
                             FileGallery(
@@ -96,7 +100,8 @@ struct BrowserView: View {
                                 thumbnails: thumbnailLoader,
                                 onOpen: { file in handleOpen(file, viewModel: viewModel) },
                                 onContextAction: { file, action in handleAction(file, action, viewModel: viewModel) },
-                                onQuickLook: { items in previewFiles(items) }
+                                onQuickLook: { items in previewFiles(items) },
+                                allowsModifying: !viewModel.protectsTopLevel
                             )
                         }
                     }
@@ -134,9 +139,12 @@ struct BrowserView: View {
                     onBack: { Task { await viewModel.goBack() } },
                     onForward: { Task { await viewModel.goForward() } },
                     onNewFolder: { viewModel.showNewFolderDialog = true },
+                    canCreateFolder: !viewModel.protectsTopLevel,
                     onRefresh: { Task { await viewModel.loadFiles() } }
                 )))
                 .dropDestination(for: BrowserDrop.self) { drops, _ in
+                    // Nothing can be created at a fixed top level.
+                    if viewModel.protectsTopLevel { return false }
                     let (refs, urls) = BrowserDrop.split(drops)
                     // Files from Finder: ask where they go, with this folder filled in.
                     if let request = SendRequest(urls: urls) {
@@ -152,6 +160,7 @@ struct BrowserView: View {
                     goBack: { Task { await viewModel.goBack() } },
                     goForward: { Task { await viewModel.goForward() } },
                     newFolder: { viewModel.showNewFolderDialog = true },
+                    canCreateFolder: !viewModel.protectsTopLevel,
                     refresh: {
                         Task { await viewModel.loadFiles() }
                         // ⌘R refreshes this cloud in Finder too.
@@ -381,6 +390,7 @@ struct BrowserView: View {
     }
 
     private func handleAction(_ file: FileItem, _ action: FileAction, viewModel: BrowserViewModel) {
+        if viewModel.protectsTopLevel, action == .rename || action == .delete { return }
         switch action {
         case .open:
             handleOpen(file, viewModel: viewModel)

@@ -8,6 +8,7 @@ struct BrowserToolbar: ViewModifier {
     let onBack: () -> Void
     let onForward: () -> Void
     let onNewFolder: () -> Void
+    var canCreateFolder = true
     let onRefresh: () -> Void
 
     func body(content: Content) -> some View {
@@ -33,6 +34,7 @@ struct BrowserToolbar: ViewModifier {
                 Button(action: onNewFolder) {
                     Label("New Folder", systemImage: "folder.badge.plus")
                 }
+                .disabled(!canCreateFolder)
                 .help("New Folder")
 
                 Button(action: onRefresh) {

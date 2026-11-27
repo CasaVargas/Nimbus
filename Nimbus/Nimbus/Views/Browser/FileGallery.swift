@@ -22,6 +22,7 @@ struct FileGallery: View {
     let onOpen: (FileItem) -> Void
     let onContextAction: (FileItem, FileAction) -> Void
     let onQuickLook: ([FileItem]) -> Void
+    var allowsModifying = true
 
     @FocusState private var hasFocus: Bool
 
@@ -71,7 +72,7 @@ struct FileGallery: View {
                 .contentShape(Rectangle())
                 .gesture(TapGesture(count: 2).onEnded { onOpen(file) })
                 .contextMenu {
-                    FileContextMenu(file: file, onAction: { onContextAction(file, $0) })
+                    FileContextMenu(file: file, onAction: { onContextAction(file, $0) }, allowsModifying: allowsModifying)
                 }
                 .accessibilityLabel(file.name)
 
@@ -156,7 +157,7 @@ struct FileGallery: View {
             NimbusFileRef(remoteName: remote, path: file.path, size: file.size, isDir: file.isDir),
         ]))
         .contextMenu {
-            FileContextMenu(file: file, onAction: { onContextAction(file, $0) })
+            FileContextMenu(file: file, onAction: { onContextAction(file, $0) }, allowsModifying: allowsModifying)
         }
         .help(file.name)
         .accessibilityLabel(file.name)

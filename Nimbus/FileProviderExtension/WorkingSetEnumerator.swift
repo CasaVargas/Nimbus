@@ -113,12 +113,12 @@ final class WorkingSetEnumerator: NSObject, NSFileProviderEnumerator {
 
         if !changes.identifiers.isEmpty {
             let fetchItem = self.fetchItem
-            let rootItem = FileProviderItem.rootContainer(domain: domain)
+            let displayName = domain.displayName
             Task {
                 var updated: [NSFileProviderItem] = []
                 for raw in changes.identifiers {
                     if raw == NSFileProviderItemIdentifier.rootContainer.rawValue {
-                        updated.append(rootItem)
+                        updated.append(FileProviderItem.rootContainer(remoteName: remoteName, displayName: displayName))
                         continue
                     }
                     do {
@@ -141,6 +141,7 @@ final class WorkingSetEnumerator: NSObject, NSFileProviderEnumerator {
 
         let listFiles = self.listFiles
         let scope = Self.scope(remoteName: remoteName, now: Date())
+        let displayName = domain.displayName
         Task {
             let outcome: RemoteChangeScanner.Outcome
             switch scope {
@@ -162,14 +163,38 @@ final class WorkingSetEnumerator: NSObject, NSFileProviderEnumerator {
                     firstListed.append(FileProviderItem(record: record, parentIdentifier: container, remoteName: remoteName))
                 }
             }
+            // The system keeps the root item it fetched first and never asks
+            // again, so a fixed-top-level transition must re-report both the
+            // root and its cached top-level folders using the flag read here.
+            let hasFixedTopLevel = CloudCapabilities.shared?.hasFixedTopLevel(cloud: remoteName) ?? false
+            let lastReported = SyncSnapshotStore.reportedFixedTopLevel(remoteName: remoteName)
+            let rootChanged = FixedTopLevelPolicy.shouldReportRootChange(current: hasFixedTopLevel, lastReported: lastReported)
             var generation = SyncSnapshotStore.remoteGeneration(remoteName: remoteName)
-            if outcome.hasChanges || !firstListed.isEmpty {
+            if outcome.hasChanges || !firstListed.isEmpty || rootChanged {
                 generation = SyncSnapshotStore.bumpRemoteGeneration(remoteName: remoteName)
                 if !outcome.updated.isEmpty { box.observer.didUpdate(outcome.updated) }
                 if !firstListed.isEmpty { box.observer.didUpdate(firstListed) }
                 if !outcome.deleted.isEmpty { box.observer.didDeleteItems(withIdentifiers: outcome.deleted) }
+                if rootChanged {
+                    let rootItem = FileProviderItem.rootContainer(
+                        remoteName: remoteName, displayName: displayName, hasFixedTopLevel: hasFixedTopLevel
+                    )
+                    let topLevelFolders = (SyncSnapshotStore.records(remoteName: remoteName, containerIdentifier: .rootContainer) ?? [])
+                        .filter(\.isDir)
+                        .map {
+                            FileProviderItem(
+                                record: $0, parentIdentifier: .rootContainer,
+                                remoteName: remoteName, hasFixedTopLevel: hasFixedTopLevel
+                            )
+                        }
+                    logger.info("working set \(remoteName, privacy: .public): root is \(rootItem.fileSystemFlags.contains(.userWritable) ? "writable" : "read-only", privacy: .public) now")
+                    box.observer.didUpdate([rootItem] + topLevelFolders)
+                }
             }
-            logger.info("working set \(remoteName, privacy: .public): \(Self.describe(scope), privacy: .public) scan, \(outcome.listedContainers) folders,\(outcome.updated.count) updated, \(outcome.deleted.count) deleted, \(firstListed.count) from first listings")
+            logger.info("working set \(remoteName, privacy: .public): \(Self.describe(scope), privacy: .public) scan, \(outcome.listedContainers) folders, \(outcome.updated.count) updated, \(outcome.deleted.count) deleted, \(firstListed.count) from first listings")
+            if rootChanged {
+                SyncSnapshotStore.recordReportedFixedTopLevel(hasFixedTopLevel, remoteName: remoteName)
+            }
             box.observer.finishEnumeratingChanges(
                 upTo: Self.anchor(pins: changes.latest, generation: generation), moreComing: false
             )

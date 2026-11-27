@@ -34,8 +34,8 @@ final class CloudMonitor {
     @ObservationIgnored var skipsPeriodicRefresh: @MainActor () -> Bool = { false }
     private var observer: NSObjectProtocol?
     /// Runs after each successful list load, before probing. Production
-    /// uses it to record what each cloud supports (share links) for the
-    /// File Provider extension.
+    /// uses it to record what each cloud supports (share links, fixed top
+    /// level) for the File Provider extension.
     private let afterLoad: @MainActor ([Remote]) async -> Void
 
     init(loadRemotes: @escaping @MainActor () async -> [Remote]?,
@@ -75,8 +75,10 @@ final class CloudMonitor {
         guard let store = CloudCapabilities.shared else { return }
         var entries: [String: CloudCapabilities.Entry] = [:]
         for remote in remotes {
-            let features = try? await client.features(fs: "\(remote.name):")
-            entries[remote.name] = .init(shareLinks: features?.publicLink ?? false)
+            let fs = "\(remote.name):"
+            let features = try? await client.features(fs: fs)
+            let fixedTopLevel = (try? await client.hasFixedTopLevel(fs: fs)) ?? false
+            entries[remote.name] = .init(shareLinks: features?.publicLink ?? false, fixedTopLevel: fixedTopLevel)
         }
         try? store.replace(with: entries)
     }
@@ -126,6 +128,9 @@ final class CloudMonitor {
         status.clear(name)
         PinStore.shared?.removeAll(domain: name)
         UploadFailureStore.shared?.removeAll(domain: name)
+        if let base = AppGroup.containerURL {
+            FixedTopLevelPolicy.clearReportedState(remoteName: name, base: base)
+        }
         await refresh()
     }
 }

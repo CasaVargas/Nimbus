@@ -22,6 +22,7 @@ struct FileGrid: View {
     @Bindable var selection: Selection<String>
     let onOpen: (FileItem) -> Void
     let onContextAction: (FileItem, FileAction) -> Void
+    var allowsModifying = true
     private var sortedIDs: [String] { files.map(\.id) }
 
     private let columns = [Layout.column]
@@ -41,7 +42,7 @@ struct FileGrid: View {
                         .contextMenu {
                             FileContextMenu(file: file, onAction: { action in
                                 onContextAction(file, action)
-                            })
+                            }, allowsModifying: allowsModifying)
                         }
                 }
             }
