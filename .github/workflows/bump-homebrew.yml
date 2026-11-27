@@ -96,7 +96,7 @@ jobs:
 
       - name: Check out the tap
         if: steps.rel.outputs.skip == 'false'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: CasaVargas/homebrew-tap
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
