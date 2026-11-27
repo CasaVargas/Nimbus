@@ -10,6 +10,7 @@ struct CompanionActions {
     var showTransfers: (String?) -> Void = { _ in }
     var addCloud: () -> Void = {}
     var showBackups: () -> Void = {}
+    var openSettings: () -> Void = {}
     var openNimbus: () -> Void = {}
     var restartEngine: () -> Void = {}
     var quit: () -> Void = {}
@@ -264,7 +265,7 @@ struct CompanionContent: View {
             }
             Menu {
                 Button("Backups…", action: actions.showBackups)
-                SettingsLink { Text("Settings…") }
+                Button("Settings…", action: actions.openSettings)
                 Toggle("Open at Login", isOn: $openAtLogin)
                 Divider()
                 Button("Quit Nimbus", action: actions.quit)

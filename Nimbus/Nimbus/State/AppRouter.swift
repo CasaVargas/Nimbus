@@ -58,5 +58,26 @@ final class AppRouter {
         NSApp.activate()
     }
 
+    /// Shows Settings in front. A bare `SettingsLink` in the menu bar panel
+    /// opens the window without activating the app, so a menu-bar-only Nimbus
+    /// put it behind whatever app was frontmost.
+    /// Activating once, before the window exists, isn't enough: the panel's
+    /// menu is still closing and the activation is lost, so it activates
+    /// again on the next turn of the run loop and orders the window front.
+    func openSettings(_ openSettings: OpenSettingsAction) {
+        DockPolicy.applyForWindow()
+        NSApp.activate()
+        openSettings()
+        Task { @MainActor in
+            NSApp.activate()
+            NSApp.windows.first(where: Self.isSettingsWindow)?.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    /// SwiftUI's Settings scene window, found by the identifier SwiftUI gives it.
+    static func isSettingsWindow(_ window: NSWindow) -> Bool {
+        window.identifier?.rawValue.contains("Settings") == true
+    }
+
     static let mainWindowID = "main"
 }

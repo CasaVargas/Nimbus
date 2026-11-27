@@ -16,6 +16,7 @@ struct CompanionView: View {
     @Environment(BackupRunner.self) private var backupRunner
     @Environment(BackupScheduler.self) private var backupScheduler
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         CompanionContent(
@@ -46,6 +47,7 @@ struct CompanionView: View {
                 },
                 addCloud: { router.open(.addCloud, openWindow: openWindow) },
                 showBackups: { router.open(.backups(nil), openWindow: openWindow) },
+                openSettings: { router.openSettings(openSettings) },
                 openNimbus: { router.open(nil, openWindow: openWindow) },
                 restartEngine: {
                     Task {
